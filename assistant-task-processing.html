@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>执行工作台 - 戴维斯设计需求管理中心</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
+        body { background-color: #09090b; color: #e4e4e7; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        ::-webkit-scrollbar { width: 0px; } 
+        .custom-scrollbar { overflow-y: auto; padding-right: 8px; scroll-behavior: smooth; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 10px; }
+        .btn-press { transition: all 0.15s ease; cursor: pointer; }
+        .btn-press:active { transform: scale(0.95); }
+        .toast-slide-in { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        
+        /* 拖拽上传区高亮 */
+        .drag-active { border-color: #f97316 !important; background-color: rgba(249, 115, 22, 0.05) !important; }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden relative selection:bg-orange-500/30 text-zinc-300">
+
+    <div class="absolute inset-0 bg-[#09090b] z-0 pointer-events-none"></div>
+    <div class="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-orange-900/10 rounded-full blur-[150px] pointer-events-none z-0"></div>
+
+    <aside class="w-[240px] border-r border-white/5 flex flex-col z-10 bg-[#09090b] shrink-0 h-full">
+        <div class="p-7 border-b border-white/5 shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-orange-600 flex items-center justify-center shadow-[0_0_15px_rgba(249,115,22,0.3)] shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+                </div>
+                <h1 class="text-[15px] font-bold text-white tracking-wide">戴维斯需求大厅</h1>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-5 space-y-2">
+            <button onclick="window.location.href='assistant-workspace.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl bg-orange-500/10 text-orange-400 border border-orange-500/20 transition-all btn-press">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+                <span class="font-bold text-[14px]">执行看板 (Kanban)</span>
+            </button>
+            <button onclick="window.location.href='assistant-assets.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                <span class="font-medium text-[14px]">我的过稿资产库</span>
+            </button>
+            <button onclick="window.location.href='assistant-calendar.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                <span class="font-medium text-[14px]">工时与 AI 绩效</span>
+            </button>
+        </div>
+
+        <div class="px-7 py-7 mt-auto border-t border-white/5 bg-[#09090b] shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-orange-900 border border-orange-700 flex items-center justify-center text-white font-bold text-sm shadow-[0_0_10px_rgba(249,115,22,0.4)]">SK</div>
+                <div><p class="text-xs font-bold text-white mb-0.5">Skyler</p><p class="text-[10px] text-orange-400">资深视觉设计</p></div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative z-10 bg-[#0c0c0e]">
+        <header class="px-10 py-6 border-b border-white/5 bg-[#09090b]/80 backdrop-blur-xl shrink-0 flex items-center justify-between">
+            <div>
+                <button onclick="window.location.href='assistant-workspace.html'" class="text-zinc-500 hover:text-white text-[12px] font-bold mb-3 flex items-center gap-1.5 transition-colors btn-press">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    返回执行看板
+                </button>
+                <div class="flex items-center gap-4">
+                    <div class="bg-orange-500/10 border border-orange-500/20 px-3 py-1.5 rounded-lg flex items-center gap-2">
+                        <span class="text-orange-500 font-mono text-sm font-bold" id="req-id">TK-0820</span>
+                    </div>
+                    <h2 class="text-[22px] font-bold text-white tracking-tight" id="req-title-display">新品发布会主KV视觉延展</h2>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto custom-scrollbar p-10 flex justify-center">
+            <div class="w-full max-w-[1400px] flex gap-10 items-start">
+                
+                <div class="flex-1 flex flex-col gap-8 min-w-0">
+                    
+                    <div class="bg-[#121217] border border-white/5 rounded-2xl p-6 relative overflow-hidden">
+                        <div class="absolute right-0 top-0 bg-white/5 text-zinc-500 text-[10px] font-bold px-3 py-1 rounded-bl-xl">甲方原始需求</div>
+                        <div class="flex gap-10 mb-4 pb-4 border-b border-white/5">
+                            <div>
+                                <p class="text-[11px] text-zinc-500 mb-1">归属项目</p>
+                                <p class="text-[13px] font-bold text-zinc-300" id="dt-project">日常行政支撑</p>
+                            </div>
+                            <div>
+                                <p class="text-[11px] text-zinc-500 mb-1">期望交付</p>
+                                <p class="text-[13px] font-bold text-emerald-400" id="dt-date">下周三 18:00</p>
+                            </div>
+                            <div>
+                                <p class="text-[11px] text-zinc-500 mb-1">分发渠道</p>
+                                <div class="flex gap-1.5">
+                                    <span class="text-[10px] bg-white/5 border border-white/10 px-2 py-0.5 rounded text-zinc-400">系统数据</span>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-[13px] text-zinc-400 leading-relaxed" id="req-desc-display">
+                            <span class="font-bold text-zinc-300">需求描述：</span><br>
+                            今年的发布会需要在主KV的基础上延展出线下签到处易拉宝和指引展架。请保持科技、未来的主基调。相关源文件参考已在附件中提供。
+                        </p>
+                        <div class="mt-4 flex gap-3">
+                            <button class="text-[11px] bg-[#1a1a24] text-indigo-400 px-3 py-1.5 rounded-lg border border-indigo-500/20 hover:bg-indigo-500/10 flex items-center gap-1.5 transition-colors">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg> 下载甲方源文件.zip (105MB)
+                            </button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="text-[14px] font-bold text-white mb-3 flex items-center gap-2">🖼️ V-0 阶段 (主管审批通过草图)</h3>
+                        <div class="w-full aspect-[21/9] bg-[#09090b] rounded-2xl border border-white/10 flex items-center justify-center overflow-hidden relative">
+                            <img src="https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2564&auto=format&fit=crop" class="w-full h-full object-cover opacity-60">
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="text-[15px] font-bold text-orange-400 mb-3 flex items-center gap-2">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                            上传当前阶段产出物 (V-1)
+                        </h3>
+                        <div class="bg-[#121217] border border-orange-500/20 p-6 rounded-2xl shadow-xl">
+                            
+                            <div id="dropzone" class="w-full h-48 border-2 border-dashed border-zinc-700 rounded-xl bg-[#09090b] flex flex-col items-center justify-center text-zinc-500 mb-6 transition-colors hover:border-orange-500/50 cursor-pointer relative overflow-hidden">
+                                <input type="file" id="design-upload" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handleDesignUpload(event)" multiple accept="image/*,.pdf,.psd,.ai,.zip">
+                                
+                                <div id="upload-placeholder" class="flex flex-col items-center pointer-events-none">
+                                    <div class="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center mb-3 text-zinc-400">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"></path></svg>
+                                    </div>
+                                    <p class="text-[13px] font-bold text-zinc-300 mb-1">点击或将设计稿拖拽至此</p>
+                                    <p class="text-[11px] text-zinc-600">支持 JPG, PNG, PDF 预览图，及 ZIP 源文件包</p>
+                                </div>
+
+                                <div id="upload-preview" class="hidden w-full h-full p-4 flex flex-col items-center justify-center bg-orange-500/5 border border-orange-500/20 pointer-events-none">
+                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" class="mb-2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                                    <p class="text-sm font-bold text-orange-400" id="filename-display">已选中文件</p>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-[12px] font-bold text-zinc-400 mb-2">致需求方的交付说明 / 浏览指引</label>
+                                <textarea class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3 text-[13px] text-white outline-none focus:border-orange-500 transition-colors h-20 resize-none custom-scrollbar" placeholder="例如：按照您的要求，重点突出了科技感，请查阅易拉宝的排版比例是否合适..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="w-[380px] shrink-0 flex flex-col gap-6">
+                    
+                    <div class="bg-gradient-to-b from-[#18181b] to-[#121217] border border-orange-500/30 rounded-3xl p-7 shadow-2xl relative overflow-hidden">
+                        <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-orange-500"></div>
+                        <h3 class="text-[15px] font-bold text-white mb-6 border-b border-white/5 pb-4">效能填报与交付</h3>
+                        
+                        <div class="space-y-6">
+                            <div>
+                                <label class="block text-[12px] font-bold text-zinc-300 mb-2 flex items-center justify-between">
+                                    <span>本节点实际消耗工时 (h) <span class="text-rose-500">*</span></span>
+                                    <span class="text-[10px] text-orange-400 font-normal">将计入本周负荷</span>
+                                </label>
+                                <input type="number" id="work-hours" step="0.5" placeholder="例: 4.5" class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3.5 text-[14px] text-white font-mono font-bold outline-none focus:border-orange-500 transition-colors">
+                            </div>
+
+                            <div>
+                                <label class="block text-[12px] font-bold text-zinc-300 mb-2 flex items-center justify-between">
+                                    <span>借助的 AI 工具 (多选)</span>
+                                    <span class="text-[10px] text-emerald-500 font-normal">计入提效指标</span>
+                                </label>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <label class="cursor-pointer">
+                                        <input type="checkbox" class="hidden peer">
+                                        <div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-3 py-2 rounded-lg transition-colors text-center peer-checked:bg-emerald-500/10 peer-checked:border-emerald-500/30 peer-checked:text-emerald-400 font-medium">Midjourney</div>
+                                    </label>
+                                    <label class="cursor-pointer">
+                                        <input type="checkbox" class="hidden peer">
+                                        <div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-3 py-2 rounded-lg transition-colors text-center peer-checked:bg-emerald-500/10 peer-checked:border-emerald-500/30 peer-checked:text-emerald-400 font-medium">Stable Diffusion</div>
+                                    </label>
+                                    <label class="cursor-pointer">
+                                        <input type="checkbox" class="hidden peer">
+                                        <div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-3 py-2 rounded-lg transition-colors text-center peer-checked:bg-emerald-500/10 peer-checked:border-emerald-500/30 peer-checked:text-emerald-400 font-medium">Coze / 本地大模型</div>
+                                    </label>
+                                    <label class="cursor-pointer">
+                                        <input type="checkbox" class="hidden peer" checked>
+                                        <div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-3 py-2 rounded-lg transition-colors text-center peer-checked:bg-emerald-500/10 peer-checked:border-emerald-500/30 peer-checked:text-emerald-400 font-medium">Ps 生成式填充</div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-8 pt-5 border-t border-white/5">
+                            <button onclick="submitDesign()" class="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-[14px] font-bold shadow-[0_10px_20px_-10px_rgba(249,115,22,0.6)] btn-press transition-all flex items-center justify-center gap-2">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                                提交给甲方验收
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-[#121217] border border-white/5 rounded-3xl p-6 shadow-lg">
+                        <h3 class="text-[13px] font-bold text-white mb-5 flex items-center gap-2 opacity-80">节点追踪</h3>
+                        <div class="relative space-y-6">
+                            <div class="absolute left-[11px] top-2 bottom-2 w-[2px] bg-white/5 z-0"></div>
+                            
+                            <div class="relative flex gap-4 z-10">
+                                <div class="w-6 h-6 rounded-full bg-[#121217] border-2 border-orange-500 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(249,115,22,0.3)]">
+                                    <div class="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse"></div>
+                                </div>
+                                <div class="pt-0.5 pb-1">
+                                    <p class="text-[12px] font-bold text-orange-400 mb-0.5">当前：正稿渲染制作</p>
+                                </div>
+                            </div>
+                            <div class="relative flex gap-4 z-10 opacity-50 grayscale">
+                                <div class="w-6 h-6 rounded-full bg-[#121217] border-2 border-emerald-500 flex items-center justify-center shrink-0">
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="text-emerald-500"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                </div>
+                                <div class="pt-0.5">
+                                    <p class="text-[12px] font-bold text-white mb-0.5">草图大方向过审</p>
+                                    <p class="text-[10px] text-zinc-500">今天 09:30 · 审批: 文哥</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <div id="action-toast" class="fixed top-8 right-8 z-[100000] hidden toast-slide-in">
+        <div class="bg-[#1a1a1f] border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-3 w-72">
+            <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0"></div>
+            <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-zinc-400 text-[11px] mt-0.5">操作已执行。</p></div>
+        </div>
+    </div>
+
+    <script>
+        // 💡 动态提取任务数据到左侧面板
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedData = localStorage.getItem('myNewTask');
+            if(savedData) {
+                const task = JSON.parse(savedData);
+                // 只有处于 processing 状态的任务才覆盖，否则使用默认的 TK-0820 展示
+                if(task.status === 'processing') {
+                    document.getElementById('req-id').innerText = task.id || 'TK-0825';
+                    document.getElementById('req-title-display').innerText = task.title || '无标题需求';
+                    
+                    if(task.project) document.getElementById('dt-project').innerText = task.project;
+                    if(task.date) document.getElementById('dt-date').innerText = task.date;
+                    
+                    const descEl = document.getElementById('req-desc-display');
+                    if(descEl && task.fullDesc) {
+                        descEl.innerHTML = `<span class="font-bold text-zinc-300">需求描述：</span><br>` + task.fullDesc.replace(/\n/g, '<br>');
+                    }
+                }
+            }
+        });
+
+        function showToast(title, desc, type = 'success') {
+            const toast = document.getElementById('action-toast');
+            document.getElementById('toast-title').innerText = title;
+            document.getElementById('toast-desc').innerText = desc;
+            const icon = document.getElementById('toast-icon');
+            
+            if(type === 'error') {
+                icon.className = "w-8 h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0";
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+            } else {
+                icon.className = "w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0";
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+            }
+            toast.classList.remove('hidden');
+            setTimeout(() => { toast.classList.add('hidden'); }, 3000);
+        }
+
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('design-upload');
+
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.classList.add('drag-active');
+        });
+
+        dropzone.addEventListener('dragleave', () => {
+            dropzone.classList.remove('drag-active');
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('drag-active');
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                handleDesignUpload({ target: fileInput });
+            }
+        });
+
+        function handleDesignUpload(event) {
+            const files = event.target.files;
+            if(files.length > 0) {
+                document.getElementById('upload-placeholder').classList.add('hidden');
+                const preview = document.getElementById('upload-preview');
+                preview.classList.remove('hidden');
+                
+                let name = files[0].name;
+                if(files.length > 1) name += ` (等 ${files.length} 个文件)`;
+                document.getElementById('filename-display').innerText = name;
+            }
+        }
+
+        // 💡 状态第 2 次跃迁：变为 reviewing（交付待验收）
+        function submitDesign() {
+            const fileEl = document.getElementById('design-upload');
+            if(fileEl.files.length === 0) {
+                return alert("【校验失败】\n交作业怎么能不传文件呢！请先上传您的设计稿或源文件包。");
+            }
+
+            const hours = document.getElementById('work-hours').value;
+            if(!hours || hours <= 0) {
+                return alert("【校验失败】\n请准确填报您在本节点消耗的工时（不支持 0），这将影响您的个人产能绩效！");
+            }
+
+            // 🌟 修改状态逻辑
+            const savedData = localStorage.getItem('myNewTask');
+            if(savedData) {
+                const task = JSON.parse(savedData);
+                if (task.status === 'processing') {
+                    task.status = 'reviewing'; // 再次发生状态跃迁！
+                    localStorage.setItem('myNewTask', JSON.stringify(task));
+                }
+            }
+
+            showToast('交付成功', '方案已推送给甲方 Debbie 验收，工时已录入大盘。', 'success');
+            
+            setTimeout(() => { window.location.href = 'assistant-workspace.html'; }, 2000);
+        }
+    </script>
+</body>
+</html>

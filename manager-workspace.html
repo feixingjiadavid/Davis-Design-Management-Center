@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>总监控制台 - 戴维斯设计需求管理中心</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
+        body { background-color: #09090b; color: #e4e4e7; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        ::-webkit-scrollbar { width: 0px; } 
+        .custom-scrollbar { overflow-y: auto; padding-right: 8px; scroll-behavior: smooth; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 10px; }
+        .btn-press { transition: all 0.15s ease; cursor: pointer; }
+        .btn-press:active { transform: scale(0.95); }
+        
+        .bg-glow-purple { position: absolute; top: -10%; left: 30%; width: 800px; height: 600px; background: radial-gradient(circle, rgba(168,85,247,0.08) 0%, transparent 70%); border-radius: 50%; filter: blur(120px); pointer-events: none; z-index: 0; }
+        
+        .manager-card { transition: all 0.2s ease; border: 1px solid rgba(255,255,255,0.05); background-color: #121217; }
+        .manager-card:hover { transform: translateY(-2px); border-color: rgba(168,85,247,0.3); box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5); }
+
+        .dropdown-enter { animation: dropIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; transform-origin: top right; }
+        @keyframes dropIn { 0% { opacity: 0; transform: scale(0.95) translateY(-10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
+        .toast-slide-in { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden relative selection:bg-purple-500/30 text-zinc-300">
+
+    <div class="absolute inset-0 bg-[#09090b] z-0 pointer-events-none"></div>
+    <div class="bg-glow-purple"></div>
+
+    <aside class="w-[240px] border-r border-white/5 flex flex-col z-10 bg-[#09090b] shrink-0 h-full">
+        <div class="p-7 border-b border-white/5 shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-fuchsia-600 flex items-center justify-center shadow-[0_0_15px_rgba(192,38,211,0.3)] shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+                </div>
+                <h1 class="text-[15px] font-bold text-white tracking-wide">戴维斯需求大厅</h1>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-5 space-y-2">
+            <button onclick="window.location.href='manager-workspace.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl bg-fuchsia-500/10 text-fuchsia-400 border border-fuchsia-500/20 transition-all btn-press cursor-default">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+                <span class="font-bold text-[14px]">总监控制台</span>
+            </button>
+            <button onclick="window.location.href='manager-dashboard.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                <span class="font-medium text-[14px]">团队效能大盘</span>
+            </button>
+            <button id="nav-members-btn" onclick="window.location.href='manager-members.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v2a4 4 0 0 1-4 4H5a4 4 0 0 1-4-4v-2"></path><polyline points="9 11 12 14 22 4"></polyline></svg>
+                <span class="font-medium text-[14px]">组织架构与账号</span>
+            </button>
+            <button onclick="window.location.href='message-center.html?role=admin'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                <span class="font-medium text-[14px]">全局消息中心</span>
+            </button>
+        </div>
+
+        <div class="px-5 py-5 mt-auto border-t border-white/5 bg-[#09090b] shrink-0 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div id="sidebar-avatar" class="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg">?</div>
+                <div><p id="sidebar-name" class="text-xs font-bold text-white mb-0.5">加载中...</p><p id="sidebar-role" class="text-[10px] text-zinc-500">读取中</p></div>
+            </div>
+            <div class="flex items-center gap-1">
+                <button onclick="openPwdModal()" class="p-2 text-zinc-500 hover:text-fuchsia-400 hover:bg-fuchsia-500/10 rounded-lg transition-colors btn-press" title="修改登录密码">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+                </button>
+                <button onclick="logout(event)" class="p-2 text-zinc-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors btn-press" title="退出登录">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative z-10 bg-[#0c0c0e]" id="main-content-area">
+        <header class="px-10 py-6 border-b border-white/5 bg-[#09090b]/80 backdrop-blur-xl shrink-0 relative z-[999]">
+            <div class="flex justify-between items-start w-full">
+                <div>
+                    <h2 class="text-[24px] font-bold text-white tracking-tight mb-1.5 flex items-center gap-3">
+                        全局统筹中心 
+                        <span class="bg-fuchsia-500/20 text-fuchsia-400 text-[11px] px-2.5 py-0.5 rounded-lg border border-fuchsia-500/30">管理视角</span>
+                    </h2>
+                    <p class="text-[13px] text-zinc-500 mb-4">掌握全盘进度，合理调配全职设计与行政组的效能。</p>
+                    
+                    <div class="flex items-center gap-5 mt-2">
+                        <div class="bg-[#16161d] border border-white/5 rounded-2xl p-4 flex items-center gap-4 shadow-lg min-w-[220px]">
+                            <div class="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                            </div>
+                            <div>
+                                <p class="text-[11px] text-zinc-500 font-bold mb-1 uppercase tracking-wider">团队运转状态</p>
+                                <p class="text-[22px] font-black text-emerald-400 font-mono leading-none">健康 <span class="text-xs text-zinc-500 font-normal ml-1 font-sans">78% 负载率</span></p>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-[#16161d] border border-white/5 rounded-2xl p-4 flex items-center gap-4 shadow-lg min-w-[220px]">
+                            <div class="w-12 h-12 rounded-full bg-fuchsia-500/10 flex items-center justify-center text-fuchsia-400 border border-fuchsia-500/20">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                            </div>
+                            <div>
+                                <p class="text-[11px] text-zinc-500 font-bold mb-1 uppercase tracking-wider">整体 AI 提效</p>
+                                <div class="flex items-baseline gap-2">
+                                    <p class="text-[22px] font-black text-white font-mono leading-none">62%</p>
+                                    <span class="text-[10px] bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 px-1.5 py-0.5 rounded font-bold">↑ 提升</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-4 relative pt-1 z-[110]">
+                    <div class="relative" id="notif-wrapper">
+                        <button id="notifBtn" class="w-10 h-10 rounded-xl bg-[#141417] border border-white/5 flex items-center justify-center text-zinc-400 hover:text-white transition-colors btn-press relative">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                            <span id="bell-dot" class="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-[#141417] animate-pulse"></span>
+                        </button>
+                        <div id="notifMenu" class="hidden absolute right-0 top-[120%] w-[340px] bg-[#121217] border border-white/10 rounded-2xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.8)] py-3 dropdown-enter z-[9999]">
+                            <div class="px-5 pb-3 border-b border-white/5 flex justify-between items-center">
+                                <h3 class="text-[14px] font-bold text-white">全局报警</h3>
+                                <button onclick="document.getElementById('notifMenu').classList.add('hidden'); document.getElementById('bell-dot').classList.add('hidden');" class="text-[11px] text-indigo-400 hover:text-indigo-300 btn-press transition-colors">全部已读</button>
+                            </div>
+                            <div class="max-h-[300px] overflow-y-auto custom-scrollbar">
+                                <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors relative btn-press" onclick="document.getElementById('notifMenu').classList.add('hidden'); document.getElementById('section-approval').scrollIntoView({behavior: 'smooth', block: 'center'});">
+                                    <div class="absolute left-2 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-rose-500 rounded-full"></div>
+                                    <p class="text-[12px] font-bold text-white mb-1 leading-tight"><span class="text-amber-500 mr-1">[待您审批]</span>TK-0817 框架草图已提交</p>
+                                    <p class="text-[11px] text-zinc-400 leading-relaxed mb-1.5">Skyler 提交了草图，等待总监大方向过审。</p>
+                                    <p class="text-[10px] text-zinc-500">10 分钟前</p>
+                                </div>
+                            </div>
+                            <div class="pt-3 px-5 border-t border-white/5 text-center">
+                                <button onclick="window.location.href='message-center.html?role=admin'" class="text-[11px] text-zinc-500 hover:text-white transition-colors btn-press">查看全部历史消息 ↗</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="relative" id="identity-wrapper">
+                        <button id="identityBtn" class="bg-[#141417] border border-white/10 text-zinc-300 px-4 py-2.5 rounded-xl flex items-center gap-2.5 text-[12px] font-medium hover:bg-white/5 transition-colors btn-press">加载中...</button>
+                        <div id="identityMenu" class="hidden absolute right-0 top-[120%] w-[240px] bg-[#1a1a1f] border border-white/10 rounded-2xl shadow-2xl py-2 dropdown-enter z-[9999]">
+                            <div class="px-2 space-y-1" id="dynamic-identity-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto custom-scrollbar p-10 flex gap-8">
+            
+            <div class="flex-1 max-w-[800px] flex flex-col gap-8" id="manager-panels-container">
+                
+                <section id="section-pending" class="hidden">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-[15px] font-bold text-white flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-sky-400 animate-pulse shadow-[0_0_8px_rgba(56,189,248,0.6)]"></span> 
+                            待分派需求池
+                        </h3>
+                        <button class="text-[12px] text-fuchsia-400 hover:text-fuchsia-300 btn-press">自动统筹分配</button>
+                    </div>
+                    <div id="pending-cards-container" class="space-y-4"></div>
+                </section>
+
+                <section id="section-assigned" class="hidden">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-[15px] font-bold text-zinc-400 flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span> 
+                            已分派流转中工单
+                        </h3>
+                    </div>
+                    <div id="assigned-cards-container" class="space-y-4"></div>
+                </section>
+                
+                <section id="section-approval">
+                    <div class="flex items-center justify-between mb-4 mt-4">
+                        <h3 class="text-[15px] font-bold text-white flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]"></span> 
+                            框架方向待审批
+                        </h3>
+                    </div>
+                    <div id="approval-cards-container" class="space-y-4">
+                        <div class="manager-card rounded-2xl p-5 flex flex-col relative overflow-hidden border border-amber-500/20">
+                            <div class="absolute left-0 top-0 bottom-0 w-[4px] bg-amber-500"></div>
+                            <div class="flex items-start justify-between mb-3 pl-1">
+                                <div><span class="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 mr-2">TK-0817</span><span class="text-[14px] font-bold text-zinc-100">端午节礼盒插图设计</span></div>
+                                <span class="text-[11px] text-zinc-500">提交人: Skyler</span>
+                            </div>
+                            <div class="flex gap-4 mt-2 pl-1">
+                                <div class="w-32 h-20 bg-[#09090b] rounded-lg border border-white/10 overflow-hidden shrink-0 cursor-zoom-in">
+                                    <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop" class="w-full h-full object-cover opacity-80">
+                                </div>
+                                <div class="flex-1 flex flex-col justify-between">
+                                    <p class="text-[11px] text-zinc-400 leading-relaxed line-clamp-2">已完成草稿构图，采用国潮插画风格，请总监确认大方向是否偏题。</p>
+                                    <div class="flex gap-2 mt-2">
+                                        <button onclick="approveFramework()" class="bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 px-4 py-1.5 rounded-lg text-[11px] font-bold transition-all btn-press border border-emerald-500/30">同意推进正稿</button>
+                                        <button onclick="rejectFramework()" class="bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 px-4 py-1.5 rounded-lg text-[11px] font-bold transition-all btn-press border border-rose-500/20">大方向错，驳回</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+
+            <div class="w-[360px] shrink-0 flex flex-col gap-6">
+                <div class="bg-gradient-to-b from-[#18181b] to-[#121217] border border-white/5 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
+                    <h3 class="text-[14px] font-bold text-white mb-5 border-b border-white/5 pb-4">实时资源池监控</h3>
+                    <div class="space-y-6">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-2"><div class="w-6 h-6 rounded-full bg-fuchsia-900 text-fuchsia-200 text-[9px] font-bold flex items-center justify-center">DX</div><span class="text-[12px] font-bold text-zinc-200">Davidxxu</span></div>
+                                <span class="text-[11px] text-emerald-400 font-mono">空闲 (15h/周)</span>
+                            </div>
+                            <div class="w-full h-1.5 bg-zinc-900 rounded-full overflow-hidden"><div class="h-full bg-emerald-500 w-[35%] rounded-full"></div></div>
+                        </div>
+                        <div class="p-3 bg-indigo-500/5 border border-indigo-500/20 rounded-xl relative overflow-hidden">
+                            <div class="absolute right-0 top-0 text-[80px] opacity-5 leading-none">💪</div>
+                            <p class="text-[10px] text-indigo-400 font-bold mb-3">行政支持组 (重点提效表扬对象)</p>
+                            <div class="space-y-4 relative z-10">
+                                <div><div class="flex items-center justify-between mb-1.5"><span class="text-[12px] font-medium text-zinc-300">王助理</span><span class="text-[11px] text-orange-400 font-mono">饱和 (38h/周)</span></div><div class="w-full h-1 bg-zinc-900 rounded-full overflow-hidden"><div class="h-full bg-orange-500 w-[95%] rounded-full"></div></div></div>
+                                <div><div class="flex items-center justify-between mb-1.5"><span class="text-[12px] font-medium text-zinc-300">Skyler</span><span class="text-[11px] text-orange-400 font-mono">饱满 (32h/周)</span></div><div class="w-full h-1 bg-zinc-900 rounded-full overflow-hidden"><div class="h-full bg-orange-500 w-[80%] rounded-full"></div></div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="pwd-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closePwdModal()">
+        <div id="pwd-modal" class="hidden w-full max-w-sm bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 p-6 relative">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-fuchsia-500 to-purple-500 rounded-t-3xl"></div>
+            <div class="flex justify-between items-center mb-6 mt-2">
+                <h2 class="text-[16px] font-bold text-white flex items-center gap-2"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-fuchsia-400"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg> 修改登录密码</h2>
+                <button onclick="closePwdModal()" class="text-zinc-500 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-full p-1 transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-[12px] font-bold text-zinc-400 mb-1.5">当前密码</label>
+                    <input type="password" id="old-pwd" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-fuchsia-500 transition-colors" placeholder="输入原密码">
+                </div>
+                <div>
+                    <label class="block text-[12px] font-bold text-zinc-400 mb-1.5">新密码</label>
+                    <input type="password" id="new-pwd" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-fuchsia-500 transition-colors" placeholder="输入新密码">
+                </div>
+                <div>
+                    <label class="block text-[12px] font-bold text-zinc-400 mb-1.5">确认新密码</label>
+                    <input type="password" id="new-pwd-confirm" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-fuchsia-500 transition-colors" placeholder="再次输入新密码">
+                </div>
+            </div>
+            <button onclick="submitPwdChange()" class="w-full mt-6 py-3.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded-xl text-sm font-bold shadow-[0_5px_15px_rgba(192,38,211,0.3)] transition-all btn-press">确认修改并重新登录</button>
+        </div>
+    </div>
+
+    <div id="custom-dialog-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[999999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this && !dialogIsForce) hideDialog()">
+        <div id="custom-dialog-box" class="bg-[#121217] border border-white/10 rounded-3xl p-8 max-w-sm w-full shadow-2xl transform scale-95 transition-transform duration-300 text-center relative overflow-hidden">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-fuchsia-500 to-purple-600"></div>
+            <div id="dialog-icon-container" class="w-16 h-16 rounded-full bg-fuchsia-500/10 border border-fuchsia-500/20 flex items-center justify-center mx-auto mb-5 text-fuchsia-400 shadow-[0_0_20px_rgba(192,38,211,0.2)]">
+                </div>
+            <h3 id="dialog-title" class="text-[18px] font-bold text-white mb-2">提示</h3>
+            <p id="dialog-desc" class="text-[13px] text-zinc-400 leading-relaxed mb-8">内容</p>
+            <div class="flex gap-3 justify-center">
+                <button id="dialog-cancel-btn" onclick="hideDialog()" class="flex-1 py-3 bg-transparent border border-zinc-700 hover:border-zinc-500 text-zinc-400 hover:text-white rounded-xl text-sm font-bold transition-colors btn-press hidden">取消</button>
+                <button id="dialog-confirm-btn" onclick="handleDialogConfirm()" class="flex-1 py-3 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded-xl text-sm font-bold shadow-[0_5px_15px_rgba(192,38,211,0.3)] transition-all btn-press">我知道了</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="action-toast" class="fixed top-8 right-8 z-[100000] hidden toast-slide-in">
+        <div class="bg-[#1a1a1f] border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-3 w-72">
+            <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0"></div>
+            <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-zinc-400 text-[11px] mt-0.5">操作已执行。</p></div>
+        </div>
+    </div>
+
+    <script>
+        const PAGE_TYPE = 'admin'; 
+
+        // 💡 弹窗引擎逻辑
+        let confirmCallback = null;
+        let dialogIsForce = false;
+
+        function customAlert(title, desc, callback = null, isForce = false, type = 'info') {
+            document.getElementById('dialog-title').innerText = title;
+            document.getElementById('dialog-desc').innerHTML = desc;
+            document.getElementById('dialog-cancel-btn').style.display = 'none';
+            document.getElementById('dialog-confirm-btn').innerText = '我知道了';
+            
+            const iconContainer = document.getElementById('dialog-icon-container');
+            if (type === 'error' || type === 'warning') {
+                iconContainer.className = "w-16 h-16 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mx-auto mb-5 text-rose-400 shadow-[0_0_20px_rgba(244,63,94,0.2)]";
+                iconContainer.innerHTML = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>`;
+            } else if (type === 'success') {
+                iconContainer.className = "w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-5 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.2)]";
+                iconContainer.innerHTML = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`;
+            } else {
+                iconContainer.className = "w-16 h-16 rounded-full bg-fuchsia-500/10 border border-fuchsia-500/20 flex items-center justify-center mx-auto mb-5 text-fuchsia-400 shadow-[0_0_20px_rgba(192,38,211,0.2)]";
+                iconContainer.innerHTML = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>`;
+            }
+
+            confirmCallback = callback;
+            dialogIsForce = isForce;
+            showDialog();
+        }
+
+        function showDialog() {
+            const overlay = document.getElementById('custom-dialog-overlay');
+            const box = document.getElementById('custom-dialog-box');
+            overlay.classList.remove('hidden');
+            setTimeout(() => { overlay.classList.remove('opacity-0'); box.classList.remove('scale-95'); }, 10);
+        }
+
+        function hideDialog() {
+            const overlay = document.getElementById('custom-dialog-overlay');
+            const box = document.getElementById('custom-dialog-box');
+            overlay.classList.add('opacity-0'); box.classList.add('scale-95');
+            setTimeout(() => { overlay.classList.add('hidden'); }, 300);
+        }
+
+        function handleDialogConfirm() {
+            hideDialog();
+            if (confirmCallback) confirmCallback();
+        }
+
+        function logout(e) {
+            if(e) e.stopPropagation();
+            localStorage.removeItem('activeUserObj'); 
+            window.location.href = 'login.html'; 
+        }
+
+        function initRBAC() {
+            const userStr = localStorage.getItem('activeUserObj');
+            if (!userStr) { window.location.href = 'login.html'; return false; }
+            const user = JSON.parse(userStr);
+
+            if (!user.perms.includes(PAGE_TYPE)) {
+                // 💡 修复：使用高级自定义弹窗拦截越权
+                const mainContent = document.getElementById('main-content-area');
+                if (mainContent) mainContent.style.filter = 'blur(10px)';
+                customAlert('权限拦截', `很抱歉，<span class="text-rose-400 font-bold">${user.displayName}</span> 账号没有进入管理大盘的权限。<br>即将为您退回安全页面。`, () => {
+                    window.location.href = 'index.html';
+                }, true, 'error');
+                return false;
+            }
+
+            if (user.enName !== 'davidxxu') {
+                const membersBtn = document.getElementById('nav-members-btn');
+                if (membersBtn) membersBtn.style.display = 'none';
+            }
+
+            const avatarEl = document.getElementById('sidebar-avatar');
+            if(avatarEl) { avatarEl.innerText = user.avatar; avatarEl.className = `w-9 h-9 rounded-full ${user.color} border border-white/20 flex items-center justify-center text-white font-bold text-sm shadow-lg`; }
+            if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName;
+            if(document.getElementById('sidebar-role')) document.getElementById('sidebar-role').innerHTML = `<span class="text-fuchsia-400 font-bold">当前视角: 管理方</span>`;
+
+            const menuContainer = document.getElementById('dynamic-identity-list');
+            if (menuContainer) {
+                let html = '';
+                if (user.perms.includes('req')) { html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='index.html'"><div class="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div><span class="text-[13px] font-medium">需求方 (发单/验收)</span></div>`; }
+                if (user.perms.includes('design')) { html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='assistant-workspace.html'"><div class="w-7 h-7 rounded-lg bg-orange-500/10 text-orange-500 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div><span class="text-[13px] font-medium">设计方 (执行/接单)</span></div>`; }
+                if (user.perms.includes('admin')) { html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#2a1329] text-fuchsia-400 cursor-default border border-fuchsia-900/50"><div class="w-7 h-7 rounded-lg bg-fuchsia-500/20 text-fuchsia-500 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg></div><span class="text-[13px] font-bold">管理方 (统筹/大盘) (当前)</span></div>`; }
+                menuContainer.innerHTML = html;
+            }
+
+            const triggerBtn = document.getElementById('identityBtn');
+            if (triggerBtn) { triggerBtn.innerHTML = `<span class="text-fuchsia-500 font-black flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500 animate-pulse shadow-[0_0_8px_#d946ef]"></span></span> 身份: 管理方 (当前) <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 ml-1"><polyline points="6 9 12 15 18 9"></polyline></svg>`; }
+            return true;
+        }
+
+        // 修改密码逻辑
+        const pwdOverlay = document.getElementById('pwd-modal-overlay');
+        const pwdModal = document.getElementById('pwd-modal');
+        function openPwdModal() { 
+            pwdOverlay.classList.remove('hidden'); setTimeout(() => { pwdOverlay.classList.remove('opacity-0'); pwdModal.classList.remove('hidden'); pwdModal.classList.remove('scale-95'); }, 10); 
+            document.getElementById('old-pwd').value = ''; document.getElementById('new-pwd').value = ''; document.getElementById('new-pwd-confirm').value = '';
+        }
+        function closePwdModal() { 
+            pwdOverlay.classList.add('opacity-0'); pwdModal.classList.add('scale-95'); setTimeout(() => { pwdOverlay.classList.add('hidden'); pwdModal.classList.add('hidden'); }, 300); 
+        }
+        function submitPwdChange() {
+            const oldP = document.getElementById('old-pwd').value;
+            const newP = document.getElementById('new-pwd').value;
+            const confirmP = document.getElementById('new-pwd-confirm').value;
+
+            if(!oldP || !newP || !confirmP) return customAlert('提示', '请完整填写所有密码字段！', null, false, 'warning');
+            if(newP !== confirmP) return customAlert('提示', '两次输入的新密码不一致！', null, false, 'error');
+
+            const userStr = localStorage.getItem('activeUserObj');
+            if(!userStr) return;
+            let user = JSON.parse(userStr);
+
+            const usersDb = JSON.parse(localStorage.getItem('system_users_db')) || {};
+            const dbUser = usersDb[user.enName];
+
+            if(dbUser.password !== oldP) return customAlert('错误', '原密码错误！', null, false, 'error');
+
+            dbUser.password = newP;
+            localStorage.setItem('system_users_db', JSON.stringify(usersDb));
+            user.password = newP;
+            localStorage.setItem('activeUserObj', JSON.stringify(user));
+
+            customAlert('成功', '🎉 密码修改成功！为了安全起见，请使用新密码重新登录。', () => { logout(); }, true, 'success');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if(!initRBAC()) return;
+            
+            const idBtn = document.getElementById('identityBtn');
+            const idMenu = document.getElementById('identityMenu');
+            if(idBtn && idMenu) idBtn.addEventListener('click', (e) => { e.stopPropagation(); idMenu.classList.toggle('hidden'); });
+            
+            const notifBtn = document.getElementById('notifBtn');
+            const notifMenu = document.getElementById('notifMenu');
+            if(notifBtn && notifMenu) notifBtn.addEventListener('click', (e) => { e.stopPropagation(); notifMenu.classList.toggle('hidden'); });
+
+            document.addEventListener('click', (e) => { 
+                if(idMenu && !idMenu.contains(e.target)) idMenu.classList.add('hidden'); 
+                if(notifMenu && !notifMenu.contains(e.target)) notifMenu.classList.add('hidden'); 
+            });
+
+            renderManagerPools();
+        });
+
+        function renderManagerPools() {
+            const savedData = localStorage.getItem('myNewTask');
+            const pendingSec = document.getElementById('section-pending');
+            const pendingCon = document.getElementById('pending-cards-container');
+            const assignedSec = document.getElementById('section-assigned');
+            const assignedCon = document.getElementById('assigned-cards-container');
+            const approvalCon = document.getElementById('approval-cards-container');
+
+            pendingCon.innerHTML = '';
+            assignedCon.innerHTML = '';
+            pendingSec.classList.add('hidden');
+            assignedSec.classList.add('hidden');
+
+            if(savedData) {
+                const task = JSON.parse(savedData);
+                
+                if(task.status === 'completed' || task.status === 'archived') return;
+
+                if (task.status === 'pending') {
+                    pendingSec.classList.remove('hidden');
+                    pendingCon.innerHTML = `
+                        <div class="manager-card rounded-2xl p-5 flex flex-col relative overflow-hidden border border-sky-500/30 bg-[#16161d]">
+                            <div class="absolute left-0 top-0 bottom-0 w-[4px] bg-sky-500"></div>
+                            <div class="flex items-start justify-between mb-3 pl-1">
+                                <div><span class="text-[10px] font-bold text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20 mr-2">${task.id}</span><span class="text-[14px] font-bold text-zinc-100">${task.title}</span></div>
+                                <span class="text-[11px] text-zinc-500">期望交付: ${task.date || '待定'}</span>
+                            </div>
+                            <p class="text-[12px] text-zinc-400 mb-4 line-clamp-1 pl-1">${task.desc}</p>
+                            
+                            <div class="bg-[#09090b] rounded-xl p-3 flex items-center justify-between border border-white/5 ml-1">
+                                <span class="text-[12px] font-medium text-zinc-300 flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span> 指定执行人：</span>
+                                <div class="flex gap-2">
+                                    <select id="manager-assignee-select" class="bg-[#1a1a24] border border-white/10 rounded-lg px-3 py-1.5 text-[12px] text-white outline-none focus:border-sky-500 w-48 transition-colors">
+                                        <optgroup label="全职设计师"><option value="davidxxu">Davidxxu (空闲)</option></optgroup>
+                                        <optgroup label="行政支持组 (19人)"><option value="wang">王助理 (擅长排版)</option><option value="skyler">Skyler</option><option value="liuruoyu">刘若愚</option></optgroup>
+                                    </select>
+                                    <button onclick="dispatchTask(this)" class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-1.5 rounded-lg text-[12px] font-bold transition-all btn-press shadow-md">确认下发</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } 
+                else if (task.status === 'pending_approval') {
+                    approvalCon.insertAdjacentHTML('afterbegin', `
+                        <div class="manager-card rounded-2xl p-5 flex flex-col relative overflow-hidden border border-amber-500/40 bg-[#16161d]">
+                            <div class="absolute left-0 top-0 bottom-0 w-[4px] bg-amber-500"></div>
+                            <div class="flex items-start justify-between mb-3 pl-1">
+                                <div><span class="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 mr-2">${task.id}</span><span class="text-[14px] font-bold text-white">${task.title}</span></div>
+                                <span class="text-[11px] text-zinc-400">刚刚提交</span>
+                            </div>
+                            <div class="flex gap-4 mt-2 pl-1">
+                                <div class="w-32 h-20 bg-[#09090b] rounded-lg border border-white/10 flex items-center justify-center text-zinc-500 text-xs overflow-hidden shrink-0">
+                                    【草图预览】
+                                </div>
+                                <div class="flex-1 flex flex-col justify-between">
+                                    <p class="text-[11px] text-amber-400 leading-relaxed line-clamp-2 font-medium">设计师提交了初期框架方向，任务已挂起，请总监过目并决断是否允许推进正稿。</p>
+                                    <div class="flex gap-2 mt-2">
+                                        <button onclick="approveFramework()" class="bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 px-4 py-1.5 rounded-lg text-[11px] font-bold transition-all btn-press border border-emerald-500/30">审批通过 (推正稿)</button>
+                                        <button onclick="rejectFramework()" class="bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 px-4 py-1.5 rounded-lg text-[11px] font-bold transition-all btn-press border border-rose-500/20">大方向错，驳回</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `);
+                }
+                else {
+                    assignedSec.classList.remove('hidden');
+                    
+                    let statusLabel = '流转中'; let statusColor = 'text-amber-400'; let borderClass = 'border-amber-500';
+                    if (task.status === 'pending_accept') { statusLabel = '等待接单确认'; statusColor = 'text-sky-400'; borderClass = 'border-sky-500'; }
+                    else if (task.status === 'processing') { statusLabel = '设计师全力制作中'; statusColor = 'text-orange-400'; borderClass = 'border-orange-500'; }
+                    else if (task.status === 'reviewing') { statusLabel = '方案待甲方验收'; statusColor = 'text-emerald-400'; borderClass = 'border-emerald-500'; }
+
+                    const assigneeMap = {'davidxxu':'许博文', 'liuruoyu':'刘若愚', 'judyzzhang':'张丹楠', 'skyler':'Skyler'};
+                    const displayAssignee = assigneeMap[task.assignee] || task.assignee;
+
+                    assignedCon.innerHTML = `
+                        <div class="manager-card rounded-2xl p-5 flex flex-col relative overflow-hidden opacity-80 cursor-default border border-white/5">
+                            <div class="absolute left-0 top-0 bottom-0 w-[4px] bg-[#1a1a24] ${borderClass}"></div>
+                            <div class="flex items-start justify-between mb-3 pl-1">
+                                <div><span class="text-[10px] font-bold text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded border border-zinc-700 mr-2">${task.id}</span><span class="text-[14px] font-bold text-zinc-300">${task.title}</span></div>
+                                <span class="text-[11px] font-bold ${statusColor} bg-white/5 px-2 py-1 rounded border border-white/10">${statusLabel}</span>
+                            </div>
+                            <div class="flex items-center justify-between text-[11px] text-zinc-500 mt-2 pt-3 border-t border-white/5 pl-1">
+                                <span class="flex items-center gap-1.5"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> 当前责任人: <span class="text-zinc-300 font-bold">${displayAssignee}</span></span>
+                                <span>期望交付: ${task.date}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        function dispatchTask(btn) {
+            const selValue = document.getElementById('manager-assignee-select').value;
+            const task = JSON.parse(localStorage.getItem('myNewTask'));
+            const namesMap = {'davidxxu':'许博文', 'liuruoyu':'刘若愚', 'skyler':'Skyler', 'wang':'王助理'};
+            const actualName = namesMap[selValue] || selValue;
+
+            task.assignee = selValue;
+            task.status = 'pending_accept'; 
+            task.desc = `已由主管统筹分派给 ${actualName}，等待设计师确认接单。`;
+            localStorage.setItem('myNewTask', JSON.stringify(task));
+            
+            showToast('派发成功', `需求已锁定并指派给 ${actualName}，系统已通知对方。`, 'success');
+            setTimeout(() => { renderManagerPools(); }, 800);
+        }
+
+        // 💡 修复：使用美观弹窗替代 alert
+        function approveFramework() {
+            const task = JSON.parse(localStorage.getItem('myNewTask'));
+            task.status = 'processing';
+            task.desc = '主管已审批通过草图，解除挂起，设计师正在推进正稿。';
+            localStorage.setItem('myNewTask', JSON.stringify(task));
+            customAlert('审批通过', '已同意推进。<br>该任务已流转至设计师的【制作中】泳道。', () => { window.location.reload(); }, false, 'success');
+        }
+
+        // 💡 修复：使用美观弹窗替代 alert
+        function rejectFramework() {
+            const task = JSON.parse(localStorage.getItem('myNewTask'));
+            task.status = 'pending_accept'; 
+            task.desc = '主管驳回了框架方向，请重新评估并上传新的草图。';
+            localStorage.setItem('myNewTask', JSON.stringify(task));
+            customAlert('打回重做', '大方向已驳回。<br>任务已退回给设计师重新修改框架。', () => { window.location.reload(); }, false, 'warning');
+        }
+
+        function showToast(title, desc, type = 'success') {
+            const toast = document.getElementById('action-toast');
+            document.getElementById('toast-title').innerText = title;
+            document.getElementById('toast-desc').innerText = desc;
+            const icon = document.getElementById('toast-icon');
+            if(type === 'success') {
+                icon.className = "w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400";
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+            }
+            toast.classList.remove('hidden');
+            setTimeout(() => { toast.classList.add('hidden'); }, 3000);
+        }
+    </script>
+</body>
+</html>
