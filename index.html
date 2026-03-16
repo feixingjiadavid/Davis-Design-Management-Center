@@ -98,7 +98,7 @@
             
             <div class="flex items-center gap-5 relative">
                 
-                <button id="clear-db-btn" onclick="clearTestData()" class="hidden bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-500 px-4 py-3 rounded-[14px] text-[13px] font-bold transition-all btn-press items-center gap-1.5">
+                <button id="clear-db-btn" onclick="clearTestData()" class="hidden bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-500 px-4 py-3 rounded-[14px] text-[13px] font-bold transition-all btn-press items-center gap-1.5" title="仅清空提单数据，不影响账号密码配置">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                     清空测试数据
                 </button>
@@ -300,6 +300,18 @@
         </div>
     </div>
 
+    <div id="success-overlay" class="fixed inset-0 bg-[#09090b]/95 backdrop-blur-md z-[100000] hidden opacity-0 transition-opacity duration-300 flex flex-col items-center justify-center">
+        <div id="success-content" class="flex flex-col items-center transform scale-95 opacity-0 transition-all duration-500 delay-100">
+            <div class="w-20 h-20 rounded-full bg-indigo-500/20 border-2 border-indigo-500/50 flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(79,70,229,0.3)]">
+                <svg class="w-10 h-10 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                    <path class="success-check-path" stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" style="stroke-dasharray: 50; stroke-dashoffset: 50;"></path>
+                </svg>
+            </div>
+            <h2 class="text-2xl font-bold text-white mb-2 tracking-tight">需求提单成功</h2>
+            <p class="text-zinc-400 text-sm">系统正在为您生成专属排号，数据同步云端中...</p>
+        </div>
+    </div>
+
     <div id="action-toast" class="fixed top-8 right-8 z-[100000] hidden toast-slide-in">
         <div class="bg-[#1a1a1f] border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-3 w-72">
             <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0"></div>
@@ -487,11 +499,14 @@
             if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName;
             if(document.getElementById('header-greeting')) document.getElementById('header-greeting').innerText = `上午好，${user.displayName}。`;
 
-            // 💡 清空测试数据按钮仅 davidxxu 可见
-            if(enName === 'davidxxu') {
+            // 💡 清空测试数据按钮仅 ponyxu, davidxxu, yoshyliu 可见
+            const testUsers = ['ponyxu', 'davidxxu', 'yoshyliu'];
+            if(testUsers.includes(enName)) {
                 const clrBtn = document.getElementById('clear-db-btn');
-                if(clrBtn) clrBtn.classList.remove('hidden');
-                if(clrBtn) clrBtn.classList.add('flex');
+                if(clrBtn) {
+                    clrBtn.classList.remove('hidden');
+                    clrBtn.classList.add('flex');
+                }
             }
 
             const menuContainer = document.getElementById('dynamic-identity-list');
@@ -522,10 +537,10 @@
         // ================= 【新功能：清空测试数据】 =================
         window.clearTestData = async function() {
             if(!window.supabase) return;
-            if(!confirm("⚠️ 警告：这将直接清空云端 test_tasks 表中的所有数据！且不可恢复！\n确定要继续吗？")) return;
+            if(!confirm("⚠️ 警告：这将直接清空云端测试表中的所有需求数据！且不可恢复！\n确定要继续吗？")) return;
             
             try {
-                // 使用 neq('id', '0') 是个全量删除的技巧
+                // 使用 neq('id', '0') 删除所有工单数据，绝对不会影响账号数据
                 const { error } = await window.supabase.from(window.DB_TABLE).delete().neq('id', '0');
                 if (error) throw error;
                 showToast('已清空', '云端测试数据已全部清空！', 'success');
@@ -740,7 +755,7 @@
             }
         }
 
-        // ================= 核心二：状态UI工厂引擎 (同色系高级还原) =================
+        // ================= 核心二：状态UI工厂引擎 =================
         function createTaskHTML(task) {
             let sColor, sBorder, sBg, sText, targetUrl, alertBadge = '';
             let isCompleted = false;
@@ -825,8 +840,8 @@
             `;
 
             let strokeColor = sColor.split('-')[1] || 'sky';
-            if(strokeColor === 'zinc') strokeColor = 'gray'; 
-
+            if(strokeColor === 'zinc') strokeColor = 'gray'; // Tailwind fallback
+            
             const timelineHTML = `
                 <div id="timeline-${task.id}" class="relative z-10 hidden" data-col="${sColor}" data-title="${task.title}">
                     <div class="timeline-item relative flex gap-4 z-10 pb-6">
