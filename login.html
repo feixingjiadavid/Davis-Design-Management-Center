@@ -99,8 +99,8 @@
             const enName = document.getElementById('log-en').value.trim().toLowerCase();
             const pwd = document.getElementById('log-pwd').value;
 
-            // 还原注册时的虚拟邮箱
-            const fakeEmail = enName + '@davis.com';
+            // 关键修改点：还原注册时的真实企业邮箱后缀
+            const realEmail = enName + '@webank.com';
 
             const btn = document.getElementById('login-btn');
             const originalText = btn.innerText;
@@ -109,7 +109,7 @@
 
             // 【核心】请求云端验证账号密码
             const { data, error } = await window.supabase.auth.signInWithPassword({
-                email: fakeEmail,
+                email: realEmail,
                 password: pwd
             });
 
