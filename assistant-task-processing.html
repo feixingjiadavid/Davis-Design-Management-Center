@@ -187,10 +187,10 @@
                         </h3>
                         <div class="bg-[#121217] border border-orange-500/20 p-6 rounded-2xl shadow-xl">
                             
-                            <div id="dropzone" class="w-full h-48 border-2 border-dashed border-zinc-700 rounded-xl bg-[#09090b] flex flex-col items-center justify-center text-zinc-500 mb-6 transition-colors hover:border-orange-500/50 cursor-pointer relative overflow-hidden">
-                                <input type="file" id="design-upload" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handleDesignUpload(event)" accept="image/*,.pdf,.psd,.zip">
+                            <div id="dropzone" class="w-full h-48 border-2 border-dashed border-zinc-700 rounded-xl bg-[#09090b] flex flex-col items-center justify-center text-zinc-500 mb-6 transition-colors hover:border-orange-500/50 relative overflow-hidden">
+                                <input type="file" id="design-upload" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="handleDesignUpload(event)" accept="image/*,.pdf,.psd,.zip">
                                 
-                                <div id="upload-placeholder" class="flex flex-col items-center pointer-events-none">
+                                <div id="upload-placeholder" class="flex flex-col items-center pointer-events-none relative z-0">
                                     <div class="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center mb-3 text-zinc-400">
                                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                     </div>
@@ -198,10 +198,15 @@
                                     <p class="text-[11px] text-zinc-600">支持 JPG, PNG, PDF 预览图，及 ZIP 源文件包</p>
                                 </div>
 
-                                <div id="upload-preview" class="hidden w-full h-full p-4 flex flex-col items-center justify-center bg-orange-500/5 border border-orange-500/20 pointer-events-none">
-                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" class="mb-2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                                    <p class="text-sm font-bold text-orange-400" id="filename-display">已选中文件</p>
-                                    <p class="text-[10px] text-orange-500/60 mt-1">点击可全屏预览</p>
+                                <div id="upload-preview" class="hidden absolute inset-0 z-20 w-full h-full p-4 flex flex-col items-center justify-center bg-orange-500/5 border border-orange-500/20">
+                                    <div class="cursor-pointer flex flex-col items-center justify-center w-full h-full" onclick="openPreview()">
+                                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" class="mb-2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                                        <p class="text-sm font-bold text-orange-400" id="filename-display">已选中文件</p>
+                                        <p class="text-[10px] text-orange-500/60 mt-1">点击全屏预览</p>
+                                    </div>
+                                    <button onclick="resetUpload(event)" class="absolute top-3 right-3 p-2 bg-black/60 text-zinc-400 rounded-lg hover:bg-rose-500 hover:text-white transition-colors" title="重新选择文件">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                    </button>
                                 </div>
                             </div>
 
@@ -448,7 +453,7 @@
             e.preventDefault(); dropzone.classList.remove('drag-active');
             if (e.dataTransfer.files.length) {
                 fileInput.files = e.dataTransfer.files;
-                handleDesignUpload({ target: fileInput });
+                window.handleDesignUpload({ target: fileInput });
             }
         });
 
@@ -471,36 +476,40 @@
         }
 
         // 💡 触发全屏预览
-        function openPreview() {
+        window.openPreview = function() {
             if(!currentDesignFileData) return; // 没有文件则不触发
             
             document.getElementById('modal-image').src = currentDesignFileData;
             document.getElementById('modal-filename-label').innerText = document.getElementById('filename-display').innerText || '设计稿预览图';
             
             const modal = document.getElementById('image-preview-modal');
+            // 强制渲染帧
+            void modal.offsetWidth; 
             modal.style.display = 'flex';
             setTimeout(() => modal.classList.add('visible'), 10);
         }
 
-        function closePreview() {
+        window.closePreview = function() {
             const modal = document.getElementById('image-preview-modal');
             modal.classList.remove('visible');
-            setTimeout(() => modal.style.display = 'none', 300);
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 300);
         }
 
-        // 绑定点击事件到虚线框
-        document.getElementById('dropzone').addEventListener('click', function(e) {
-            // 如果占位符已经隐藏（说明有文件了），才拦截点击并预览
-            if(document.getElementById('upload-placeholder').classList.contains('hidden')) {
-                e.preventDefault(); 
-                openPreview();
-            }
-        });
+        // 💡 重新选择/清空上传
+        window.resetUpload = function(e) {
+            e.stopPropagation(); // 防止点击穿透触发全屏预览
+            document.getElementById('design-upload').value = '';
+            currentDesignFileData = null;
+            document.getElementById('upload-placeholder').classList.remove('hidden');
+            document.getElementById('upload-preview').classList.add('hidden');
+        }
 
         // ================= 💡 提交逻辑：状态推进到 pending_approval (让Judy审批) =================
         window.submitDesign = async function() {
             const fileEl = document.getElementById('design-upload');
-            if(fileEl.files.length === 0) {
+            if(fileEl.files.length === 0 && !currentDesignFileData) {
                 return alert("【校验失败】\n交方案怎么能不传文件呢！请先上传您的框架草图。");
             }
 
@@ -519,14 +528,18 @@
             const btn = document.getElementById('btn-submit-design');
             btn.disabled = true; btn.innerText = "数据同步中...";
 
+            // 👉👉 💡 存入本地缓存，保证下一级审批页面能读取到大图！
+            if(currentDesignFileData) {
+                localStorage.setItem('design_output_' + currentTaskId, currentDesignFileData);
+            }
+
             if (window.supabase) {
                 // 💡 修改为 pending_approval 让主管审批！
                 const summary = `框架已上传等待主管审核 (耗时: ${hours}h | AI提效: ${selectedAiTools.length > 0 ? selectedAiTools.join(',') : '无'})`;
                 
                 const { error } = await window.supabase.from(window.DB_TABLE).update({
                     status: 'pending_approval', 
-                    summary_desc: summary,
-                    // TODO: 生产环境这里应加入 design_file_data = currentDesignFileData 来存储设计师的图片
+                    summary_desc: summary
                 }).eq('id', currentTaskId);
 
                 if (error) {
