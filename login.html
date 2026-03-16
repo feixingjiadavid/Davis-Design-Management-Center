@@ -126,10 +126,14 @@
             // 存入 localStorage，让系统其他页面可以直接读取，不用改代码
             localStorage.setItem('activeUserObj', JSON.stringify(userMetaData));
             
-            // 智能路由：根据身份默认跳转
-            if(userMetaData.perms.includes('admin')) window.location.href = 'manager-workspace.html';
-            else if(userMetaData.perms.includes('design')) window.location.href = 'assistant-workspace.html';
-            else window.location.href = 'index.html'; // 需求方大厅
+// 核心逻辑修改：除了超级管理员，所有人默认进需求大厅
+if(userMetaData.perms.includes('admin') && userMetaData.enName === 'davidxxu') {
+    // 只有你是超级管理员，登录后直达管理后台
+    window.location.href = 'manager-workspace.html';
+} else {
+    // 其他所有人（不论是否有设计权限）登录后一律先进入需求大厅
+    window.location.href = 'index.html'; 
+}
         }
     </script>
 </body>
