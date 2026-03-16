@@ -76,14 +76,9 @@
                 <div id="sidebar-avatar" class="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg">?</div>
                 <div><p id="sidebar-name" class="text-xs font-bold text-white mb-0.5">加载中...</p><p id="sidebar-role" class="text-[10px] text-zinc-500">读取中</p></div>
             </div>
-            <div class="flex items-center gap-1">
-                <button onclick="openPwdModal()" class="p-2 text-zinc-500 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors btn-press" title="修改登录密码">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
-                </button>
-                <button onclick="logout(event)" class="p-2 text-zinc-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors btn-press" title="退出登录">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-                </button>
-            </div>
+            <button onclick="logout(event)" class="p-2 text-zinc-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors btn-press" title="退出登录">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            </button>
         </div>
     </aside>
 
@@ -331,7 +326,7 @@
                 </svg>
             </div>
             <h2 class="text-2xl font-bold text-white mb-2 tracking-tight">需求提单成功</h2>
-            <p class="text-zinc-400 text-sm">正在同步云端数据...</p>
+            <p class="text-zinc-400 text-sm">系统正在为您同步至云端...</p>
         </div>
     </div>
 
@@ -507,10 +502,11 @@
             window.location.href = 'login.html'; 
         }
 
-        // 💡 时间与花名问候提取
         function updateGreeting(user) {
             const hour = new Date().getHours();
-            let timeStr = (hour < 5) ? '凌晨好' : (hour < 12) ? '上午好' : (hour < 18 ? '下午好' : '晚上好');
+            let timeStr = '晚上好';
+            if (hour >= 5 && hour < 12) timeStr = '上午好';
+            else if (hour >= 12 && hour < 18) timeStr = '下午好';
             const display = user.displayName || user.cnName || user.enName;
             document.getElementById('header-greeting').innerText = `${timeStr}，${display}。`;
         }
@@ -529,7 +525,6 @@
             
             updateGreeting(user);
 
-            // 💡 清空测试数据按钮仅白名单可见
             const testUsers = ['ponyxu', 'davidxxu', 'yoshyliu', 'judyzzhang', '小戴维斯'];
             const isTestUser = testUsers.includes(enName) || testUsers.includes(user.displayName) || testUsers.includes(user.cnName);
             if(isTestUser) {
@@ -588,7 +583,7 @@
                 const card = document.getElementById('card-' + taskId);
                 if(card) card.remove();
                 showToast('已撤销', `需求单 ${taskId} 已被彻底删除。`, 'info');
-                setTimeout(async () => { await window.loadTasksFromCloud(); }, 300);
+                setTimeout(async () => { await loadTasksFromCloud(); }, 300);
             } catch(e) { alert("撤销失败: " + e.message); }
         }
 
@@ -649,7 +644,6 @@
             setTimeout(() => { overlay.classList.add('hidden'); }, 300);
         }
 
-        // ================= 核心一：草稿箱渲染与置顶 =================
         function renderDraftToUI() {
             const savedDraft = localStorage.getItem('myDraftTask');
             const container = document.getElementById('ongoing-tasks-container');
@@ -660,7 +654,6 @@
             
             if (savedDraft) {
                 const draft = JSON.parse(savedDraft);
-                // 💡 草稿 UI 改为低调灰色
                 const draftHTML = `
                     <div class="rounded-2xl p-5 border border-zinc-700 bg-transparent opacity-40 mb-4 cursor-pointer hover:opacity-70 transition-opacity" id="draft-card" onclick="editDraft()">
                         <div class="flex justify-between items-center mb-1">
@@ -670,7 +663,7 @@
                         <h4 class="text-zinc-400 font-bold">${draft.title || '无标题草稿'}</h4>
                     </div>
                 `;
-                container.insertAdjacentHTML('afterbegin', draftHTML); // 保证永远在最前面
+                container.insertAdjacentHTML('afterbegin', draftHTML);
             }
         }
 
@@ -693,13 +686,10 @@
                 localStorage.setItem('myDraftTask', JSON.stringify(draftData));
                 closeAllModals(); 
                 showToast('📝 暂存成功', '草稿与附件已保存，始终置顶。', 'info'); 
-                
-                // 瞬间渲染草稿，隐藏空状态提示
                 renderDraftToUI();
                 const spinner = document.getElementById('loading-spinner');
                 if(spinner) spinner.classList.add('hidden');
             } catch (e) {
-                // 💡 附件过大容错
                 draftData.fileData = null;
                 draftData.fileName = draftData.fileName ? draftData.fileName + " (因体积过大暂存未包含)" : "";
                 try {
@@ -742,7 +732,7 @@
                     currentUploadedFileData = draft.fileData;
                     const uploadText = document.getElementById('upload-text');
                     const uploadZone = document.getElementById('upload-zone');
-                    uploadText.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> 已选附件: <span class="font-bold truncate max-w-[120px]">${draft.fileName}</span>`;
+                    uploadText.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> 已选附件: <span class="font-bold truncate max-w-[120px]">${draft.fileName}</span>`;
                     uploadText.className = "text-xs font-medium flex items-center gap-1.5 text-indigo-400 w-full justify-center";
                     uploadZone.className = "w-full bg-indigo-500/10 border border-indigo-500/50 rounded-xl px-4 py-2.5 flex flex-col items-center justify-center cursor-pointer transition-colors h-[46px]";
                 }
@@ -758,7 +748,6 @@
                 if(dcard) dcard.remove();
                 showToast('已删除', '草稿已永久移除。', 'info');
 
-                // 检查是否全空
                 setTimeout(() => {
                     const container = document.getElementById('ongoing-tasks-container');
                     const realCards = container.querySelectorAll('.interactive-card:not(#draft-card)');
@@ -776,9 +765,8 @@
             }
         }
 
-        // ================= 核心二：状态UI工厂引擎 (带隐私与红色预警) =================
+        // ================= 核心：极速渲染引擎 (无任何删减，新增 rejected) =================
         function createTaskHTML(task, currentUser) {
-            // 💡 1. 绝对隐私控制：大厅只显示本人提的单（Judy主管额外可看待审批）
             const isOwner = task.creator === currentUser.displayName || task.creator === currentUser.cnName || task.creator === currentUser.enName;
             const isJudy = currentUser.enName.toLowerCase() === 'judyzzhang';
             if(!isOwner && !(isJudy && task.status === 'pending_approval')) return null;
@@ -786,35 +774,34 @@
             let sColor, sText, targetUrl;
             let isUrgent = false;
 
-            // 💡 2. 紧急判定：距离期望交付 2 天以内
             if(task.due_date && !['completed','archived'].includes(task.status)) {
-                const due = new Date(task.due_date);
-                const today = new Date();
-                due.setHours(0,0,0,0); today.setHours(0,0,0,0);
-                const diffDays = (due - today) / (1000 * 60 * 60 * 24);
-                if(diffDays <= 2 && diffDays >= -999) isUrgent = true;
+                const diff = (new Date(task.due_date) - new Date()) / (1000*60*60*24);
+                if(diff <= 2 && diff >= -999) isUrgent = true;
             }
 
             switch(task.status) {
-                case 'reviewing': sColor = 'text-rose-500'; sText = '方案待验收'; targetUrl = 'task-detail.html'; break;
-                case 'pending_accept': sColor = 'text-amber-400'; sText = '待接单'; targetUrl = 'task-detail-new.html'; break;
-                case 'pending_approval': sColor = 'text-amber-500'; sText = '框架待审批'; targetUrl = 'task-detail-locked.html'; break;
-                case 'processing': sColor = 'text-emerald-500'; sText = '设计制作中'; targetUrl = 'task-detail-processing.html'; break;
-                case 'completed': case 'archived': sColor = 'text-zinc-400'; sText = '已完结'; targetUrl = 'task-detail-archived.html'; break;
-                default: sColor = 'text-sky-400'; sText = '待分配'; targetUrl = 'task-detail-new.html';
+                // 💡 新增：被打回状态，强制红灯预警
+                case 'rejected': 
+                    sColor = 'text-rose-500'; sText = '需求被打回修改'; targetUrl = 'task-detail-new.html?id=' + task.id; 
+                    isUrgent = true; 
+                    break;
+                case 'reviewing': sColor = 'text-rose-500'; sText = '方案待验收'; targetUrl = 'task-detail.html?id=' + task.id; break;
+                case 'pending_accept': sColor = 'text-amber-400'; sText = '待接单'; targetUrl = 'task-detail-new.html?id=' + task.id; break;
+                case 'pending_approval': sColor = 'text-amber-500'; sText = '框架待审批'; targetUrl = 'task-detail-locked.html?id=' + task.id; break;
+                case 'processing': sColor = 'text-emerald-500'; sText = '设计制作中'; targetUrl = 'task-detail-processing.html?id=' + task.id; break;
+                case 'completed': case 'archived': sColor = 'text-zinc-400'; sText = '已完结'; targetUrl = 'task-detail-archived.html?id=' + task.id; break;
+                default: sColor = 'text-sky-400'; sText = '待排期/待分配'; targetUrl = 'task-detail-new.html?id=' + task.id;
             }
 
             const isCompleted = task.status === 'completed' || task.status === 'archived';
-
-            // 边框色必须与文字色一致，若是紧急情况则启用红色呼吸灯
             const borderColBase = isUrgent ? 'rgba(244,63,94,0.7)' : sColor.replace('text-', 'rgba(').replace('sky','56,189,248').replace('amber','251,191,36').replace('emerald','16,185,129').replace('rose','244,63,94').replace('zinc','113,113,122') + ',0.3)';
             const breatheClass = isUrgent ? 'breathe-rose' : '';
-            const canCancel = (task.status === 'pending' || task.status === 'pending_accept') && isOwner;
-            const cancelBtn = canCancel ? `<button onclick="event.stopPropagation(); cancelTask('${task.id}')" class="text-[10px] text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded ml-2 hover:bg-rose-500 hover:text-white transition-colors">撤销并删除</button>` : '';
+            const canCancel = (task.status === 'pending' || task.status === 'pending_accept' || task.status === 'rejected') && isOwner;
+            const cancelBtn = canCancel ? `<button onclick="event.stopPropagation(); cancelTask('${task.id}')" class="text-[10px] text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded ml-2 hover:bg-rose-500 hover:text-white transition-colors">撤销</button>` : '';
 
             const iconHtml = (task.status === 'reviewing' || isCompleted) ? '' : `<svg class="animate-spin h-3 w-3 ${sColor}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
 
-            const cardHTML = `
+            const card = `
                 <div class="rounded-2xl p-5 interactive-card flex flex-col relative overflow-hidden bg-[#121217] border ${breatheClass} mb-4 ${isCompleted ? 'opacity-60' : ''}" style="border-color: ${borderColBase}" id="card-${task.id}" onmouseenter="previewTask('${task.id}', '${task.title}', '${sColor}')" onclick="window.location.href='${targetUrl}'">
                     ${isUrgent ? '<div class="absolute top-0 right-0 bg-rose-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl z-10 animate-pulse">临期预警</div>' : ''}
                     <div class="flex items-center justify-between mb-3 mt-1 relative z-10">
@@ -831,14 +818,13 @@
                         <span>执行人: ${task.assignee === 'none' ? '待定' : task.assignee}</span>
                         <span class="${isCompleted ? 'text-zinc-500' : (isUrgent ? 'text-rose-500 font-bold' : 'text-zinc-400')}">期望交付: ${task.due_date}</span>
                     </div>
-                </div>
-            `;
-
+                </div>`;
+            
             let strokeColor = sColor.split('-')[1] || 'sky';
             if(strokeColor === 'zinc') strokeColor = 'gray'; 
 
-            const timelineHTML = `
-                <div id="timeline-${task.id}" class="relative z-10 hidden" data-col="${sColor}" data-title="${task.title}">
+            const timeline = `
+                <div id="timeline-${task.id}" class="hidden" data-col="${sColor}" data-title="${task.title}">
                     <div class="timeline-item relative flex gap-4 z-10 pb-6">
                         <div class="timeline-line"></div>
                         <div class="w-7 h-7 rounded-full bg-[#121217] border-[2px] border-${strokeColor}-500 flex items-center justify-center shrink-0 z-10 shadow-[0_0_15px_rgba(255,255,255,0.1)]">
@@ -859,13 +845,11 @@
                             <p class="text-[10px] text-zinc-500">发起人: ${task.creator || '系统'}</p>
                         </div>
                     </div>
-                </div>
-            `;
+                </div>`;
 
-            return { isCompleted, cardHTML, timelineHTML };
+            return { isCompleted, card, timeline };
         }
 
-        // ================= 数据分流与极致提速 =================
         window.loadTasksFromCloud = async function() {
             const userStr = localStorage.getItem('activeUserObj');
             if(!userStr) return;
@@ -880,8 +864,6 @@
             }
             
             try {
-                // 💡 3. 并发优化查询：列表页只查极轻量的 LIGHT_FIELDS，去除大图！
-                // 将已完结的数据控制在 15 条，防止长年累月变卡
                 const [ongoingRes, completedRes] = await Promise.all([
                     window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS).not('status', 'in', '("completed","archived")').order('created_at', { ascending: false }),
                     window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS).in('status', '("completed","archived")').order('created_at', { ascending: false }).limit(15)
@@ -894,22 +876,20 @@
                 ongoingC.querySelectorAll('.interactive-card:not(#draft-card)').forEach(el => el.remove());
                 completedC.innerHTML = ''; timelineC.innerHTML = '';
 
-                // 对进行中的数据进行权重智能排序 (Reviewing 排最上面)
-                const weights = { 'reviewing': 1, 'pending': 2, 'pending_accept': 3, 'pending_approval': 4, 'processing': 5 };
+                // 💡 排序权重加入了 rejected 
+                const weights = { 'reviewing': 1, 'rejected': 1.5, 'pending': 2, 'pending_accept': 3, 'pending_approval': 4, 'processing': 5 };
                 const ongoingData = ongoingRes.data || [];
                 ongoingData.sort((a, b) => (weights[a.status] || 99) - (weights[b.status] || 99));
 
-                // 挂载进行中数据
                 ongoingData.forEach(t => {
                     const res = createTaskHTML(t, user);
-                    if(res) { ongoingC.insertAdjacentHTML('beforeend', res.cardHTML); timelineC.insertAdjacentHTML('beforeend', res.timelineHTML); }
+                    if(res) { ongoingC.insertAdjacentHTML('beforeend', res.card); timelineC.insertAdjacentHTML('beforeend', res.timeline); }
                 });
 
-                // 挂载已完结数据
                 const completedData = completedRes.data || [];
                 completedData.forEach(t => {
                     const res = createTaskHTML(t, user);
-                    if(res) { completedC.insertAdjacentHTML('beforeend', res.cardHTML); timelineC.insertAdjacentHTML('beforeend', res.timelineHTML); }
+                    if(res) { completedC.insertAdjacentHTML('beforeend', res.card); timelineC.insertAdjacentHTML('beforeend', res.timeline); }
                 });
 
                 document.getElementById('loading-spinner')?.classList.add('hidden');
@@ -929,7 +909,6 @@
                     completedC.innerHTML = `<div class="text-center py-8 text-zinc-600 text-sm">暂无已完结/归档的工单</div>`;
                 }
 
-                // 自动聚焦第一个卡片
                 if (localStorage.getItem('myDraftTask')) {
                     previewTask('draft-card');
                 } else if (ongoingData.length > 0) {
@@ -968,10 +947,13 @@
             const originalText = btn.innerText;
             btn.innerText = "数据同步中..."; btn.disabled = true;
             
-            // 💡 4. 单号自增：每次查询真实库的最大单号
             let nextNum = 1;
-            const { data } = await window.supabase.from(window.DB_TABLE).select('id').order('created_at', { ascending: false }).limit(1);
-            if(data && data.length > 0) { nextNum = (parseInt(data[0].id.split('-')[1]) || 0) + 1; }
+            const { data: latestData } = await window.supabase.from(window.DB_TABLE).select('id').order('created_at', { ascending: false }).limit(1);
+            if(latestData && latestData.length > 0) {
+                const lastId = latestData[0].id;
+                const match = lastId.match(/\d+$/);
+                if(match) nextNum = parseInt(match[0], 10) + 1;
+            }
             const newId = 'TEST-' + nextNum.toString().padStart(3, '0');
 
             const user = JSON.parse(localStorage.getItem('activeUserObj'));
@@ -990,53 +972,21 @@
 
             localStorage.removeItem('myDraftTask');
             
-            // 临时存一下供详情页读取
-            localStorage.setItem('myNewTask', JSON.stringify({
-                id: newId, title: shortTitle, fullDesc: fullDesc, desc: finalDesc, project: projectVal,
-                date: dateInput, assignee: assigneeVal, link: linkInput, channels: selectedChannels,
-                fileName: window.getFileNameFromUI(), fileData: currentUploadedFileData, status: finalStatus, time: new Date().getTime() 
-            }));
-
             closeAllModals();
             
             const successOverlay = document.getElementById('success-overlay'); 
             successOverlay.classList.remove('hidden'); void successOverlay.offsetWidth; successOverlay.classList.remove('opacity-0');
 
-            // 💡 不再刷新全屏网页！直接静默加载最新云端数据秒上墙
             await window.loadTasksFromCloud();
 
             setTimeout(() => {
                 successOverlay.classList.add('opacity-0');
                 setTimeout(() => {
                     successOverlay.classList.add('hidden');
-                    // 强制焦点回到新提交的单据
                     window.previewTask(newId);
                     document.getElementById('card-' + newId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }, 300);
             }, 1000);
-        }
-
-        window.previewTask = function(taskId) {
-            document.querySelectorAll('.interactive-card').forEach(el => el.classList.remove('active-card'));
-            const targetCard = document.getElementById('card-' + taskId);
-            if(targetCard) targetCard.classList.add('active-card');
-            
-            document.querySelectorAll('[id^="timeline-"]').forEach(el => el.classList.add('hidden'));
-            const timeline = document.getElementById('timeline-' + taskId);
-            if(timeline) {
-                timeline.classList.remove('hidden');
-                const focusEl = document.getElementById('tracking-focus-text');
-                if(focusEl) {
-                    focusEl.innerText = `${taskId} (${timeline.dataset.title})`;
-                    focusEl.className = `${timeline.dataset.col} font-mono font-bold`;
-                }
-            } else if (taskId === 'draft-card') {
-                const focusEl = document.getElementById('tracking-focus-text');
-                if(focusEl) {
-                    focusEl.innerText = `草稿 (暂存中)`;
-                    focusEl.className = `text-zinc-400 font-mono font-bold`;
-                }
-            }
         }
     </script>
 </body>
