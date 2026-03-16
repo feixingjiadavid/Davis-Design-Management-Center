@@ -20,15 +20,6 @@
         
         .interactive-card { transition: all 0.2s ease; cursor: pointer; border: 1px solid rgba(255,255,255,0.04); background-color: #121217; }
         .interactive-card:hover { transform: translateY(-2px); background-color: #18181b; border-color: rgba(99, 102, 241, 0.3); box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5); }
-        .interactive-card:active { transform: scale(0.99); }
-        
-        @keyframes urgentPulse {
-            0%, 100% { box-shadow: inset 0 0 0 1px rgba(244,63,94,0.2), 0 0 15px rgba(244,63,94,0.15); border-color: rgba(244,63,94,0.3); background-color: rgba(244,63,94,0.02); }
-            50% { box-shadow: inset 0 0 0 1px rgba(244,63,94,0.7), 0 0 35px rgba(244,63,94,0.4); border-color: rgba(244,63,94,0.9); background-color: rgba(244,63,94,0.08); }
-        }
-        .urgent-breathe { animation: urgentPulse 2s ease-in-out infinite; }
-        .urgent-breathe:hover { transform: translateY(-2px); }
-
         .active-card { background-color: #18181b !important; border-color: rgba(99, 102, 241, 0.5) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02); }
 
         .btn-press { transition: all 0.15s ease; cursor: pointer; }
@@ -48,6 +39,13 @@
 
         .timeline-line { position: absolute; left: 13px; top: 12px; bottom: -20px; width: 2px; background-color: rgba(255,255,255,0.05); z-index: 0; }
         .timeline-item:last-child .timeline-line { display: none; }
+
+        @keyframes urgentPulse {
+            0%, 100% { box-shadow: inset 0 0 0 1px rgba(244,63,94,0.2), 0 0 15px rgba(244,63,94,0.15); border-color: rgba(244,63,94,0.3); background-color: rgba(244,63,94,0.02); }
+            50% { box-shadow: inset 0 0 0 1px rgba(244,63,94,0.7), 0 0 35px rgba(244,63,94,0.4); border-color: rgba(244,63,94,0.9); background-color: rgba(244,63,94,0.08); }
+        }
+        .urgent-breathe { animation: urgentPulse 2s ease-in-out infinite; }
+        .urgent-breathe:hover { transform: translateY(-2px); }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-indigo-500/30 text-zinc-300">
@@ -85,23 +83,17 @@
                 <div id="sidebar-avatar" class="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg">?</div>
                 <div><p id="sidebar-name" class="text-xs font-bold text-white mb-0.5">加载中...</p><p id="sidebar-role" class="text-[10px] text-zinc-500">读取中</p></div>
             </div>
-            <div class="flex items-center gap-1">
-                <button onclick="openPwdModal()" class="p-2 text-zinc-500 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors btn-press" title="修改登录密码">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
-                </button>
-                <button onclick="logout(event)" class="p-2 text-zinc-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors btn-press" title="退出登录">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-                </button>
-            </div>
+            <button onclick="logout(event)" class="p-2 text-zinc-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors btn-press" title="退出登录">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            </button>
         </div>
     </aside>
 
     <main class="flex-1 flex flex-col h-full overflow-hidden relative z-10">
-        
         <header class="h-[88px] px-10 flex justify-between items-center shrink-0 border-b border-white/5 bg-[#09090b]/80 backdrop-blur-xl relative z-[999]">
             <div>
                 <h2 id="header-greeting" class="text-2xl font-bold text-white tracking-tight mb-1.5">上午好，加载中...</h2>
-                <p class="text-xs text-zinc-500">所有的工作都在有条不紊地推进中。</p>
+                <p class="text-xs text-zinc-500">云端协同数据已就绪，所有的工作都在有条不紊地推进中。</p>
             </div>
             
             <div class="flex items-center gap-5 relative">
@@ -134,10 +126,10 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="relative z-[110]">
                     <button id="identityBtn" class="bg-[#141417] border border-white/10 text-zinc-300 px-5 py-3 rounded-[14px] flex items-center gap-3 text-[13px] font-medium hover:bg-[#1a1a1f] transition-colors btn-press">
-                        加载中...
+                        身份加载中...
                     </button>
                     <div id="identityMenu" class="hidden absolute right-0 top-[120%] w-[240px] bg-[#1a1a1f] border border-white/10 rounded-2xl shadow-2xl py-2 dropdown-enter z-[9999]">
                         <div class="px-2 space-y-1" id="dynamic-identity-list"></div>
@@ -152,7 +144,6 @@
 
         <div class="flex-1 p-8 md:p-10 overflow-y-hidden flex justify-center">
             <div class="flex gap-10 h-full items-start w-full max-w-[1280px]">
-                
                 <div class="w-full max-w-[800px] flex flex-col h-full min-w-0 pb-4 shrink-0">
                     <div class="bg-[#1a1306] border border-amber-600/30 rounded-2xl p-5 mb-6 flex items-start gap-4 shrink-0">
                         <div class="text-amber-500 mt-0.5">
@@ -161,21 +152,19 @@
                         <div>
                             <h4 class="text-[13px] font-bold text-amber-500 mb-1">系统提单必读规则</h4>
                             <p class="text-[12px] text-amber-500/80 leading-relaxed font-medium">
-                                首创核心视觉请指派给【文哥/资深设计】；延展与部门排版指派给【文员】。设计师接单后将先产出“框架方案”，经领导审批通过后方可推进正稿。
+                                欢迎进入真实数据大厅。首创核心视觉请指派给【文哥/资深设计】；延展与部门排版指派给【文员】。您填写的内容将实时同步至云端数据库。
                             </p>
                         </div>
                     </div>
 
                     <div class="flex-1 flex flex-col min-h-0 overflow-hidden">
                         <div class="flex-1 overflow-y-auto custom-scrollbar pr-3 space-y-8" id="tasks-scroll-area">
-                            
                             <div>
                                 <h3 class="text-sm font-bold text-indigo-400 flex items-center gap-2.5 mb-4">
                                     <span class="w-1.5 h-1.5 bg-indigo-500 rounded-full shadow-[0_0_8px_#6366f1]"></span>我的进行中工单
                                 </h3>
                                 
                                 <div class="space-y-4 transition-opacity duration-300" id="ongoing-tasks-container">
-                                    
                                     <div id="dynamic-draft-anchor"></div>
                                     <div id="dynamic-new-task-anchor"></div>
 
@@ -229,7 +218,6 @@
                                             <span>归属: 日常行政支撑</span><span>执行人: Skyler</span><span class="text-emerald-400 font-bold">期望交付: 下周三</span>
                                         </div>
                                     </div>
-                                    
                                 </div>
                             </div>
 
@@ -252,7 +240,6 @@
                             </div>
 
                         </div>
-
                         <div class="flex items-center justify-between pt-5 mt-2 border-t border-white/5 shrink-0 pr-3">
                             <span class="text-[11px] text-zinc-500">工单过多已折叠，请翻页查看</span>
                             <div class="flex items-center gap-1.5" id="pagination-controls">
@@ -262,7 +249,6 @@
                             </div>
                         </div>
                     </div>
-
                 </div>
 
                 <div class="w-[310px] bg-[#121217] border border-white/5 rounded-3xl p-6 flex flex-col h-full shadow-2xl shrink-0">
@@ -278,10 +264,9 @@
                     </div>
                     
                     <div class="relative flex-1 custom-scrollbar pointer-events-none" id="all-timelines-container">
-                        
                         <div id="dynamic-timeline-anchor"></div>
-
-                        <div id="timeline-tk0701" class="relative z-10 hidden">
+                        
+                        <div id="timeline-tk0701" class="relative z-10">
                             <div class="timeline-item relative flex gap-4 z-10 pb-6">
                                 <div class="timeline-line"></div>
                                 <div class="w-7 h-7 rounded-full bg-[#121217] border-[2px] border-rose-500 flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(244,63,94,0.3)] z-10">
@@ -431,9 +416,9 @@
                                     <p class="text-[10px] text-zinc-500">昨天 10:00 · 操作人: 您</p>
                                 </div>
                             </div>
-                       </div>
-                       
-                       <div id="timeline-tk0650" class="relative z-10 hidden">
+                        </div>
+
+                        <div id="timeline-tk0650" class="relative z-10 hidden">
                             <div class="timeline-item relative flex gap-4 z-10 pb-6">
                                 <div class="timeline-line"></div>
                                 <div class="w-7 h-7 rounded-full bg-[#121217] border-[2px] border-zinc-500 flex items-center justify-center shrink-0 z-10">
@@ -582,7 +567,7 @@
                 </svg>
             </div>
             <h2 class="text-2xl font-bold text-white mb-2 tracking-tight">需求提单成功</h2>
-            <p class="text-zinc-400 text-sm">系统正在为您生成专属排号并同步云端，即将刷新大厅...</p>
+            <p class="text-zinc-400 text-sm">系统正在为您同步云端数据...</p>
         </div>
     </div>
 
@@ -596,6 +581,7 @@
     <script type="module">
         import { supabase } from './supabase-config.js';
         window.supabase = supabase;
+        // 页面初始化时异步拉取云端数据，且不再全量覆盖 DOM
         if(window.loadTasksFromCloud) window.loadTasksFromCloud();
         if(window.loadAssigneesFromCloud) window.loadAssigneesFromCloud();
     </script>
@@ -797,20 +783,28 @@
             return true;
         }
 
+        // 铃铛通知逻辑
+        window.markAllAsRead = function(event) {
+            if(event) event.stopPropagation();
+            const bellDot = document.getElementById('bell-dot');
+            if (bellDot) { bellDot.classList.remove('bg-rose-500', 'animate-pulse', 'border-[#141417]'); bellDot.classList.add('bg-zinc-600', 'border-transparent'); }
+            showToast('消息已清空', '所有未读消息已成功标记为已读。', 'info');
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             if(!initRBAC()) return;
             
+            // 确保本地23人名单立即可用
             renderAssignees();
 
             const idBtn = document.getElementById('identityBtn');
             const idMenu = document.getElementById('identityMenu');
             if(idBtn && idMenu) idBtn.addEventListener('click', (e) => { e.stopPropagation(); idMenu.classList.toggle('hidden'); });
             
-            // 铃铛事件
             const notifBtn = document.getElementById('notifBtn');
             const notifMenu = document.getElementById('notifMenu');
             if(notifBtn && notifMenu) notifBtn.addEventListener('click', (e) => { e.stopPropagation(); notifMenu.classList.toggle('hidden'); });
-
+            
             document.addEventListener('click', (e) => { 
                 if(idMenu && !idMenu.contains(e.target)) idMenu.classList.add('hidden'); 
                 if(notifMenu && !notifMenu.contains(e.target)) notifMenu.classList.add('hidden'); 
@@ -823,6 +817,12 @@
                 const assDrop = document.getElementById('assignee-dropdown');
                 if (assWrap && assDrop && !assWrap.contains(e.target)) assDrop.classList.add('hidden');
             });
+            
+            // 【核心修复】首次渲染保证原版静态卡片的展示（在云端请求完成前）
+            const focusEl = document.getElementById('tracking-focus-text');
+            if(focusEl && focusEl.innerText === '无选中的单据') {
+                previewTask('tk0701', '双十一大促活动主会场视觉海报', 'text-rose-500');
+            }
         });
 
         const overlay = document.getElementById('modal-overlay');
@@ -839,7 +839,7 @@
                 document.getElementById('req-project').value = '';
                 document.getElementById('req-assignee').value = 'none';
                 const assInput = document.getElementById('req-assignee-input');
-                if(assInput) assInput.value = '不指定 (系统统筹)';
+                if(assInput) assInput.value = '';
                 document.getElementById('req-date').value = '';
                 document.getElementById('req-link').value = '';
                 document.querySelectorAll('.req-channel').forEach(cb => cb.checked = false);
@@ -856,7 +856,7 @@
             setTimeout(() => { overlay.classList.add('hidden'); }, 300);
         }
 
-        window.showToast = function(title, desc, type = 'success') {
+        function showToast(title, desc, type = 'success') {
             const toast = document.getElementById('action-toast');
             document.getElementById('toast-title').innerText = title;
             document.getElementById('toast-desc').innerText = desc;
@@ -873,6 +873,30 @@
             }
             toast.classList.remove('hidden');
             setTimeout(() => { toast.classList.add('hidden'); }, 3000);
+        }
+
+        // ================= 本地状态管理（渲染草稿） =================
+        function renderDraft() {
+            const savedDraft = localStorage.getItem('myDraftTask');
+            const anchor = document.getElementById('dynamic-draft-anchor');
+            if(anchor) {
+                // 清理旧的（避免重复追加）
+                const existingDraft = document.getElementById('draft-card');
+                if(existingDraft) existingDraft.remove();
+                
+                if (savedDraft) {
+                    const draft = JSON.parse(savedDraft);
+                    const draftHTML = `
+                        <div class="task-page-1 border-indigo-700 border-dashed rounded-2xl p-5 interactive-card flex flex-col bg-indigo-900/10 relative group" onclick="editDraft()" id="draft-card">
+                            <button onclick="deleteDraft(event, this)" class="absolute top-4 right-4 text-zinc-500 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all p-1.5 hover:bg-rose-500/10 rounded-lg btn-press" title="删除草稿"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
+                            <div class="flex items-center justify-between mb-3 pr-8"><span class="text-indigo-400 font-bold text-[10px] border border-indigo-700 bg-indigo-500/20 px-2.5 py-0.5 rounded shadow-[0_0_10px_rgba(99,102,241,0.3)]">📝 需求待提交 (草稿置顶)</span><span class="text-[11px] text-indigo-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity">继续编辑 ↗</span></div>
+                            <h4 class="text-[16px] font-medium text-white mb-1 pr-8">${draft.title || '无标题草稿'}</h4>
+                            <p class="text-xs text-zinc-400 line-clamp-1">点击恢复表单数据、渠道及附件并继续完善。</p>
+                        </div>
+                    `;
+                    anchor.insertAdjacentHTML('beforebegin', draftHTML);
+                }
+            }
         }
 
         window.saveDraft = function() { 
@@ -901,7 +925,9 @@
                 localStorage.setItem('myDraftTask', JSON.stringify(draftData));
                 closeAllModals(); 
                 showToast('📝 暂存成功', '草稿与附件已保存，始终置顶。', 'info'); 
-                setTimeout(() => { window.location.reload(); }, 1000);
+                
+                // 💡 不再刷新网页，而是直接重绘草稿卡片（Optimistic UI）
+                renderDraft();
             } catch (e) {
                 alert("【存储失败】附件过大超出浏览器本地存储限制，请更换小文件。");
             }
@@ -948,12 +974,13 @@
             event.stopPropagation(); 
             if(confirm("确定要永久删除这条草稿吗？")) {
                 localStorage.removeItem('myDraftTask');
+                // 💡 乐观删除 DOM 节点，不刷新网页
                 btn.closest('.interactive-card').remove();
                 showToast('已删除', '草稿已永久移除。', 'info');
-                setTimeout(() => { window.location.reload(); }, 1000);
             }
         }
 
+        // ================= 【核心修复】乐观的云端写入逻辑 =================
         window.submitNewReq = async function() {
             if(!window.supabase) return alert("云端服务仍在初始化，请稍等一秒或刷新！");
 
@@ -986,9 +1013,10 @@
 
             const btn = document.querySelector('button[onclick="submitNewReq()"]');
             const originalText = btn.innerText;
-            btn.innerText = "附件与数据同步云端中...";
+            btn.innerText = "数据同步云端中...";
             btn.disabled = true;
 
+            // 💡 第一步：云端异步写入
             const { data, error } = await window.supabase.from('tasks').insert([
                 {
                     id: randomId,
@@ -1015,9 +1043,13 @@
                 return alert("云端写入失败: " + error.message + "\n(如果附件过大可能受限于免费额度，请尝试不带附件提交)");
             }
 
+            // 💡 第二步：乐观更新界面 (删除草稿，渲染新卡片，但不刷新网页)
             localStorage.removeItem('myDraftTask');
-            closeAllModals();
+            const draftCard = document.getElementById('draft-card');
+            if(draftCard) draftCard.remove();
 
+            closeAllModals();
+            
             const successOverlay = document.getElementById('success-overlay'); 
             const successContent = document.getElementById('success-content'); 
             const checkPath = document.querySelector('.success-check-path');
@@ -1027,108 +1059,163 @@
             successContent.classList.remove('scale-95', 'opacity-0'); 
             checkPath.classList.add('animate-check-draw');
             
-            setTimeout(() => { window.location.reload(); }, 2000);
+            // 构建本地新卡片 HTML (使用用户期望的样式体系)
+            let statusColor = finalStatus === 'pending_accept' ? 'text-amber-400' : 'text-sky-400';
+            let borderClass = finalStatus === 'pending_accept' ? 'border-amber-500/30' : 'border-sky-500/30';
+            let bgClass = finalStatus === 'pending_accept' ? 'bg-amber-500/10' : 'bg-sky-500/10';
+            let statusText = finalStatus === 'pending_accept' ? '已派单，待接单' : '等待系统统筹分配';
+
+            // 存储到本地用于跳转详情页时读取
+            localStorage.setItem('myNewTask', JSON.stringify({
+                id: randomId, title: shortTitle, fullDesc: fullDesc, desc: finalDesc, project: projectVal,
+                date: dateInput, assignee: assigneeVal, link: linkInput, channels: selectedChannels,
+                fileName: getFileNameFromUI(), fileData: currentUploadedFileData, status: finalStatus, time: new Date().getTime() 
+            }));
+
+            const newCardHTML = `
+                <div class="task-page-1 rounded-2xl p-5 interactive-card flex flex-col relative overflow-hidden bg-[#18181b] ${borderClass} cursor-pointer" id="card-${randomId}" onmouseenter="previewTask('${randomId}', '${shortTitle}', '${statusColor}')" onclick="window.location.href='task-detail-new.html'">
+                    <div class="absolute top-0 right-0 bg-sky-500/20 text-sky-400 text-[10px] font-bold px-3 py-1 rounded-bl-xl shadow-lg flex items-center gap-1 z-10"><span class="w-1.5 h-1.5 bg-sky-400 rounded-full animate-ping"></span> 最新发出</div>
+                    <div class="flex items-center justify-between mb-3 mt-1 relative z-10">
+                        <div class="flex gap-3 items-center">
+                            <span class="font-mono text-[10px] font-bold ${statusColor} ${bgClass} px-2 py-0.5 rounded border border-white/10">${randomId}</span>
+                            <span class="text-xs ${statusColor} font-bold tracking-wide">${statusText}</span>
+                        </div>
+                    </div>
+                    <h4 class="text-[17px] font-bold text-zinc-100 mb-2 relative z-10">${shortTitle}</h4>
+                    <p class="text-xs text-zinc-400 mb-4 line-clamp-1 relative z-10">${fullDesc}</p>
+                    <div class="flex items-center justify-between text-[11px] text-zinc-400 border-t border-white/5 pt-3 relative z-10">
+                        <span>归属: ${projectVal}</span>
+                        <span>执行人: ${assigneeVal === 'none' ? '待定' : assigneeVal}</span>
+                        <span class="text-rose-500 font-bold">期望交付: ${dateInput}</span>
+                    </div>
+                </div>
+            `;
+
+            const newTimelineHTML = `
+                <div id="timeline-${randomId}" class="relative z-10 hidden">
+                    <div class="timeline-item relative flex gap-4 z-10 pb-6">
+                        <div class="timeline-line"></div>
+                        <div class="w-7 h-7 rounded-full bg-[#121217] border-[2px] border-zinc-500 flex items-center justify-center shrink-0 z-10">
+                            <div class="w-2 h-2 bg-zinc-500 rounded-full"></div>
+                        </div>
+                        <div class="pt-0.5">
+                            <p class="text-[13px] font-bold ${statusColor} mb-0.5">${statusText}</p>
+                            <p class="text-[10px] text-zinc-500">${finalDesc}</p>
+                        </div>
+                    </div>
+                    <div class="timeline-item relative flex gap-4 z-10 pb-2 opacity-40 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-300">
+                        <div class="timeline-line"></div>
+                        <div class="w-7 h-7 rounded-full bg-[#121217] border-[2px] border-zinc-500 flex items-center justify-center shrink-0 z-10">
+                            <div class="w-2 h-2 bg-zinc-500 rounded-full"></div>
+                        </div>
+                        <div class="pt-0.5">
+                            <p class="text-[13px] font-bold text-zinc-300 mb-0.5">需求发单成功</p>
+                            <p class="text-[10px] text-zinc-500">发起人: ${creatorName}</p>
+                            ${getFileNameFromUI() ? `<p class="text-[10px] text-indigo-400 mt-1 flex items-center gap-1"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg> 附件已存入云端</p>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // 插入真实 DOM 而不是刷新
+            document.getElementById('dynamic-new-task-anchor').insertAdjacentHTML('beforebegin', newCardHTML);
+            document.getElementById('dynamic-timeline-anchor').insertAdjacentHTML('beforebegin', newTimelineHTML);
+
+            // 让新的动画提示只闪烁一会儿
+            setTimeout(() => {
+                successOverlay.classList.add('opacity-0');
+                successContent.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => {
+                    successOverlay.classList.add('hidden');
+                    // 默认预览刚提交的任务
+                    previewTask(randomId, shortTitle, statusColor);
+                }, 300);
+            }, 1800);
         }
 
-        // ================= 【核心修复】云端渲染与原版事件完美融合 =================
+        // ================= 【不干扰原生】后台云端预加载 =================
         window.loadTasksFromCloud = async function() {
+            renderDraft(); // 先渲染本地草稿保证秒出
+            
             if (!window.supabase) return;
             
-            // 查云端数据
-            const { data, error } = await window.supabase.from('tasks').select('*').order('created_at', { ascending: false });
-            if (error) { console.error("加载云端数据失败", error); return; }
+            // 后台默默查数据，但不强制清空大厅
+            const { data, error } = await window.supabase.from('tasks').select('*').order('created_at', { ascending: true });
 
-            // 把之前的草稿逻辑和云端追加合并处理
-            const savedDraft = localStorage.getItem('myDraftTask');
-            if (savedDraft) {
-                const draft = JSON.parse(savedDraft);
-                const draftHTML = `
-                    <div class="task-page-1 border-indigo-700 border-dashed rounded-2xl p-5 interactive-card flex flex-col bg-indigo-900/10 relative group" onclick="editDraft()" id="draft-card">
-                        <button onclick="deleteDraft(event, this)" class="absolute top-4 right-4 text-zinc-500 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all p-1.5 hover:bg-rose-500/10 rounded-lg btn-press" title="删除草稿"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
-                        <div class="flex items-center justify-between mb-3 pr-8"><span class="text-indigo-400 font-bold text-[10px] border border-indigo-700 bg-indigo-500/20 px-2.5 py-0.5 rounded shadow-[0_0_10px_rgba(99,102,241,0.3)]">📝 需求待提交 (草稿置顶)</span><span class="text-[11px] text-indigo-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity">继续编辑 ↗</span></div>
-                        <h4 class="text-[16px] font-medium text-white mb-1 pr-8">${draft.title || '无标题草稿'}</h4>
-                        <p class="text-xs text-zinc-400 line-clamp-1">点击恢复表单数据、渠道及附件并继续完善。</p>
+            if (error || !data) return;
+
+            let cardsHTML = '';
+            let timelinesHTML = '';
+
+            data.forEach((task) => {
+                // 排除已经在本地通过其它逻辑缓存过的单号，防止云端数据重复渲染
+                if (document.getElementById('card-' + task.id)) return;
+
+                let statusText = '等待系统统筹分配'; 
+                let statusColor = 'text-sky-400'; 
+                let borderClass = 'border-sky-500/30';
+                let bgClass = 'bg-sky-500/10';
+
+                if (task.status === 'pending_accept') { 
+                    statusText = '已派单，待设计师接单'; 
+                    statusColor = 'text-amber-400'; 
+                    borderClass = 'border-amber-500/30';
+                    bgClass = 'bg-amber-500/10';
+                }
+
+                cardsHTML += `
+                    <div class="task-page-1 rounded-2xl p-5 interactive-card flex flex-col relative overflow-hidden bg-[#18181b] ${borderClass} cursor-pointer" id="card-${task.id}" onmouseenter="previewTask('${task.id}', '${task.title}', '${statusColor}')" onclick="window.location.href='task-detail-new.html'">
+                        <div class="absolute top-0 right-0 bg-sky-500/20 text-sky-400 text-[10px] font-bold px-3 py-1 rounded-bl-xl shadow-lg flex items-center gap-1 z-10"> 云端同步</div>
+                        <div class="flex items-center justify-between mb-3 mt-1 relative z-10">
+                            <div class="flex gap-3 items-center">
+                                <span class="font-mono text-[10px] font-bold ${statusColor} ${bgClass} px-2 py-0.5 rounded border border-white/10">${task.id}</span>
+                                <span class="text-xs ${statusColor} font-bold tracking-wide">${statusText}</span>
+                            </div>
+                        </div>
+                        <h4 class="text-[17px] font-bold text-zinc-100 mb-2 relative z-10">${task.title}</h4>
+                        <p class="text-xs text-zinc-400 mb-4 line-clamp-1 relative z-10">${task.full_desc}</p>
+                        <div class="flex items-center justify-between text-[11px] text-zinc-400 border-t border-white/5 pt-3 relative z-10">
+                            <span>归属: ${task.project}</span>
+                            <span>执行人: ${task.assignee === 'none' ? '待定' : task.assignee}</span>
+                            <span class="text-rose-500 font-bold">期望交付: ${task.due_date}</span>
+                        </div>
                     </div>
                 `;
-                document.getElementById('dynamic-draft-anchor').insertAdjacentHTML('beforebegin', draftHTML);
-            }
 
-            if(data && data.length > 0) {
-                let cardsHTML = '';
-                let timelinesHTML = '';
-
-                data.forEach((task, index) => {
-                    let statusText = '等待系统统筹分配'; 
-                    let statusColor = 'text-sky-400'; 
-                    let borderClass = 'border-sky-500/30';
-                    let bgClass = 'bg-sky-500/10';
-
-                    if (task.status === 'pending_accept') { 
-                        statusText = '已派单，待设计师接单'; 
-                        statusColor = 'text-amber-400'; 
-                        borderClass = 'border-amber-500/30';
-                        bgClass = 'bg-amber-500/10';
-                    }
-
-                    // 💡 注意这里 onclick 跳转到了通用的 task-detail-new.html
-                    cardsHTML += `
-                        <div class="task-page-1 rounded-2xl p-5 interactive-card flex flex-col relative overflow-hidden bg-[#18181b] ${borderClass} cursor-pointer" id="card-${task.id}" onmouseenter="previewTask('${task.id}', '${task.title}', '${statusColor}')" onclick="window.location.href='task-detail-new.html'">
-                            <div class="absolute top-0 right-0 bg-sky-500/20 text-sky-400 text-[10px] font-bold px-3 py-1 rounded-bl-xl shadow-lg flex items-center gap-1 z-10"><span class="w-1.5 h-1.5 bg-sky-400 rounded-full animate-ping"></span> 最新云端</div>
-                            <div class="flex items-center justify-between mb-3 mt-1 relative z-10">
-                                <div class="flex gap-3 items-center">
-                                    <span class="font-mono text-[10px] font-bold ${statusColor} ${bgClass} px-2 py-0.5 rounded border border-white/10">${task.id}</span>
-                                    <span class="text-xs ${statusColor} font-bold tracking-wide">${statusText}</span>
-                                </div>
+                timelinesHTML += `
+                    <div id="timeline-${task.id}" class="relative z-10 hidden">
+                        <div class="timeline-item relative flex gap-4 z-10 pb-6">
+                            <div class="timeline-line"></div>
+                            <div class="w-7 h-7 rounded-full bg-[#121217] border-[2px] border-zinc-500 flex items-center justify-center shrink-0 z-10">
+                                <div class="w-2 h-2 bg-zinc-500 rounded-full"></div>
                             </div>
-                            <h4 class="text-[17px] font-bold text-zinc-100 mb-2 relative z-10">${task.title}</h4>
-                            <p class="text-xs text-zinc-400 mb-4 line-clamp-1 relative z-10">${task.full_desc}</p>
-                            <div class="flex items-center justify-between text-[11px] text-zinc-400 border-t border-white/5 pt-3 relative z-10">
-                                <span>归属: ${task.project}</span>
-                                <span>执行人: ${task.assignee === 'none' ? '待定' : task.assignee}</span>
-                                <span class="text-rose-500 font-bold">期望交付: ${task.due_date}</span>
+                            <div class="pt-0.5">
+                                <p class="text-[13px] font-bold ${statusColor} mb-0.5">${statusText}</p>
+                                <p class="text-[10px] text-zinc-500">${task.summary_desc}</p>
                             </div>
                         </div>
-                    `;
-
-                    timelinesHTML += `
-                        <div id="timeline-${task.id}" class="relative z-10 hidden">
-                            <div class="timeline-item relative flex gap-4 z-10 pb-6">
-                                <div class="timeline-line"></div>
-                                <div class="w-7 h-7 rounded-full bg-[#121217] border-[2px] border-zinc-500 flex items-center justify-center shrink-0 z-10">
-                                    <div class="w-2 h-2 bg-zinc-500 rounded-full"></div>
-                                </div>
-                                <div class="pt-0.5">
-                                    <p class="text-[13px] font-bold ${statusColor} mb-0.5">${statusText}</p>
-                                    <p class="text-[10px] text-zinc-500">${task.summary_desc}</p>
-                                </div>
+                        <div class="timeline-item relative flex gap-4 z-10 pb-2 opacity-40 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-300">
+                            <div class="timeline-line"></div>
+                            <div class="w-7 h-7 rounded-full bg-[#121217] border-[2px] border-zinc-500 flex items-center justify-center shrink-0 z-10">
+                                <div class="w-2 h-2 bg-zinc-500 rounded-full"></div>
                             </div>
-                            <div class="timeline-item relative flex gap-4 z-10 pb-2 opacity-40 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-300">
-                                <div class="timeline-line"></div>
-                                <div class="w-7 h-7 rounded-full bg-[#121217] border-[2px] border-zinc-500 flex items-center justify-center shrink-0 z-10">
-                                    <div class="w-2 h-2 bg-zinc-500 rounded-full"></div>
-                                </div>
-                                <div class="pt-0.5">
-                                    <p class="text-[13px] font-bold text-zinc-300 mb-0.5">需求发单成功</p>
-                                    <p class="text-[10px] text-zinc-500">发起人: ${task.creator}</p>
-                                    ${task.file_name ? `<p class="text-[10px] text-indigo-400 mt-1 flex items-center gap-1"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg> 附件已存入云端</p>` : ''}
-                                </div>
+                            <div class="pt-0.5">
+                                <p class="text-[13px] font-bold text-zinc-300 mb-0.5">需求发单成功</p>
+                                <p class="text-[10px] text-zinc-500">发起人: ${task.creator}</p>
+                                ${task.file_name ? `<p class="text-[10px] text-indigo-400 mt-1 flex items-center gap-1"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg> 附件已存入云端</p>` : ''}
                             </div>
                         </div>
-                    `;
-                });
+                    </div>
+                `;
+            });
 
+            // 默默将云端数据插入到原版卡片的前面
+            if (cardsHTML) {
                 document.getElementById('dynamic-new-task-anchor').insertAdjacentHTML('beforebegin', cardsHTML);
                 document.getElementById('dynamic-timeline-anchor').insertAdjacentHTML('beforebegin', timelinesHTML);
-
-                let firstTask = data[0];
-                previewTask(firstTask.id, firstTask.title, firstTask.status === 'pending_accept' ? 'text-amber-400' : 'text-sky-400');
-            } else {
-                // 原版演示数据回退
-                previewTask('tk0701', '双十一大促活动主会场视觉海报', 'text-rose-500');
             }
         }
 
-        // 💡 核心：同时兼容静态卡片和动态云端卡片的预览函数
         window.previewTask = function(taskId, title = '', colorClass = '') {
             document.querySelectorAll('.interactive-card').forEach(el => el.classList.remove('active-card'));
             const targetCard = document.getElementById('card-' + taskId);
@@ -1140,7 +1227,6 @@
             
             const focusEl = document.getElementById('tracking-focus-text');
             if(focusEl) {
-                // 特殊处理原版的静态演示卡片
                 const focusTextMap = { 'tk0817': 'TK-0817 (端午礼盒)', 'tk0701': 'TK-0701 (双十一海报)', 'tk0810': 'TK-0810 (企业画册)', 'tk0820': 'TK-0820 (制作中)', 'tk0650': 'TK-0650 (妇女节物料)' };
                 const statusColorMap = { 'tk0701': 'text-rose-500', 'tk0810': 'text-rose-500', 'tk0820': 'text-emerald-500', 'tk0817': 'text-amber-500', 'tk0650': 'text-zinc-400' };
                 
@@ -1148,7 +1234,6 @@
                     focusEl.innerText = focusTextMap[taskId];
                     focusEl.className = `${statusColorMap[taskId]} font-mono font-bold`;
                 } else {
-                    // 处理云端新提的卡片
                     focusEl.innerText = `${taskId} (${title})`;
                     focusEl.className = `${colorClass || 'text-sky-400'} font-mono font-bold`;
                 }
