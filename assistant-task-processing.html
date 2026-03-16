@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>执行工作台 - 戴维斯设计需求管理中心</title>
+    <title>工作 workbench - 戴维斯设计需求管理中心</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
@@ -27,6 +27,46 @@
             border-color: rgba(16, 185, 129, 0.3);
             color: #34d399;
             font-weight: 600;
+        }
+
+        /* 💡 弹窗预览组件 */
+        #image-preview-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            z-index: 99999;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        #image-preview-modal.visible {
+            display: flex;
+            opacity: 1;
+        }
+        .modal-content {
+            background-color: #121217;
+            padding: 24px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow: hidden;
+            box-shadow: 0 30px 60px -10px rgba(0,0,0,0.8);
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+        #image-preview-modal.visible .modal-content {
+            transform: scale(1);
+        }
+        #image-preview-modal img {
+            display: block;
+            max-width: 100%;
+            max-height: 80vh;
+            border-radius: 12px;
+            object-fit: contain;
         }
     </style>
 </head>
@@ -59,7 +99,7 @@
         <div class="px-5 py-5 mt-auto border-t border-white/5 bg-[#09090b] shrink-0 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div id="sidebar-avatar" class="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg">?</div>
-                <div><p id="sidebar-name" class="text-xs font-bold text-white mb-0.5">加载中...</p><p id="sidebar-role" class="text-[10px] text-zinc-500">设计方视角</p></div>
+                <div><p id="sidebar-name" class="text-xs font-bold text-white mb-0.5">加载中</p><p id="sidebar-role" class="text-[10px] text-zinc-500">设计方视角</p></div>
             </div>
             <button onclick="logout()" class="p-2 text-zinc-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors btn-press" title="退出登录">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
@@ -76,9 +116,9 @@
                 </button>
                 <div class="flex items-center gap-4">
                     <div class="bg-orange-500/10 border border-orange-500/20 px-3 py-1.5 rounded-lg flex items-center gap-2">
-                        <span class="text-orange-500 font-mono text-sm font-bold" id="req-id">读取中...</span>
+                        <span class="text-orange-500 font-mono text-sm font-bold" id="req-id">TK-0820</span>
                     </div>
-                    <h2 class="text-[22px] font-bold text-white tracking-tight" id="req-title-display">正在获取云端需求详情...</h2>
+                    <h2 class="text-[22px] font-bold text-white tracking-tight" id="req-title-display">新品发布会主KV视觉延展</h2>
                 </div>
             </div>
         </header>
@@ -90,34 +130,24 @@
                     
                     <div class="bg-[#121217] border border-white/5 rounded-2xl p-6 relative overflow-hidden">
                         <div class="absolute right-0 top-0 bg-white/5 text-zinc-500 text-[10px] font-bold px-3 py-1 rounded-bl-xl">甲方原始需求</div>
-                        
-                        <div class="grid grid-cols-2 gap-8 mb-6 pb-6 border-b border-white/5">
+                        <div class="flex gap-10 mb-4 pb-4 border-b border-white/5">
                             <div>
                                 <p class="text-[11px] text-zinc-500 mb-1">归属项目</p>
-                                <p class="text-[13px] font-bold text-zinc-300" id="dt-project">--</p>
+                                <p class="text-[13px] font-bold text-zinc-300" id="dt-project">日常行政支撑支撑</p>
                             </div>
                             <div>
                                 <p class="text-[11px] text-zinc-500 mb-1">期望交付</p>
-                                <p class="text-[13px] font-bold text-emerald-400" id="dt-date">--</p>
-                            </div>
-                            <div>
-                                <p class="text-[11px] text-zinc-500 mb-1">发起人</p>
-                                <p class="text-[13px] font-bold text-zinc-300" id="dt-creator">--</p>
-                            </div>
-                            <div>
-                                <p class="text-[11px] text-zinc-500 mb-1">分发渠道</p>
-                                <p class="text-[13px] font-bold text-zinc-300" id="dt-channels">--</p>
-                            </div>
-                            <div class="col-span-2">
-                                <p class="text-[11px] text-zinc-500 mb-1">需求参考链接</p>
-                                <p class="text-[13px] font-bold text-zinc-300" id="dt-link">--</p>
+                                <p class="text-[13px] font-bold text-emerald-400" id="dt-date">下周三 18:00</p>
                             </div>
                         </div>
-                        
-                        <p class="text-[13px] text-zinc-400 leading-relaxed mb-4" id="req-desc-display">
-                            <span class="font-bold text-zinc-300">需求描述：</span><br>
-                            数据读取中...
-                        </p>
+                        <div class="mb-4">
+                            <p class="text-[11px] text-zinc-500 mb-1">宣发渠道</p>
+                            <div class="flex gap-1.5 flex-wrap" id="dt-channels">
+                                <span class="text-[10px] bg-white/5 border border-white/10 px-2 py-0.5 rounded text-zinc-400">易拉宝</span>
+                                <span class="text-[10px] bg-white/5 border border-white/10 px-2 py-0.5 rounded text-zinc-400">展架</span>
+                            </div>
+                        </div>
+                        <p class="text-[13px] text-zinc-400 leading-relaxed whitespace-pre-wrap" id="req-desc-display">最新的发布会主KV已通过附件提供。需要根据此KV延展线下物料。重点突出科技感与未来基调。请根据参考图及文案附件完成易拉宝排版设计。相关源文件参考已提供在附件中。</p>
                         
                         <div id="attachment-container"></div>
                     </div>
@@ -148,7 +178,7 @@
 
                             <div>
                                 <label class="block text-[12px] font-bold text-zinc-400 mb-2">致需求方的交付说明 / 浏览指引</label>
-                                <textarea id="delivery-desc" class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3 text-[13px] text-white outline-none focus:border-orange-500 transition-colors h-20 resize-none custom-scrollbar" placeholder="例如：按照您的要求，这是本阶段的排版框架，请查阅比例是否合适..."></textarea>
+                                <textarea class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3 text-[13px] text-white outline-none focus:border-orange-500 transition-colors h-20 resize-none custom-scrollbar" placeholder="例如：按照您的要求，重点突出了科技感，请查阅易拉宝的排版比例是否合适..."></textarea>
                             </div>
                         </div>
                     </div>
@@ -178,43 +208,40 @@
                                 <div class="grid grid-cols-2 gap-2">
                                     <label class="cursor-pointer">
                                         <input type="checkbox" class="hidden ai-tool-cb" value="豆包">
-                                        <div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-3 py-2 rounded-lg transition-colors text-center font-medium">豆包</div>
+                                        <div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-3 py-2 rounded-lg transition-colors text-center peer-checked:bg-emerald-500/10 peer-checked:border-emerald-500/30 peer-checked:text-emerald-400 font-medium">豆包</div>
                                     </label>
                                     <label class="cursor-pointer">
                                         <input type="checkbox" class="hidden ai-tool-cb" value="Gemini">
-                                        <div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-3 py-2 rounded-lg transition-colors text-center font-medium">Gemini</div>
+                                        <div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-3 py-2 rounded-lg transition-colors text-center peer-checked:bg-emerald-500/10 peer-checked:border-emerald-500/30 peer-checked:text-emerald-400 font-medium">Gemini</div>
                                     </label>
                                     <label class="cursor-pointer">
                                         <input type="checkbox" class="hidden ai-tool-cb" value="Gpt">
-                                        <div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-3 py-2 rounded-lg transition-colors text-center font-medium">Gpt</div>
+                                        <div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-3 py-2 rounded-lg transition-colors text-center peer-checked:bg-emerald-500/10 peer-checked:border-emerald-500/30 peer-checked:text-emerald-400 font-medium">Gpt</div>
                                     </label>
                                     <label class="cursor-pointer">
                                         <input type="checkbox" class="hidden ai-tool-cb" value="DeepSeek">
-                                        <div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-3 py-2 rounded-lg transition-colors text-center font-medium">DeepSeek</div>
+                                        <div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-3 py-2 rounded-lg transition-colors text-center peer-checked:bg-emerald-500/10 peer-checked:border-emerald-500/30 peer-checked:text-emerald-400 font-medium">DeepSeek</div>
                                     </label>
                                     <label class="cursor-pointer">
                                         <input type="checkbox" class="hidden ai-tool-cb" value="ClaudeClaw">
-                                        <div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-3 py-2 rounded-lg transition-colors text-center font-medium">ClaudeClaw</div>
+                                        <div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-3 py-2 rounded-lg transition-colors text-center peer-checked:bg-emerald-500/10 peer-checked:border-emerald-500/30 peer-checked:text-emerald-400 font-medium">ClaudeClaw</div>
                                     </label>
                                     <label class="cursor-pointer">
                                         <input type="checkbox" class="hidden ai-tool-cb" value="PS生成式填充">
-                                        <div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-3 py-2 rounded-lg transition-colors text-center font-medium">PS生成式填充</div>
+                                        <div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-3 py-2 rounded-lg transition-colors text-center peer-checked:bg-emerald-500/10 peer-checked:border-emerald-500/30 peer-checked:text-emerald-400 font-medium">PS生成式填充</div>
                                     </label>
                                     <label class="cursor-pointer">
                                         <input type="checkbox" class="hidden ai-tool-cb" value="即梦">
-                                        <div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-3 py-2 rounded-lg transition-colors text-center font-medium">即梦</div>
+                                        <div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-3 py-2 rounded-lg transition-colors text-center peer-checked:bg-emerald-500/10 peer-checked:border-emerald-500/30 peer-checked:text-emerald-400 font-medium">即梦</div>
                                     </label>
-                                </div>
-                                <div class="mt-2">
-                                    <input type="text" id="ai-tool-other" placeholder="其他工具可在此手填..." class="w-full bg-[#09090b] border border-zinc-700 border-dashed rounded-xl px-4 py-2.5 text-[12px] text-zinc-300 outline-none focus:border-emerald-500 transition-colors">
                                 </div>
                             </div>
                         </div>
 
                         <div class="mt-8 pt-5 border-t border-white/5">
-                            <button id="btn-submit-design" onclick="submitDesign()" class="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-[14px] font-bold shadow-[0_10px_20px_-10px_rgba(249,115,22,0.6)] btn-press transition-all flex items-center justify-center gap-2">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                                提交框架给甲方验收
+                            <button id="btn-submit-to-a-side" onclick="submitDesign()" class="submit-to-accept w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-[14px] font-bold shadow-[0_10px_20px_-10px_rgba(249,115,22,0.6)] btn-press transition-all flex items-center justify-center gap-2">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="clipboard-icon"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M9 12h6"></path><path d="M9 16h6"></path><path d="M12 8h.01"></path></svg>
+                                提交框架方案审核
                             </button>
                         </div>
                     </div>
@@ -232,23 +259,24 @@
         </div>
     </div>
 
-    <script type="module">
-        import { supabase } from './supabase-config.js';
-        window.supabase = supabase;
-        window.DB_TABLE = 'test_tasks';
-        
-        if(window.loadTaskDetail) window.loadTaskDetail();
-    </script>
+    <div id="image-preview-modal" onclick="closePreview()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-4">
+                <p class="text-[13px] font-bold text-white filename-label">加载中...</p>
+                <button onclick="closePreview()" class="text-zinc-500 hover:text-white transition-colors p-1 btn-press">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div class="flex justify-center">
+                <img id="modal-image" src="" alt="预览图">
+            </div>
+        </div>
+    </div>
 
     <script>
         function logout() { localStorage.removeItem('activeUserObj'); window.location.href = 'login.html'; }
 
-        // 获取 URL 里的单号 (例如 assistant-task-processing.html?id=TEST-001)
-        const urlParams = new URLSearchParams(window.location.search);
-        const currentTaskId = urlParams.get('id');
-
-        let currentDesignFileData = null; // 存放设计师传的稿件
-
+        // ================= 接单页数据（模拟）打通 =================
         document.addEventListener('DOMContentLoaded', () => {
             const userStr = localStorage.getItem('activeUserObj');
             if (!userStr) { window.location.href = 'login.html'; return; }
@@ -256,142 +284,24 @@
             document.getElementById('sidebar-avatar').innerText = user.avatar;
             document.getElementById('sidebar-name').innerText = user.displayName || user.cnName || user.enName;
             
-            if(!currentTaskId) {
-                alert("未找到需求编号！"); window.location.href='assistant-workspace.html'; 
-            }
-        });
-
-        // 💡 抓取发单时的原始需求信息
-        window.loadTaskDetail = async function() {
-            if(!window.supabase || !currentTaskId) return;
-
-            const { data, error } = await window.supabase.from(window.DB_TABLE).select('*').eq('id', currentTaskId).single();
-            
-            if(error || !data) {
-                alert("未找到该需求或它已被撤销删除！");
-                window.location.href = 'assistant-workspace.html';
-                return;
-            }
-
-            // 渲染数据
-            document.getElementById('req-id').innerText = data.id || '--';
-            document.getElementById('req-title-display').innerText = data.title || '无标题';
-            document.getElementById('dt-project').innerText = data.project || '--';
-            document.getElementById('dt-date').innerText = data.due_date || '--';
-            document.getElementById('dt-creator').innerText = data.creator || '系统记录';
-            
-            if(data.channels && Array.isArray(data.channels) && data.channels.length > 0) {
-                document.getElementById('dt-channels').innerText = data.channels.join('，');
-            } else {
-                document.getElementById('dt-channels').innerText = '未指定渠道';
-            }
-
-            if(data.link) {
-                document.getElementById('dt-link').innerHTML = `<a href="${data.link}" target="_blank" class="text-sky-400 hover:underline break-all">${data.link}</a>`;
-            } else {
-                document.getElementById('dt-link').innerText = '未提供链接';
-            }
-
-            document.getElementById('req-desc-display').innerHTML = `<span class="font-bold text-zinc-300">需求描述：</span><br>` + (data.full_desc || '无详细描述').replace(/\n/g, '<br>');
-            
-            // 附件渲染 (甲方给的参考)
-            const attachEl = document.getElementById('attachment-container');
-            if(data.file_name && data.file_data) {
-                attachEl.innerHTML = `
-                    <div class="mt-4 flex gap-3">
-                        <button onclick="downloadAttachment('${data.file_name}', '${data.file_data}')" class="text-[11px] bg-[#1a1a24] text-indigo-400 px-3 py-1.5 rounded-lg border border-indigo-500/20 hover:bg-indigo-500/10 flex items-center gap-1.5 transition-colors btn-press">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg> 下载甲方源文件：${data.file_name}
-                        </button>
-                    </div>
-                `;
-            } else if (data.file_name) {
-                attachEl.innerHTML = `<div class="mt-4 text-[11px] text-zinc-500 italic">📎 甲方附件名称：${data.file_name} (无实体文件流)</div>`;
-            }
-        }
-
-        window.downloadAttachment = function(name, dataBase64) {
-            const a = document.createElement('a');
-            a.href = dataBase64;
-            a.download = name;
-            a.click();
-            showToast('下载成功', '附件已开始下载', 'success');
-        }
-
-        // ================= 上传交互 =================
-        const dropzone = document.getElementById('dropzone');
-        const fileInput = document.getElementById('design-upload');
-
-        dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('drag-active'); });
-        dropzone.addEventListener('dragleave', () => { dropzone.classList.remove('drag-active'); });
-        dropzone.addEventListener('drop', (e) => {
-            e.preventDefault(); dropzone.classList.remove('drag-active');
-            if (e.dataTransfer.files.length) {
-                fileInput.files = e.dataTransfer.files;
-                handleDesignUpload({ target: fileInput });
-            }
-        });
-
-        window.handleDesignUpload = function(event) {
-            const files = event.target.files;
-            if(files.length > 0) {
-                document.getElementById('upload-placeholder').classList.add('hidden');
-                const preview = document.getElementById('upload-preview');
-                preview.classList.remove('hidden');
+            // 模拟打通
+            const savedData = localStorage.getItem('myNewTask');
+            if(savedData) {
+                const task = JSON.parse(savedData);
+                document.getElementById('req-id').innerText = task.id || 'TK-0825';
+                document.getElementById('req-title-display').innerText = task.title || '无标题需求';
                 
-                let name = files[0].name;
-                if(files.length > 1) name += ` (等 ${files.length} 个文件)`;
-                document.getElementById('filename-display').innerText = name;
-
-                // 尝试提取 Base64 用于后续云端保存（如文件过大可能会失败）
-                const reader = new FileReader();
-                reader.onload = function(e) { currentDesignFileData = e.target.result; };
-                reader.readAsDataURL(files[0]); 
-            }
-        }
-
-        // ================= 💡 提交逻辑：状态推进到 reviewing =================
-        window.submitDesign = async function() {
-            const fileEl = document.getElementById('design-upload');
-            if(fileEl.files.length === 0) {
-                return alert("【校验失败】\n交方案怎么能不传文件呢！请先上传您的设计稿或源文件包。");
-            }
-
-            const hours = document.getElementById('work-hours').value;
-            if(!hours || hours <= 0) {
-                return alert("【校验失败】\n请准确填报您在本节点消耗的工时（不支持 0），这将影响您的个人产能绩效！");
-            }
-
-            // 收集 AI 工具数据
-            const selectedAiTools = Array.from(document.querySelectorAll('.ai-tool-cb:checked')).map(cb => cb.value);
-            const otherAi = document.getElementById('ai-tool-other').value.trim();
-            if(otherAi) selectedAiTools.push(otherAi);
-
-            const deliveryDesc = document.getElementById('delivery-desc').value.trim();
-
-            const btn = document.getElementById('btn-submit-design');
-            btn.disabled = true; btn.innerText = "数据同步中...";
-
-            if (window.supabase) {
-                const summary = `框架已上传 (耗时: ${hours}h | AI提效: ${selectedAiTools.length > 0 ? selectedAiTools.join(',') : '无'})`;
+                if(task.project) document.getElementById('dt-project').innerText = task.project;
+                if(task.date) document.getElementById('dt-date').innerText = task.date;
                 
-                // 将状态更新为 reviewing (交付待验收)
-                const { error } = await window.supabase.from(window.DB_TABLE).update({
-                    status: 'reviewing',
-                    summary_desc: summary,
-                    // 实际应用中，这里还可以增加专门的 design_file_data 字段存放设计师的产出物
-                }).eq('id', currentTaskId);
-
-                if (error) {
-                    btn.disabled = false; btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> 提交给甲方验收`;
-                    return alert("云端更新失败：" + error.message);
+                const descEl = document.getElementById('req-desc-display');
+                if(descEl && task.fullDesc) {
+                    descEl.innerHTML = task.fullDesc.replace(/\n/g, '<br>');
                 }
             }
+        });
 
-            showToast('交付成功', '方案已推送给需求方验收，工时已录入大盘。', 'success');
-            setTimeout(() => { window.location.href = 'assistant-workspace.html'; }, 1500);
-        }
-
-        window.showToast = function(title, desc, type = 'success') {
+        function showToast(title, desc, type = 'success') {
             const toast = document.getElementById('action-toast');
             document.getElementById('toast-title').innerText = title;
             document.getElementById('toast-desc').innerText = desc;
@@ -406,6 +316,80 @@
             }
             toast.classList.remove('hidden');
             setTimeout(() => { toast.classList.add('hidden'); }, 3000);
+        }
+
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('design-upload');
+
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.classList.add('drag-active');
+        });
+
+        dropzone.addEventListener('dragleave', () => {
+            dropzone.classList.remove('drag-active');
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('drag-active');
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                handleDesignUpload({ target: fileInput });
+            }
+        });
+
+        function handleDesignUpload(event) {
+            const files = event.target.files;
+            if(files.length > 0) {
+                document.getElementById('upload-placeholder').classList.add('hidden');
+                const preview = document.getElementById('upload-preview');
+                preview.classList.remove('hidden');
+                
+                let name = files[0].name;
+                if(files.length > 1) name += ` (等 ${files.length} 个文件)`;
+                document.getElementById('filename-display').innerText = name;
+            }
+        }
+
+        // ================= 💡 核心：图片全屏预览逻辑 =================
+        function openPreview() {
+            // 这里我们用一个写死的 Base64 图片数据（代表已上传的截图）进行演示预览。
+            // 真实场景下，你应该从 fileInput 或者云端存储获取该图片的 src。
+            const demoImageData = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAACHYAAAPoCAYAAADtT8NFAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAO7baVRYdFhNTDpjb20uYWRvYmUueG1wAAAAAAA8P3htcCBwYWNrZXQgYmVnaW49Iu+7vyIgaWQ9Ilc1TTBNcENlaGlIenJlU3pOVGN6a2M5ZCI/PiA8eDp4bXBtZXRhIHhtbG5zOng9ImFkb2beOnhtcC8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDYuMC1jMDAyIDcuOTcxMDUwLCAyMDIxLzAzLzI5LTE1OjU0OjAw        ICAgICAgICAiPiA8cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0iIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9nsuYWRvYmUuY29tL3hhcC8xLjAvc1R5cGUvUmVzb3VyY2VSZWYjIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtbG5zOmRjPSJodHRwOi8vcHVybC5vcmcvZGMvZWxlbWVudHMvMS4xLyIgeG1wTU06T3JpZ2luYWxEb2N1bWVudElEPSJ4bXAuZGlkOjY0MTM1MDhhLTg4NzItNGQyMC05Njk3LWNkNzkxN2FjMDdiNyIgeG1wTU06RG9jdW1lbnRJRD0ieG1wLmRpZDo1MjEyMEVDMDcwOUMxMUVFOTgxM0ZCNTRBMTIxNTBCMSIgeG1wTU06SW5zdGFuY2VJRD0ieG1wLmlpZDo1MjEyMEVDMDcwOUMxMUVFOTgxM0ZCNTRBMTIxNTBCMSIgeG1wOkNyZWF0b3JUb29sPSJBZG9iZSBDYXB0aXZhdGUiPiA8ZGM6dGl0bGU+IDxyZGY6QWx0PiA8cmRmOmxpIHhtbG5zOnhtbD0iaHR0cDovL3d3dy53My5vcmcvWE1MLzE5OTgvbmFtZXNwYWNlIiBsYW5nPSJ4LWRlZmF1bHQiLz4gPC9yZGY6QWx0PiA8L2RjOnRpdGxlPiA8L3JkZjpEZXNjcmlwdGlvbj4gPC9yZGY6UkRGPiA8L3g6eG1wbWV0YT4gPD94bXAgcGFja2V0IGVuZD0iciI/PuFidjMAAAw0SURBVHic7dvXjh01GEXRWbZkAcmCIZ988Y7S//3zK/v0Y9jS5JwNNoGf5p7uXre6Z4v/tWpSqrW1/vPnP1/Z53//e7l6Xh7D94u8v8i75fH7j//+5+rX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f48348vH+f7//F4/8vX8+G7hftF3l/k3fL477XfL/L+Iu+Wx+8v8m55fP9/eX9/P/7zWp4/w3fL//H98f4    ";
+            
+            document.getElementById('modal-image').src = demoImageData;
+            document.querySelector('.filename-label').innerText = document.getElementById('filename-display').innerText || '上传的设计截图';
+            
+            const modal = document.getElementById('image-preview-modal');
+            modal.style.display = 'flex';
+            setTimeout(() => modal.classList.add('visible'), 10);
+        }
+
+        function closePreview() {
+            const modal = document.getElementById('image-preview-modal');
+            modal.classList.remove('visible');
+            setTimeout(() => modal.style.display = 'none', 300);
+        }
+
+        // 接听点击事件，绑定到上传成功的虚线框上
+        document.getElementById('dropzone').addEventListener('click', function(e) {
+            // 如果已经显示了预览（ upload-placeholder 已隐藏），则点击触发预览
+            if(document.getElementById('upload-placeholder').classList.contains('hidden')) {
+                // 阻止 input file 的默认点击行为，防止重复弹出文件选择框
+                e.preventDefault(); 
+                openPreview();
+            }
+        });
+
+        // 提交到验收逻辑（保持不变）
+        function submitDesign() {
+            const hours = document.getElementById('work-hours').value;
+            if(!hours || hours <= 0) {
+                return alert("【效能填报校验失败】\n交作业怎么能不填工时呢！请准确填写您在该节点消耗的工时（不支持0或负数）。");
+            }
+            showToast('交付成功', '框架方案已提交给甲方 Debbie 审核。', 'success');
+            setTimeout(() => { window.location.href = 'assistant-workspace.html'; }, 2000);
         }
     </script>
 </body>
