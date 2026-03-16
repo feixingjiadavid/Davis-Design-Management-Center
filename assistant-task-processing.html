@@ -68,6 +68,8 @@
             border-radius: 12px;
             object-fit: contain;
         }
+
+        /* 💡 进度轴的线 */
         .timeline-line { position: absolute; left: 11px; top: 24px; bottom: -8px; width: 2px; background-color: rgba(255,255,255,0.05); z-index: 0; }
     </style>
 </head>
@@ -183,7 +185,8 @@
 
                     <div id="approved-framework-section" class="hidden">
                         <h3 class="text-[15px] font-bold text-emerald-500 mb-3 flex items-center gap-2">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> 已过审的框架参考
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> 
+                            已过审的框架方案参考
                         </h3>
                         <div class="w-full aspect-[16/9] bg-[#121217] rounded-2xl border border-emerald-500/20 overflow-hidden relative shadow-lg p-2">
                             <img id="approved-framework-img" src="" class="w-full h-full object-contain cursor-pointer transition-transform hover:scale-[1.02]" onclick="openPreview(this.src)" title="点击全屏放大">
@@ -193,12 +196,12 @@
                     <div>
                         <h3 class="text-[15px] font-bold text-orange-400 mb-3 flex items-center gap-2" id="upload-section-title">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                            上传框架方案
+                            交付产出物
                         </h3>
                         <div class="bg-[#121217] border border-orange-500/20 p-6 rounded-2xl shadow-xl space-y-6">
                             
                             <div>
-                                <label class="block text-[12px] font-bold text-zinc-300 mb-2" id="upload-label-text">1. 预览图 (自动高压缩至云端，供领导在线快速预览) <span class="text-rose-500">*</span></label>
+                                <label class="block text-[12px] font-bold text-zinc-300 mb-2" id="upload-label-text">1. 预览图 (自动高压缩至云端，供在线快速预览) <span class="text-rose-500">*</span></label>
                                 <div id="dropzone" class="w-full h-32 border-2 border-dashed border-zinc-700 rounded-xl bg-[#09090b] flex flex-col items-center justify-center text-zinc-500 transition-colors hover:border-orange-500/50 cursor-pointer relative overflow-hidden">
                                     <input type="file" id="design-upload" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="handleDesignUpload(event)" accept="image/jpeg,image/png,image/webp">
                                     
@@ -226,7 +229,7 @@
 
                             <div>
                                 <label class="block text-[12px] font-bold text-zinc-300 mb-2">3. 交付说明</label>
-                                <textarea id="delivery-desc" class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3 text-[13px] text-white outline-none focus:border-orange-500 transition-colors h-20 resize-none custom-scrollbar" placeholder="例如：按照您的要求，这是初版的排版框架，请查阅元素比例是否合适..."></textarea>
+                                <textarea id="delivery-desc" class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3 text-[13px] text-white outline-none focus:border-orange-500 transition-colors h-20 resize-none custom-scrollbar" placeholder="例如：这是最新版的排版，请查阅元素比例是否合适..."></textarea>
                             </div>
 
                         </div>
@@ -291,7 +294,7 @@
 
                         <div class="mt-8 pt-5 border-t border-white/5">
                             <button id="btn-submit-design" onclick="submitDesign()" class="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-[14px] font-bold shadow-[0_10px_20px_-10px_rgba(249,115,22,0.6)] btn-press transition-all flex items-center justify-center gap-2">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="clipboard-icon"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="clipboard-icon"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M9 12h6"></path><path d="M9 16h6"></path><path d="M12 8h.01"></path></svg>
                                 提交框架方案审核
                             </button>
                         </div>
@@ -319,7 +322,7 @@
     <div id="image-preview-modal" onclick="closePreview()">
         <div class="modal-content" onclick="event.stopPropagation()">
             <div class="flex justify-between items-center mb-4">
-                <p class="text-[13px] font-bold text-white" id="modal-filename-label">本地预览图</p>
+                <p class="text-[13px] font-bold text-white" id="modal-filename-label">图片预览</p>
                 <button onclick="closePreview()" class="text-zinc-500 hover:text-white transition-colors p-1 btn-press">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 </button>
@@ -402,7 +405,7 @@
             }
         });
 
-        // 💡 动态渲染进度轴
+        // 💡 动态渲染进度轴 (精确还原所有的流转历史与打回意见)
         function renderTimeline(data, history) {
             let html = '';
             
@@ -416,6 +419,7 @@
                 currentStatusDesc = '请根据反馈意见调整并重新提交';
             }
 
+            // 当前状态顶部闪烁点
             html += `
                 <div class="relative flex gap-4 z-10">
                    <div class="w-6 h-6 rounded-full bg-[#121217] border-2 border-${currentStatusColor} flex items-center justify-center shrink-0 shadow-[0_0_10px_currentColor] text-${currentStatusColor}">
@@ -432,7 +436,7 @@
             if (history && history.length > 0) {
                 let revHistory = [...history].reverse();
                 revHistory.forEach(h => {
-                    // 如果有审批回复，插入审批节点
+                    // 1. 如果有审批回复，插入审批节点
                     if (h.reply) {
                         let replyCol = h.is_rejected ? 'rose' : 'emerald';
                         let replyText = h.is_rejected ? '打回修改' : '审批通过';
@@ -449,7 +453,7 @@
                         </div>`;
                     }
 
-                    // 插入提交节点
+                    // 2. 插入提交动作节点
                     let actionText = h.action === 'submit_draft' ? '提交正式设计稿' : '提交框架方案';
                     html += `
                     <div class="relative flex gap-4 z-10 opacity-50 grayscale pb-3">
@@ -501,6 +505,7 @@
                 return;
             }
 
+            // 1. 渲染左侧基础数据
             document.getElementById('req-id').innerText = data.id || '--';
             document.getElementById('req-title-display').innerText = data.title || '无标题';
             
@@ -541,31 +546,33 @@
                 }
             }
 
-            // 💡 解析历史版本并判断当前是第几阶段
+            // 💡 2. 解析历史版本并判断当前是“传框架”还是“传正稿”
             try { windowHistoryArr = JSON.parse(data.history_json || '[]'); } catch(e) { windowHistoryArr = []; }
             const newVerNum = windowHistoryArr.length + 1;
 
             let hasLeaderApproved = false;
             let approvedImgUrl = null;
             
+            // 倒序寻找是否有领导通过框架的记录
             for(let i = windowHistoryArr.length - 1; i >= 0; i--) {
                 const h = windowHistoryArr[i];
-                if(h.reply_by && h.reply_by.includes('主管') && h.is_rejected === false) {
+                if(h.reply_by && (h.reply_by.includes('主管') || h.reply_by.includes('领导')) && h.is_rejected === false) {
                     hasLeaderApproved = true;
                 }
                 if(h.action === 'submit_framework' && h.img_url && !approvedImgUrl) {
-                    approvedImgUrl = h.img_url; // 找到最新的一版过审框架图
+                    approvedImgUrl = h.img_url; // 找到最新一版过审的框架图
                 }
             }
 
-            if(hasLeaderApproved || (data.design_img_url && data.status === 'processing')) {
+            // 如果领导过审了，或者系统已经是 processing 并带有图片（兼容老数据），说明进入推正稿阶段
+            if(hasLeaderApproved || (data.status === 'processing' && data.design_img_url)) {
                 currentUploadPhase = 'draft';
                 if(!approvedImgUrl) approvedImgUrl = data.design_img_url;
             } else {
                 currentUploadPhase = 'framework';
             }
 
-            // 💡 动态修改文案与按钮
+            // 💡 3. 动态修改标题文案与按钮文字
             const titleEl = document.getElementById('upload-section-title');
             const labelEl = document.getElementById('upload-label-text');
             const btnEl = document.getElementById('btn-submit-design');
@@ -575,16 +582,18 @@
                 labelEl.innerHTML = `1. 正式稿预览图 (自动高压供甲方在线验收) <span class="text-rose-500">*</span>`;
                 btnEl.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg> 提交设计稿`;
                 
+                // 展示前置已过审的框架图供对比
                 if (approvedImgUrl) {
                     document.getElementById('approved-framework-section').classList.remove('hidden');
                     document.getElementById('approved-framework-img').src = approvedImgUrl;
                 }
             } else {
                 titleEl.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg> 上传框架方案 <span class="text-xs text-orange-500/80 font-normal ml-2">(系统记录为 v-${newVerNum})</span>`;
-                labelEl.innerHTML = `1. 框架预览图 (自动高压供主管在线把关) <span class="text-rose-500">*</span>`;
+                labelEl.innerHTML = `1. 框架预览图 (自动高压供领导在线把关) <span class="text-rose-500">*</span>`;
                 btnEl.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg> 提交框架方案审核`;
             }
 
+            // 4. 渲染任务时间轴
             renderTimeline(data, windowHistoryArr);
         }
 
@@ -594,6 +603,29 @@
             a.download = name;
             a.click();
             showToast('下载成功', '附件已开始下载', 'success');
+        }
+
+        // ================= 💡 绝对防呆压缩引擎 =================
+        function compressImage(file, maxWidth = 1200, quality = 0.6) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = event => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width, height = img.height;
+                        if (width > maxWidth) { height = Math.round(height * maxWidth / width); width = maxWidth; }
+                        canvas.width = width; canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        canvas.toBlob(blob => { resolve(blob || file); }, 'image/jpeg', quality);
+                    }
+                    img.onerror = () => resolve(file); 
+                    img.src = event.target.result;
+                }
+                reader.onerror = () => resolve(file); 
+                reader.readAsDataURL(file);
+            });
         }
 
         const dropzone = document.getElementById('dropzone');
@@ -620,6 +652,7 @@
                 if(files.length > 1) name += ` (等 ${files.length} 个文件)`;
                 document.getElementById('filename-display').innerText = name;
 
+                compressedBlob = file; // 占位保底
                 compressedBlob = await compressImage(file, 1200, 0.6); 
                 
                 if(localPreviewUrl) URL.revokeObjectURL(localPreviewUrl);
@@ -655,8 +688,12 @@
             document.getElementById('upload-preview').classList.add('hidden');
         }
 
+        // ================= 💡 核心提交：动态区分阶段、推送历史并流转状态 =================
         window.submitDesign = async function() {
-            if(!compressedBlob) {
+            const inputEl = document.getElementById('design-upload');
+            let finalFileToUpload = compressedBlob || (inputEl.files.length > 0 ? inputEl.files[0] : null);
+
+            if(!finalFileToUpload) {
                 return alert("【校验失败】必须上传一张 JPG/PNG 作为预览图供审查！大文件或源文件请填在网盘链接里。");
             }
 
@@ -673,15 +710,19 @@
             const deliveryDesc = document.getElementById('delivery-desc').value.trim();
 
             const btn = document.getElementById('btn-submit-design');
-            btn.disabled = true; btn.innerText = "🚀 正在高速上传至云端...";
+            const originalBtnHtml = btn.innerHTML;
+            btn.disabled = true; btn.innerText = "🚀 正在极速推向云端...";
 
             let finalCloudUrl = '';
 
             try {
-                const safeFileName = `preview_${currentTaskId}_${Date.now()}.jpg`;
+                let fileExt = 'jpg';
+                if(finalFileToUpload && finalFileToUpload.name) fileExt = finalFileToUpload.name.split('.').pop().toLowerCase();
+                
+                const safeFileName = `preview_${currentTaskId}_${Date.now()}.${fileExt}`;
                 const { error: uploadError } = await window.supabase.storage
                     .from('designs')
-                    .upload(safeFileName, compressedBlob, { contentType: 'image/jpeg' });
+                    .upload(safeFileName, finalFileToUpload, { contentType: `image/${fileExt === 'png' ? 'png' : 'jpeg'}` });
 
                 if (uploadError) throw uploadError;
 
@@ -689,10 +730,11 @@
                 finalCloudUrl = urlData.publicUrl;
 
             } catch (err) {
-                btn.disabled = false; btn.innerText = "提交审核";
-                return alert("云端上传失败！请检查 Supabase 中 'designs' 存储桶是否设置为 Public 并允许 INSERT。\n错误信息: " + err.message);
+                btn.disabled = false; btn.innerHTML = originalBtnHtml;
+                return alert("云端上传失败！请检查 Supabase 中 'designs' 存储桶是否配置正确。\n" + err.message);
             }
 
+            // 💡 构建新的版本历史记录 (将此时提交的信息完整存入)
             const newVersionNum = windowHistoryArr.length + 1;
             const newHistoryRecord = {
                 version: `v-${newVersionNum}`,
@@ -704,26 +746,28 @@
             };
             windowHistoryArr.push(newHistoryRecord);
 
+            // 路由流转：如果是传框架，推给主管；如果是传正稿，推给甲方。
             const nextStatus = currentUploadPhase === 'framework' ? 'pending_approval' : 'reviewing';
 
             if (window.supabase) {
-                const summary = `方案已上传等待审核 (耗时: ${hours}h | AI提效: ${selectedAiTools.length > 0 ? selectedAiTools.join(',') : '无'})${deliveryDesc ? ' | 说明: '+deliveryDesc : ''}`;
+                const summary = `${currentUploadPhase === 'framework' ? '框架' : '正式稿'}已上传等待审核 (版本: v-${newVersionNum})${deliveryDesc ? ' | 说明: '+deliveryDesc : ''}`;
                 
                 const { error } = await window.supabase.from(window.DB_TABLE).update({
                     status: nextStatus, 
                     summary_desc: summary,
                     design_img_url: finalCloudUrl,  
                     source_file_link: sourceLink,
-                    history_json: JSON.stringify(windowHistoryArr)
+                    history_json: JSON.stringify(windowHistoryArr) // 将含有本次提交的历史记录写回数据库
                 }).eq('id', currentTaskId);
 
                 if (error) {
-                    btn.disabled = false; btn.innerText = "提交审核";
+                    btn.disabled = false; btn.innerHTML = originalBtnHtml;
+                    if (error.message.includes('history_json')) return alert("【致命错误】数据库缺少 history_json 字段！\n请务必在 Supabase 的 SQL Editor 运行：\nALTER TABLE test_tasks ADD COLUMN history_json text DEFAULT '[]';");
                     return alert("云端写入失败：" + error.message);
                 }
             }
 
-            showToast('交付成功', `版本 v-${newVersionNum} 已推送审核。`, 'success');
+            showToast('交付成功', `版本 v-${newVersionNum} 已成功推送云端。`, 'success');
             setTimeout(() => { window.location.href = 'assistant-workspace.html'; }, 1500);
         }
 
