@@ -110,7 +110,7 @@
                             </div>
                         </div>
 
-                        <p class="text-[13px] text-zinc-400 leading-relaxed whitespace-pre-wrap min-h-[80px]" id="req-desc-display">数据读取中...</p>
+                        <p class="text-[13px] text-zinc-400 leading-relaxed whitespace-pre-wrap" id="req-desc-display">数据读取中...</p>
                         
                         <div class="mt-6 space-y-3">
                             <div id="dt-link-container" class="hidden text-[12px] bg-[#09090b] border border-white/5 p-3 rounded-xl flex items-center gap-2">
@@ -118,6 +118,18 @@
                                 <span id="dt-link" class="truncate"></span>
                             </div>
                             <div id="attachment-container"></div>
+                        </div>
+                    </div>
+
+                    <div class="mt-2">
+                        <h3 class="text-[14px] font-bold text-white mb-3 flex items-center gap-2">🖼️ 框架方案 (待交付)</h3>
+                        <div class="w-full aspect-video bg-[#09090b] rounded-2xl border border-white/10 flex items-center justify-center overflow-hidden mb-4 relative">
+                            <img src="https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2564&auto=format&fit=crop" class="w-full h-full object-cover opacity-40 grayscale">
+                            <div class="absolute inset-0 bg-black/40 flex flex-col items-center justify-center">
+                                <p class="text-white text-sm font-bold bg-black/80 px-5 py-2.5 rounded-xl border border-white/10 backdrop-blur-md shadow-xl" id="dt-placeholder-text">
+                                    设计师正在输出框架方案中...
+                                </p>
+                            </div>
                         </div>
                     </div>
 
@@ -177,8 +189,6 @@
         import { supabase } from './supabase-config.js';
         window.supabase = supabase;
         window.DB_TABLE = 'test_tasks';
-        
-        if(window.loadTaskDetail) window.loadTaskDetail();
     </script>
 
     <script>
@@ -190,6 +200,9 @@
             if(type === 'info') {
                 icon.className = "w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0";
                 icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+            } else if (type === 'error') {
+                icon.className = "w-8 h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0";
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
             } else {
                 icon.className = "w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0";
                 icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
@@ -198,7 +211,6 @@
             setTimeout(() => { toast.classList.add('hidden'); }, 3000);
         }
 
-        // 获取 URL 里的单号 
         const urlParams = new URLSearchParams(window.location.search);
         const currentTaskId = urlParams.get('id');
 
@@ -211,72 +223,92 @@
 
             if(!currentTaskId) {
                 alert("未找到需求编号！"); window.location.href='index.html'; 
-            }
-        });
-
-        // 💡 1. 抓取云端详细信息
-        window.loadTaskDetail = async function() {
-            if(!window.supabase || !currentTaskId) return;
-
-            const { data, error } = await window.supabase.from(window.DB_TABLE).select('*').eq('id', currentTaskId).single();
-            
-            if(error || !data) {
-                alert("未找到该需求或它已被撤销删除！");
-                window.location.href = 'index.html';
                 return;
             }
 
-            // 渲染基础信息
-            document.getElementById('req-id').innerText = data.id || '--';
-            document.getElementById('req-title-display').innerText = data.title || '无标题';
-            document.getElementById('dt-project').innerText = data.project || '--';
-            document.getElementById('dt-date').innerText = data.due_date || '--';
-            document.getElementById('dt-creator').innerText = data.creator || '--';
-            document.getElementById('req-desc-display').innerText = data.full_desc || '未填写描述内容。';
-            
-            // 渲染渠道
-            if(data.channels && Array.isArray(data.channels) && data.channels.length > 0) {
-                document.getElementById('dt-channels').innerHTML = data.channels.map(c => `<span class="text-[10px] bg-white/5 border border-white/10 px-2 py-0.5 rounded text-zinc-300">${c}</span>`).join('');
-            } else {
-                document.getElementById('dt-channels').innerHTML = '<span class="text-[10px] text-zinc-500">未指定具体渠道</span>';
-            }
+            // 💡 防崩溃轮询：确保 supabase 库加载完毕后再查询
+            const checkAndLoad = setInterval(() => {
+                if(window.supabase) {
+                    clearInterval(checkAndLoad);
+                    loadTaskDetailSafe();
+                }
+            }, 100);
+            setTimeout(() => clearInterval(checkAndLoad), 5000); // 5秒超时保护
+        });
 
-            // 渲染链接
-            if(data.link) {
+        // 💡 极度安全的抓取函数
+        async function loadTaskDetailSafe() {
+            try {
+                const { data, error } = await window.supabase.from(window.DB_TABLE).select('*').eq('id', currentTaskId).single();
+                
+                if(error || !data) {
+                    alert("未找到该需求或已删除！");
+                    window.location.href = 'index.html';
+                    return;
+                }
+
+                // 渲染基础信息
+                document.getElementById('req-id').innerText = data.id || '--';
+                document.getElementById('req-title-display').innerText = data.title || '无标题';
+                document.getElementById('dt-project').innerText = data.project || '--';
+                document.getElementById('dt-date').innerText = data.due_date || '--';
+                
+                // 渲染渠道
+                const channelsEl = document.getElementById('dt-channels');
+                if(data.channels && Array.isArray(data.channels) && data.channels.length > 0) {
+                    channelsEl.innerHTML = data.channels.map(c => `<span class="text-[10px] bg-white/5 border border-white/10 px-2 py-0.5 rounded text-zinc-300">${c}</span>`).join('');
+                } else {
+                    channelsEl.innerHTML = '<span class="text-[10px] text-zinc-500">未指定渠道</span>';
+                }
+
+                // 渲染链接
                 const linkContainer = document.getElementById('dt-link-container');
-                linkContainer.classList.remove('hidden');
-                document.getElementById('dt-link').innerHTML = `<a href="${data.link}" target="_blank" class="text-sky-400 hover:underline">${data.link}</a>`;
-            }
+                const linkEl = document.getElementById('dt-link');
+                if(data.link) {
+                    linkContainer.classList.remove('hidden');
+                    linkEl.innerHTML = `<a href="${data.link}" target="_blank" class="text-sky-400 hover:underline break-all">${data.link}</a>`;
+                }
 
-            // 渲染附件
-            if(data.file_name && data.file_data) {
-                document.getElementById('attachment-container').innerHTML = `
-                    <div class="mt-4 flex gap-3">
-                        <button onclick="downloadAttachment('${data.file_name}', '${data.file_data}')" class="text-[11px] bg-[#1a1a24] text-indigo-400 px-4 py-2 rounded-xl border border-indigo-500/20 hover:bg-indigo-500/10 flex items-center gap-2 transition-colors btn-press">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg> 
-                            下载参考附件：${data.file_name}
-                        </button>
-                    </div>
-                `;
-            }
+                // 渲染描述
+                document.getElementById('req-desc-display').innerHTML = (data.full_desc || '未填写描述内容。').replace(/\n/g, '<br>');
+                
+                // 渲染附件
+                const attachEl = document.getElementById('attachment-container');
+                if(data.file_name && data.file_data) {
+                    attachEl.innerHTML = `
+                        <div class="mt-4 flex gap-3">
+                            <button onclick="downloadAttachment('${data.file_name}', '${data.file_data}')" class="text-[11px] bg-[#1a1a24] text-indigo-400 px-4 py-2 rounded-xl border border-indigo-500/20 hover:bg-indigo-500/10 flex items-center gap-2 transition-colors btn-press">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg> 
+                                下载甲方附件：${data.file_name}
+                            </button>
+                        </div>
+                    `;
+                } else if (data.file_name) {
+                    attachEl.innerHTML = `<div class="mt-4 text-[11px] text-zinc-500 italic">📎 附件名称：${data.file_name} (无文件流)</div>`;
+                }
 
-            // 💡 2. 提取设计师承诺的交稿时间
-            // 因为 summary_desc 的格式是 "排期中，预计 2026-03-20 上传框架方案"
-            let promisedDate = '待定';
-            if (data.summary_desc) {
-                const match = data.summary_desc.match(/预计 (.*?) 上传/);
-                if (match && match[1]) promisedDate = match[1];
-            }
-            document.getElementById('dt-promise-date').innerText = promisedDate;
+                // 💡 提取设计师承诺的交稿时间
+                let promisedDate = '待定';
+                if (data.summary_desc) {
+                    const match = data.summary_desc.match(/预计 (.*?) 上传/);
+                    if (match && match[1]) promisedDate = match[1];
+                }
+                document.getElementById('dt-promise-date').innerText = promisedDate;
 
-            // 完善时间轴与状态文案
-            document.getElementById('dt-assignee-text').innerText = `设计师 ${data.assignee !== 'none' ? data.assignee : ''} 正在努力赶工`;
-            
-            // 格式化创建时间显示
-            if(data.created_at) {
-                const createdDate = new Date(data.created_at);
-                document.getElementById('dt-create-time').innerText = `操作人: ${data.creator} · ${createdDate.getMonth()+1}月${createdDate.getDate()}日`;
-                document.getElementById('dt-accept-time').innerText = `记录时间: ${createdDate.getMonth()+1}月${createdDate.getDate()}日`; // 简化的展示逻辑
+                // 💡 动态替换占位图中的花名
+                const assigneeName = (data.assignee && data.assignee !== 'none') ? data.assignee : '专属设计';
+                document.getElementById('dt-assignee-text').innerText = `设计师 ${assigneeName} 正在努力赶工`;
+                document.getElementById('dt-placeholder-text').innerHTML = `✨ <span class="text-sky-400">${assigneeName}</span> 正在输出框架方案中...`;
+
+                // 时间流同步
+                if(data.created_at) {
+                    const createdDate = new Date(data.created_at);
+                    document.getElementById('dt-create-time').innerText = `操作人: ${data.creator} · ${createdDate.getMonth()+1}月${createdDate.getDate()}日`;
+                }
+
+            } catch(err) {
+                console.error(err);
+                showToast("读取失败", err.message, "error");
             }
         }
 
@@ -288,28 +320,24 @@
             showToast('下载成功', '附件已开始下载', 'success');
         }
 
-        // 💡 3. 催办通知系统
+        // 催办打通
         window.urgeDesigner = function(btn) {
-            // 改变按钮状态防连点
             btn.innerHTML = '✓ 已催办';
             btn.className = "px-5 py-2.5 bg-zinc-800 border border-zinc-700 text-zinc-500 rounded-xl text-[13px] font-bold cursor-not-allowed flex items-center gap-2";
             btn.disabled = true;
 
-            // 写入本地缓存，模拟给设计端发送通知
             let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
-            const newNotif = {
+            sysNotifs.push({
                 id: new Date().getTime(),
                 taskId: currentTaskId,
                 title: '进度催办提醒',
                 desc: `需求方正在催促单号 ${currentTaskId} 的进度，请尽快上传框架方案。`,
-                role: 'design', // 指定这条消息只给设计方看
+                role: 'design',
                 read: false,
                 time: new Date().toISOString()
-            };
-            sysNotifs.push(newNotif);
+            });
             localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs));
-
-            showToast('催办已发出', '系统已向设计师面板发送系统红点消息提醒。', 'success');
+            showToast('催办已发出', '系统已向设计师发送通知。', 'success');
         }
     </script>
 </body>
