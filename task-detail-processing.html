@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>执行追踪 TK-0820 - 戴维斯设计需求管理中心</title>
+    <title>执行追踪 - 戴维斯设计需求管理中心</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -49,8 +49,8 @@
         </div>
         <div class="px-7 py-7 mt-auto border-t border-white/5 bg-[#09090b] shrink-0">
             <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm">DE</div>
-                <div><p class="text-xs font-bold text-white mb-0.5">Debbie</p><p class="text-[10px] text-zinc-500">行政部门 · 需求方</p></div>
+                <div id="sidebar-avatar" class="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-[0_0_10px_rgba(255,255,255,0.1)]">?</div>
+                <div><p id="sidebar-name" class="text-xs font-bold text-white mb-0.5">加载中</p><p class="text-[10px] text-zinc-500">需求方视角</p></div>
             </div>
         </div>
     </aside>
@@ -64,17 +64,17 @@
                 </button>
                 <div class="flex items-center gap-4">
                     <div class="bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg flex items-center gap-2">
-                        <span class="text-emerald-500 font-mono text-sm font-bold">TK-0820</span>
+                        <span class="text-emerald-500 font-mono text-sm font-bold" id="req-id">读取中</span>
                     </div>
-                    <h2 class="text-[22px] font-bold text-white tracking-tight">新品发布会主KV视觉延展</h2>
+                    <h2 class="text-[22px] font-bold text-white tracking-tight" id="req-title-display">正在获取云端信息...</h2>
                     <span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded text-[11px] font-bold shadow-[0_0_10px_rgba(16,185,129,0.2)] flex items-center gap-1.5">
                         <svg class="animate-spin h-3 w-3 text-emerald-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 
-                        正稿设计制作中
+                        设计制作中
                     </span>
                 </div>
             </div>
             <div class="flex items-center gap-3">
-                <button onclick="urgeDesigner(this)" class="px-5 py-2.5 bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/30 rounded-xl text-[13px] font-bold transition-colors btn-press flex items-center gap-2">
+                <button id="btn-urge" onclick="urgeDesigner(this)" class="px-5 py-2.5 bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/30 rounded-xl text-[13px] font-bold transition-colors btn-press flex items-center gap-2">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
                     催办进度
                 </button>
@@ -86,69 +86,38 @@
                 
                 <div class="flex-1 flex flex-col gap-8 min-w-0">
                     
-                    <div class="grid grid-cols-4 gap-4">
-                        <div class="bg-[#121217] border border-white/5 p-4 rounded-2xl flex flex-col justify-center">
-                            <p class="text-[11px] text-zinc-500 mb-1">归属项目</p>
-                            <p class="text-[13px] font-bold text-zinc-200">日常行政支撑</p>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="bg-[#121217] border border-white/5 p-5 rounded-2xl flex flex-col justify-center">
+                            <p class="text-[11px] text-zinc-500 mb-1.5">归属项目</p>
+                            <p class="text-[14px] font-bold text-zinc-200 truncate" id="dt-project">--</p>
                         </div>
-                        <div class="bg-[#121217] border border-emerald-500/20 p-4 rounded-2xl flex flex-col justify-center">
-                            <p class="text-[11px] text-zinc-500 mb-1">期望交付时间</p>
-                            <p class="text-[13px] font-bold text-emerald-400">下周三</p>
+                        <div class="bg-[#121217] border border-white/5 p-5 rounded-2xl flex flex-col justify-center">
+                            <p class="text-[11px] text-zinc-500 mb-1.5">我期望的交付总期限</p>
+                            <p class="text-[14px] font-bold text-zinc-200" id="dt-date">--</p>
                         </div>
-                        <div class="bg-[#121217] border border-white/5 p-4 rounded-2xl flex flex-col justify-center">
-                            <p class="text-[11px] text-zinc-500 mb-1">需求类型</p>
-                            <p class="text-[13px] font-bold text-zinc-200">平面视觉设计</p>
-                        </div>
-                        <div class="bg-[#121217] border border-white/5 p-4 rounded-2xl flex flex-col justify-center">
-                            <p class="text-[11px] text-zinc-500 mb-1.5">宣发渠道</p>
-                            <div class="flex gap-1.5 flex-wrap">
-                                <span class="text-[10px] bg-white/5 border border-white/10 px-2 py-0.5 rounded text-zinc-300">易拉宝</span>
-                                <span class="text-[10px] bg-white/5 border border-white/10 px-2 py-0.5 rounded text-zinc-300">展架</span>
-                            </div>
+                        <div class="bg-emerald-500/5 border border-emerald-500/20 p-5 rounded-2xl flex flex-col justify-center relative overflow-hidden">
+                            <div class="absolute right-0 top-0 bottom-0 w-1 bg-emerald-500"></div>
+                            <p class="text-[11px] text-emerald-500/80 mb-1.5 font-bold">设计承诺交框架时间</p>
+                            <p class="text-[16px] font-black text-emerald-400" id="dt-promise-date">读取中...</p>
                         </div>
                     </div>
 
-                    <div>
-                        <div class="flex items-center justify-between mb-3">
-                            <h3 class="text-[14px] font-bold text-white flex items-center gap-2">🖼️ 领导已过审的大方向草图 (V-0)</h3>
-                        </div>
-                        <div class="w-full aspect-video bg-[#09090b] rounded-2xl border border-white/10 flex items-center justify-center overflow-hidden mb-4 relative">
-                            <img src="https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2564&auto=format&fit=crop" class="w-full h-full object-cover opacity-60">
-                            <div class="absolute inset-0 bg-black/20 flex flex-col items-center justify-center">
-                                <p class="text-white text-sm font-bold bg-black/60 px-4 py-2 rounded-lg backdrop-blur-md">设计师 Skyler 正在以此草图为基准渲染高清正稿...</p>
+                    <div class="bg-[#121217] border border-white/5 rounded-2xl p-8">
+                        <div class="flex items-center justify-between mb-6 pb-4 border-b border-white/5">
+                            <h3 class="text-[15px] font-bold text-white flex items-center gap-2">📋 原始需求全貌</h3>
+                            <div class="flex gap-2" id="dt-channels">
+                                <span class="text-[10px] bg-white/5 border border-white/10 px-2 py-0.5 rounded text-zinc-400">读取渠道...</span>
                             </div>
                         </div>
-                    </div>
 
-                    <div>
-                        <h3 class="text-[14px] font-bold text-white mb-3 flex items-center gap-2">💬 项目沟通与资料补充</h3>
-                        <div class="bg-[#121217] border border-white/5 rounded-2xl flex flex-col overflow-hidden">
-                            <div class="p-6 space-y-6 bg-[#0c0c0e] max-h-[300px] overflow-y-auto custom-scrollbar" id="chat-box">
-                                <div class="flex gap-4">
-                                    <div class="w-8 h-8 rounded-full bg-indigo-900 flex items-center justify-center text-[10px] font-bold text-indigo-200 shrink-0">SK</div>
-                                    <div>
-                                        <div class="flex items-baseline gap-2 mb-1">
-                                            <span class="text-[13px] font-bold text-white">Skyler (设计)</span>
-                                            <span class="text-[10px] text-zinc-500">今天 10:15</span>
-                                        </div>
-                                        <p class="text-[13px] text-zinc-300 bg-[#1a1a24] p-3 rounded-tr-xl rounded-b-xl inline-block border border-white/5">收到，草图领导过了，我下午开始建模。如果是要放商场的话，你这边能再提供一下商场外立面的实景图给我参考下光影吗？</p>
-                                    </div>
-                                </div>
+                        <p class="text-[13px] text-zinc-400 leading-relaxed whitespace-pre-wrap min-h-[80px]" id="req-desc-display">数据读取中...</p>
+                        
+                        <div class="mt-6 space-y-3">
+                            <div id="dt-link-container" class="hidden text-[12px] bg-[#09090b] border border-white/5 p-3 rounded-xl flex items-center gap-2">
+                                <span class="text-zinc-500">🔗 参考链接：</span>
+                                <span id="dt-link" class="truncate"></span>
                             </div>
-                            
-                            <div class="p-4 border-t border-white/5 bg-[#121217]">
-                                <div class="bg-[#09090b] border border-zinc-700 rounded-xl overflow-hidden transition-colors focus-within:border-indigo-500">
-                                    <textarea id="chat-input" class="w-full bg-transparent px-4 py-3 text-sm text-white outline-none h-16 resize-none custom-scrollbar" placeholder="回复或补充素材给设计师..."></textarea>
-                                    <div class="bg-zinc-900/50 px-3 py-2 border-t border-zinc-800 flex items-center justify-between">
-                                        <label class="cursor-pointer flex items-center gap-1.5 text-xs text-zinc-400 hover:text-indigo-400 transition-colors btn-press">
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
-                                            <span id="chat-file-text">添加图片/文件</span>
-                                            <input type="file" id="chat-file-upload" class="hidden" multiple onchange="handleChatFile(event)">
-                                        </label>
-                                        <button onclick="sendChat()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-1.5 rounded-lg text-xs font-bold transition-colors btn-press">发送</button>
-                                    </div>
-                                </div>
-                            </div>
+                            <div id="attachment-container"></div>
                         </div>
                     </div>
 
@@ -165,20 +134,20 @@
                                <svg class="animate-spin h-3.5 w-3.5 text-emerald-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                            </div>
                            <div class="pt-0.5 pb-2">
-                               <p class="text-[13px] font-bold text-emerald-400 mb-0.5">正稿设计制作中</p>
-                               <p class="text-[10px] text-zinc-400">目前阶段需求锁定，系统防返工中</p>
+                               <p class="text-[13px] font-bold text-emerald-400 mb-0.5">设计排期制作中</p>
+                               <p class="text-[10px] text-zinc-400" id="dt-assignee-text">设计师正在努力赶工</p>
                            </div>
-                       </div>
-                       
-                       <div class="relative flex gap-4 z-10 opacity-40 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-300 cursor-default">
+                        </div>
+                        
+                        <div class="relative flex gap-4 z-10 opacity-40 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-300 cursor-default">
                            <div class="w-7 h-7 rounded-full bg-[#121217] border-[2px] border-emerald-500 flex items-center justify-center shrink-0 bg-emerald-500/10">
                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="3.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
                            </div>
                            <div class="pt-0.5 pb-2">
-                               <p class="text-[13px] font-bold text-zinc-300 mb-0.5">框架草图审批通过</p>
-                               <p class="text-[10px] text-zinc-500">今天 09:30 · 审批人: 文哥</p>
+                               <p class="text-[13px] font-bold text-zinc-300 mb-0.5">设计师已确认接单</p>
+                               <p class="text-[10px] text-zinc-500" id="dt-accept-time">系统记录</p>
                            </div>
-                       </div>
+                        </div>
 
                         <div class="relative flex gap-4 z-10 opacity-40 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-300 cursor-default">
                             <div class="w-7 h-7 rounded-full bg-[#121217] border-[2px] border-zinc-600 flex items-center justify-center shrink-0">
@@ -186,7 +155,7 @@
                             </div>
                             <div class="pt-0.5 pb-2">
                                 <p class="text-[13px] font-bold text-zinc-300 mb-0.5">需求立项创建</p>
-                                <p class="text-[10px] text-zinc-500 mb-1.5">昨天 10:00 · 操作人: Debbie</p>
+                                <p class="text-[10px] text-zinc-500 mb-1.5" id="dt-create-time">系统记录</p>
                             </div>
                         </div>
 
@@ -203,6 +172,14 @@
             <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-zinc-400 text-[11px] mt-0.5">操作已执行。</p></div>
         </div>
     </div>
+
+    <script type="module">
+        import { supabase } from './supabase-config.js';
+        window.supabase = supabase;
+        window.DB_TABLE = 'test_tasks';
+        
+        if(window.loadTaskDetail) window.loadTaskDetail();
+    </script>
 
     <script>
         function showToast(title, desc, type = 'success') {
@@ -221,54 +198,118 @@
             setTimeout(() => { toast.classList.add('hidden'); }, 3000);
         }
 
-        function urgeDesigner(btn) {
+        // 获取 URL 里的单号 
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentTaskId = urlParams.get('id');
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const userStr = localStorage.getItem('activeUserObj');
+            if (!userStr) { window.location.href = 'login.html'; return; }
+            const user = JSON.parse(userStr);
+            document.getElementById('sidebar-avatar').innerText = user.avatar;
+            document.getElementById('sidebar-name').innerText = user.displayName || user.cnName || user.enName;
+
+            if(!currentTaskId) {
+                alert("未找到需求编号！"); window.location.href='index.html'; 
+            }
+        });
+
+        // 💡 1. 抓取云端详细信息
+        window.loadTaskDetail = async function() {
+            if(!window.supabase || !currentTaskId) return;
+
+            const { data, error } = await window.supabase.from(window.DB_TABLE).select('*').eq('id', currentTaskId).single();
+            
+            if(error || !data) {
+                alert("未找到该需求或它已被撤销删除！");
+                window.location.href = 'index.html';
+                return;
+            }
+
+            // 渲染基础信息
+            document.getElementById('req-id').innerText = data.id || '--';
+            document.getElementById('req-title-display').innerText = data.title || '无标题';
+            document.getElementById('dt-project').innerText = data.project || '--';
+            document.getElementById('dt-date').innerText = data.due_date || '--';
+            document.getElementById('dt-creator').innerText = data.creator || '--';
+            document.getElementById('req-desc-display').innerText = data.full_desc || '未填写描述内容。';
+            
+            // 渲染渠道
+            if(data.channels && Array.isArray(data.channels) && data.channels.length > 0) {
+                document.getElementById('dt-channels').innerHTML = data.channels.map(c => `<span class="text-[10px] bg-white/5 border border-white/10 px-2 py-0.5 rounded text-zinc-300">${c}</span>`).join('');
+            } else {
+                document.getElementById('dt-channels').innerHTML = '<span class="text-[10px] text-zinc-500">未指定具体渠道</span>';
+            }
+
+            // 渲染链接
+            if(data.link) {
+                const linkContainer = document.getElementById('dt-link-container');
+                linkContainer.classList.remove('hidden');
+                document.getElementById('dt-link').innerHTML = `<a href="${data.link}" target="_blank" class="text-sky-400 hover:underline">${data.link}</a>`;
+            }
+
+            // 渲染附件
+            if(data.file_name && data.file_data) {
+                document.getElementById('attachment-container').innerHTML = `
+                    <div class="mt-4 flex gap-3">
+                        <button onclick="downloadAttachment('${data.file_name}', '${data.file_data}')" class="text-[11px] bg-[#1a1a24] text-indigo-400 px-4 py-2 rounded-xl border border-indigo-500/20 hover:bg-indigo-500/10 flex items-center gap-2 transition-colors btn-press">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg> 
+                            下载参考附件：${data.file_name}
+                        </button>
+                    </div>
+                `;
+            }
+
+            // 💡 2. 提取设计师承诺的交稿时间
+            // 因为 summary_desc 的格式是 "排期中，预计 2026-03-20 上传框架方案"
+            let promisedDate = '待定';
+            if (data.summary_desc) {
+                const match = data.summary_desc.match(/预计 (.*?) 上传/);
+                if (match && match[1]) promisedDate = match[1];
+            }
+            document.getElementById('dt-promise-date').innerText = promisedDate;
+
+            // 完善时间轴与状态文案
+            document.getElementById('dt-assignee-text').innerText = `设计师 ${data.assignee !== 'none' ? data.assignee : ''} 正在努力赶工`;
+            
+            // 格式化创建时间显示
+            if(data.created_at) {
+                const createdDate = new Date(data.created_at);
+                document.getElementById('dt-create-time').innerText = `操作人: ${data.creator} · ${createdDate.getMonth()+1}月${createdDate.getDate()}日`;
+                document.getElementById('dt-accept-time').innerText = `记录时间: ${createdDate.getMonth()+1}月${createdDate.getDate()}日`; // 简化的展示逻辑
+            }
+        }
+
+        window.downloadAttachment = function(name, dataBase64) {
+            const a = document.createElement('a');
+            a.href = dataBase64;
+            a.download = name;
+            a.click();
+            showToast('下载成功', '附件已开始下载', 'success');
+        }
+
+        // 💡 3. 催办通知系统
+        window.urgeDesigner = function(btn) {
+            // 改变按钮状态防连点
             btn.innerHTML = '✓ 已催办';
             btn.className = "px-5 py-2.5 bg-zinc-800 border border-zinc-700 text-zinc-500 rounded-xl text-[13px] font-bold cursor-not-allowed flex items-center gap-2";
             btn.disabled = true;
-            showToast('催办已发出', '系统已向 Skyler 发送企微弹窗提醒。', 'success');
-        }
 
-        // 💡 留言板逻辑
-        let hasFile = false;
-        function handleChatFile(event) {
-            const files = event.target.files;
-            if(files.length > 0) {
-                hasFile = true;
-                document.getElementById('chat-file-text').innerText = `已选 ${files.length} 个附件`;
-                document.getElementById('chat-file-text').className = "text-indigo-400 font-bold";
-            }
-        }
+            // 写入本地缓存，模拟给设计端发送通知
+            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
+            const newNotif = {
+                id: new Date().getTime(),
+                taskId: currentTaskId,
+                title: '进度催办提醒',
+                desc: `需求方正在催促单号 ${currentTaskId} 的进度，请尽快上传框架方案。`,
+                role: 'design', // 指定这条消息只给设计方看
+                read: false,
+                time: new Date().toISOString()
+            };
+            sysNotifs.push(newNotif);
+            localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs));
 
-        function sendChat() {
-            const input = document.getElementById('chat-input');
-            const msg = input.value.trim();
-            if(!msg && !hasFile) return;
-
-            const chatBox = document.getElementById('chat-box');
-            let contentHtml = msg ? `<p class="text-[13px] text-white bg-indigo-600 p-3 rounded-tl-xl rounded-b-xl inline-block shadow-md">${msg}</p>` : '';
-            if(hasFile) {
-                contentHtml += `<div class="mt-2 bg-zinc-800 p-2.5 rounded-lg flex items-center gap-2 border border-zinc-700 max-w-[200px] ml-auto"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-indigo-400"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg><span class="text-xs text-zinc-300 truncate">补充参考图.jpg</span></div>`;
-            }
-
-            const newMsg = `
-                <div class="flex gap-4 justify-end">
-                    <div class="text-right">
-                        <div class="flex items-baseline justify-end gap-2 mb-1">
-                            <span class="text-[10px] text-zinc-500">刚刚</span>
-                            <span class="text-[13px] font-bold text-white">Debbie (我)</span>
-                        </div>
-                        ${contentHtml}
-                    </div>
-                    <div class="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[10px] font-bold text-white shrink-0">DE</div>
-                </div>
-            `;
-            
-            chatBox.insertAdjacentHTML('beforeend', newMsg);
-            input.value = '';
-            hasFile = false;
-            document.getElementById('chat-file-text').innerText = '添加图片/文件';
-            document.getElementById('chat-file-text').className = "";
-            chatBox.scrollTop = chatBox.scrollHeight;
+            showToast('催办已发出', '系统已向设计师面板发送系统红点消息提醒。', 'success');
         }
     </script>
 </body>
