@@ -145,6 +145,7 @@
                         </div>
                         <p class="text-[11px] text-zinc-500">当前预览: <span class="text-zinc-400 font-mono font-bold" id="tracking-focus-text">无选中的单据</span></p>
                     </div>
+                    
                     <div class="relative flex-1 custom-scrollbar pointer-events-none" id="all-timelines-container">
                     </div>
                 </div>
@@ -186,7 +187,7 @@
                             <input type="text" id="req-project" class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-300 outline-none focus:border-indigo-500 transition-colors" placeholder="-- 请下拉选择或输入检索 --" autocomplete="off" onfocus="showProjectDropdown()" oninput="filterProjectDropdown()">
                             <svg class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
                         </div>
-                        <div id="project-dropdown" class="hidden absolute left-0 right-0 top-[100%] mt-1 bg-[#121217] border border-zinc-700 rounded-xl shadow-2xl z-[99999] max-h-56 overflow-y-auto custom-scrollbar py-2">
+                        <div id="project-dropdown" class="hidden absolute left-0 right-0 top-[100%] mt-1 bg-[#121217] border border-zinc-700 rounded-xl shadow-[0_15px_40px_rgba(0,0,0,0.8)] z-[99999] max-h-56 overflow-y-auto custom-scrollbar py-2">
                             <div id="project-dropdown-list"></div>
                         </div>
                     </div>
@@ -212,11 +213,11 @@
                     <div class="relative" id="assignee-wrapper">
                         <label class="block text-[13px] font-bold text-zinc-300 mb-2">6. 期望执行人 <span class="text-rose-500">*</span></label>
                         <input type="hidden" id="req-assignee" value="none">
-                        <div id="assignee-trigger" class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3.5 text-sm text-zinc-300 outline-none cursor-pointer flex justify-between items-center transition-colors hover:border-indigo-500" onclick="toggleAssigneeDropdown(event)">
-                            <span id="assignee-display" class="truncate">不指定 (系统统筹)</span>
-                            <svg class="w-4 h-4 text-zinc-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        <div class="relative">
+                            <input type="text" id="req-assignee-input" class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3.5 text-sm text-zinc-300 outline-none focus:border-indigo-500 transition-colors cursor-pointer" placeholder="输入英文名检索或下拉选择..." autocomplete="off" onfocus="showAssigneeDropdown()" oninput="filterAssigneeDropdown()" onblur="validateAssigneeInput()">
+                            <svg class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
                         </div>
-                        <div id="assignee-dropdown" class="hidden absolute left-0 right-0 top-[100%] mt-1 bg-[#121217] border border-zinc-700 rounded-xl shadow-2xl z-[99999] max-h-56 overflow-y-auto custom-scrollbar py-2">
+                        <div id="assignee-dropdown" class="hidden absolute left-0 right-0 top-[100%] mt-1 bg-[#121217] border border-zinc-700 rounded-xl shadow-[0_15px_40px_rgba(0,0,0,0.8)] z-[99999] max-h-56 overflow-y-auto custom-scrollbar py-2">
                             <div id="assignee-dropdown-list"></div>
                         </div>
                     </div>
@@ -248,7 +249,7 @@
             <div class="p-6 border-t border-zinc-800 bg-[#09090b] flex justify-end items-center rounded-b-3xl gap-4">
                 <button onclick="closeAllModals()" class="px-6 py-3 bg-transparent border border-zinc-700 text-zinc-400 hover:text-white rounded-xl text-[13px] font-bold btn-press transition-colors">取消</button>
                 <button onclick="saveDraft()" class="px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-[13px] font-bold btn-press transition-colors">暂存草稿</button>
-                <button onclick="submitNewReq()" class="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[14px] font-bold shadow-[0_8px_15px_rgba(79,70,229,0.3)] btn-press transition-all">确认提交至云端</button>
+                <button onclick="submitNewReq()" class="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[14px] font-bold shadow-[0_8px_15px_rgba(79,70,229,0.3)] btn-press transition-all">确认提交</button>
             </div>
         </div>
     </div>
@@ -283,7 +284,6 @@
         const PAGE_TYPE = 'req'; 
         let currentUploadedFileData = null;
 
-        // ================= 高级自定义下拉菜单数据与逻辑 =================
         const PROJECT_LIST = [
             "Smart文化-OpenTalk", "Smart文化-1024", "Smart文化-后勤小管家", "Smart文化-小蓝书运营", "Smart文化-送物机器人",
             "荣誉体系-即时激励", "荣誉体系-荣誉奖项", "荣誉体系-AI奖项", "荣誉体系-最佳拍档", "荣誉体系-科技合作社", "荣誉体系-极客团",
@@ -297,6 +297,7 @@
         const PREDEFINED_ASSIGNEES = ['anckyyu', 'davidxxu', 'debbiehuang', 'evazzhu', 'hscheng', 'mengmengli', 'skylerhuang', 'sophiachen', 'tiaouyang', 'v_lijuangchen', 'v_lucui', 'v_sijieli', 'v_siyifu', 'v_sjtian', 'v_wbchye', 'v_wbjgao', 'v_wbmtli', 'v_zqlan', 'wenjiawu', 'yamyzhang', 'yaozhong', 'yoshyliu', 'zoeyzhou'];
         let finalAssigneeList = [...PREDEFINED_ASSIGNEES];
 
+        // 项目渲染逻辑
         function renderProjects(filterText = '') {
             const listEl = document.getElementById('project-dropdown-list');
             let filtered = PROJECT_LIST.filter(p => p.toLowerCase().includes(filterText.toLowerCase()));
@@ -305,7 +306,7 @@
                 html = `<div class="px-4 py-3 text-[13px] text-zinc-500 cursor-default">将直接使用您的手写输入 "${filterText}"</div>`;
             } else {
                 filtered.forEach(p => {
-                    html += `<div class="px-4 py-2.5 text-[13px] text-zinc-300 hover:bg-indigo-500/20 hover:text-indigo-300 cursor-pointer transition-colors" onclick="selectProject('${p}')">${p}</div>`;
+                    html += `<div class="px-4 py-2.5 text-[13px] text-zinc-300 hover:bg-indigo-500/20 hover:text-indigo-300 cursor-pointer transition-colors" onmousedown="selectProject('${p}')">${p}</div>`;
                 });
             }
             listEl.innerHTML = html;
@@ -324,36 +325,78 @@
             renderProjects(document.getElementById('req-project').value);
         }
 
-        window.loadAssigneesFromCloud = async function() {
-            renderAssignees(); // 先渲染预定义列表
-            if(!window.supabase) return;
-            const { data, error } = await window.supabase.from('user_profiles').select('en_name');
-            if(!error && data) {
-                const dbNames = data.map(u => u.en_name).filter(n => n && n !== 'judyzzhang');
-                const mergedSet = new Set([...PREDEFINED_ASSIGNEES, ...dbNames]);
-                finalAssigneeList = Array.from(mergedSet).sort();
-                renderAssignees();
+        // ================= 执行人渲染与强校验逻辑 =================
+        window.renderAssignees = function(filterText = '') {
+            const listEl = document.getElementById('assignee-dropdown-list');
+            if(!listEl) return;
+            
+            let filtered = finalAssigneeList.filter(name => name.toLowerCase().includes(filterText.toLowerCase()));
+            let html = '';
+            
+            if ('不指定 (系统统筹)'.includes(filterText)) {
+                // 注意这里用 onmousedown 代替 onclick，防止失去焦点的冲突
+                html += `<div class="px-4 py-3 text-[13px] text-zinc-300 hover:bg-indigo-500/20 hover:text-indigo-300 cursor-pointer transition-colors border-b border-zinc-800" onmousedown="selectAssignee('none', '不指定 (系统统筹)')">不指定 (系统统筹)</div>`;
             }
+            
+            if (filtered.length === 0 && !('不指定 (系统统筹)'.includes(filterText))) {
+                html += `<div class="px-4 py-3 text-[13px] text-zinc-500 cursor-default">系统无此执行人，不可指派</div>`;
+            } else {
+                filtered.forEach(name => {
+                    html += `<div class="px-4 py-2.5 text-[13px] text-zinc-300 hover:bg-indigo-500/20 hover:text-indigo-300 cursor-pointer transition-colors" onmousedown="selectAssignee('${name}', '${name}')">${name}</div>`;
+                });
+            }
+            listEl.innerHTML = html;
         }
 
-        function renderAssignees() {
-            const listEl = document.getElementById('assignee-dropdown-list');
-            let html = `<div class="px-4 py-3 text-[13px] text-zinc-300 hover:bg-indigo-500/20 hover:text-indigo-300 cursor-pointer transition-colors border-b border-zinc-800" onclick="selectAssignee('none', '不指定 (系统统筹)')">不指定 (系统统筹)</div>`;
-            finalAssigneeList.forEach(name => {
-                html += `<div class="px-4 py-2.5 text-[13px] text-zinc-300 hover:bg-indigo-500/20 hover:text-indigo-300 cursor-pointer transition-colors" onclick="selectAssignee('${name}', '${name}')">${name}</div>`;
-            });
-            listEl.innerHTML = html;
+        window.loadAssigneesFromCloud = async function() {
+            if(!window.supabase) return;
+            try {
+                const { data, error } = await window.supabase.from('user_profiles').select('en_name');
+                if(!error && data) {
+                    const dbNames = data.map(u => u.en_name).filter(n => n && n !== 'judyzzhang');
+                    const mergedSet = new Set([...PREDEFINED_ASSIGNEES, ...dbNames]);
+                    finalAssigneeList = Array.from(mergedSet).sort();
+                }
+            } catch(e) { console.log(e); }
         }
 
         window.selectAssignee = function(val, text) {
             document.getElementById('req-assignee').value = val;
-            document.getElementById('assignee-display').innerText = text;
+            document.getElementById('req-assignee-input').value = text;
             document.getElementById('assignee-dropdown').classList.add('hidden');
         }
-        window.toggleAssigneeDropdown = function(e) {
-            e.stopPropagation();
-            document.getElementById('assignee-dropdown').classList.toggle('hidden');
+
+        window.showAssigneeDropdown = function() {
+            renderAssignees('');
+            document.getElementById('assignee-dropdown').classList.remove('hidden');
             document.getElementById('project-dropdown').classList.add('hidden');
+        }
+
+        window.filterAssigneeDropdown = function() {
+            renderAssignees(document.getElementById('req-assignee-input').value);
+            document.getElementById('assignee-dropdown').classList.remove('hidden');
+        }
+
+        // 强校验机制：失去焦点时，必须匹配白名单，否则退回原样
+        window.validateAssigneeInput = function() {
+            setTimeout(() => {
+                const inputVal = document.getElementById('req-assignee-input').value.trim();
+                const hiddenVal = document.getElementById('req-assignee').value;
+                
+                if (inputVal === '' || inputVal === '不指定 (系统统筹)') {
+                    selectAssignee('none', '不指定 (系统统筹)');
+                    return;
+                }
+                
+                const matchedName = finalAssigneeList.find(n => n.toLowerCase() === inputVal.toLowerCase());
+                if (matchedName) {
+                    selectAssignee(matchedName, matchedName);
+                } else {
+                    // 如果手填的瞎造的内容，强制回退到之前合法的状态
+                    const prevVal = hiddenVal === 'none' ? '不指定 (系统统筹)' : hiddenVal;
+                    document.getElementById('req-assignee-input').value = prevVal;
+                }
+            }, 150); // 给一点延迟让 mousedown 能够触发
         }
         // ===================================================================
 
@@ -444,7 +487,6 @@
             const idMenu = document.getElementById('identityMenu');
             if(idBtn && idMenu) idBtn.addEventListener('click', (e) => { e.stopPropagation(); idMenu.classList.toggle('hidden'); });
             
-            // 点击空白处关闭自定义下拉菜单
             document.addEventListener('click', (e) => { 
                 if(idMenu && !idMenu.contains(e.target)) idMenu.classList.add('hidden'); 
                 
@@ -471,7 +513,11 @@
                 document.getElementById('req-title').value = '';
                 document.getElementById('req-project').value = '';
                 document.getElementById('req-assignee').value = 'none';
-                document.getElementById('assignee-display').innerText = '不指定 (系统统筹)';
+                
+                // 修复这里：同步更新悬浮输入框的显示
+                const assInput = document.getElementById('req-assignee-input');
+                if(assInput) assInput.value = '不指定 (系统统筹)';
+                
                 document.getElementById('req-date').value = '';
                 document.getElementById('req-link').value = '';
                 document.querySelectorAll('.req-channel').forEach(cb => cb.checked = false);
@@ -550,7 +596,10 @@
                 
                 const assVal = draft.assignee || 'none';
                 document.getElementById('req-assignee').value = assVal;
-                document.getElementById('assignee-display').innerText = assVal === 'none' ? '不指定 (系统统筹)' : assVal;
+                
+                // 修复这里：同步更新悬浮输入框的显示
+                const assInput = document.getElementById('req-assignee-input');
+                if(assInput) assInput.value = assVal === 'none' ? '不指定 (系统统筹)' : assVal;
                 
                 document.getElementById('req-date').value = draft.date || '';
                 document.getElementById('req-link').value = draft.link || '';
@@ -585,7 +634,6 @@
             }
         }
 
-        // ================= 云端写入逻辑 =================
         window.submitNewReq = async function() {
             if(!window.supabase) return alert("云端服务仍在初始化，请稍等一秒或刷新！");
 
@@ -607,7 +655,8 @@
             let finalDesc = '系统正在进行统筹评估，等待分配。';
             if (assigneeVal !== 'none' && assigneeVal !== '') {
                 finalStatus = 'pending_accept'; 
-                const assigneeName = document.getElementById('assignee-display').innerText;
+                // 修复这里：从新结构中获取真实显示名
+                const assigneeName = document.getElementById('req-assignee-input').value;
                 finalDesc = `已直接指派给设计师 ${assigneeName}，等待接单。`;
             }
 
@@ -627,7 +676,7 @@
                     title: shortTitle,
                     full_desc: fullDesc,
                     summary_desc: finalDesc,
-                    project: projectVal, // 使用手写或者选中的值
+                    project: projectVal,
                     due_date: dateInput,
                     assignee: assigneeVal,
                     link: linkInput,
@@ -662,7 +711,6 @@
             setTimeout(() => { window.location.reload(); }, 2000);
         }
 
-        // ================= 云端渲染逻辑 =================
         window.loadTasksFromCloud = async function() {
             if (!window.supabase) return;
             const ongoingContainer = document.getElementById('ongoing-tasks-container');
