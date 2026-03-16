@@ -144,11 +144,11 @@
             let roleDesc = '行政 / 业务岗';
             let color = 'bg-zinc-800';
 
-            if (cnName === '张丹楠' && enName === 'judyzzhang') {
+            if (enName === 'judyzzhang') {
                 perms = ['req', 'admin']; 
                 roleDesc = '部门领导';
                 color = 'bg-rose-700';
-            } else if (cnName === '许博文' && enName === 'davidxxu') {
+            } else if (enName === 'davidxxu') {
                 perms = ['req', 'design', 'admin']; 
                 roleDesc = '系统管理员';
                 color = 'bg-indigo-600';
@@ -157,8 +157,8 @@
             const displayName = nickName || cnName;
             const avatarName = cnName.substring(0, 1).toUpperCase(); 
 
-            // 障眼法：拼接成虚拟企业邮箱绕过 Supabase 限制
-            const fakeEmail = enName + '@davis.com';
+            // 修改点：拼接成真实的企微后缀
+            const realEmail = enName + '@webank.com';
 
             const btn = document.getElementById('register-btn');
             const originalText = btn.innerText;
@@ -167,7 +167,7 @@
 
             // 【核心】写入 Supabase 云端
             const { data, error } = await window.supabase.auth.signUp({
-                email: fakeEmail,
+                email: realEmail,
                 password: pwd,
                 options: {
                     data: {
@@ -186,11 +186,10 @@
             btn.disabled = false;
 
             if (error) {
-                alert("注册失败：" + (error.message.includes('already registered') ? "该企微英文名已被注册！" : error.message));
+                alert("注册失败：" + (error.message.includes('already registered') ? "该企微账号已被注册！" : error.message));
                 return;
             }
             
-            // 触发绝美弹窗
             showCustomModal(
                 "🎉 注册成功", 
                 `欢迎 <span class="text-white font-bold">${displayName}</span> 加入系统。<br>您的系统权限已被分配为：<br><span class="inline-block mt-3 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-indigo-400 font-bold">${roleDesc}</span>`
