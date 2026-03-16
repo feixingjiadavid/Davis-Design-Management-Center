@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>需求详情 TK-0817 (锁定中) - 戴维斯设计需求管理中心</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { background-color: #09090b; color: #e4e4e7; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        ::-webkit-scrollbar { width: 0px; } 
+        .custom-scrollbar { overflow-y: auto; padding-right: 8px; scroll-behavior: smooth; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25); }
+
+        .btn-press { transition: all 0.15s ease; cursor: pointer; }
+        .btn-press:active { transform: scale(0.95); }
+        
+        .striped-bg {
+            background-image: repeating-linear-gradient(-45deg, transparent, transparent 10px, rgba(245, 158, 11, 0.05) 10px, rgba(245, 158, 11, 0.05) 20px);
+            background-size: 28px 28px;
+            animation: moveStripes 2s linear infinite;
+        }
+        @keyframes moveStripes { 0% { background-position: 0 0; } 100% { background-position: 28px 0; } }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden relative selection:bg-amber-500/30 text-zinc-300">
+
+    <div class="absolute inset-0 bg-[#09090b] z-0 pointer-events-none"></div>
+    <div class="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-amber-900/10 rounded-full blur-[150px] pointer-events-none z-0"></div>
+
+    <aside class="w-[240px] border-r border-white/5 flex flex-col z-10 bg-[#09090b] shrink-0 h-full">
+        <div class="p-7 border-b border-white/5 shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shadow-[0_0_15px_rgba(79,70,229,0.3)] shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+                </div>
+                <h1 class="text-[15px] font-bold text-white tracking-wide">戴维斯需求大厅</h1>
+            </div>
+        </div>
+        <div class="flex-1 overflow-y-auto p-5 space-y-2">
+            <button onclick="window.location.href='index.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 transition-all btn-press">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+                <span class="font-bold text-[14px]">需求排号大厅</span>
+            </button>
+            <button onclick="window.location.href='record-list.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                <span class="font-medium text-[14px]">我的提单记录</span>
+            </button>
+            <button onclick="window.location.href='calendar.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                <span class="font-medium text-[14px]">我的需求日历</span>
+            </button>
+        </div>
+        <div class="px-7 py-7 mt-auto border-t border-white/5 bg-[#09090b] shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm">DE</div>
+                <div><p class="text-xs font-bold text-white mb-0.5">Debbie</p><p class="text-[10px] text-zinc-500">行政部门 · 需求方</p></div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative z-10 bg-[#0c0c0e]">
+        
+        <header class="px-10 py-6 border-b border-white/5 bg-[#09090b]/80 backdrop-blur-xl shrink-0 flex items-center justify-between">
+            <div>
+                <button onclick="window.location.href='index.html'" class="text-zinc-500 hover:text-white text-[12px] font-bold mb-3 flex items-center gap-1.5 transition-colors btn-press">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    返回排号大厅
+                </button>
+                <div class="flex items-center gap-4">
+                    <div class="bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-lg flex items-center gap-2">
+                        <span class="text-amber-500 font-mono text-sm font-bold">TK-0817</span>
+                    </div>
+                    <h2 class="text-[22px] font-bold text-white tracking-tight">端午节礼盒插图设计</h2>
+                    <span class="bg-amber-500/20 border border-amber-500/30 text-amber-500 px-2.5 py-1 rounded text-[11px] font-bold flex items-center gap-1.5">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> 
+                        系统锁定中
+                    </span>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <button disabled class="px-6 py-2.5 bg-zinc-800/50 border border-zinc-700/50 text-zinc-500 rounded-xl text-[13px] font-bold cursor-not-allowed flex items-center gap-2">
+                    <svg class="animate-spin h-4 w-4 text-zinc-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    等待领导审批解锁
+                </button>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto custom-scrollbar p-10 flex justify-center">
+            <div class="w-full max-w-[1280px] flex gap-10 items-start">
+                
+                <div class="flex-1 flex flex-col gap-8 min-w-0">
+                    <div class="grid grid-cols-4 gap-4 opacity-80">
+                        <div class="bg-[#121217] border border-white/5 p-4 rounded-2xl flex flex-col justify-center">
+                            <p class="text-[11px] text-zinc-500 mb-1">归属项目</p>
+                            <p class="text-[13px] font-bold text-zinc-200">日常行政支撑</p>
+                        </div>
+                        <div class="bg-[#121217] border border-white/5 p-4 rounded-2xl flex flex-col justify-center">
+                            <p class="text-[11px] text-zinc-500 mb-1">期望交付时间</p>
+                            <p class="text-[13px] font-bold text-zinc-200">05-20 (时间充裕)</p>
+                        </div>
+                        <div class="bg-[#121217] border border-white/5 p-4 rounded-2xl flex flex-col justify-center">
+                            <p class="text-[11px] text-zinc-500 mb-1">需求类型</p>
+                            <p class="text-[13px] font-bold text-zinc-200">插画/包装设计</p>
+                        </div>
+                        <div class="bg-[#121217] border border-white/5 p-4 rounded-2xl flex flex-col justify-center">
+                            <p class="text-[11px] text-zinc-500 mb-1.5">宣发渠道/场景</p>
+                            <div class="flex gap-1.5 flex-wrap">
+                                <span class="text-[10px] bg-white/5 border border-white/10 px-2 py-0.5 rounded text-zinc-300">实体物料</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="text-[14px] font-bold text-white mb-3 flex items-center gap-2">📝 原始需求描述</h3>
+                        <div class="bg-[#121217] border border-white/5 p-6 rounded-2xl text-[13px] text-zinc-400 leading-relaxed shadow-sm opacity-80">
+                            马上要到端午节了，今年公司定制了一批端午礼盒发给员工和合作客户。需要设计师出一张封套插图。具体刀模文件已上传。
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-[14px] font-bold text-amber-500 flex items-center gap-2">草图方向审核中 (仅供预览)</h3>
+                            <span class="text-[12px] text-zinc-500">此阶段您无需操作</span>
+                        </div>
+
+                        <div class="w-full aspect-video bg-[#121217] rounded-2xl border border-amber-500/20 flex items-center justify-center overflow-hidden mb-4 relative striped-bg shadow-lg">
+                            <img src="https://images.unsplash.com/photo-1513364776144-60967b0f800f?q=80&w=2671&auto=format&fit=crop" class="w-full h-full object-cover opacity-30 blur-sm grayscale-[30%]">
+                            <div class="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px]">
+                                <div class="w-16 h-16 bg-amber-500/20 border-2 border-amber-500/50 rounded-full flex items-center justify-center mb-4 shadow-[0_0_30px_rgba(245,158,11,0.3)]">
+                                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                                </div>
+                                <h3 class="text-xl font-bold text-white mb-2">系统防返工保护机制已激活</h3>
+                                <p class="text-[13px] text-zinc-300 max-w-md text-center leading-relaxed">
+                                    设计师已提交核心框架草图，目前<span class="text-amber-400 font-bold">文哥正在对大方向进行严格把关</span>。为避免无效的细节修改，本需求暂时锁定。
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="w-[360px] bg-[#121217] border border-white/5 rounded-3xl p-7 flex flex-col shrink-0 shadow-2xl relative">
+                    <h3 class="text-[14px] font-bold text-white mb-8 flex items-center gap-2 pb-5 border-b border-white/5">任务进度跟踪</h3>
+
+                    <div class="relative space-y-7 flex-1">
+                        <div class="absolute left-[13px] top-3 bottom-3 w-[2px] bg-white/5 z-0"></div>
+
+                        <div class="relative flex gap-4 z-10">
+                            <div class="w-7 h-7 rounded-full bg-[#121217] border-2 border-amber-500 flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(245,158,11,0.3)]">
+                                <svg class="animate-spin h-3.5 w-3.5 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            </div>
+                            <div class="pt-0.5 pb-2">
+                                <p class="text-[13px] font-bold text-amber-500 mb-0.5">草图框架待领导审批</p>
+                                <p class="text-[10px] text-zinc-400 mb-2">系统自动流转 · 当前责任人: 文哥</p>
+                                <div class="bg-amber-950/20 border border-amber-500/20 p-2.5 rounded-xl">
+                                    <p class="text-[11px] text-amber-300/80 leading-relaxed">审批通过后，系统将自动解锁限制，并通知设计师推进正稿。</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="relative flex gap-4 z-10 opacity-40 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-300 cursor-default">
+                            <div class="w-7 h-7 rounded-full bg-[#121217] border-[2px] border-zinc-500 flex items-center justify-center shrink-0">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                            </div>
+                            <div class="pt-0.5 pb-2">
+                                <p class="text-[13px] font-bold text-zinc-300 mb-0.5">提交设计思路与草图</p>
+                                <p class="text-[10px] text-zinc-500 mb-2">昨天 16:30 · 操作人: Designer B</p>
+                            </div>
+                        </div>
+
+                        <div class="relative flex gap-4 z-10 opacity-40 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-300 cursor-default">
+                            <div class="w-7 h-7 rounded-full bg-[#121217] border-[2px] border-zinc-600 flex items-center justify-center shrink-0">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                            </div>
+                            <div class="pt-0.5 pb-2">
+                                <p class="text-[13px] font-bold text-zinc-300 mb-0.5">需求立项创建</p>
+                                <p class="text-[10px] text-zinc-500 mb-1.5">昨天 09:00</p>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+</body>
+</html>

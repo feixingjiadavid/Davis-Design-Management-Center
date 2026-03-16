@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>需求日历 - 月视图 - 戴维斯设计需求管理中心</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
+        body { background-color: #09090b; color: #e4e4e7; font-family: 'Inter', system-ui, sans-serif; }
+        ::-webkit-scrollbar { width: 0px; } 
+        .custom-scrollbar { overflow-y: auto; padding-right: 8px; scroll-behavior: smooth; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 10px; }
+        .btn-press { transition: all 0.15s ease; cursor: pointer; }
+        .btn-press:active { transform: scale(0.95); }
+        .calendar-cell { transition: background-color 0.2s ease; cursor: pointer; min-height: 100px; }
+        .calendar-cell:hover { background-color: rgba(255, 255, 255, 0.05); }
+        .event-pill { transition: transform 0.2s ease, filter 0.2s ease; cursor: pointer; }
+        .event-pill:hover { transform: translateY(-2px); filter: brightness(1.2); box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        .toast-slide-in { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .dropdown-enter { animation: dropIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; transform-origin: top center; }
+        @keyframes dropIn { 0% { opacity: 0; transform: scaleY(0.95) translateY(-5px); } 100% { opacity: 1; transform: scaleY(1) translateY(0); } }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden relative selection:bg-indigo-500/30 text-zinc-300">
+
+    <div class="absolute inset-0 bg-[#09090b] z-0 pointer-events-none"></div>
+    <div class="absolute top-0 right-1/4 w-[800px] h-[600px] bg-indigo-900/5 rounded-full blur-[180px] pointer-events-none z-0"></div>
+
+    <aside class="w-[240px] border-r border-white/5 flex flex-col z-10 bg-[#09090b] shrink-0 h-full">
+        <div class="p-7 border-b border-white/5 shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shadow-[0_0_15px_rgba(79,70,229,0.3)] shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+                </div>
+                <h1 class="text-[15px] font-bold text-white tracking-wide">戴维斯需求大厅</h1>
+            </div>
+        </div>
+        <div class="flex-1 overflow-y-auto p-5 space-y-2">
+            <button onclick="window.location.href='index.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+                <span class="font-medium text-[14px]">需求排号大厅</span>
+            </button>
+            <button onclick="window.location.href='record-list.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                <span class="font-medium text-[14px]">我的提单记录</span>
+            </button>
+            <button class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 transition-all btn-press cursor-default">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                <span class="font-bold text-[14px]">我的需求日历</span>
+            </button>
+        </div>
+        <div class="px-7 py-7 mt-auto border-t border-white/5 bg-[#09090b] shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm">DE</div>
+                <div><p class="text-xs font-bold text-white mb-0.5">Debbie</p><p class="text-[10px] text-zinc-500">行政部门 · 需求方</p></div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative z-10 bg-[#0c0c0e]">
+        <header class="h-[88px] px-10 flex justify-between items-center shrink-0 border-b border-white/5 bg-[#09090b]/80 backdrop-blur-xl z-20">
+            <div>
+                <h2 class="text-2xl font-bold text-white tracking-tight mb-1.5">需求日历看板</h2>
+                <p class="text-xs text-zinc-500">以“期望交付日”为维度，直观纵览设计任务与时段集中度。</p>
+            </div>
+            <div class="flex items-center gap-6">
+                <div class="flex bg-[#121217] border border-white/10 rounded-xl p-1 shadow-inner">
+                    <button onclick="window.location.href='calendar-week.html'" class="px-5 py-1.5 text-[13px] font-medium text-zinc-400 hover:text-white transition-colors rounded-lg btn-press">周</button>
+                    <button class="px-5 py-1.5 text-[13px] font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 rounded-lg shadow-sm cursor-default">月</button>
+                    <button onclick="window.location.href='calendar-year.html'" class="px-5 py-1.5 text-[13px] font-medium text-zinc-400 hover:text-white transition-colors rounded-lg btn-press">年</button>
+                </div>
+                
+                <div class="flex gap-2">
+                    <button onclick="navDate(-1)" class="px-3 py-2 bg-[#121217] border border-white/5 rounded-xl hover:bg-white/10 text-zinc-400 hover:text-white transition-colors btn-press">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    </button>
+                    
+                    <div class="relative" id="date-selector-wrapper">
+                        <button onclick="toggleDropdown('date-dropdown')" class="px-6 py-2 h-full bg-[#121217] border border-white/5 rounded-xl text-[15px] font-bold text-white hover:bg-white/5 transition-colors btn-press">
+                            <span id="current-date-text">2026年 3月</span>
+                        </button>
+                        <div id="date-dropdown" class="hidden absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-[#1a1a24] border border-white/10 rounded-2xl shadow-2xl py-2 z-50 dropdown-enter max-h-[300px] overflow-y-auto custom-scrollbar"></div>
+                    </div>
+
+                    <button onclick="navDate(1)" class="px-3 py-2 bg-[#121217] border border-white/5 rounded-xl hover:bg-white/10 text-zinc-400 hover:text-white transition-colors btn-press">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </button>
+                </div>
+                <button onclick="jumpToCurrent()" class="px-5 py-2 bg-indigo-600/20 text-indigo-400 font-bold border border-indigo-500/20 rounded-xl hover:bg-indigo-500/30 transition-colors btn-press text-[13px]">回到本月</button>
+            </div>
+        </header>
+
+        <div class="flex-1 p-8 md:p-10 overflow-y-auto custom-scrollbar flex justify-center z-10">
+            <div class="w-full max-w-[1400px] flex gap-8 items-start h-[calc(100vh-160px)]">
+                
+                <div class="flex-1 bg-[#121217] border border-white/5 rounded-3xl overflow-hidden shadow-2xl flex flex-col h-full min-w-0">
+                    <div class="grid grid-cols-7 border-b border-white/5 bg-[#16161d] shrink-0">
+                        <div class="py-4 text-center text-[12px] font-bold text-zinc-500">周一</div><div class="py-4 text-center text-[12px] font-bold text-zinc-500">周二</div><div class="py-4 text-center text-[12px] font-bold text-zinc-500">周三</div><div class="py-4 text-center text-[12px] font-bold text-zinc-500">周四</div><div class="py-4 text-center text-[12px] font-bold text-zinc-500">周五</div><div class="py-4 text-center text-[12px] font-bold text-indigo-400/50">周六</div><div class="py-4 text-center text-[12px] font-bold text-rose-400/50">周日</div>
+                    </div>
+                    <div id="calendar-grid" class="flex-1 grid grid-cols-7 auto-rows-fr bg-white/5 gap-px transition-opacity duration-200"></div>
+                </div>
+
+                <div class="w-[340px] bg-[#121217] border border-white/5 rounded-3xl p-7 flex flex-col h-full shadow-2xl shrink-0 overflow-y-auto custom-scrollbar">
+                    <h3 class="text-[15px] font-bold text-white mb-6 flex items-center gap-2 pb-4 border-b border-white/5">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/></svg>
+                        分布与频次总结
+                    </h3>
+                    
+                    <div class="grid grid-cols-2 gap-4 mb-8">
+                        <div class="bg-[#09090b] border border-white/5 p-5 rounded-2xl flex flex-col justify-center">
+                            <p class="text-[12px] text-zinc-500 mb-1 font-medium">本月累计需求</p>
+                            <p class="text-[48px] font-black text-white font-mono leading-none tracking-tight" id="stat-month-count">12</p>
+                        </div>
+                        <div class="bg-[#09090b] border border-white/5 p-5 rounded-2xl flex flex-col justify-center">
+                            <p class="text-[12px] text-zinc-500 mb-1 font-medium">环比上期频次</p>
+                            <p class="text-[28px] font-black text-rose-500 leading-none shadow-sm" id="stat-month-trend">↑ 20%</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-rose-500/5 border border-rose-500/20 p-5 rounded-2xl mb-8 relative overflow-hidden" id="warning-panel">
+                        <div class="absolute top-0 right-0 w-20 h-20 bg-rose-500/10 blur-xl rounded-full"></div>
+                        <h4 class="text-[13px] font-bold text-rose-400 mb-2 flex items-center gap-1.5">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+                            时段集中爆发预警
+                        </h4>
+                        <p class="text-[15px] text-white font-bold mb-2">月中 (12日 ~ 15日)</p>
+                        <p class="text-[12px] text-zinc-400 leading-relaxed">系统检测到该时段交付频次最高，共有 4 个核心项目堆叠，建议未来错峰排期。</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <div id="period-detail-modal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('period-detail-modal')"></div>
+        <div class="bg-[#121217] border border-white/10 w-full max-w-md rounded-3xl shadow-2xl relative flex flex-col z-10 transform transition-all duration-300 scale-95 opacity-0" id="period-detail-content">
+            <div class="px-6 py-5 border-b border-white/5 flex justify-between items-center bg-[#09090b]/50 rounded-t-3xl">
+                <h3 id="period-modal-title" class="text-white font-bold text-[16px]">YYYY年MM月DD日 需求清单</h3>
+                <button onclick="closeModal('period-detail-modal')" class="text-zinc-500 hover:text-white transition-colors bg-white/5 hover:bg-white/10 p-1.5 rounded-full btn-press">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div id="period-modal-list" class="p-6 space-y-3 max-h-[60vh] overflow-y-auto custom-scrollbar"></div>
+        </div>
+    </div>
+
+    <div id="action-toast" class="fixed top-8 right-8 z-[1000] hidden toast-slide-in">
+        <div class="bg-[#1a1a1f] border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-3 w-72">
+            <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-indigo-500/20 text-indigo-400">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            </div>
+            <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-zinc-400 text-[11px] mt-0.5">操作已执行。</p></div>
+        </div>
+    </div>
+
+    <script>
+        const dateArray = [];
+        let currentIndex = 0;
+        
+        for(let y=2024; y<=2026; y++){
+            for(let m=0; m<12; m++){
+                dateArray.push({ year: y, month: m, text: `${y}年 ${m+1}月` });
+                if(y===2026 && m===2) currentIndex = dateArray.length - 1; 
+            }
+        }
+        const today = new Date(2026, 2, 12);
+
+        function getTasksForDate(y, m, d) {
+            if(y===2026 && m===2 && d===13) return [{id:'TK-0810', title:'企业文化宣传册排版', status:'🔴 交付方案V-1待您确认', url:'task-detail-v1.html', tagClass:'text-rose-400 bg-rose-500/20 border border-rose-500/20'}];
+            if(y===2026 && m===2 && d===14) return [{id:'TK-0701', title:'双十一大促视觉海报', status:'🟢 交付方案V-3待您确认', url:'task-detail.html', tagClass:'text-emerald-400 bg-emerald-500/20 border border-emerald-500/20'}];
+            if(y===2026 && m===2 && d===20) return [{id:'TK-0817', title:'端午节礼盒插图设计', status:'🔒 领导审批中', url:'task-detail-locked.html', tagClass:'text-amber-500 bg-amber-500/20 border border-amber-500/20'}];
+            
+            let dateObj = new Date(y, m, d);
+            if (dateObj < new Date(2026, 2, 1) && (d === 5 || d === 15 || d === 25)) {
+                return [{id:`TK-0${(y%100)}${m}${d}`, title:'常规物料延展设计', status:'已完结归档', url:'task-detail.html', tagClass:'text-zinc-400 bg-white/5 border border-white/10'}];
+            }
+            return [];
+        }
+
+        function renderDateDropdown() {
+            const dropdown = document.getElementById('date-dropdown');
+            let html = '<div class="py-2">';
+            dateArray.forEach((item, index) => {
+                if(index === currentIndex) {
+                    html += `<div class="w-full text-left px-5 py-2.5 text-[14px] text-indigo-400 bg-indigo-500/10 font-bold cursor-default">${item.text} <span class="text-[10px] bg-indigo-500/20 px-1.5 py-0.5 rounded ml-2">当前</span></div>`;
+                } else {
+                    html += `<button onclick="selectDate(${index})" class="w-full text-left px-5 py-2.5 text-[14px] text-zinc-400 hover:bg-white/5 hover:text-white transition-colors">${item.text}</button>`;
+                }
+            });
+            dropdown.innerHTML = html + '</div>';
+            document.getElementById('current-date-text').innerText = dateArray[currentIndex].text;
+            
+            setTimeout(() => {
+                const activeItem = dropdown.querySelector('.bg-indigo-500\\/10');
+                if(activeItem) activeItem.scrollIntoView({ block: 'center' });
+            }, 10);
+        }
+
+        function toggleDropdown(id) {
+            renderDateDropdown();
+            document.getElementById(id).classList.toggle('hidden');
+        }
+
+        document.addEventListener('click', (e) => {
+            const wrapper = document.getElementById('date-selector-wrapper');
+            const dropdown = document.getElementById('date-dropdown');
+            if (wrapper && dropdown && !wrapper.contains(e.target)) dropdown.classList.add('hidden');
+        });
+
+        function renderCalendarGrid() {
+            const grid = document.getElementById('calendar-grid');
+            grid.style.opacity = '0';
+            
+            setTimeout(() => {
+                let html = '';
+                let currentItem = dateArray[currentIndex];
+                let y = currentItem.year;
+                let m = currentItem.month;
+
+                const firstDay = new Date(y, m, 1).getDay();
+                const startOffset = firstDay === 0 ? 6 : firstDay - 1;
+                const daysInMonth = new Date(y, m + 1, 0).getDate();
+                const daysInPrevMonth = new Date(y, m, 0).getDate();
+                
+                for(let i = startOffset - 1; i >= 0; i--) {
+                    let d = daysInPrevMonth - i;
+                    html += `<div class="bg-[#0c0c0e] p-2 calendar-cell opacity-40"><span class="text-[13px] text-zinc-500 ml-1 mt-1 block">${d}</span></div>`;
+                }
+
+                let taskCount = 0;
+                for(let d = 1; d <= daysInMonth; d++) {
+                    let isToday = (y === today.getFullYear() && m === today.getMonth() && d === today.getDate());
+                    let tasks = getTasksForDate(y, m, d);
+                    taskCount += tasks.length;
+                    
+                    let bgClass = isToday ? 'bg-indigo-900/10 border-2 border-indigo-500/30' : 'bg-[#121217]';
+                    let numHtml = isToday 
+                        ? `<span class="bg-indigo-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-full inline-block mt-0.5 mb-1 ml-1">今天 ${d}</span><div class="w-full h-[2px] bg-indigo-500/50 mt-1 mb-2"></div>` 
+                        : `<span class="text-[13px] text-zinc-300 ml-1 mt-1 block font-medium">${d}</span>`;
+
+                    let pillsHtml = tasks.map(t => {
+                        let pillClass = t.status.includes('完结') ? 'bg-zinc-800/50 border-zinc-700 text-zinc-400' : t.tagClass;
+                        return `<div onclick="event.stopPropagation(); window.location.href='${t.url}'" class="mt-2 text-[10px] border px-2 py-1 rounded truncate event-pill shadow-sm ${pillClass}">${t.title}</div>`;
+                    }).join('');
+                    
+                    let safeTasks = encodeURIComponent(JSON.stringify(tasks));
+                    html += `<div class="${bgClass} p-2 calendar-cell relative" onclick="openPeriodDetail('${y}年${m+1}月${d}日', '${safeTasks}')">
+                                ${numHtml}${pillsHtml}
+                             </div>`;
+                }
+
+                let totalCells = startOffset + daysInMonth;
+                let rows = Math.ceil(totalCells / 7);
+                for(let i = 1; i <= (rows * 7) - totalCells; i++) {
+                    html += `<div class="bg-[#0c0c0e] p-2 calendar-cell opacity-40"><span class="text-[13px] text-zinc-500 ml-1 mt-1 block">${i}</span></div>`;
+                }
+
+                grid.innerHTML = html;
+                grid.style.gridTemplateRows = `repeat(${rows}, minmax(0, 1fr))`;
+                grid.style.opacity = '1';
+
+                document.getElementById('stat-month-count').innerText = taskCount || 0;
+                let trend = document.getElementById('stat-month-trend');
+                if(m === 2 && y === 2026) {
+                    trend.innerText = '↑ 20%'; trend.className = 'text-[28px] font-black text-rose-500 leading-none shadow-sm';
+                    document.getElementById('warning-panel').classList.remove('hidden');
+                } else {
+                    trend.innerText = '— 0%'; trend.className = 'text-[28px] font-black text-zinc-600 leading-none shadow-sm';
+                    document.getElementById('warning-panel').classList.add('hidden');
+                }
+
+            }, 150);
+        }
+
+        function selectDate(index) {
+            currentIndex = index;
+            document.getElementById('date-dropdown').classList.add('hidden');
+            renderDateDropdown();
+            renderCalendarGrid();
+        }
+
+        function navDate(step) {
+            let newIndex = currentIndex + step;
+            if(newIndex >= 0 && newIndex < dateArray.length) selectDate(newIndex);
+        }
+        
+        function jumpToCurrent() {
+            let index = dateArray.findIndex(d => d.year === today.getFullYear() && d.month === today.getMonth());
+            if(index !== -1) selectDate(index);
+        }
+
+        function openPeriodDetail(periodTitle, tasksStr) {
+            let tasks = JSON.parse(decodeURIComponent(tasksStr));
+            document.getElementById('period-modal-title').innerText = periodTitle + ' 排期列表';
+            const list = document.getElementById('period-modal-list');
+            list.innerHTML = '';
+            
+            if(!tasks || tasks.length === 0) {
+                list.innerHTML = `<div class="text-center py-12 flex flex-col items-center opacity-50"><p class="text-zinc-400 text-[13px]">该时段非常空闲，暂无任何交付任务。</p></div>`;
+            } else {
+                tasks.forEach(t => {
+                    list.innerHTML += `
+                        <div onclick="window.location.href='${t.url}'" class="bg-[#1a1a24] border border-white/5 p-4 rounded-2xl hover:border-indigo-500/50 cursor-pointer transition-colors group btn-press">
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded ${t.tagClass}">${t.id}</span>
+                                <span class="text-[11px] text-zinc-500 group-hover:text-indigo-400 transition-colors">去查看 ↗</span>
+                            </div>
+                            <h4 class="text-[15px] font-bold text-white mb-1.5">${t.title}</h4>
+                            <p class="text-[12px] text-zinc-400">${t.status}</p>
+                        </div>`;
+                });
+            }
+            
+            const modal = document.getElementById('period-detail-modal');
+            const content = document.getElementById('period-detail-content');
+            modal.classList.remove('hidden');
+            void modal.offsetWidth;
+            content.classList.remove('scale-95', 'opacity-0');
+            content.classList.add('scale-100', 'opacity-100');
+        }
+
+        function closeModal(id) {
+            const modal = document.getElementById(id);
+            if(id === 'period-detail-modal') {
+                const content = document.getElementById('period-detail-content');
+                content.classList.remove('scale-100', 'opacity-100');
+                content.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => { modal.classList.add('hidden'); }, 300);
+            }
+        }
+
+        initCalendar();
+        function initCalendar(){ renderDateDropdown(); renderCalendarGrid(); }
+    </script>
+</body>
+</html>
