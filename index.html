@@ -33,16 +33,9 @@
         .dropdown-enter { animation: dropIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; transform-origin: top right; }
         @keyframes dropIn { 0% { opacity: 0; transform: scale(0.95) translateY(-10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
 
-        /* 💡 高级定制：同色系呼吸灯特效 */
-        @keyframes pulse-sky { 50% { box-shadow: inset 0 0 0 1px rgba(56,189,248,0.4), 0 0 20px rgba(56,189,248,0.2); } }
-        @keyframes pulse-amber { 50% { box-shadow: inset 0 0 0 1px rgba(251,191,36,0.4), 0 0 20px rgba(251,191,36,0.2); } }
-        @keyframes pulse-emerald { 50% { box-shadow: inset 0 0 0 1px rgba(16,185,129,0.4), 0 0 20px rgba(16,185,129,0.2); } }
-        @keyframes pulse-rose { 50% { box-shadow: inset 0 0 0 1px rgba(244,63,94,0.4), 0 0 20px rgba(244,63,94,0.2); } }
-        
-        .breathe-sky { animation: pulse-sky 2s infinite ease-in-out; border-color: rgba(56,189,248,0.6) !important; }
-        .breathe-amber { animation: pulse-amber 2s infinite ease-in-out; border-color: rgba(251,191,36,0.6) !important; }
-        .breathe-emerald { animation: pulse-emerald 2s infinite ease-in-out; border-color: rgba(16,185,129,0.6) !important; }
-        .breathe-rose { animation: pulse-rose 2s infinite ease-in-out; border-color: rgba(244,63,94,0.6) !important; }
+        /* 💡 强制红色预警呼吸灯 */
+        @keyframes pulse-rose { 50% { box-shadow: inset 0 0 0 1px rgba(244,63,94,0.6), 0 0 20px rgba(244,63,94,0.3); } }
+        .breathe-rose { animation: pulse-rose 2s infinite ease-in-out; border-color: rgba(244,63,94,0.8) !important; }
 
         .timeline-line { position: absolute; left: 13px; top: 12px; bottom: -20px; width: 2px; background-color: rgba(255,255,255,0.05); z-index: 0; }
         .timeline-item:last-child .timeline-line { display: none; }
@@ -93,12 +86,12 @@
         <header class="h-[88px] px-10 flex justify-between items-center shrink-0 border-b border-white/5 bg-[#09090b]/80 backdrop-blur-xl relative z-[999]">
             <div>
                 <h2 id="header-greeting" class="text-2xl font-bold text-white tracking-tight mb-1.5">上午好，加载中...</h2>
-                <p class="text-xs text-zinc-500">云端协同数据已就绪，所有的工作都在有条不紊地推进中。</p>
+                <p class="text-xs text-zinc-500">所有的工作都在有条不紊地推进中。</p>
             </div>
             
             <div class="flex items-center gap-5 relative">
                 
-                <button id="clear-db-btn" onclick="clearTestData()" class="hidden bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-500 px-4 py-3 rounded-[14px] text-[13px] font-bold transition-all btn-press items-center gap-1.5" title="仅清空提单数据，不影响账号密码配置">
+                <button id="clear-db-btn" onclick="clearTestData()" class="hidden bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-500 px-4 py-3 rounded-[14px] text-[13px] font-bold transition-all btn-press items-center gap-1.5" title="仅清空提单数据，不影响账号">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                     清空测试数据
                 </button>
@@ -163,7 +156,7 @@
                                 
                                 <div class="space-y-4 transition-opacity duration-300" id="ongoing-tasks-container">
                                     <div class="text-center py-10" id="loading-spinner">
-                                        <p class="text-sm text-zinc-500 flex justify-center items-center gap-2"><svg class="animate-spin h-4 w-4 text-zinc-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 正在从云端拉取并智能排序...</p>
+                                        <p class="text-sm text-zinc-500 flex justify-center items-center gap-2"><svg class="animate-spin h-4 w-4 text-zinc-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 数据正在载入中...</p>
                                     </div>
                                 </div>
                             </div>
@@ -173,7 +166,7 @@
                                     <span class="w-1.5 h-1.5 bg-zinc-500 rounded-full"></span>已完结/归档工单
                                 </h3>
                                 <div class="space-y-4 transition-opacity duration-300" id="completed-tasks-container">
-                                    </div>
+                                </div>
                             </div>
 
                         </div>
@@ -190,9 +183,8 @@
                         </div>
                         <p class="text-[11px] text-zinc-500">当前预览: <span class="text-zinc-400 font-mono font-bold" id="tracking-focus-text">无选中的单据</span></p>
                     </div>
-                    
                     <div class="relative flex-1 custom-scrollbar pointer-events-none" id="all-timelines-container">
-                        </div>
+                    </div>
                 </div>
 
             </div>
@@ -322,8 +314,7 @@
     <script type="module">
         import { supabase } from './supabase-config.js';
         window.supabase = supabase;
-        // 挂载全局环境配置：当前为测试环境
-        window.DB_TABLE = 'test_tasks';
+        window.DB_TABLE = 'test_tasks'; // 测试表
         
         if(window.loadTasksFromCloud) window.loadTasksFromCloud();
         if(window.loadAssigneesFromCloud) window.loadAssigneesFromCloud();
@@ -346,7 +337,6 @@
         const PREDEFINED_ASSIGNEES = ['anckyyu', 'davidxxu', 'debbiehuang', 'evazzhu', 'hscheng', 'mengmengli', 'skylerhuang', 'sophiachen', 'tiaouyang', 'v_lijuangchen', 'v_lucui', 'v_sijieli', 'v_siyifu', 'v_sjtian', 'v_wbchye', 'v_wbjgao', 'v_wbmtli', 'v_zqlan', 'wenjiawu', 'yamyzhang', 'yaozhong', 'yoshyliu', 'zoeyzhou'];
         let finalAssigneeList = [...PREDEFINED_ASSIGNEES];
 
-        // 项目渲染逻辑
         function renderProjects(filterText = '') {
             const listEl = document.getElementById('project-dropdown-list');
             let filtered = PROJECT_LIST.filter(p => p.toLowerCase().includes(filterText.toLowerCase()));
@@ -377,14 +367,11 @@
         window.renderAssignees = function(filterText = '') {
             const listEl = document.getElementById('assignee-dropdown-list');
             if(!listEl) return;
-            
             let filtered = finalAssigneeList.filter(name => name.toLowerCase().includes(filterText.toLowerCase()));
             let html = '';
-            
             if ('不指定 (系统统筹)'.includes(filterText)) {
                 html += `<div class="px-4 py-3 text-[13px] text-zinc-300 hover:bg-indigo-500/20 hover:text-indigo-300 cursor-pointer transition-colors border-b border-zinc-800" onmousedown="selectAssignee('none', '不指定 (系统统筹)')">不指定 (系统统筹)</div>`;
             }
-            
             if (filtered.length === 0 && !('不指定 (系统统筹)'.includes(filterText))) {
                 html += `<div class="px-4 py-3 text-[13px] text-zinc-500 cursor-default">系统无此执行人，不可指派</div>`;
             } else {
@@ -486,6 +473,16 @@
             window.location.href = 'login.html'; 
         }
 
+        // 💡 时间与花名问候提取
+        function updateGreeting(user) {
+            const hour = new Date().getHours();
+            let timeStr = '晚上好';
+            if (hour >= 5 && hour < 12) timeStr = '上午好';
+            else if (hour >= 12 && hour < 18) timeStr = '下午好';
+            const display = user.displayName || user.cnName || user.enName;
+            document.getElementById('header-greeting').innerText = `${timeStr}，${display}。`;
+        }
+
         function initRBAC() {
             const userStr = localStorage.getItem('activeUserObj');
             if (!userStr) { window.location.href = 'login.html'; return false; }
@@ -497,26 +494,25 @@
             const avatarEl = document.getElementById('sidebar-avatar');
             if(avatarEl) { avatarEl.innerText = user.avatar; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-indigo-600'} border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg`; }
             if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName;
-            if(document.getElementById('header-greeting')) document.getElementById('header-greeting').innerText = `上午好，${user.displayName}。`;
+            
+            updateGreeting(user);
 
-            // 💡 清空测试数据按钮仅 ponyxu, davidxxu, yoshyliu 可见
-            const testUsers = ['ponyxu', 'davidxxu', 'yoshyliu'];
-            if(testUsers.includes(enName)) {
+            // 💡 清空测试数据按钮仅白名单可见
+            const testUsers = ['ponyxu', 'davidxxu', 'yoshyliu', '小戴维斯'];
+            const isTestUser = testUsers.includes(enName) || testUsers.includes(user.displayName) || testUsers.includes(user.cnName);
+            if(isTestUser) {
                 const clrBtn = document.getElementById('clear-db-btn');
-                if(clrBtn) {
-                    clrBtn.classList.remove('hidden');
-                    clrBtn.classList.add('flex');
-                }
+                if(clrBtn) { clrBtn.classList.remove('hidden'); clrBtn.classList.add('flex'); }
             }
 
             const menuContainer = document.getElementById('dynamic-identity-list');
             if (menuContainer) {
                 let html = '';
                 html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#2a2a35] text-indigo-300 cursor-default"><div class="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div><span class="text-[13px] font-bold">需求方 (当前)</span></div>`;
-                if (enName !== 'judyzzhang') { 
+                if (user.perms.includes('design')) { 
                     html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='assistant-workspace.html'"><div class="w-7 h-7 rounded-lg bg-orange-500/10 text-orange-500 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div><span class="text-[13px] font-medium">设计方 (去执行接单)</span></div>`; 
                 }
-                if (enName === 'davidxxu' || enName === 'judyzzhang') { 
+                if (user.perms.includes('admin')) { 
                     html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='manager-workspace.html'"><div class="w-7 h-7 rounded-lg bg-fuchsia-500/10 text-fuchsia-400 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg></div><span class="text-[13px] font-medium">管理方 (统筹/大盘)</span></div>`; 
                 }
                 menuContainer.innerHTML = html;
@@ -534,55 +530,28 @@
             showToast('消息已清空', '所有未读消息已成功标记为已读。', 'info');
         }
 
-        // ================= 【新功能：清空测试数据】 =================
         window.clearTestData = async function() {
             if(!window.supabase) return;
             if(!confirm("⚠️ 警告：这将直接清空云端测试表中的所有需求数据！且不可恢复！\n确定要继续吗？")) return;
-            
             try {
-                // 使用 neq('id', '0') 删除所有工单数据，绝对不会影响账号数据
                 const { error } = await window.supabase.from(window.DB_TABLE).delete().neq('id', '0');
                 if (error) throw error;
                 showToast('已清空', '云端测试数据已全部清空！', 'success');
                 setTimeout(() => window.location.reload(), 1500);
-            } catch(e) {
-                alert("清理失败: " + e.message);
-            }
+            } catch(e) { alert("清理失败: " + e.message); }
         }
 
-        // ================= 【新功能：需求方随时撤销单据】 =================
         window.cancelTask = async function(taskId) {
             if(!window.supabase) return;
             if(!confirm(`确定要彻底撤销并删除需求单 ${taskId} 吗？`)) return;
-            
             try {
                 const { error } = await window.supabase.from(window.DB_TABLE).delete().eq('id', taskId);
                 if (error) throw error;
-                
-                // 乐观删除 DOM
                 const card = document.getElementById('card-' + taskId);
                 if(card) card.remove();
                 showToast('已撤销', `需求单 ${taskId} 已被彻底删除。`, 'info');
-                
-                // 检查是否空了
-                setTimeout(() => {
-                    const container = document.getElementById('ongoing-tasks-container');
-                    const realCards = container.querySelectorAll('.interactive-card:not(#draft-card)');
-                    if(realCards.length === 0) {
-                        container.innerHTML = `
-                            <div class="text-center py-20 bg-[#121217] rounded-3xl border border-white/5 border-dashed">
-                                <div class="w-16 h-16 bg-zinc-800/50 rounded-full flex items-center justify-center mx-auto mb-4 text-zinc-500">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
-                                </div>
-                                <p class="text-sm font-bold text-zinc-400 mb-1">大厅空空如也</p>
-                                <p class="text-xs text-zinc-600">快点击右上角发起你的第一个需求吧！</p>
-                            </div>`;
-                    }
-                }, 300);
-
-            } catch(e) {
-                alert("撤销失败: " + e.message);
-            }
+                setTimeout(async () => { await loadTasksFromCloud(); }, 300);
+            } catch(e) { alert("撤销失败: " + e.message); }
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -642,7 +611,7 @@
             setTimeout(() => { overlay.classList.add('hidden'); }, 300);
         }
 
-        // ================= 核心一：草稿箱渲染与置顶 =================
+        // ================= 草稿箱逻辑 =================
         function renderDraftToUI() {
             const savedDraft = localStorage.getItem('myDraftTask');
             const container = document.getElementById('ongoing-tasks-container');
@@ -653,15 +622,16 @@
             
             if (savedDraft) {
                 const draft = JSON.parse(savedDraft);
+                // 💡 草稿 UI 改为低调灰色
                 const draftHTML = `
-                    <div class="task-page-1 border-indigo-700 border-dashed rounded-2xl p-5 interactive-card flex flex-col bg-indigo-900/10 relative group mb-4" onclick="editDraft()" id="draft-card">
+                    <div class="task-page-1 border-zinc-600 border-dashed rounded-2xl p-5 interactive-card flex flex-col bg-transparent relative group mb-4 opacity-60 hover:opacity-80 transition-opacity" onclick="editDraft()" id="draft-card">
                         <button onclick="deleteDraft(event, this)" class="absolute top-4 right-4 text-zinc-500 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all p-1.5 hover:bg-rose-500/10 rounded-lg btn-press z-20" title="删除草稿"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
-                        <div class="flex items-center justify-between mb-3 pr-8 relative z-10"><span class="text-indigo-400 font-bold text-[10px] border border-indigo-700 bg-indigo-500/20 px-2.5 py-0.5 rounded shadow-[0_0_10px_rgba(99,102,241,0.3)]">📝 需求待提交 (草稿置顶)</span><span class="text-[11px] text-indigo-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity">继续编辑 ↗</span></div>
-                        <h4 class="text-[16px] font-medium text-white mb-1 pr-8 relative z-10">${draft.title || '无标题草稿'}</h4>
-                        <p class="text-xs text-zinc-400 line-clamp-1 relative z-10">点击恢复表单数据、渠道及附件并继续完善。</p>
+                        <div class="flex items-center justify-between mb-3 pr-8 relative z-10"><span class="text-zinc-400 font-bold text-[10px] border border-zinc-700 bg-zinc-800/50 px-2.5 py-0.5 rounded shadow-sm">📝 需求待提交 (草稿置顶)</span><span class="text-[11px] text-zinc-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity">继续编辑 ↗</span></div>
+                        <h4 class="text-[16px] font-medium text-zinc-300 mb-1 pr-8 relative z-10">${draft.title || '无标题草稿'}</h4>
+                        <p class="text-xs text-zinc-500 line-clamp-1 relative z-10">点击恢复表单数据、渠道及附件并继续完善。</p>
                     </div>
                 `;
-                container.insertAdjacentHTML('afterbegin', draftHTML); // 保证永远在最前面
+                container.insertAdjacentHTML('afterbegin', draftHTML);
             }
         }
 
@@ -684,14 +654,23 @@
                 localStorage.setItem('myDraftTask', JSON.stringify(draftData));
                 closeAllModals(); 
                 showToast('📝 暂存成功', '草稿与附件已保存，始终置顶。', 'info'); 
-                
-                // 瞬间渲染草稿，隐藏空状态提示
                 renderDraftToUI();
                 const spinner = document.getElementById('loading-spinner');
                 if(spinner) spinner.classList.add('hidden');
-
             } catch (e) {
-                alert("【存储失败】附件过大超出浏览器本地存储限制，请更换小文件。");
+                // 💡 附件过大容错
+                draftData.fileData = null;
+                draftData.fileName = draftData.fileName ? draftData.fileName + " (因体积过大暂存未包含)" : "";
+                try {
+                    localStorage.setItem('myDraftTask', JSON.stringify(draftData));
+                    closeAllModals(); 
+                    showToast('📝 暂存部分成功', '因附件过大超出浏览器限制，已为您安全保留文本草稿。', 'info'); 
+                    renderDraftToUI();
+                    const spinner = document.getElementById('loading-spinner');
+                    if(spinner) spinner.classList.add('hidden');
+                } catch (err) {
+                    alert("【存储失败】浏览器本地存储空间已满。");
+                }
             }
         }
 
@@ -736,38 +715,24 @@
                 localStorage.removeItem('myDraftTask');
                 btn.closest('.interactive-card').remove();
                 showToast('已删除', '草稿已永久移除。', 'info');
-
-                // 如果没草稿了，再查一下当前云端数据，如果没有云端卡片则显示空状态
-                setTimeout(() => {
-                    const container = document.getElementById('ongoing-tasks-container');
-                    const realCards = container.querySelectorAll('.interactive-card:not(#draft-card)');
-                    if(realCards.length === 0) {
-                        container.innerHTML = `
-                            <div class="text-center py-20 bg-[#121217] rounded-3xl border border-white/5 border-dashed">
-                                <div class="w-16 h-16 bg-zinc-800/50 rounded-full flex items-center justify-center mx-auto mb-4 text-zinc-500">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
-                                </div>
-                                <p class="text-sm font-bold text-zinc-400 mb-1">大厅空空如也</p>
-                                <p class="text-xs text-zinc-600">快点击右上角发起你的第一个需求吧！</p>
-                            </div>`;
-                    }
-                }, 300);
+                setTimeout(async () => { await loadTasksFromCloud(); }, 300);
             }
         }
 
-        // ================= 核心二：状态UI工厂引擎 =================
+        // ================= 状态UI引擎 =================
         function createTaskHTML(task) {
             let sColor, sBorder, sBg, sText, targetUrl, alertBadge = '';
             let isCompleted = false;
 
-            // 💡 判断是否为临期需求 (距离交付日 <= 2天)
+            // 💡 严格的临期判定 (<= 2天)
             let isUrgent = false;
             if (task.due_date && task.status !== 'completed' && task.status !== 'archived') {
                 const due = new Date(task.due_date);
                 const today = new Date();
-                const diffTime = due - today;
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                if (diffDays <= 2) isUrgent = true;
+                due.setHours(0,0,0,0);
+                today.setHours(0,0,0,0);
+                const diffDays = (due - today) / (1000 * 60 * 60 * 24);
+                if (diffDays <= 2 && diffDays >= -999) isUrgent = true;
             }
 
             switch(task.status) {
@@ -793,25 +758,19 @@
                     sText = '验收通过，已归档'; targetUrl = 'task-detail-archived.html';
                     isCompleted = true;
                     break;
-                default: // pending
+                default: 
                     sColor = 'text-sky-400'; sBorder = 'border-sky-500/30'; sBg = 'bg-sky-500/10';
                     sText = '等待系统统筹分配'; targetUrl = 'task-detail-new.html';
             }
 
-            // 同色系脉冲动画类名
+            // 💡 只有紧急，才会覆盖外框颜色为红色呼吸灯
             let breatheClass = '';
             if (isUrgent) {
-                if (sColor.includes('sky')) breatheClass = 'breathe-sky';
-                else if (sColor.includes('amber')) breatheClass = 'breathe-amber';
-                else if (sColor.includes('emerald')) breatheClass = 'breathe-emerald';
-                else if (sColor.includes('rose')) breatheClass = 'breathe-rose';
-                
-                // 呼吸状态下的徽章（统一样式）
-                let badgeBg = sColor.split('-')[1]; // 取颜色名 sky, amber, etc.
-                alertBadge = `<div class="absolute top-0 right-0 bg-${badgeBg}-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl shadow-lg flex items-center gap-1 z-10"><span class="w-1.5 h-1.5 bg-white rounded-full animate-ping"></span> 临期预警</div>`;
+                breatheClass = 'breathe-rose'; 
+                alertBadge = `<div class="absolute top-0 right-0 bg-rose-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl shadow-lg flex items-center gap-1 z-10"><span class="w-1.5 h-1.5 bg-white rounded-full animate-ping"></span> 临期预警</div>`;
             }
 
-            // 判断是否可以撤销需求 (未接单，且是本人创建)
+            // 撤销机制
             const currentUserStr = localStorage.getItem('activeUserObj');
             const currentUserName = currentUserStr ? JSON.parse(currentUserStr).displayName : '';
             const canCancel = (task.status === 'pending' || task.status === 'pending_accept') && task.creator === currentUserName;
@@ -834,14 +793,14 @@
                     <div class="flex items-center justify-between text-[11px] text-zinc-400 border-t border-white/5 pt-3 relative z-10">
                         <span>归属: ${task.project}</span>
                         <span>执行人: ${task.assignee === 'none' ? '待定' : task.assignee}</span>
-                        <span class="${isCompleted ? 'text-zinc-500' : (isUrgent ? sColor + ' font-bold' : 'text-zinc-400')}">期望交付: ${task.due_date}</span>
+                        <span class="${isCompleted ? 'text-zinc-500' : (isUrgent ? 'text-rose-500 font-bold' : 'text-zinc-400')}">期望交付: ${task.due_date}</span>
                     </div>
                 </div>
             `;
 
             let strokeColor = sColor.split('-')[1] || 'sky';
-            if(strokeColor === 'zinc') strokeColor = 'gray'; // Tailwind fallback
-            
+            if(strokeColor === 'zinc') strokeColor = 'gray'; 
+
             const timelineHTML = `
                 <div id="timeline-${task.id}" class="relative z-10 hidden" data-col="${sColor}" data-title="${task.title}">
                     <div class="timeline-item relative flex gap-4 z-10 pb-6">
@@ -871,13 +830,12 @@
             return { cardHTML, timelineHTML, isCompleted };
         }
 
-        // ================= 核心三：严格优先级渲染 =================
+        // ================= 云端加载与乐观重绘 =================
         window.loadTasksFromCloud = async function() {
-            renderDraftToUI(); // 本地草稿优先渲染
-            
             if (!window.supabase) {
                 const spinner = document.getElementById('loading-spinner');
                 if(spinner) spinner.innerHTML = '<p class="text-sm font-bold text-zinc-400 mb-1">大厅空空如也</p><p class="text-xs text-zinc-600">快点击右上角发起你的第一个需求吧！</p>';
+                renderDraftToUI();
                 return;
             }
             
@@ -892,14 +850,14 @@
                 else ongoing.push(t);
             });
 
-            // 【智能权重排序机制】优先级规则：reviewing(1) > pending(2) > pending_accept(3) > pending_approval(4) > processing(5)
+            // 💡 高优排序规则
             const weights = { 'reviewing': 1, 'pending': 2, 'pending_accept': 3, 'pending_approval': 4, 'processing': 5 };
             
             ongoing.sort((a, b) => {
                 const wA = weights[a.status] || 99;
                 const wB = weights[b.status] || 99;
-                if (wA !== wB) return wA - wB; // 不同状态按权重排
-                return new Date(b.created_at) - new Date(a.created_at); // 同状态按时间倒序
+                if (wA !== wB) return wA - wB; 
+                return new Date(b.created_at) - new Date(a.created_at); 
             });
             
             completed.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
@@ -924,11 +882,13 @@
             const completedContainer = document.getElementById('completed-tasks-container');
             const timelineContainer = document.getElementById('all-timelines-container');
 
-            // 剥离原有的真实卡片，防止闪烁
-            ongoingContainer.querySelectorAll('.interactive-card:not(#draft-card)').forEach(c => c.remove());
+            ongoingContainer.innerHTML = '';
             timelineContainer.innerHTML = timelinesHTML;
 
-            // 追加排序好的进行中数据
+            // 1. 本地草稿绝对置顶
+            renderDraftToUI();
+            
+            // 2. 真实进行中数据
             if (ongoing.length === 0 && !localStorage.getItem('myDraftTask')) {
                 ongoingContainer.innerHTML = `
                     <div class="text-center py-20 bg-[#121217] rounded-3xl border border-white/5 border-dashed">
@@ -939,19 +899,15 @@
                         <p class="text-xs text-zinc-600">快点击右上角发起你的第一个需求吧！</p>
                     </div>`;
             } else {
-                const spinner = document.getElementById('loading-spinner');
-                if(spinner) spinner.remove(); // 移除加载中
                 ongoingContainer.insertAdjacentHTML('beforeend', ongoingCardsHTML);
             }
 
-            // 追加已完结数据
             if (completed.length === 0) {
                 completedContainer.innerHTML = `<div class="text-center py-8 text-zinc-600 text-sm">暂无已完结/归档的工单</div>`;
             } else {
                 completedContainer.innerHTML = completedCardsHTML;
             }
 
-            // 自动聚焦
             if (localStorage.getItem('myDraftTask')) {
                 previewTask('draft-card');
             } else if (ongoing.length > 0) {
@@ -959,7 +915,7 @@
             }
         }
 
-        // ================= 核心四：单号智能生成与云端秒插 (不刷新页面) =================
+        // ================= 智能单号生成 =================
         window.submitNewReq = async function() {
             if(!window.supabase) return alert("云端服务仍在初始化，请稍等！");
 
@@ -990,10 +946,10 @@
 
             const btn = document.querySelector('button[onclick="submitNewReq()"]');
             const originalText = btn.innerText;
-            btn.innerText = "生成单号并同步云端...";
+            btn.innerText = "生成单号中...";
             btn.disabled = true;
 
-            // 【单号自增算法】: 查询数据库最大ID，生成 TEST-001 或 TEST-002
+            // 💡 动态查最大单号并自增 TEST-00X
             let nextNum = 1;
             const { data: latestData } = await window.supabase.from(window.DB_TABLE).select('id').order('created_at', { ascending: false }).limit(1);
             if(latestData && latestData.length > 0) {
@@ -1001,7 +957,7 @@
                 const match = lastId.match(/\d+$/);
                 if(match) nextNum = parseInt(match[0], 10) + 1;
             }
-            const randomId = 'TEST-' + nextNum.toString().padStart(3, '0'); // 生成 TEST-00X 格式
+            const randomId = 'TEST-' + nextNum.toString().padStart(3, '0');
 
             const fakeTask = {
                 id: randomId, title: shortTitle, full_desc: fullDesc, summary_desc: finalDesc, project: projectVal,
@@ -1010,7 +966,6 @@
                 created_at: new Date().toISOString()
             };
 
-            // 1. 发送云端请求
             const { error } = await window.supabase.from(window.DB_TABLE).insert([fakeTask]);
 
             btn.innerText = originalText;
@@ -1018,10 +973,8 @@
 
             if (error) return alert("云端写入失败: " + error.message);
 
-            // 2. 本地乐观处理
             localStorage.removeItem('myDraftTask');
             
-            // 存入过渡缓存，让任务详情页能读取
             localStorage.setItem('myNewTask', JSON.stringify({
                 id: randomId, title: shortTitle, fullDesc: fullDesc, desc: finalDesc, project: projectVal,
                 date: dateInput, assignee: assigneeVal, link: linkInput, channels: selectedChannels,
@@ -1040,21 +993,20 @@
             successContent.classList.remove('scale-95', 'opacity-0'); 
             checkPath.classList.add('animate-check-draw');
 
-            // 💡 3. 不刷新网页！执行无感云端重载！
-            setTimeout(async () => {
-                await window.loadTasksFromCloud(); // 重绘大厅，根据规则自动排好序
+            // 💡 无刷新云重载！
+            await window.loadTasksFromCloud();
+            
+            setTimeout(() => {
                 successOverlay.classList.add('opacity-0');
                 successContent.classList.add('scale-95', 'opacity-0');
                 setTimeout(() => {
                     successOverlay.classList.add('hidden');
-                    // 默认聚焦到刚才生成的新单据
                     previewTask(randomId);
                     document.getElementById('card-' + randomId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }, 300);
-            }, 1200);
+            }, 800);
         }
 
-        // ================= 悬浮预览关联与获取 =================
         window.previewTask = function(taskId) {
             document.querySelectorAll('.interactive-card').forEach(el => el.classList.remove('active-card'));
             const targetCard = document.getElementById('card-' + taskId);
@@ -1073,7 +1025,7 @@
                 const focusEl = document.getElementById('tracking-focus-text');
                 if(focusEl) {
                     focusEl.innerText = `草稿 (暂存中)`;
-                    focusEl.className = `text-indigo-400 font-mono font-bold`;
+                    focusEl.className = `text-zinc-400 font-mono font-bold`;
                 }
             }
         }
