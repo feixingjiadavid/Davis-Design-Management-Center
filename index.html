@@ -60,9 +60,13 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
                 <span class="font-bold text-[14px]">需求排号大厅</span>
             </button>
-            <button class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+            <button onclick="window.location.href='record-list.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
                 <span class="font-medium text-[14px]">我的提单记录</span>
+            </button>
+            <button onclick="window.location.href='calendar.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                <span class="font-medium text-[14px]">我的需求日历</span>
             </button>
         </div>
 
@@ -237,7 +241,6 @@
     <script type="module">
         import { supabase } from './supabase-config.js';
         window.supabase = supabase;
-        // 页面加载完成后，从云端拉取真实数据
         if(window.loadTasksFromCloud) {
             window.loadTasksFromCloud();
         }
@@ -269,15 +272,10 @@
             const menuContainer = document.getElementById('dynamic-identity-list');
             if (menuContainer) {
                 let html = '';
-                // 1. 所有人都有需求方
                 html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#2a2a35] text-indigo-300 cursor-default"><div class="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div><span class="text-[13px] font-bold">需求方 (当前)</span></div>`;
-                
-                // 2. 设计方 (除了 Judy)
                 if (enName !== 'judyzzhang') { 
                     html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='assistant-workspace.html'"><div class="w-7 h-7 rounded-lg bg-orange-500/10 text-orange-500 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div><span class="text-[13px] font-medium">设计方 (去执行接单)</span></div>`; 
                 }
-                
-                // 3. 管理方 (只有 davidxxu 和 judyzzhang)
                 if (enName === 'davidxxu' || enName === 'judyzzhang') { 
                     html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='manager-workspace.html'"><div class="w-7 h-7 rounded-lg bg-fuchsia-500/10 text-fuchsia-400 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg></div><span class="text-[13px] font-medium">管理方 (统筹/大盘)</span></div>`; 
                 }
@@ -323,7 +321,6 @@
             setTimeout(() => { overlay.classList.add('hidden'); }, 300);
         }
 
-        // ================= 云端直连写入功能 =================
         async function submitNewReq() {
             if(!window.supabase) return alert("云端服务仍在初始化，请稍等一秒或刷新！");
 
@@ -358,7 +355,6 @@
             btn.innerText = "正在同步云端...";
             btn.disabled = true;
 
-            // 核心：插入数据到 Supabase
             const { data, error } = await window.supabase.from('tasks').insert([
                 {
                     id: randomId,
@@ -393,17 +389,14 @@
             successContent.classList.remove('scale-95', 'opacity-0'); 
             checkPath.classList.add('animate-check-draw');
             
-            // 提交成功后重新加载当前页面（会自动调用 loadTasksFromCloud 渲染新数据）
             setTimeout(() => { window.location.reload(); }, 2000);
         }
 
-        // ================= 从云端读取功能并生成渲染 =================
         window.loadTasksFromCloud = async function() {
             if (!window.supabase) return;
             const ongoingContainer = document.getElementById('ongoing-tasks-container');
             const timelineContainer = document.getElementById('all-timelines-container');
             
-            // 从云端库查出所有任务，按时间倒序排列
             const { data, error } = await window.supabase.from('tasks').select('*').order('created_at', { ascending: false });
 
             if (error) {
@@ -414,7 +407,6 @@
             ongoingContainer.innerHTML = '';
             timelineContainer.innerHTML = '';
 
-            // 如果云端数据库没数据，展示纯净空状态
             if (!data || data.length === 0) {
                 ongoingContainer.innerHTML = `
                     <div class="text-center py-20 bg-[#121217] rounded-3xl border border-white/5 border-dashed">
@@ -431,7 +423,6 @@
             let cardsHTML = '';
             let timelinesHTML = '';
 
-            // 遍历真实数据生成 UI
             data.forEach((task, index) => {
                 let statusText = '等待系统统筹分配'; 
                 let statusColor = 'text-sky-400'; 
@@ -492,14 +483,12 @@
             ongoingContainer.innerHTML = cardsHTML;
             timelineContainer.innerHTML = timelinesHTML;
 
-            // 渲染完毕后默认选中展示第一个真实的云端单据
             if (data.length > 0) {
                 let firstTask = data[0];
                 previewTask(firstTask.id, firstTask.title, 'text-sky-400');
             }
         }
 
-        // 动态状态追踪选中控制
         window.previewTask = function(taskId, title, colorClass) {
             document.querySelectorAll('.interactive-card').forEach(el => el.classList.remove('active-card'));
             const targetCard = document.getElementById('card-' + taskId);
