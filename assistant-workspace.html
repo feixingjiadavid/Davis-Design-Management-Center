@@ -27,6 +27,17 @@
         @keyframes dropIn { 0% { opacity: 0; transform: scale(0.95) translateY(-10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
         .toast-slide-in { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* 同色系呼吸灯防漏 */
+        @keyframes pulse-sky { 50% { box-shadow: inset 0 0 0 1px rgba(56,189,248,0.4), 0 0 20px rgba(56,189,248,0.2); } }
+        @keyframes pulse-amber { 50% { box-shadow: inset 0 0 0 1px rgba(251,191,36,0.4), 0 0 20px rgba(251,191,36,0.2); } }
+        @keyframes pulse-emerald { 50% { box-shadow: inset 0 0 0 1px rgba(16,185,129,0.4), 0 0 20px rgba(16,185,129,0.2); } }
+        @keyframes pulse-rose { 50% { box-shadow: inset 0 0 0 1px rgba(244,63,94,0.4), 0 0 20px rgba(244,63,94,0.2); } }
+        
+        .breathe-sky { animation: pulse-sky 2s infinite ease-in-out; border-color: rgba(56,189,248,0.6) !important; }
+        .breathe-amber { animation: pulse-amber 2s infinite ease-in-out; border-color: rgba(251,191,36,0.6) !important; }
+        .breathe-emerald { animation: pulse-emerald 2s infinite ease-in-out; border-color: rgba(16,185,129,0.6) !important; }
+        .breathe-rose { animation: pulse-rose 2s infinite ease-in-out; border-color: rgba(244,63,94,0.6) !important; }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-orange-500/30 text-zinc-300">
@@ -80,9 +91,9 @@
         <header class="px-8 py-6 flex flex-col shrink-0 border-b border-white/5 bg-[#09090b]/80 backdrop-blur-xl relative z-[999]">
             <div class="flex justify-between items-start w-full">
                 <div>
-                    <h2 class="text-[24px] font-bold text-white tracking-tight mb-2 flex items-center gap-3">
-                        设计执行看板 
-                        <span class="bg-orange-500/20 text-orange-400 text-[11px] px-2.5 py-0.5 rounded-lg border border-orange-500/30">接单模式</span>
+                    <h2 id="header-greeting" class="text-[24px] font-bold text-white tracking-tight mb-2 flex items-center gap-3">
+                        加载中...
+                        <span class="bg-orange-500/20 text-orange-400 text-[11px] px-2.5 py-0.5 rounded-lg border border-orange-500/30">设计看板</span>
                     </h2>
                     <p class="text-[13px] text-zinc-500 mb-6">所有的创意都在有条不紊地落地中。</p>
                     
@@ -123,6 +134,29 @@
                 </div>
                 
                 <div class="flex items-center gap-5 relative pt-1 z-[110]">
+                    <button id="clear-db-btn" onclick="clearTestData()" class="hidden bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-500 px-4 py-3 rounded-[14px] text-[13px] font-bold transition-all btn-press items-center gap-1.5" title="仅清空提单数据，不影响账号">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        清空测试数据
+                    </button>
+
+                    <div class="relative" id="notif-wrapper">
+                        <button id="notifBtn" class="w-10 h-10 rounded-xl bg-[#141417] border border-white/5 flex items-center justify-center text-zinc-400 hover:text-white transition-colors btn-press relative">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                        </button>
+                        <div id="notifMenu" class="hidden absolute right-0 top-[120%] w-[340px] bg-[#121217] border border-white/10 rounded-2xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.8)] py-3 dropdown-enter z-[9999]">
+                            <div class="px-5 pb-3 border-b border-white/5 flex justify-between items-center">
+                                <h3 class="text-[14px] font-bold text-white">消息通知</h3>
+                                <button onclick="document.getElementById('notifMenu').classList.add('hidden');" class="text-[11px] text-indigo-400 hover:text-indigo-300 btn-press transition-colors">全部已读</button>
+                            </div>
+                            <div class="max-h-[300px] overflow-y-auto custom-scrollbar">
+                                <div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无新消息</div>
+                            </div>
+                            <div class="pt-3 px-5 border-t border-white/5 text-center">
+                                <button onclick="window.location.href='message-center.html?role=design'" class="text-[11px] text-zinc-500 hover:text-white transition-colors btn-press">查看全部历史消息 ↗</button>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="relative" id="identity-wrapper">
                         <button id="identityBtn" class="bg-[#141417] border border-white/10 text-zinc-300 px-4 py-2.5 rounded-xl flex items-center gap-2.5 text-[12px] font-medium hover:bg-white/5 transition-colors btn-press">
                             加载中...
@@ -144,6 +178,9 @@
                     </h3>
                 </div>
                 <div class="flex-1 bg-[#121217]/60 border border-white/5 rounded-2xl p-3 overflow-y-auto custom-scrollbar space-y-3 shadow-inner" id="lane-pending">
+                    <div class="text-center py-10" id="loading-spinner">
+                        <p class="text-xs text-zinc-500 flex justify-center items-center gap-2"><svg class="animate-spin h-3 w-3 text-zinc-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 同步云端数据中...</p>
+                    </div>
                 </div>
             </div>
 
@@ -244,6 +281,8 @@
     <script type="module">
         import { supabase } from './supabase-config.js';
         window.supabase = supabase;
+        window.DB_TABLE = 'test_tasks'; // 保证设计看板查的也是 test_tasks 表！
+        
         if(window.loadTasksFromCloud) window.loadTasksFromCloud();
     </script>
 
@@ -256,10 +295,20 @@
             window.location.href = 'login.html'; 
         }
 
+        function updateGreeting(user) {
+            const hour = new Date().getHours();
+            let timeStr = '晚上好';
+            if (hour >= 5 && hour < 12) timeStr = '上午好';
+            else if (hour >= 12 && hour < 18) timeStr = '下午好';
+            const display = user.displayName || user.cnName || user.enName;
+            document.getElementById('header-greeting').innerHTML = `${timeStr}，${display}。 <span class="bg-orange-500/20 text-orange-400 text-[11px] px-2.5 py-0.5 rounded-lg border border-orange-500/30 ml-2">设计看板</span>`;
+        }
+
         function initRBAC() {
             const userStr = localStorage.getItem('activeUserObj');
             if (!userStr) { window.location.href = 'login.html'; return false; }
             const user = JSON.parse(userStr);
+            const enName = user.enName ? user.enName.toLowerCase() : '';
 
             if (!user.perms.includes(PAGE_TYPE)) {
                 alert(`【权限拦截】您没有执行层做图权限，为您退回大厅。`);
@@ -271,7 +320,15 @@
             if(avatarEl) { avatarEl.innerText = user.avatar; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-orange-600'} border border-white/20 flex items-center justify-center text-white font-bold text-sm shadow-lg`; }
             if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName;
             
-            if(document.getElementById('sidebar-role')) document.getElementById('sidebar-role').innerHTML = `<span class="text-orange-400 font-bold">当前视角: 设计方</span>`;
+            updateGreeting(user);
+
+            // 💡 清空测试数据按钮白名单
+            const testUsers = ['ponyxu', 'davidxxu', 'yoshyliu', '小戴维斯'];
+            const isTestUser = testUsers.includes(enName) || testUsers.includes(user.displayName) || testUsers.includes(user.cnName);
+            if(isTestUser) {
+                const clrBtn = document.getElementById('clear-db-btn');
+                if(clrBtn) { clrBtn.classList.remove('hidden'); clrBtn.classList.add('flex'); }
+            }
 
             const menuContainer = document.getElementById('dynamic-identity-list');
             if (menuContainer) {
@@ -285,6 +342,17 @@
             const triggerBtn = document.getElementById('identityBtn');
             if (triggerBtn) { triggerBtn.innerHTML = `<span class="text-orange-500 font-black flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span></span> 身份: 设计方 (当前) <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 ml-1"><polyline points="6 9 12 15 18 9"></polyline></svg>`; }
             return true;
+        }
+
+        window.clearTestData = async function() {
+            if(!window.supabase) return;
+            if(!confirm("⚠️ 警告：这将直接清空云端测试表中的所有需求数据！且不可恢复！\n确定要继续吗？")) return;
+            try {
+                const { error } = await window.supabase.from(window.DB_TABLE).delete().neq('id', '0');
+                if (error) throw error;
+                showToast('已清空', '云端测试数据已全部清空！', 'success');
+                setTimeout(() => window.location.reload(), 1500);
+            } catch(e) { alert("清理失败: " + e.message); }
         }
 
         function showToast(title, desc, type = 'success') {
@@ -310,8 +378,7 @@
             const userStr = localStorage.getItem('activeUserObj');
             const currentUserEn = userStr ? JSON.parse(userStr).enName.toLowerCase() : '';
 
-            // 查询所有云端数据 (最新创建的在前)
-            const { data, error } = await window.supabase.from('tasks').select('*').order('created_at', { ascending: false });
+            const { data, error } = await window.supabase.from(window.DB_TABLE).select('*').order('created_at', { ascending: false });
             if(error) return console.error(error);
 
             const pendingLane = document.getElementById('lane-pending');
@@ -319,7 +386,6 @@
             const blockedLane = document.getElementById('lane-blocked');
             const reviewLane = document.getElementById('lane-review');
 
-            // 彻底清空占位假数据
             pendingLane.innerHTML = '';
             processingLane.innerHTML = '';
             blockedLane.innerHTML = '';
@@ -328,28 +394,42 @@
             let myTaskCount = 0;
 
             data.forEach(task => {
-                // 判断此任务是否属于当前设计师 (如果是 none 则为公海池，大家都能看到)
                 const taskAssignee = task.assignee ? task.assignee.toLowerCase() : 'none';
                 const isForMe = (taskAssignee === 'none' || taskAssignee === currentUserEn);
 
                 if (!isForMe) return; 
 
-                // 统计当前积压(未完结)数量
+                // 💡 提取统一的临期判定 (<= 2天)
+                let isUrgent = false;
+                if (task.due_date && task.status !== 'completed' && task.status !== 'archived') {
+                    const due = new Date(task.due_date);
+                    const today = new Date();
+                    due.setHours(0,0,0,0);
+                    today.setHours(0,0,0,0);
+                    const diffDays = (due - today) / (1000 * 60 * 60 * 24);
+                    if (diffDays <= 2 && diffDays >= -999) isUrgent = true;
+                }
+
                 if(task.status !== 'completed' && task.status !== 'archived') {
                     myTaskCount++;
                 }
 
                 // ======= 待排期 / 待接单 =======
                 if (task.status === 'pending' || task.status === 'pending_accept') {
+                    let alertBadge = isUrgent ? `<div class="absolute top-0 right-0 bg-rose-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl shadow-lg flex items-center gap-1 z-10"><span class="w-1.5 h-1.5 bg-white rounded-full animate-ping"></span> 临期预警</div>` : '';
+                    let breatheClass = isUrgent ? 'breathe-rose' : '';
+                    let cardBorder = isUrgent ? 'border-rose-500/60' : 'border-sky-500/30 hover:border-sky-500/60';
+
                     const cardHTML = `
-                        <div class="bg-[#18181b] border border-sky-500/30 hover:border-sky-500/60 rounded-xl p-4 kanban-card flex flex-col relative overflow-hidden group cursor-pointer" onclick="window.location.href='assistant-task-new.html'">
+                        <div class="bg-[#18181b] border ${cardBorder} rounded-xl p-4 kanban-card flex flex-col relative overflow-hidden group cursor-pointer ${breatheClass}" onclick="window.location.href='assistant-task-new.html'">
+                            ${alertBadge}
                             <div class="absolute left-0 top-0 bottom-0 w-[4px] bg-sky-500"></div>
                             <div class="flex items-center justify-between mb-2 pl-1 relative z-10">
                                 <span class="text-[10px] font-bold text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20">${task.id}</span>
                                 <span class="text-[10px] text-zinc-500">${task.status === 'pending' ? '统筹池公海单' : '主管定向派发'}</span>
                             </div>
                             <h4 class="text-[14px] font-bold text-zinc-100 mb-1.5 pl-1 leading-snug relative z-10">${task.title}</h4>
-                            <p class="text-[11px] text-zinc-400 line-clamp-2 mb-3 pl-1 relative z-10">${task.full_desc}</p>
+                            <p class="text-[11px] text-zinc-400 line-clamp-2 mb-3 pl-1 relative z-10">${task.full_desc || ''}</p>
                             
                             <div class="mt-auto border-t border-white/5 pt-3 pl-1 flex gap-2 relative z-10">
                                 <button onclick="event.stopPropagation(); window.location.href='assistant-task-new.html'" class="flex-1 bg-sky-600 hover:bg-sky-500 text-white rounded-lg py-2 text-[11px] font-bold btn-press transition-colors shadow-[0_4px_12px_rgba(56,189,248,0.25)]">去接单并上传框架</button>
@@ -362,15 +442,20 @@
                 
                 // ======= 制作中 =======
                 else if (task.status === 'processing') {
+                    let alertBadge = isUrgent ? `<div class="absolute top-0 right-0 bg-rose-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl shadow-lg flex items-center gap-1 z-10"><span class="w-1.5 h-1.5 bg-white rounded-full animate-ping"></span> 临期预警</div>` : '';
+                    let breatheClass = isUrgent ? 'breathe-rose' : '';
+                    let cardBorder = isUrgent ? 'border-rose-500/60' : 'border-orange-500/30 hover:border-orange-500/60';
+
                     const cardHTML = `
-                        <div class="bg-[#18181b] border border-orange-500/30 hover:border-orange-500/60 rounded-xl p-4 kanban-card flex flex-col relative overflow-hidden group cursor-pointer" onclick="window.location.href='assistant-task-processing.html'">
+                        <div class="bg-[#18181b] border ${cardBorder} rounded-xl p-4 kanban-card flex flex-col relative overflow-hidden group cursor-pointer ${breatheClass}" onclick="window.location.href='assistant-task-processing.html'">
+                            ${alertBadge}
                             <div class="absolute left-0 top-0 bottom-0 w-[4px] bg-orange-500"></div>
-                            <div class="flex items-center justify-between mb-2 pl-1">
+                            <div class="flex items-center justify-between mb-2 pl-1 relative z-10">
                                 <span class="text-[10px] font-bold text-zinc-300 bg-zinc-800 border border-zinc-700 px-2 py-0.5 rounded">${task.id}</span>
                                 <span class="text-[10px] font-bold text-orange-400">您已接单</span>
                             </div>
-                            <h4 class="text-[14px] font-bold text-zinc-100 mb-1.5 pl-1 leading-snug">${task.title}</h4>
-                            <p class="text-[11px] text-emerald-500 mb-3 pl-1 font-medium flex items-center gap-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg> 前置阶段已通过，推正稿</p>
+                            <h4 class="text-[14px] font-bold text-zinc-100 mb-1.5 pl-1 leading-snug relative z-10">${task.title}</h4>
+                            <p class="text-[11px] text-emerald-500 mb-3 pl-1 font-medium flex items-center gap-1 relative z-10"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg> 前置阶段已通过，推正稿</p>
                             
                             <div class="mt-auto border-t border-white/5 pt-3 flex gap-2 pl-1 relative z-10">
                                 <button onclick="event.stopPropagation(); window.location.href='assistant-task-processing.html'" class="flex-1 bg-orange-600 hover:bg-orange-500 text-white rounded-lg py-2 text-[11px] font-bold btn-press transition-colors shadow-[0_4px_12px_rgba(249,115,22,0.25)]">上传产出方案</button>
@@ -383,15 +468,20 @@
                 
                 // ======= 审核挂起中 =======
                 else if (task.status === 'pending_approval') {
+                    let alertBadge = isUrgent ? `<div class="absolute top-0 right-0 bg-rose-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl shadow-lg flex items-center gap-1 z-10"><span class="w-1.5 h-1.5 bg-white rounded-full animate-ping"></span> 临期预警</div>` : '';
+                    let breatheClass = isUrgent ? 'breathe-rose' : '';
+                    let cardBorder = isUrgent ? 'border-rose-500/60' : 'border-amber-500/30 hover:border-amber-500/60';
+
                     const cardHTML = `
-                        <div class="bg-[#16161d] border border-amber-500/30 hover:border-amber-500/60 rounded-xl p-4 flex flex-col cursor-pointer kanban-card relative overflow-hidden" onclick="window.location.href='assistant-task-locked.html'">
+                        <div class="bg-[#16161d] border ${cardBorder} rounded-xl p-4 flex flex-col cursor-pointer kanban-card relative overflow-hidden ${breatheClass}" onclick="window.location.href='assistant-task-locked.html'">
+                            ${alertBadge}
                             <div class="absolute left-0 top-0 bottom-0 w-[4px] bg-amber-500"></div>
-                            <div class="flex items-center justify-between mb-2 pl-1">
+                            <div class="flex items-center justify-between mb-2 pl-1 relative z-10">
                                 <span class="text-[10px] font-bold text-zinc-500 bg-black px-2 py-0.5 rounded border border-white/5">${task.id}</span>
                                 <span class="text-[10px] text-amber-500 flex items-center gap-1 font-bold"><svg class="animate-spin h-2.5 w-2.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 领导审批中</span>
                             </div>
-                            <h4 class="text-[14px] font-bold text-zinc-400 mb-1.5 pl-1 leading-snug line-through decoration-zinc-600">${task.title}</h4>
-                            <p class="text-[11px] text-zinc-500 mb-3 pl-1">您已提交前期草图。系统防偏离锁定中，等待审核。</p>
+                            <h4 class="text-[14px] font-bold text-zinc-400 mb-1.5 pl-1 leading-snug line-through decoration-zinc-600 relative z-10">${task.title}</h4>
+                            <p class="text-[11px] text-zinc-500 mb-3 pl-1 relative z-10">您已提交前期草图。系统防偏离锁定中，等待审核。</p>
                             
                             <div class="mt-auto border-t border-white/5 pt-3 pl-1 relative z-10 flex">
                                 <button onclick="event.stopPropagation(); showToast('已发送', '已催促主管审批', 'info')" class="w-full bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/20 rounded-lg py-2 text-[11px] font-bold btn-press transition-colors">催促主管审批</button>
@@ -403,15 +493,20 @@
                 
                 // ======= 交付待验收 =======
                 else if (task.status === 'reviewing') {
+                    let alertBadge = isUrgent ? `<div class="absolute top-0 right-0 bg-rose-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl shadow-lg flex items-center gap-1 z-10"><span class="w-1.5 h-1.5 bg-white rounded-full animate-ping"></span> 临期预警</div>` : '';
+                    let breatheClass = isUrgent ? 'breathe-rose' : '';
+                    let cardBorder = isUrgent ? 'border-rose-500/60' : 'border-emerald-500/30 hover:border-emerald-500/60';
+
                     const cardHTML = `
-                        <div class="bg-[#18181b] border border-emerald-500/30 hover:border-emerald-500/60 rounded-xl p-4 kanban-card flex flex-col relative overflow-hidden group cursor-pointer" onclick="window.location.href='assistant-task-locked.html'">
+                        <div class="bg-[#18181b] border ${cardBorder} rounded-xl p-4 kanban-card flex flex-col relative overflow-hidden group cursor-pointer ${breatheClass}" onclick="window.location.href='assistant-task-locked.html'">
+                            ${alertBadge}
                             <div class="absolute left-0 top-0 bottom-0 w-[4px] bg-emerald-500"></div>
-                            <div class="flex items-center justify-between mb-2 pl-1">
+                            <div class="flex items-center justify-between mb-2 pl-1 relative z-10">
                                 <span class="text-[10px] font-bold text-zinc-300 bg-zinc-800 px-2 py-0.5 rounded border border-zinc-700">${task.id}</span>
                                 <span class="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded flex items-center gap-1"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg> 等待甲方验收</span>
                             </div>
-                            <h4 class="text-[14px] font-bold text-zinc-100 mb-1.5 pl-1 leading-snug">${task.title}</h4>
-                            <p class="text-[11px] text-zinc-400 line-clamp-2 mb-3 pl-1">终稿已提交，等待需求方最终确认或归档结算。</p>
+                            <h4 class="text-[14px] font-bold text-zinc-100 mb-1.5 pl-1 leading-snug relative z-10">${task.title}</h4>
+                            <p class="text-[11px] text-zinc-400 line-clamp-2 mb-3 pl-1 relative z-10">终稿已提交，等待需求方最终确认或归档结算。</p>
                             
                             <div class="mt-auto border-t border-white/5 pt-3 flex gap-2 pl-1 relative z-10">
                                 <button onclick="event.stopPropagation(); showToast('已提醒', '催促验交通知已发送给需求方', 'success')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white shadow-[0_4px_12px_rgba(16,185,129,0.25)] rounded-lg py-2 text-[11px] font-bold btn-press transition-colors">催促甲方验收</button>
@@ -422,7 +517,19 @@
                 }
             });
 
-            // 更新仪表盘右上角数字
+            if (pendingLane.innerHTML.trim() === '') {
+                pendingLane.innerHTML = `<div class="text-center py-6 text-zinc-600 text-[11px]">暂无待排期任务</div>`;
+            }
+            if (processingLane.innerHTML.trim() === '') {
+                processingLane.innerHTML = `<div class="text-center py-6 text-zinc-600 text-[11px]">暂无制作中任务</div>`;
+            }
+            if (blockedLane.innerHTML.trim() === '') {
+                blockedLane.innerHTML = `<div class="text-center py-6 text-zinc-600 text-[11px]">暂无审核挂起任务</div>`;
+            }
+            if (reviewLane.innerHTML.trim() === '') {
+                reviewLane.innerHTML = `<div class="text-center py-6 text-zinc-600 text-[11px]">暂无待验收任务</div>`;
+            }
+
             document.getElementById('dashboard-tasks-count').innerHTML = `${myTaskCount} <span class="text-[11px] text-zinc-600 font-normal ml-1">单</span>`;
         }
 
@@ -459,23 +566,17 @@
             const reason = document.getElementById('transfer-reason').value.trim();
             if(!reason) return alert('请填写转单原因');
 
-            // 更新 Supabase 状态：退回公海 pending
-            const { error } = await window.supabase.from('tasks')
-                .update({ 
-                    status: 'pending', 
-                    assignee: 'none', 
-                    summary_desc: `原执行人转单：${reason}`
-                })
+            const { error } = await window.supabase.from(window.DB_TABLE)
+                .update({ status: 'pending', assignee: 'none', summary_desc: `原执行人转单：${reason}` })
                 .eq('id', currentTransferTaskId);
 
-            if(error) {
-                console.error(error);
-                return alert("转单失败: " + error.message);
-            }
+            if(error) return alert("转单失败: " + error.message);
 
             closeTransferModal(); 
             showToast('转单成功', '任务已退回统筹池等待重新分配', 'success');
-            setTimeout(() => { window.location.reload(); }, 1500);
+            
+            // 乐观重载
+            setTimeout(async () => { await loadTasksFromCloud(); }, 300);
         }
 
         const pwdOverlay = document.getElementById('pwd-modal-overlay');
