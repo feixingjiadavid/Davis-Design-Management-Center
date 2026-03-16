@@ -28,7 +28,7 @@
         .toast-slide-in { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-        /* 💡 强制红色预警呼吸灯 (不再有杂色) */
+        /* 💡 强制红色预警呼吸灯 */
         @keyframes pulse-rose { 50% { box-shadow: inset 0 0 0 1px rgba(244,63,94,0.6), 0 0 20px rgba(244,63,94,0.3); } }
         .breathe-rose { animation: pulse-rose 2s infinite ease-in-out; border-color: rgba(244,63,94,0.8) !important; }
     </style>
@@ -80,7 +80,6 @@
     </aside>
 
     <main class="flex-1 flex flex-col h-full overflow-hidden relative z-10 bg-[#0c0c0e]">
-        
         <header class="px-8 py-6 flex flex-col shrink-0 border-b border-white/5 bg-[#09090b]/80 backdrop-blur-xl relative z-[999]">
             <div class="flex justify-between items-start w-full">
                 <div>
@@ -191,7 +190,7 @@
             <div class="flex-1 min-w-[280px] max-w-[360px] flex flex-col kanban-column">
                 <div class="flex items-center justify-between mb-4 px-2">
                     <h3 class="text-[13px] font-bold text-zinc-400 flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]"></span> 主管框架审核中
+                        <span class="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]"></span> 领导框架审核中
                     </h3>
                 </div>
                 <div class="flex-1 bg-[#121217]/30 border border-white/5 rounded-2xl p-3 overflow-y-auto custom-scrollbar space-y-3 opacity-90" id="lane-blocked">
@@ -210,8 +209,7 @@
 
         </div>
     </main>
-
-    <div id="transfer-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closeTransferModal()">
+<div id="transfer-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closeTransferModal()">
         <div id="transfer-modal" class="hidden w-full max-w-lg bg-[#121217] border border-orange-500/20 rounded-3xl shadow-[0_20px_50px_-10px_rgba(249,115,22,0.2)] flex flex-col scale-95 transition-transform duration-300">
             <div class="px-6 py-5 border-b border-white/5 flex justify-between items-center bg-[#1a1a1f] rounded-t-3xl">
                 <h2 class="text-[15px] font-bold text-white flex items-center gap-2">
@@ -277,7 +275,7 @@
         window.supabase = supabase;
         window.DB_TABLE = 'test_tasks'; 
         
-        // 🚀 性能优化核心：列表轻量化查询，剔除图片等沉重字段，实现秒开！
+        // 🚀 性能优化核心：列表轻量化查询
         window.LIGHT_FIELDS = 'id, title, status, project, due_date, creator, created_at, summary_desc, assignee';
 
         if(window.loadTasksFromCloud) window.loadTasksFromCloud();
@@ -360,7 +358,7 @@
             } catch(e) { alert("清理失败: " + e.message); }
         }
 
-        function showToast(title, desc, type = 'success') {
+        window.showToast = function(title, desc, type = 'success') {
             const toast = document.getElementById('action-toast');
             document.getElementById('toast-title').innerText = title;
             document.getElementById('toast-desc').innerText = desc;
@@ -388,21 +386,19 @@
         }
         window.submitPwdChange = function() { alert('请联系管理员修改密码。'); closePwdModal(); }
 
-        // ================= 核心：生成卡片逻辑 (含权限过滤与提交人信息) =================
+        // ================= 核心：生成卡片逻辑 =================
         function createTaskHTML(task, currentUser, currentUserEn, isJudy, isDavid) {
             const taskAssignee = task.assignee ? task.assignee.toLowerCase() : 'none';
             const taskCreator = task.creator;
             
-            // 💡 【权限与隐私控制引擎】
+            // 💡 权限与隐私控制引擎
             const isUnassigned = taskAssignee === 'none' || taskAssignee === '';
             const isMyDesignTask = taskAssignee === currentUserEn;
             const isMyReqTask = taskCreator === currentUser.displayName || taskCreator === currentUser.cnName || taskCreator === currentUser.enName;
             const isSuperAdmin = isJudy || isDavid;
             
-            // 如果既不是未分配、不是指派给我的、不是我发起的、也不是超管，则直接隐藏该单！
             if (!isUnassigned && !isMyDesignTask && !isMyReqTask && !isSuperAdmin) return null; 
 
-            // 💡 临期判定 (<= 2天 红色警戒)
             let isUrgent = false;
             if (task.due_date && task.status !== 'completed' && task.status !== 'archived') {
                 const due = new Date(task.due_date);
@@ -416,7 +412,23 @@
             let alertBadge = isUrgent ? `<div class="absolute top-0 right-0 bg-rose-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl shadow-lg z-10 animate-pulse">临期预警</div>` : '';
             let breatheClass = isUrgent ? 'breathe-rose' : '';
 
-            // ⚠️ 重点注意 pending_approval 分支里，严格校验如果是 isJudy 才给火把图标！
+            // 💡 解析转单记录，如果有则高亮显示
+            let transferHtml = '';
+            let displayDesc = task.summary_desc || task.full_desc || '暂无详细描述';
+            
+            if (task.summary_desc && task.summary_desc.startsWith('[转单记录]')) {
+                const transferMsg = task.summary_desc.replace('[转单记录] ', '');
+                transferHtml = `
+                    <div class="mb-3 relative z-10">
+                        <div class="bg-rose-500/10 border border-rose-500/20 rounded-lg p-2.5 flex items-start gap-2">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2" class="shrink-0 mt-0.5"><path d="M17 3v2M7 3v2M3 14h18M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2-2v12a2 2 0 0 0 2 2z"></path></svg>
+                            <span class="text-[11px] text-rose-400 leading-snug">${transferMsg}</span>
+                        </div>
+                    </div>
+                `;
+                displayDesc = task.full_desc || '请点击查看详情'; // 降级显示原描述，避免重复
+            }
+
             switch (task.status) {
                 case 'pending':
                 case 'pending_accept':
@@ -433,12 +445,12 @@
                     laneId = 'lane-blocked'; sColor = 'text-amber-500'; sText = '领导审批中'; 
                     targetUrl = `task-detail-locked.html?id=${task.id}`;
                     if(isJudy) actionBtnHtml = `<div class="mt-auto border-t border-white/5 pt-3 pl-1 relative z-10 flex"><button onclick="event.stopPropagation(); window.location.href='${targetUrl}'" class="w-full bg-amber-600 hover:bg-amber-500 text-white shadow-[0_4px_12px_rgba(245,158,11,0.25)] rounded-lg py-2 text-[11px] font-bold btn-press transition-colors">🔥 去审批此框架方案</button></div>`;
-                    else actionBtnHtml = `<div class="mt-auto border-t border-white/5 pt-3 pl-1 relative z-10 flex"><button onclick="event.stopPropagation(); window.showToast('已发送', '已提醒丹楠姐尽快审批', 'info')" class="w-full bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/20 rounded-lg py-2 text-[11px] font-bold btn-press transition-colors">提醒主管审核</button></div>`;
+                    else actionBtnHtml = `<div class="mt-auto border-t border-white/5 pt-3 pl-1 relative z-10 flex"><button onclick="event.stopPropagation(); window.showToast('已发送', '已提醒领导审批', 'info')" class="w-full bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/20 rounded-lg py-2 text-[11px] font-bold btn-press transition-colors">提醒领导审核</button></div>`;
                     break;
                 case 'reviewing':
                     laneId = 'lane-review'; sColor = 'text-emerald-400'; sText = '等待甲方验收'; 
                     targetUrl = `task-detail-locked.html?id=${task.id}`;
-                    actionBtnHtml = `<div class="mt-auto border-t border-white/5 pt-3 flex gap-2 pl-1 relative z-10"><button onclick="event.stopPropagation(); window.showToast('已提醒', '催促验交通知已发送给需求方', 'success')" class="w-full bg-[#1a1a24] text-emerald-500 border border-emerald-500/30 hover:bg-emerald-500/10 rounded-lg py-2 text-[11px] font-bold btn-press transition-colors">催促甲方验收</button></div>`;
+                    actionBtnHtml = `<div class="mt-auto border-t border-white/5 pt-3 flex gap-2 pl-1 relative z-10"><button onclick="event.stopPropagation(); window.showToast('已提醒', '催促验交通知已发送', 'success')" class="w-full bg-[#1a1a24] text-emerald-500 border border-emerald-500/30 hover:bg-emerald-500/10 rounded-lg py-2 text-[11px] font-bold btn-press transition-colors">催促甲方验收</button></div>`;
                     break;
                 default: 
                     return null;
@@ -455,11 +467,19 @@
                         <span class="text-[10px] font-bold ${sColor}">${sText}</span>
                     </div>
                     <h4 class="text-[14px] font-bold text-zinc-100 mb-1.5 pl-1 leading-snug relative z-10">${task.title}</h4>
-                    <p class="text-[11px] text-zinc-400 line-clamp-2 mb-2 pl-1 relative z-10">${task.summary_desc || task.full_desc || ''}</p>
+                    <p class="text-[11px] text-zinc-400 line-clamp-2 mb-3 pl-1 relative z-10">${displayDesc}</p>
                     
-                    <div class="text-[10px] text-zinc-500 mb-3 pl-1 relative z-10 flex items-center gap-1">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                        提交人: <span class="text-zinc-300">${task.creator || '未知'}</span>
+                    ${transferHtml}
+
+                    <div class="flex flex-col gap-1.5 text-[10px] text-zinc-500 mb-3 pl-1 relative z-10 bg-white/5 p-2.5 rounded-lg border border-white/5">
+                        <div class="flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-zinc-500"></span>
+                            <span>创建人: <span class="text-zinc-300 font-bold">${task.creator || '未知'}</span></span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+                            <span>承接人: <span class="${task.assignee && task.assignee !== 'none' ? 'text-orange-400 font-bold' : 'text-zinc-400'}">${task.assignee === 'none' || !task.assignee ? '待分配 (公海)' : task.assignee}</span></span>
+                        </div>
                     </div>
                     
                     ${actionBtnHtml}
@@ -468,7 +488,6 @@
             return { laneId, cardHTML, isMyDesignTask, isUnassigned };
         }
 
-        // ================= 云端直连：动态拉取并分流至看板 =================
         window.loadTasksFromCloud = async function() {
             if(!window.supabase) return;
             
@@ -480,23 +499,15 @@
             const isJudy = currentUserEn === 'judyzzhang';
             const isDavid = currentUserEn === 'davidxxu';
 
-            // 💡 性能优化：只查询轻量字段，极速秒开
             const { data, error } = await window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS).order('created_at', { ascending: false });
             if(error) return console.error(error);
 
-            const lanes = {
-                'lane-pending': document.getElementById('lane-pending'),
-                'lane-processing': document.getElementById('lane-processing'),
-                'lane-blocked': document.getElementById('lane-blocked'),
-                'lane-review': document.getElementById('lane-review')
-            };
-
+            const lanes = { 'lane-pending': document.getElementById('lane-pending'), 'lane-processing': document.getElementById('lane-processing'), 'lane-blocked': document.getElementById('lane-blocked'), 'lane-review': document.getElementById('lane-review') };
             for (const key in lanes) { lanes[key].innerHTML = ''; }
 
             let myTaskCount = 0;
 
             data.forEach(task => {
-                // 将 isJudy 和 isDavid 独立传递下去，防止权限混淆
                 const res = createTaskHTML(task, currentUser, currentUserEn, isJudy, isDavid);
                 if(res) {
                     lanes[res.laneId].insertAdjacentHTML('beforeend', res.cardHTML);
@@ -512,14 +523,12 @@
             document.getElementById('dashboard-tasks-count').innerHTML = `${myTaskCount} <span class="text-[11px] text-zinc-600 font-normal ml-1">单</span>`;
         }
 
-        // ================= 🔔 全局消息通知与悬浮预警引擎 =================
+        // ================= 🔔 全局消息轮询引擎 =================
         window.loadNotifications = function() {
             const userStr = localStorage.getItem('activeUserObj');
             if(!userStr) return;
             const user = JSON.parse(userStr);
             const enName = user.enName ? user.enName.toLowerCase() : '';
-            
-            // 💡 只有 judyzzhang 有权收到 admin 审批提醒
             const isJudy = enName === 'judyzzhang';
 
             let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
@@ -608,18 +617,14 @@
             if(window.showToast) window.showToast('消息已清空', '所有未读消息已成功标记为已读。', 'success');
         }
 
-        // ================= 全局事件绑定（确保下拉菜单与轮询生效） =================
         document.addEventListener('DOMContentLoaded', () => {
             if(!initRBAC()) return;
-
             const idBtn = document.getElementById('identityBtn');
             const idMenu = document.getElementById('identityMenu');
             if(idBtn && idMenu) idBtn.addEventListener('click', (e) => { e.stopPropagation(); idMenu.classList.toggle('hidden'); });
-            
             const notifBtn = document.getElementById('notifBtn');
             const notifMenu = document.getElementById('notifMenu');
             if(notifBtn && notifMenu) notifBtn.addEventListener('click', (e) => { e.stopPropagation(); notifMenu.classList.toggle('hidden'); });
-            
             document.addEventListener('click', (e) => { 
                 if(idMenu && !idMenu.contains(e.target)) idMenu.classList.add('hidden'); 
                 if(notifMenu && !notifMenu.contains(e.target)) notifMenu.classList.add('hidden'); 
@@ -630,7 +635,7 @@
             setInterval(window.loadNotifications, 3000); 
         });
 
-        // ================= 转单功能写入云端 =================
+        // ================= 💡 转单逻辑优化（记录格式化追踪） =================
         const modalOverlay = document.getElementById('transfer-modal-overlay');
         const modal = document.getElementById('transfer-modal');
         let currentTransferTaskId = null;
@@ -655,13 +660,18 @@
             const reason = document.getElementById('transfer-reason').value.trim();
             if(!reason) return alert('请填写转单原因');
 
+            const userStr = localStorage.getItem('activeUserObj');
+            const user = JSON.parse(userStr);
+            const dispName = user.displayName || user.cnName || user.enName;
+
+            // 💡 核心：专门加上 [转单记录] 标识前缀，供渲染工厂抓取高亮
             const { error } = await window.supabase.from(window.DB_TABLE)
-                .update({ status: 'pending', assignee: 'none', summary_desc: `原执行人退回公海：${reason}` })
+                .update({ status: 'pending', assignee: 'none', summary_desc: `[转单记录] ${dispName} 退回公海：${reason}` })
                 .eq('id', currentTransferTaskId);
 
             if(error) return alert("转单失败: " + error.message);
 
-            closeTransferModal(); 
+            window.closeTransferModal(); 
             window.showToast('转单成功', '任务已退回统筹池等待重新分配', 'success');
             
             setTimeout(async () => { await window.loadTasksFromCloud(); }, 300);
