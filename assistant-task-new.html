@@ -82,27 +82,36 @@
             <div class="w-full max-w-[1400px] flex gap-10 items-start">
                 
                 <div class="flex-1 flex flex-col gap-8 min-w-0">
-                    <div class="bg-[#121217] border border-white/5 rounded-2xl p-6 relative overflow-hidden">
-                        <div class="absolute right-0 top-0 bg-white/5 text-zinc-500 text-[10px] font-bold px-3 py-1 rounded-bl-xl">需求摘要</div>
-                        <div class="flex gap-10 mb-4 pb-4 border-b border-white/5">
+                    <div class="bg-[#121217] border border-white/5 rounded-2xl p-8 relative overflow-hidden">
+                        <div class="absolute right-0 top-0 bg-white/5 text-zinc-500 text-[10px] font-bold px-3 py-1 rounded-bl-xl">需求全貌摘要</div>
+                        
+                        <div class="grid grid-cols-2 gap-8 mb-8 border-b border-white/5 pb-8">
                             <div>
-                                <p class="text-[11px] text-zinc-500 mb-1">归属项目</p>
-                                <p class="text-[13px] font-bold text-zinc-300" id="dt-project">--</p>
+                                <p class="text-xs text-zinc-500 mb-1">归属项目</p>
+                                <p class="text-sm font-bold text-zinc-300" id="dt-project">--</p>
                             </div>
                             <div>
-                                <p class="text-[11px] text-zinc-500 mb-1">期望交付日</p>
-                                <p class="text-[13px] font-bold text-sky-400" id="dt-date">--</p>
+                                <p class="text-xs text-zinc-500 mb-1">期望交付日</p>
+                                <p class="text-sm font-bold text-sky-400" id="dt-date">--</p>
                             </div>
                             <div>
-                                <p class="text-[11px] text-zinc-500 mb-1">发起人</p>
-                                <p class="text-[13px] font-bold text-zinc-300" id="dt-creator">--</p>
+                                <p class="text-xs text-zinc-500 mb-1">发起人</p>
+                                <p class="text-sm font-bold text-zinc-300" id="dt-creator">--</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-zinc-500 mb-1">期望分发渠道</p>
+                                <p class="text-sm font-bold text-zinc-300" id="dt-channels">--</p>
+                            </div>
+                            <div class="col-span-2">
+                                <p class="text-xs text-zinc-500 mb-1">需求参考链接</p>
+                                <p class="text-sm font-bold text-zinc-300" id="dt-link">--</p>
                             </div>
                         </div>
                         
-                        <h3 class="text-[13px] font-bold text-white mb-2">📋 详细描述</h3>
-                        <p class="text-[13px] text-zinc-400 leading-relaxed min-h-[120px]" id="req-desc-display">
+                        <h3 class="text-sm font-bold text-white mb-3">📋 详细描述</h3>
+                        <div class="text-sm text-zinc-400 leading-relaxed bg-[#09090b] border border-white/5 p-5 rounded-xl min-h-[120px]" id="req-desc-display">
                             数据读取中...
-                        </p>
+                        </div>
 
                         <div id="attachment-container"></div>
                     </div>
@@ -144,7 +153,7 @@
                     <input type="date" id="framework-date" class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-sky-500 transition-colors" style="color-scheme: dark;">
                 </div>
             </div>
-            <button onclick="submitAccept()" class="w-full mt-6 py-3.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-[13px] font-bold shadow-[0_5px_15px_rgba(56,189,248,0.3)] transition-all btn-press">保存排期并接单</button>
+            <button id="btn-accept-submit" onclick="submitAccept()" class="w-full mt-6 py-3.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-[13px] font-bold shadow-[0_5px_15px_rgba(56,189,248,0.3)] transition-all btn-press">保存排期并接单</button>
         </div>
     </div>
 
@@ -162,7 +171,7 @@
                     <textarea id="reject-reason" class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-rose-500 transition-colors h-24 resize-none custom-scrollbar" placeholder="例如：缺少核心文案；尺寸未明确；参考图未上传..."></textarea>
                 </div>
             </div>
-            <button onclick="submitReject()" class="w-full mt-6 py-3.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-[13px] font-bold shadow-[0_5px_15px_rgba(244,63,94,0.3)] transition-all btn-press">确认打回需求</button>
+            <button id="btn-reject-submit" onclick="submitReject()" class="w-full mt-6 py-3.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-[13px] font-bold shadow-[0_5px_15px_rgba(244,63,94,0.3)] transition-all btn-press">确认打回需求</button>
         </div>
     </div>
 
@@ -196,17 +205,15 @@
             document.getElementById('sidebar-name').innerText = user.displayName || user.cnName || user.enName;
             
             if(!currentTaskId) {
-                // 回退兼容：如果没有URL参数，则尝试从 localStorage 读取 myNewTask
-                const saved = localStorage.getItem('myNewTask');
-                if(saved) renderTask(JSON.parse(saved));
-                else { alert("未找到需求参数！"); window.location.href='assistant-workspace.html'; }
+                alert("未找到需求编号！"); window.location.href='assistant-workspace.html'; 
             }
         });
 
-        // 💡 从 Supabase 读取任务详情
+        // 💡 必须：从 Supabase 完整拉取数据（包含 file_data）
         window.loadTaskDetail = async function() {
             if(!window.supabase || !currentTaskId) return;
 
+            // 这里查询所有字段，因为是详情页，需要加载图片
             const { data, error } = await window.supabase.from(window.DB_TABLE).select('*').eq('id', currentTaskId).single();
             
             if(error || !data) {
@@ -215,43 +222,49 @@
                 return;
             }
 
-            renderTask({
-                id: data.id,
-                title: data.title,
-                fullDesc: data.full_desc,
-                project: data.project,
-                date: data.due_date,
-                creator: data.creator,
-                fileName: data.file_name,
-                fileData: data.file_data
-            });
+            renderTask(data);
         }
 
         // 渲染数据到页面
         function renderTask(task) {
             document.getElementById('req-id').innerText = task.id;
             document.getElementById('req-title-display').innerText = task.title;
+            document.getElementById('dt-title').innerText = task.title;
             document.getElementById('dt-project').innerText = task.project || '--';
-            document.getElementById('dt-date').innerText = task.date || '--';
+            document.getElementById('dt-date').innerText = task.due_date || '--';
             document.getElementById('dt-creator').innerText = task.creator || '系统记录';
-            document.getElementById('req-desc-display').innerHTML = (task.fullDesc || '无详细描述').replace(/\n/g, '<br>');
+            
+            if(task.channels && task.channels.length > 0) {
+                document.getElementById('dt-channels').innerText = task.channels.join('，');
+            } else {
+                document.getElementById('dt-channels').innerText = '未指定渠道';
+            }
+
+            if(task.link) {
+                document.getElementById('dt-link').innerHTML = `<a href="${task.link}" target="_blank" class="text-sky-400 hover:underline break-all">${task.link}</a>`;
+            } else {
+                document.getElementById('dt-link').innerText = '未提供链接';
+            }
+
+            document.getElementById('req-desc-display').innerHTML = (task.full_desc || '无详细描述').replace(/\n/g, '<br>');
             
             // 附件渲染
-            if(task.fileName) {
+            if(task.file_name && task.file_data) {
                 document.getElementById('attachment-container').innerHTML = `
                     <div class="mt-6 p-4 bg-white/5 border border-white/10 rounded-xl flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg></div>
-                            <div><p class="text-sm font-bold text-white">${task.fileName}</p><p class="text-[10px] text-zinc-500 mt-0.5">需求方提供的参考附件</p></div>
+                            <div><p class="text-sm font-bold text-white">${task.file_name}</p><p class="text-[10px] text-zinc-500 mt-0.5">需求方提供的参考附件</p></div>
                         </div>
-                        <button onclick="downloadAttachment('${task.fileName}', '${task.fileData || ''}')" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg transition-colors btn-press">下载查看</button>
+                        <button onclick="downloadAttachment('${task.file_name}', '${task.file_data}')" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg transition-colors btn-press">下载查看</button>
                     </div>
                 `;
+            } else if (task.file_name) {
+                document.getElementById('attachment-container').innerHTML = `<div class="mt-6 text-xs text-zinc-500 italic">📎 包含附件：${task.file_name} (无实体文件流)</div>`;
             }
         }
 
-        function downloadAttachment(name, dataBase64) {
-            if(!dataBase64) return showToast('下载失败', '该附件仅为占位文本，无实际源文件。', 'error');
+        window.downloadAttachment = function(name, dataBase64) {
             const a = document.createElement('a');
             a.href = dataBase64;
             a.download = name;
@@ -286,21 +299,28 @@
             }, 300);
         }
 
-        // ================= 接单与打回逻辑 =================
+        // ================= 💡 核心业务：接单与打回逻辑 =================
         window.submitAccept = async function() {
             const fwDate = document.getElementById('framework-date').value;
             if(!fwDate) return alert("请填写预计交框架方案的时间！");
 
-            const idToUpdate = currentTaskId || JSON.parse(localStorage.getItem('myNewTask')).id;
+            const btn = document.getElementById('btn-accept-submit');
+            btn.disabled = true; btn.innerText = "提交中...";
 
             if (window.supabase) {
+                // 接单后进入排期中 (processing)
                 const summary = `排期中，预计 ${fwDate} 上传框架方案`;
+                const user = JSON.parse(localStorage.getItem('activeUserObj'));
                 const { error } = await window.supabase.from(window.DB_TABLE).update({
                     status: 'processing',
-                    summary_desc: summary
-                }).eq('id', idToUpdate);
+                    summary_desc: summary,
+                    assignee: user.enName // 锁定执行人为自己
+                }).eq('id', currentTaskId);
 
-                if (error) return alert("云端更新失败：" + error.message);
+                if (error) {
+                    btn.disabled = false; btn.innerText = "保存排期并接单";
+                    return alert("云端更新失败：" + error.message);
+                }
             }
 
             closeModals();
@@ -312,21 +332,25 @@
             const reason = document.getElementById('reject-reason').value.trim();
             if(!reason) return alert("请填写打回原因！");
 
-            const idToUpdate = currentTaskId || JSON.parse(localStorage.getItem('myNewTask')).id;
+            const btn = document.getElementById('btn-reject-submit');
+            btn.disabled = true; btn.innerText = "提交中...";
 
             if (window.supabase) {
-                // 💡 退回需求大厅 (这里设置 status 为 rejected, index.html 会通过红色预警识别并展示)
-                const summary = `被执行人退回：${reason}`;
+                // 打回后状态变为 rejected，需求大厅接收红灯预警
+                const summary = `需求被退回：${reason}`;
                 const { error } = await window.supabase.from(window.DB_TABLE).update({
                     status: 'rejected',
                     summary_desc: summary
-                }).eq('id', idToUpdate);
+                }).eq('id', currentTaskId);
 
-                if (error) return alert("云端更新失败：" + error.message);
+                if (error) {
+                    btn.disabled = false; btn.innerText = "确认打回需求";
+                    return alert("云端更新失败：" + error.message);
+                }
             }
 
             closeModals();
-            showToast('已打回', '该需求已退回给需求方重新填写', 'info');
+            showToast('已打回', '该需求已退回给需求方重新修改', 'info');
             setTimeout(() => { window.location.href = 'assistant-workspace.html'; }, 1500);
         }
 
