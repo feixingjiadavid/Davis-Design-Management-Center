@@ -85,7 +85,7 @@
         <header class="h-[88px] px-10 flex justify-between items-center shrink-0 border-b border-white/5 bg-[#09090b]/80 backdrop-blur-xl relative z-[999]">
             <div>
                 <h2 id="header-greeting" class="text-2xl font-bold text-white tracking-tight mb-1.5">上午好，加载中...</h2>
-                <p class="text-xs text-zinc-500">云端协同数据已就绪，所有工作都在有条不紊地推进中。</p>
+                <p class="text-xs text-zinc-500">云端协同数据已就绪，所有的工作都在有条不紊地推进中。</p>
             </div>
             
             <div class="flex items-center gap-5 relative">
@@ -115,7 +115,7 @@
                         <div>
                             <h4 class="text-[13px] font-bold text-amber-500 mb-1">系统提单必读规则</h4>
                             <p class="text-[12px] text-amber-500/80 leading-relaxed font-medium">
-                                欢迎进入真实数据大厅。点击右上角“发起新需求”，您填写的内容将实时同步至云端数据库。
+                                欢迎进入真实数据大厅。首创核心视觉请指派给【文哥/资深设计】；延展与部门排版指派给【文员】。您填写的内容将实时同步至云端数据库。
                             </p>
                         </div>
                     </div>
@@ -188,10 +188,18 @@
                 </div>
 
                 <div>
-                    <label class="block text-[13px] font-bold text-zinc-300 mb-2">4. 期望分发渠道</label>
+                    <label class="block text-[13px] font-bold text-zinc-300 mb-2">4. 宣传分发渠道 (可多选) <span class="text-rose-500">*</span></label>
                     <div class="flex flex-wrap gap-2">
                         <label class="cursor-pointer"><input type="checkbox" value="企业号" class="hidden pill-checkbox req-channel"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-4 py-2 rounded-full transition-colors">企业号</div></label>
                         <label class="cursor-pointer"><input type="checkbox" value="邮件" class="hidden pill-checkbox req-channel"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-4 py-2 rounded-full transition-colors">邮件</div></label>
+                        <label class="cursor-pointer"><input type="checkbox" value="立地屏" class="hidden pill-checkbox req-channel"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-4 py-2 rounded-full transition-colors">立地屏</div></label>
+                        <label class="cursor-pointer"><input type="checkbox" value="电视机" class="hidden pill-checkbox req-channel"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-4 py-2 rounded-full transition-colors">电视机</div></label>
+                        <label class="cursor-pointer"><input type="checkbox" value="电脑屏保" class="hidden pill-checkbox req-channel"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-4 py-2 rounded-full transition-colors">电脑屏保</div></label>
+                        <label class="cursor-pointer"><input type="checkbox" value="异形牌" class="hidden pill-checkbox req-channel"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-4 py-2 rounded-full transition-colors">异形牌</div></label>
+                        <label class="cursor-pointer"><input type="checkbox" value="其他" id="channel-other-cb" class="hidden pill-checkbox req-channel" onchange="toggleOtherInput()"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-4 py-2 rounded-full transition-colors">其他</div></label>
+                    </div>
+                    <div id="other-channel-input-container" class="mt-3 hidden">
+                        <input type="text" id="req-channel-other" placeholder="请填写其他具体渠道名称..." class="w-full bg-[#09090b] border border-zinc-700 border-dashed rounded-xl px-4 py-2.5 text-sm text-zinc-300 outline-none focus:border-indigo-500 transition-colors">
                     </div>
                 </div>
 
@@ -216,12 +224,25 @@
                         <label class="block text-[13px] font-bold text-zinc-300 mb-2">7. 需求参考链接 (选填)</label>
                         <input type="url" id="req-link" placeholder="如腾讯文档地址..." class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 transition-colors">
                     </div>
+                    <div>
+                        <label class="block text-[13px] font-bold text-zinc-300 mb-2">8. 本地附件上传 (选填)</label>
+                        <label for="real-file-upload" id="upload-zone" class="w-full bg-[#09090b] border border-zinc-700 border-dashed rounded-xl px-4 py-2.5 flex flex-col items-center justify-center text-zinc-500 cursor-pointer hover:border-indigo-500 transition-colors h-[46px]">
+                            <span id="upload-text" class="text-xs font-medium flex items-center gap-2">
+                                <svg id="upload-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                                点击选择参考附件...
+                            </span>
+                            <input type="file" id="real-file-upload" class="hidden" onchange="handleFileSelect(event)">
+                        </label>
+                    </div>
                 </div>
             </div>
             
-            <div class="p-6 border-t border-zinc-800 bg-[#09090b] flex justify-end items-center rounded-b-3xl gap-4">
-                <button onclick="closeAllModals()" class="px-6 py-3 bg-transparent border border-zinc-700 text-zinc-400 hover:text-white rounded-xl text-[13px] font-bold btn-press transition-colors">取消</button>
-                <button onclick="submitNewReq()" class="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[14px] font-bold shadow-[0_8px_15px_rgba(79,70,229,0.3)] btn-press transition-all">确认提交云端</button>
+            <div class="p-6 border-t border-zinc-800 bg-[#09090b] flex justify-between items-center rounded-b-3xl">
+                <div class="flex gap-4">
+                    <button onclick="closeAllModals()" class="px-6 py-3 bg-transparent border border-zinc-700 text-zinc-400 hover:text-white rounded-xl text-[13px] font-bold btn-press transition-colors">取消</button>
+                    <button onclick="saveDraft()" class="px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-[13px] font-bold btn-press transition-colors">暂存草稿</button>
+                </div>
+                <button onclick="submitNewReq()" class="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[14px] font-bold shadow-[0_8px_15px_rgba(79,70,229,0.3)] btn-press transition-all">确认提交至云端</button>
             </div>
         </div>
     </div>
@@ -234,7 +255,14 @@
                 </svg>
             </div>
             <h2 class="text-2xl font-bold text-white mb-2 tracking-tight">需求提单成功</h2>
-            <p class="text-zinc-400 text-sm">系统正在为您生成专属排号，即将返回大厅...</p>
+            <p class="text-zinc-400 text-sm">系统正在为您生成专属排号并同步云端，即将刷新大厅...</p>
+        </div>
+    </div>
+
+    <div id="action-toast" class="fixed top-8 right-8 z-[100000] hidden toast-slide-in">
+        <div class="bg-[#1a1a1f] border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-3 w-72">
+            <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0"></div>
+            <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-zinc-400 text-[11px] mt-0.5">操作已执行。</p></div>
         </div>
     </div>
 
@@ -248,6 +276,54 @@
 
     <script>
         const PAGE_TYPE = 'req'; 
+        let currentUploadedFileData = null;
+
+        // 切换“其他渠道”输入框
+        function toggleOtherInput() {
+            const otherCb = document.getElementById('channel-other-cb');
+            const otherContainer = document.getElementById('other-channel-input-container');
+            if(otherCb && otherCb.checked) {
+                otherContainer.classList.remove('hidden');
+                document.getElementById('req-channel-other').focus();
+            } else {
+                otherContainer.classList.add('hidden');
+                document.getElementById('req-channel-other').value = ''; 
+            }
+        }
+
+        // 文件上传逻辑恢复
+        function handleFileSelect(event) {
+            const fileList = event.target.files;
+            const uploadZone = document.getElementById('upload-zone');
+            const uploadText = document.getElementById('upload-text');
+            
+            if(fileList.length > 0) {
+                let file = fileList[0];
+                let fileName = file.name;
+                const reader = new FileReader();
+                reader.onload = function(e) { currentUploadedFileData = e.target.result; };
+                reader.readAsDataURL(file); // 转为 Base64 存入云端
+                uploadText.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> 已选附件: <span class="font-bold truncate max-w-[120px]">${fileName}</span>`;
+                uploadText.className = "text-xs font-medium flex items-center gap-1.5 text-indigo-400 w-full justify-center";
+                uploadZone.className = "w-full bg-indigo-500/10 border border-indigo-500/50 rounded-xl px-4 py-2.5 flex flex-col items-center justify-center cursor-pointer transition-colors h-[46px]";
+            }
+        }
+
+        function resetUploadZone() {
+            document.getElementById('real-file-upload').value = '';
+            currentUploadedFileData = null; 
+            document.getElementById('upload-text').innerHTML = `<svg id="upload-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg> 点击选择参考附件...`;
+            document.getElementById('upload-text').className = "text-xs font-medium flex items-center gap-2 text-zinc-500";
+            document.getElementById('upload-zone').className = "w-full bg-[#09090b] border border-zinc-700 border-dashed rounded-xl px-4 py-2.5 flex flex-col items-center justify-center cursor-pointer hover:border-indigo-500 transition-colors h-[46px]";
+        }
+
+        function getFileNameFromUI() {
+            const uploadTextEl = document.getElementById('upload-text');
+            if(uploadTextEl && uploadTextEl.innerText.includes('已选附件:')) {
+                return uploadTextEl.innerText.split('已选附件:')[1].trim();
+            }
+            return '';
+        }
 
         function logout(e) {
             if(e) e.stopPropagation();
@@ -266,7 +342,6 @@
             const avatarEl = document.getElementById('sidebar-avatar');
             if(avatarEl) { avatarEl.innerText = user.avatar; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-indigo-600'} border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg`; }
             if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName;
-            
             if(document.getElementById('header-greeting')) document.getElementById('header-greeting').innerText = `上午好，${user.displayName}。`;
 
             const menuContainer = document.getElementById('dynamic-identity-list');
@@ -305,12 +380,16 @@
                 document.getElementById(modalId).classList.remove('hidden');
                 document.getElementById(modalId).classList.add('modal-enter');
             }, 10);
-            if(modalId === 'create-modal') {
+            if(modalId === 'create-modal' && !isEdit) {
                 document.getElementById('req-title').value = '';
                 document.getElementById('req-project').value = '';
                 document.getElementById('req-assignee').value = 'none';
                 document.getElementById('req-date').value = '';
+                document.getElementById('req-link').value = '';
                 document.querySelectorAll('.req-channel').forEach(cb => cb.checked = false);
+                document.getElementById('channel-other-cb').checked = false;
+                toggleOtherInput();
+                resetUploadZone();
             }
         }
         
@@ -321,6 +400,99 @@
             setTimeout(() => { overlay.classList.add('hidden'); }, 300);
         }
 
+        function showToast(title, desc, type = 'success') {
+            const toast = document.getElementById('action-toast');
+            document.getElementById('toast-title').innerText = title;
+            document.getElementById('toast-desc').innerText = desc;
+            const icon = document.getElementById('toast-icon');
+            if(type === 'info') {
+                icon.className = "w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0";
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+            } else if(type === 'error') {
+                icon.className = "w-8 h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0";
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+            } else {
+                icon.className = "w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0";
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+            }
+            toast.classList.remove('hidden');
+            setTimeout(() => { toast.classList.add('hidden'); }, 3000);
+        }
+
+        // ================= 草稿箱逻辑彻底恢复 =================
+        function saveDraft() { 
+            const titleInput = document.getElementById('req-title').value.trim();
+            if(!titleInput) return showToast('暂存失败', '请至少填写需求描述！', 'error');
+            
+            const shortTitle = titleInput.split('\n')[0].substring(0, 25);
+            const selectedChannels = Array.from(document.querySelectorAll('.req-channel:checked')).map(cb => cb.value);
+            const otherChannelText = document.getElementById('req-channel-other').value;
+
+            const draftData = { 
+                title: shortTitle, 
+                fullText: titleInput, 
+                project: document.getElementById('req-project').value, 
+                assignee: document.getElementById('req-assignee').value, 
+                date: document.getElementById('req-date').value, 
+                link: document.getElementById('req-link').value,
+                channels: selectedChannels,
+                otherChannel: otherChannelText,
+                fileName: getFileNameFromUI(),
+                fileData: currentUploadedFileData,
+                time: new Date().getTime() 
+            };
+            
+            try {
+                localStorage.setItem('myDraftTask', JSON.stringify(draftData));
+                closeAllModals(); 
+                showToast('📝 暂存成功', '草稿与附件已保存，始终置顶。', 'info'); 
+                setTimeout(() => { window.location.reload(); }, 1000);
+            } catch (e) {
+                alert("【存储失败】附件过大超出浏览器本地存储限制，请更换小文件。");
+            }
+        }
+
+        function editDraft() {
+            document.getElementById('modal-title-text').innerText = '继续编辑草稿';
+            const draftStr = localStorage.getItem('myDraftTask');
+            if(draftStr) {
+                const draft = JSON.parse(draftStr);
+                document.getElementById('req-title').value = draft.fullText || draft.title || '';
+                document.getElementById('req-project').value = draft.project || '';
+                document.getElementById('req-assignee').value = draft.assignee || 'none';
+                document.getElementById('req-date').value = draft.date || '';
+                document.getElementById('req-link').value = draft.link || '';
+                
+                if(draft.channels) {
+                    document.querySelectorAll('.req-channel').forEach(cb => {
+                        cb.checked = draft.channels.includes(cb.value);
+                    });
+                    toggleOtherInput();
+                    if(draft.otherChannel) document.getElementById('req-channel-other').value = draft.otherChannel;
+                }
+
+                if(draft.fileName && draft.fileData) {
+                    currentUploadedFileData = draft.fileData;
+                    const uploadText = document.getElementById('upload-text');
+                    const uploadZone = document.getElementById('upload-zone');
+                    uploadText.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> 已选附件: <span class="font-bold truncate max-w-[120px]">${draft.fileName}</span>`;
+                    uploadText.className = "text-xs font-medium flex items-center gap-1.5 text-indigo-400 w-full justify-center";
+                    uploadZone.className = "w-full bg-indigo-500/10 border border-indigo-500/50 rounded-xl px-4 py-2.5 flex flex-col items-center justify-center cursor-pointer transition-colors h-[46px]";
+                }
+            }
+            openModal('create-modal', true);
+        }
+
+        function deleteDraft(event, btn) {
+            event.stopPropagation(); 
+            if(confirm("确定要永久删除这条草稿吗？")) {
+                localStorage.removeItem('myDraftTask');
+                btn.closest('.interactive-card').remove();
+                showToast('已删除', '草稿已永久移除。', 'info');
+            }
+        }
+
+        // ================= 云端写入逻辑 =================
         async function submitNewReq() {
             if(!window.supabase) return alert("云端服务仍在初始化，请稍等一秒或刷新！");
 
@@ -332,6 +504,8 @@
             if(!titleInput || !projectVal || !dateInput) return alert("【校验失败】带星号的为必填项！");
             
             const selectedChannels = Array.from(document.querySelectorAll('.req-channel:checked')).map(cb => cb.value);
+            const otherChannelText = document.getElementById('req-channel-other').value.trim();
+            if(otherChannelText) selectedChannels.push('其他: ' + otherChannelText);
             
             const shortTitle = titleInput.split('\n')[0].substring(0, 25);
             const projectText = projectVal === 'routine' ? '日常行政支撑' : '2026战略宣发';
@@ -352,9 +526,10 @@
 
             const btn = document.querySelector('button[onclick="submitNewReq()"]');
             const originalText = btn.innerText;
-            btn.innerText = "正在同步云端...";
+            btn.innerText = "附件与数据同步云端中...";
             btn.disabled = true;
 
+            // 写入 Supabase
             const { data, error } = await window.supabase.from('tasks').insert([
                 {
                     id: randomId,
@@ -366,6 +541,8 @@
                     assignee: assigneeVal,
                     link: linkInput,
                     channels: selectedChannels,
+                    file_name: getFileNameFromUI(), 
+                    file_data: currentUploadedFileData, 
                     status: finalStatus,
                     creator: creatorName
                 }
@@ -376,10 +553,13 @@
 
             if (error) {
                 console.error(error);
-                return alert("云端写入失败: " + error.message);
+                return alert("云端写入失败: " + error.message + "\n(如果附件过大可能受限于免费额度，请尝试不带附件提交)");
             }
 
+            // 提交成功后删草稿
+            localStorage.removeItem('myDraftTask');
             closeAllModals();
+
             const successOverlay = document.getElementById('success-overlay'); 
             const successContent = document.getElementById('success-content'); 
             const checkPath = document.querySelector('.success-check-path');
@@ -392,11 +572,13 @@
             setTimeout(() => { window.location.reload(); }, 2000);
         }
 
+        // ================= 云端渲染逻辑 =================
         window.loadTasksFromCloud = async function() {
             if (!window.supabase) return;
             const ongoingContainer = document.getElementById('ongoing-tasks-container');
             const timelineContainer = document.getElementById('all-timelines-container');
             
+            // 查询云端数据
             const { data, error } = await window.supabase.from('tasks').select('*').order('created_at', { ascending: false });
 
             if (error) {
@@ -407,7 +589,23 @@
             ongoingContainer.innerHTML = '';
             timelineContainer.innerHTML = '';
 
-            if (!data || data.length === 0) {
+            // 【需求1：如果本地有草稿，永远置顶渲染在第一位】
+            const savedDraft = localStorage.getItem('myDraftTask');
+            if (savedDraft) {
+                const draft = JSON.parse(savedDraft);
+                const draftHTML = `
+                    <div class="task-page-1 border-indigo-700 border-dashed rounded-2xl p-5 interactive-card flex flex-col bg-indigo-900/10 relative group" onclick="editDraft()" id="draft-card">
+                        <button onclick="deleteDraft(event, this)" class="absolute top-4 right-4 text-zinc-500 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all p-1.5 hover:bg-rose-500/10 rounded-lg btn-press" title="删除草稿"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
+                        <div class="flex items-center justify-between mb-3 pr-8"><span class="text-indigo-400 font-bold text-[10px] border border-indigo-700 bg-indigo-500/20 px-2.5 py-0.5 rounded shadow-[0_0_10px_rgba(99,102,241,0.3)]">📝 需求待提交 (草稿置顶)</span><span class="text-[11px] text-indigo-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity">继续编辑 ↗</span></div>
+                        <h4 class="text-[16px] font-medium text-white mb-1 pr-8">${draft.title || '无标题草稿'}</h4>
+                        <p class="text-xs text-zinc-400 line-clamp-1">点击恢复表单数据、渠道及附件并继续完善。</p>
+                    </div>
+                `;
+                ongoingContainer.insertAdjacentHTML('beforeend', draftHTML);
+            }
+
+            // 如果连草稿都没有，且云端无数据，才展示空大厅
+            if (!savedDraft && (!data || data.length === 0)) {
                 ongoingContainer.innerHTML = `
                     <div class="text-center py-20 bg-[#121217] rounded-3xl border border-white/5 border-dashed">
                         <div class="w-16 h-16 bg-zinc-800/50 rounded-full flex items-center justify-center mx-auto mb-4 text-zinc-500">
@@ -420,72 +618,75 @@
                 return;
             }
 
-            let cardsHTML = '';
-            let timelinesHTML = '';
+            // 渲染云端真实的排号单据
+            if(data && data.length > 0) {
+                let cardsHTML = '';
+                let timelinesHTML = '';
 
-            data.forEach((task, index) => {
-                let statusText = '等待系统统筹分配'; 
-                let statusColor = 'text-sky-400'; 
-                let borderClass = 'border-sky-500/30';
-                let bgClass = 'bg-sky-500/10';
+                data.forEach((task, index) => {
+                    let statusText = '等待系统统筹分配'; 
+                    let statusColor = 'text-sky-400'; 
+                    let borderClass = 'border-sky-500/30';
+                    let bgClass = 'bg-sky-500/10';
 
-                if (task.status === 'pending_accept') { 
-                    statusText = '已派单，待设计师接单'; 
-                    statusColor = 'text-amber-400'; 
-                    borderClass = 'border-amber-500/30';
-                    bgClass = 'bg-amber-500/10';
-                }
+                    if (task.status === 'pending_accept') { 
+                        statusText = '已派单，待设计师接单'; 
+                        statusColor = 'text-amber-400'; 
+                        borderClass = 'border-amber-500/30';
+                        bgClass = 'bg-amber-500/10';
+                    }
 
-                cardsHTML += `
-                    <div class="task-page-1 rounded-2xl p-5 interactive-card flex flex-col relative overflow-hidden bg-[#18181b] ${borderClass} cursor-pointer" id="card-${task.id}" onclick="previewTask('${task.id}', '${task.title}', '${statusColor}')">
-                        <div class="flex items-center justify-between mb-3 mt-1 relative z-10">
-                            <div class="flex gap-3 items-center">
-                                <span class="font-mono text-[10px] font-bold ${statusColor} ${bgClass} px-2 py-0.5 rounded border border-white/10">${task.id}</span>
-                                <span class="text-xs ${statusColor} font-bold tracking-wide">${statusText}</span>
+                    cardsHTML += `
+                        <div class="task-page-1 rounded-2xl p-5 interactive-card flex flex-col relative overflow-hidden bg-[#18181b] ${borderClass} cursor-pointer" id="card-${task.id}" onclick="previewTask('${task.id}', '${task.title}', '${statusColor}')">
+                            <div class="flex items-center justify-between mb-3 mt-1 relative z-10">
+                                <div class="flex gap-3 items-center">
+                                    <span class="font-mono text-[10px] font-bold ${statusColor} ${bgClass} px-2 py-0.5 rounded border border-white/10">${task.id}</span>
+                                    <span class="text-xs ${statusColor} font-bold tracking-wide">${statusText}</span>
+                                </div>
+                            </div>
+                            <h4 class="text-[17px] font-bold text-zinc-100 mb-2 relative z-10">${task.title}</h4>
+                            <p class="text-xs text-zinc-400 mb-4 line-clamp-1 relative z-10">${task.full_desc}</p>
+                            <div class="flex items-center justify-between text-[11px] text-zinc-400 border-t border-white/5 pt-3 relative z-10">
+                                <span>归属: ${task.project}</span>
+                                <span>执行人: ${task.assignee === 'none' ? '待定' : task.assignee}</span>
+                                <span class="text-rose-500 font-bold">期望交付: ${task.due_date}</span>
                             </div>
                         </div>
-                        <h4 class="text-[17px] font-bold text-zinc-100 mb-2 relative z-10">${task.title}</h4>
-                        <p class="text-xs text-zinc-400 mb-4 line-clamp-1 relative z-10">${task.full_desc}</p>
-                        <div class="flex items-center justify-between text-[11px] text-zinc-400 border-t border-white/5 pt-3 relative z-10">
-                            <span>归属: ${task.project}</span>
-                            <span>执行人: ${task.assignee === 'none' ? '待定' : task.assignee}</span>
-                            <span class="text-rose-500 font-bold">期望交付: ${task.due_date}</span>
-                        </div>
-                    </div>
-                `;
+                    `;
 
-                timelinesHTML += `
-                    <div id="timeline-${task.id}" class="relative z-10 hidden">
-                        <div class="timeline-item relative flex gap-4 z-10 pb-6">
-                            <div class="timeline-line"></div>
-                            <div class="w-7 h-7 rounded-full bg-[#121217] border-[2px] border-zinc-500 flex items-center justify-center shrink-0 z-10">
-                                <div class="w-2 h-2 bg-zinc-500 rounded-full"></div>
+                    timelinesHTML += `
+                        <div id="timeline-${task.id}" class="relative z-10 hidden">
+                            <div class="timeline-item relative flex gap-4 z-10 pb-6">
+                                <div class="timeline-line"></div>
+                                <div class="w-7 h-7 rounded-full bg-[#121217] border-[2px] border-zinc-500 flex items-center justify-center shrink-0 z-10">
+                                    <div class="w-2 h-2 bg-zinc-500 rounded-full"></div>
+                                </div>
+                                <div class="pt-0.5">
+                                    <p class="text-[13px] font-bold ${statusColor} mb-0.5">${statusText}</p>
+                                    <p class="text-[10px] text-zinc-500">${task.summary_desc}</p>
+                                </div>
                             </div>
-                            <div class="pt-0.5">
-                                <p class="text-[13px] font-bold ${statusColor} mb-0.5">${statusText}</p>
-                                <p class="text-[10px] text-zinc-500">${task.summary_desc}</p>
-                            </div>
-                        </div>
-                        <div class="timeline-item relative flex gap-4 z-10 pb-2 opacity-40 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-300">
-                            <div class="timeline-line"></div>
-                            <div class="w-7 h-7 rounded-full bg-[#121217] border-[2px] border-zinc-500 flex items-center justify-center shrink-0 z-10">
-                                <div class="w-2 h-2 bg-zinc-500 rounded-full"></div>
-                            </div>
-                            <div class="pt-0.5">
-                                <p class="text-[13px] font-bold text-zinc-300 mb-0.5">需求发单成功</p>
-                                <p class="text-[10px] text-zinc-500">发起人: ${task.creator}</p>
+                            <div class="timeline-item relative flex gap-4 z-10 pb-2 opacity-40 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-300">
+                                <div class="timeline-line"></div>
+                                <div class="w-7 h-7 rounded-full bg-[#121217] border-[2px] border-zinc-500 flex items-center justify-center shrink-0 z-10">
+                                    <div class="w-2 h-2 bg-zinc-500 rounded-full"></div>
+                                </div>
+                                <div class="pt-0.5">
+                                    <p class="text-[13px] font-bold text-zinc-300 mb-0.5">需求发单成功</p>
+                                    <p class="text-[10px] text-zinc-500">发起人: ${task.creator}</p>
+                                    ${task.file_name ? `<p class="text-[10px] text-indigo-400 mt-1 flex items-center gap-1"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg> 附件已存入云端</p>` : ''}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                `;
-            });
+                    `;
+                });
 
-            ongoingContainer.innerHTML = cardsHTML;
-            timelineContainer.innerHTML = timelinesHTML;
+                ongoingContainer.insertAdjacentHTML('beforeend', cardsHTML);
+                timelineContainer.innerHTML = timelinesHTML;
 
-            if (data.length > 0) {
+                // 默认选中最新的一条真数据预览
                 let firstTask = data[0];
-                previewTask(firstTask.id, firstTask.title, 'text-sky-400');
+                previewTask(firstTask.id, firstTask.title, firstTask.status === 'pending_accept' ? 'text-amber-400' : 'text-sky-400');
             }
         }
 
