@@ -143,7 +143,10 @@
                                 <button onclick="window.markAllAsRead(event)" class="text-[11px] text-indigo-400 hover:text-indigo-300 btn-press transition-colors">全部已读</button>
                             </div>
                             <div class="max-h-[300px] overflow-y-auto custom-scrollbar">
-                                <div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读消息</div>
+                                <div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无新消息</div>
+                            </div>
+                            <div class="pt-3 px-5 border-t border-white/5 text-center">
+                                <button onclick="window.location.href='message-center.html?role=design'" class="text-[11px] text-zinc-500 hover:text-white transition-colors btn-press">查看全部历史消息 ↗</button>
                             </div>
                         </div>
                     </div>
@@ -272,7 +275,7 @@
     <script type="module">
         import { supabase } from './supabase-config.js';
         window.supabase = supabase;
-        window.DB_TABLE = 'test_tasks';
+        window.DB_TABLE = 'test_tasks'; 
         
         // 🚀 性能优化核心：列表轻量化查询，剔除图片等沉重字段，实现秒开！
         window.LIGHT_FIELDS = 'id, title, status, project, due_date, creator, created_at, summary_desc, assignee';
@@ -385,7 +388,7 @@
         }
         window.submitPwdChange = function() { alert('请联系管理员修改密码。'); closePwdModal(); }
 
-        // ================= 核心：生成卡片逻辑 (含权限过滤) =================
+        // ================= 核心：生成卡片逻辑 (含权限过滤与提交人信息) =================
         function createTaskHTML(task, currentUser, currentUserEn, isJudy, isDavid) {
             const taskAssignee = task.assignee ? task.assignee.toLowerCase() : 'none';
             const taskCreator = task.creator;
@@ -430,7 +433,7 @@
                     laneId = 'lane-blocked'; sColor = 'text-amber-500'; sText = '领导审批中'; 
                     targetUrl = `task-detail-locked.html?id=${task.id}`;
                     if(isJudy) actionBtnHtml = `<div class="mt-auto border-t border-white/5 pt-3 pl-1 relative z-10 flex"><button onclick="event.stopPropagation(); window.location.href='${targetUrl}'" class="w-full bg-amber-600 hover:bg-amber-500 text-white shadow-[0_4px_12px_rgba(245,158,11,0.25)] rounded-lg py-2 text-[11px] font-bold btn-press transition-colors">🔥 去审批此框架方案</button></div>`;
-                    else actionBtnHtml = `<div class="mt-auto border-t border-white/5 pt-3 pl-1 relative z-10 flex"><button onclick="event.stopPropagation(); window.showToast('已发送', '已催促主管审批', 'info')" class="w-full bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/20 rounded-lg py-2 text-[11px] font-bold btn-press transition-colors">提醒主管审核</button></div>`;
+                    else actionBtnHtml = `<div class="mt-auto border-t border-white/5 pt-3 pl-1 relative z-10 flex"><button onclick="event.stopPropagation(); window.showToast('已发送', '已提醒丹楠姐尽快审批', 'info')" class="w-full bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/20 rounded-lg py-2 text-[11px] font-bold btn-press transition-colors">提醒主管审核</button></div>`;
                     break;
                 case 'reviewing':
                     laneId = 'lane-review'; sColor = 'text-emerald-400'; sText = '等待甲方验收'; 
@@ -452,7 +455,13 @@
                         <span class="text-[10px] font-bold ${sColor}">${sText}</span>
                     </div>
                     <h4 class="text-[14px] font-bold text-zinc-100 mb-1.5 pl-1 leading-snug relative z-10">${task.title}</h4>
-                    <p class="text-[11px] text-zinc-400 line-clamp-2 mb-3 pl-1 relative z-10">${task.summary_desc || task.full_desc || ''}</p>
+                    <p class="text-[11px] text-zinc-400 line-clamp-2 mb-2 pl-1 relative z-10">${task.summary_desc || task.full_desc || ''}</p>
+                    
+                    <div class="text-[10px] text-zinc-500 mb-3 pl-1 relative z-10 flex items-center gap-1">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                        提交人: <span class="text-zinc-300">${task.creator || '未知'}</span>
+                    </div>
+                    
                     ${actionBtnHtml}
                 </div>
             `;
