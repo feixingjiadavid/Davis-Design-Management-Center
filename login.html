@@ -15,27 +15,22 @@
     </style>
 </head>
 <body class="flex h-screen items-center justify-center relative selection:bg-indigo-500/30">
-
     <div class="bg-glow"></div>
-
     <div class="glass-card w-full max-w-md rounded-3xl p-10 shadow-2xl relative z-10">
         <div class="flex justify-center mb-6">
             <div class="w-14 h-14 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-[0_0_20px_rgba(79,70,229,0.4)]">
                 <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
             </div>
         </div>
-        
         <div class="text-center mb-10">
             <h1 class="text-2xl font-bold text-white tracking-tight mb-2">登录系统</h1>
             <p class="text-sm text-zinc-500">戴维斯设计需求协同矩阵</p>
         </div>
-
         <form id="loginForm" class="space-y-6" onsubmit="handleLogin(event)">
             <div>
                 <label class="block text-[12px] font-bold text-zinc-400 mb-1.5 ml-1">企微英文名</label>
                 <input type="text" id="log-en" required placeholder="例如: davidxxu" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3.5 text-sm text-white outline-none focus:border-indigo-500 transition-colors">
             </div>
-
             <div>
                 <div class="flex justify-between items-end mb-1.5 px-1">
                     <label class="block text-[12px] font-bold text-zinc-400">密码</label>
@@ -43,15 +38,11 @@
                 </div>
                 <input type="password" id="log-pwd" required placeholder="••••••••" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3.5 text-sm text-white outline-none focus:border-indigo-500 transition-colors">
             </div>
-
             <button type="submit" id="login-btn" class="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-bold shadow-[0_10px_20px_-10px_rgba(79,70,229,0.6)] transition-all btn-press mt-2">
                 进入控制台
             </button>
         </form>
-
-        <p class="text-center text-xs text-zinc-500 mt-8">
-            还没有账号？ <a href="register.html" class="text-indigo-400 hover:text-indigo-300 font-bold transition-colors">去注册一个 ↗</a>
-        </p>
+        <p class="text-center text-xs text-zinc-500 mt-8">还没有账号？ <a href="register.html" class="text-indigo-400 hover:text-indigo-300 font-bold transition-colors">去注册一个 ↗</a></p>
     </div>
 
     <div id="forgot-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[100000] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center">
@@ -69,71 +60,28 @@
         import { supabase } from './supabase-config.js';
         window.supabase = supabase;
     </script>
-
     <script>
-        function showForgotModal() {
-            const modal = document.getElementById('forgot-modal');
-            const content = document.getElementById('forgot-content');
-            modal.classList.remove('hidden');
-            setTimeout(() => {
-                modal.classList.remove('opacity-0');
-                content.classList.remove('scale-95');
-            }, 10);
-        }
-
-        function hideForgotModal() {
-            const modal = document.getElementById('forgot-modal');
-            const content = document.getElementById('forgot-content');
-            modal.classList.add('opacity-0');
-            content.classList.add('scale-95');
-            setTimeout(() => { modal.classList.add('hidden'); }, 300);
-        }
+        function showForgotModal() { document.getElementById('forgot-modal').classList.remove('hidden'); setTimeout(() => { document.getElementById('forgot-modal').classList.remove('opacity-0'); document.getElementById('forgot-content').classList.remove('scale-95'); }, 10); }
+        function hideForgotModal() { const modal = document.getElementById('forgot-modal'); modal.classList.add('opacity-0'); document.getElementById('forgot-content').classList.add('scale-95'); setTimeout(() => { modal.classList.add('hidden'); }, 300); }
 
         async function handleLogin(e) {
             e.preventDefault();
-
-            if(!window.supabase) {
-                return alert("云端服务未连接，请确保您使用 Live Server 打开此页面！");
-            }
-
+            if(!window.supabase) return alert("云端服务未连接！");
             const enName = document.getElementById('log-en').value.trim().toLowerCase();
             const pwd = document.getElementById('log-pwd').value;
-
-            // 关键修改点：还原注册时的真实企业邮箱后缀
             const realEmail = enName + '@webank.com';
 
             const btn = document.getElementById('login-btn');
-            const originalText = btn.innerText;
             btn.innerText = "云端验证中...";
             btn.disabled = true;
 
-            // 【核心】请求云端验证账号密码
-            const { data, error } = await window.supabase.auth.signInWithPassword({
-                email: realEmail,
-                password: pwd
-            });
+            const { data, error } = await window.supabase.auth.signInWithPassword({ email: realEmail, password: pwd });
 
-            btn.innerText = originalText;
-            btn.disabled = false;
+            if (error) { alert("账号或密码错误！"); btn.innerText = "进入控制台"; btn.disabled = false; return; }
 
-            if (error) {
-                return alert("账号或密码错误！请检查。\n(若未注册请先前往注册页)");
-            }
-
-            // 登录成功！把注册时存在云端的自定义数据取出来
-            const userMetaData = data.user.user_metadata;
-
-            // 存入 localStorage，让系统其他页面可以直接读取，不用改代码
-            localStorage.setItem('activeUserObj', JSON.stringify(userMetaData));
-            
-// 核心逻辑修改：除了超级管理员，所有人默认进需求大厅
-if(userMetaData.perms.includes('admin') && userMetaData.enName === 'davidxxu') {
-    // 只有你是超级管理员，登录后直达管理后台
-    window.location.href = 'manager-workspace.html';
-} else {
-    // 其他所有人（不论是否有设计权限）登录后一律先进入需求大厅
-    window.location.href = 'index.html'; 
-}
+            // 核心要求：所有人登录后不论权限，统一首站进入需求大厅 index.html
+            localStorage.setItem('activeUserObj', JSON.stringify(data.user.user_metadata));
+            window.location.href = 'index.html'; 
         }
     </script>
 </body>
