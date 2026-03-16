@@ -76,9 +76,14 @@
                 <div id="sidebar-avatar" class="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg">?</div>
                 <div><p id="sidebar-name" class="text-xs font-bold text-white mb-0.5">加载中...</p><p id="sidebar-role" class="text-[10px] text-zinc-500">读取中</p></div>
             </div>
-            <button onclick="logout(event)" class="p-2 text-zinc-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors btn-press" title="退出登录">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-            </button>
+            <div class="flex items-center gap-1">
+                <button onclick="openPwdModal()" class="p-2 text-zinc-500 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors btn-press" title="修改登录密码">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+                </button>
+                <button onclick="logout(event)" class="p-2 text-zinc-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors btn-press" title="退出登录">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                </button>
+            </div>
         </div>
     </aside>
 
@@ -293,6 +298,31 @@
         </div>
     </div>
 
+    <div id="pwd-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closePwdModal()">
+        <div id="pwd-modal" class="hidden w-full max-w-sm bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 p-6 relative">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-t-3xl"></div>
+            <div class="flex justify-between items-center mb-6 mt-2">
+                <h2 class="text-[16px] font-bold text-white flex items-center gap-2"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-indigo-500"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg> 修改登录密码</h2>
+                <button onclick="closePwdModal()" class="text-zinc-500 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-full p-1 transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-[12px] font-bold text-zinc-400 mb-1.5">当前密码</label>
+                    <input type="password" id="old-pwd" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 transition-colors" placeholder="输入原密码">
+                </div>
+                <div>
+                    <label class="block text-[12px] font-bold text-zinc-400 mb-1.5">新密码</label>
+                    <input type="password" id="new-pwd" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 transition-colors" placeholder="输入新密码">
+                </div>
+                <div>
+                    <label class="block text-[12px] font-bold text-zinc-400 mb-1.5">确认新密码</label>
+                    <input type="password" id="new-pwd-confirm" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 transition-colors" placeholder="再次输入新密码">
+                </div>
+            </div>
+            <button onclick="submitPwdChange()" class="w-full mt-6 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-bold shadow-[0_5px_15px_rgba(79,70,229,0.3)] transition-all btn-press">确认修改并重新登录</button>
+        </div>
+    </div>
+
     <div id="success-overlay" class="fixed inset-0 bg-[#09090b]/95 backdrop-blur-md z-[100000] hidden opacity-0 transition-opacity duration-300 flex flex-col items-center justify-center">
         <div id="success-content" class="flex flex-col items-center transform scale-95 opacity-0 transition-all duration-500 delay-100">
             <div class="w-20 h-20 rounded-full bg-indigo-500/20 border-2 border-indigo-500/50 flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(79,70,229,0.3)]">
@@ -315,10 +345,10 @@
     <script type="module">
         import { supabase } from './supabase-config.js';
         window.supabase = supabase;
-        window.DB_TABLE = 'test_tasks'; 
+        window.DB_TABLE = 'test_tasks'; // 测试表
         
-        // 💡 性能优化核心：列表轻量化查询，剔除图片等沉重字段，实现秒开！
-        window.LIGHT_FIELDS = 'id, title, status, project, due_date, creator, created_at, summary_desc';
+        // 🚀 性能优化核心：列表轻量化查询，剔除图片等沉重字段，实现秒开！
+        window.LIGHT_FIELDS = 'id, title, status, project, due_date, creator, created_at, summary_desc, assignee';
 
         if(window.loadTasksFromCloud) window.loadTasksFromCloud();
         if(window.loadAssigneesFromCloud) window.loadAssigneesFromCloud();
@@ -340,6 +370,136 @@
 
         const PREDEFINED_ASSIGNEES = ['anckyyu', 'davidxxu', 'debbiehuang', 'evazzhu', 'hscheng', 'mengmengli', 'skylerhuang', 'sophiachen', 'tiaouyang', 'v_lijuangchen', 'v_lucui', 'v_sijieli', 'v_siyifu', 'v_sjtian', 'v_wbchye', 'v_wbjgao', 'v_wbmtli', 'v_zqlan', 'wenjiawu', 'yamyzhang', 'yaozhong', 'yoshyliu', 'zoeyzhou'];
         let finalAssigneeList = [...PREDEFINED_ASSIGNEES];
+
+        function renderProjects(filterText = '') {
+            const listEl = document.getElementById('project-dropdown-list');
+            let filtered = PROJECT_LIST.filter(p => p.toLowerCase().includes(filterText.toLowerCase()));
+            let html = '';
+            if(filtered.length === 0) {
+                html = `<div class="px-4 py-3 text-[13px] text-zinc-500 cursor-default">将直接使用您的手写输入 "${filterText}"</div>`;
+            } else {
+                filtered.forEach(p => {
+                    html += `<div class="px-4 py-2.5 text-[13px] text-zinc-300 hover:bg-indigo-500/20 hover:text-indigo-300 cursor-pointer transition-colors" onmousedown="selectProject('${p}')">${p}</div>`;
+                });
+            }
+            listEl.innerHTML = html;
+        }
+
+        window.selectProject = function(val) {
+            document.getElementById('req-project').value = val;
+            document.getElementById('project-dropdown').classList.add('hidden');
+        }
+        window.showProjectDropdown = function() {
+            renderProjects(document.getElementById('req-project').value);
+            document.getElementById('project-dropdown').classList.remove('hidden');
+            document.getElementById('assignee-dropdown').classList.add('hidden');
+        }
+        window.filterProjectDropdown = function() {
+            renderProjects(document.getElementById('req-project').value);
+        }
+
+        window.renderAssignees = function(filterText = '') {
+            const listEl = document.getElementById('assignee-dropdown-list');
+            if(!listEl) return;
+            let filtered = finalAssigneeList.filter(name => name.toLowerCase().includes(filterText.toLowerCase()));
+            let html = '';
+            if ('不指定 (系统统筹)'.includes(filterText)) {
+                html += `<div class="px-4 py-3 text-[13px] text-zinc-300 hover:bg-indigo-500/20 hover:text-indigo-300 cursor-pointer transition-colors border-b border-zinc-800" onmousedown="selectAssignee('none', '不指定 (系统统筹)')">不指定 (系统统筹)</div>`;
+            }
+            if (filtered.length === 0 && !('不指定 (系统统筹)'.includes(filterText))) {
+                html += `<div class="px-4 py-3 text-[13px] text-zinc-500 cursor-default">系统无此执行人，不可指派</div>`;
+            } else {
+                filtered.forEach(name => {
+                    html += `<div class="px-4 py-2.5 text-[13px] text-zinc-300 hover:bg-indigo-500/20 hover:text-indigo-300 cursor-pointer transition-colors" onmousedown="selectAssignee('${name}', '${name}')">${name}</div>`;
+                });
+            }
+            listEl.innerHTML = html;
+        }
+
+        window.loadAssigneesFromCloud = async function() {
+            if(!window.supabase) return;
+            try {
+                const { data, error } = await window.supabase.from('user_profiles').select('en_name');
+                if(!error && data) {
+                    const dbNames = data.map(u => u.en_name).filter(n => n && n !== 'judyzzhang');
+                    const mergedSet = new Set([...PREDEFINED_ASSIGNEES, ...dbNames]);
+                    finalAssigneeList = Array.from(mergedSet).sort();
+                }
+            } catch(e) { console.log(e); }
+        }
+
+        window.selectAssignee = function(val, text) {
+            document.getElementById('req-assignee').value = val;
+            document.getElementById('req-assignee-input').value = text;
+            document.getElementById('assignee-dropdown').classList.add('hidden');
+        }
+
+        window.showAssigneeDropdown = function() {
+            renderAssignees('');
+            document.getElementById('assignee-dropdown').classList.remove('hidden');
+            document.getElementById('project-dropdown').classList.add('hidden');
+        }
+
+        window.filterAssigneeDropdown = function() {
+            renderAssignees(document.getElementById('req-assignee-input').value);
+            document.getElementById('assignee-dropdown').classList.remove('hidden');
+        }
+
+        window.validateAssigneeInput = function() {
+            setTimeout(() => {
+                const inputVal = document.getElementById('req-assignee-input').value.trim();
+                const hiddenVal = document.getElementById('req-assignee').value;
+                if (inputVal === '' || inputVal === '不指定 (系统统筹)') { selectAssignee('none', '不指定 (系统统筹)'); return; }
+                const matchedName = finalAssigneeList.find(n => n.toLowerCase() === inputVal.toLowerCase());
+                if (matchedName) { selectAssignee(matchedName, matchedName); } 
+                else {
+                    const prevVal = hiddenVal === 'none' ? '不指定 (系统统筹)' : hiddenVal;
+                    document.getElementById('req-assignee-input').value = prevVal;
+                }
+            }, 150); 
+        }
+
+        function toggleOtherInput() {
+            const otherCb = document.getElementById('channel-other-cb');
+            const otherContainer = document.getElementById('other-channel-input-container');
+            if(otherCb && otherCb.checked) {
+                otherContainer.classList.remove('hidden');
+                document.getElementById('req-channel-other').focus();
+            } else {
+                otherContainer.classList.add('hidden');
+                document.getElementById('req-channel-other').value = ''; 
+            }
+        }
+
+        function handleFileSelect(event) {
+            const fileList = event.target.files;
+            const uploadZone = document.getElementById('upload-zone');
+            const uploadText = document.getElementById('upload-text');
+            if(fileList.length > 0) {
+                let file = fileList[0];
+                let fileName = file.name;
+                const reader = new FileReader();
+                reader.onload = function(e) { currentUploadedFileData = e.target.result; };
+                reader.readAsDataURL(file); 
+                uploadText.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> 已选附件: <span class="font-bold truncate max-w-[120px]">${fileName}</span>`;
+                uploadText.className = "text-xs font-medium flex items-center gap-1.5 text-indigo-400 w-full justify-center";
+                uploadZone.className = "w-full bg-indigo-500/10 border border-indigo-500/50 rounded-xl px-4 py-2.5 flex flex-col items-center justify-center cursor-pointer transition-colors h-[46px]";
+            }
+        }
+
+        function resetUploadZone() {
+            document.getElementById('real-file-upload').value = '';
+            currentUploadedFileData = null; 
+            document.getElementById('upload-text').innerHTML = `<svg id="upload-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg> 点击选择参考附件...`;
+            document.getElementById('upload-text').className = "text-xs font-medium flex items-center gap-2 text-zinc-500";
+            document.getElementById('upload-zone').className = "w-full bg-[#09090b] border border-zinc-700 border-dashed rounded-xl px-4 py-2.5 flex flex-col items-center justify-center cursor-pointer hover:border-indigo-500 transition-colors h-[46px]";
+        }
+
+        function getFileNameFromUI() {
+            const uploadTextEl = document.getElementById('upload-text');
+            if(uploadTextEl && uploadTextEl.innerText.includes('已选附件:')) { return uploadTextEl.innerText.split('已选附件:')[1].trim(); }
+            return '';
+        }
 
         function logout(e) {
             if(e) e.stopPropagation();
@@ -384,12 +544,109 @@
                 if (user.perms.includes('design')) { 
                     html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='assistant-workspace.html'"><div class="w-7 h-7 rounded-lg bg-orange-500/10 text-orange-500 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div><span class="text-[13px] font-medium">设计方视角 (去接单)</span></div>`; 
                 }
+                if (user.perms.includes('admin')) { 
+                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='manager-workspace.html'"><div class="w-7 h-7 rounded-lg bg-fuchsia-500/10 text-fuchsia-400 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg></div><span class="text-[13px] font-medium">管理方视角 (统筹大盘)</span></div>`; 
+                }
                 menuContainer.innerHTML = html;
             }
 
             const triggerBtn = document.getElementById('identityBtn');
             if (triggerBtn) { triggerBtn.innerHTML = `<span class="text-indigo-400 font-black">•</span> 身份: 需求方 (当前) <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 ml-1"><polyline points="6 9 12 15 18 9"></polyline></svg>`; }
             return true;
+        }
+
+        window.markAllAsRead = function(event) {
+            if(event) event.stopPropagation();
+            const bellDot = document.getElementById('bell-dot');
+            if (bellDot) { bellDot.classList.remove('bg-rose-500', 'animate-pulse', 'border-[#141417]'); bellDot.classList.add('bg-zinc-600', 'border-transparent', 'hidden'); }
+            showToast('消息已清空', '所有未读消息已成功标记为已读。', 'info');
+        }
+
+        const pwdOverlay = document.getElementById('pwd-modal-overlay');
+        const pwdModal = document.getElementById('pwd-modal');
+        function openPwdModal() { pwdOverlay.classList.remove('hidden'); setTimeout(() => { pwdOverlay.classList.remove('opacity-0'); pwdModal.classList.remove('hidden'); pwdModal.classList.remove('scale-95'); }, 10); }
+        function closePwdModal() { pwdOverlay.classList.add('opacity-0'); pwdModal.classList.add('scale-95'); setTimeout(() => { pwdOverlay.classList.add('hidden'); pwdModal.classList.add('hidden'); }, 300); }
+        function submitPwdChange() { alert('请联系管理员修改密码。'); closePwdModal(); }
+
+        window.clearTestData = async function() {
+            if(!window.supabase) return;
+            if(!confirm("⚠️ 警告：这将直接清空云端测试表中的所有需求数据！且不可恢复！\n确定要继续吗？")) return;
+            try {
+                const { error } = await window.supabase.from(window.DB_TABLE).delete().neq('id', '0');
+                if (error) throw error;
+                showToast('已清空', '云端测试数据已全部清空！', 'success');
+                setTimeout(() => window.location.reload(), 1500);
+            } catch(e) { alert("清理失败: " + e.message); }
+        }
+
+        window.cancelTask = async function(taskId) {
+            if(!window.supabase) return;
+            if(!confirm(`确定要彻底撤销并删除需求单 ${taskId} 吗？`)) return;
+            try {
+                const { error } = await window.supabase.from(window.DB_TABLE).delete().eq('id', taskId);
+                if (error) throw error;
+                const card = document.getElementById('card-' + taskId);
+                if(card) card.remove();
+                showToast('已撤销', `需求单 ${taskId} 已被彻底删除。`, 'info');
+                setTimeout(async () => { await window.loadTasksFromCloud(); }, 300);
+            } catch(e) { alert("撤销失败: " + e.message); }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if(!initRBAC()) return;
+            window.renderAssignees();
+
+            const idBtn = document.getElementById('identityBtn');
+            const idMenu = document.getElementById('identityMenu');
+            if(idBtn && idMenu) idBtn.addEventListener('click', (e) => { e.stopPropagation(); idMenu.classList.toggle('hidden'); });
+            
+            const notifBtn = document.getElementById('notifBtn');
+            const notifMenu = document.getElementById('notifMenu');
+            if(notifBtn && notifMenu) notifBtn.addEventListener('click', (e) => { e.stopPropagation(); notifMenu.classList.toggle('hidden'); });
+            
+            document.addEventListener('click', (e) => { 
+                if(idMenu && !idMenu.contains(e.target)) idMenu.classList.add('hidden'); 
+                if(notifMenu && !notifMenu.contains(e.target)) notifMenu.classList.add('hidden'); 
+                
+                const projWrap = document.getElementById('project-wrapper');
+                const projDrop = document.getElementById('project-dropdown');
+                if (projWrap && projDrop && !projWrap.contains(e.target)) projDrop.classList.add('hidden');
+                
+                const assWrap = document.getElementById('assignee-wrapper');
+                const assDrop = document.getElementById('assignee-dropdown');
+                if (assWrap && assDrop && !assWrap.contains(e.target)) assDrop.classList.add('hidden');
+            });
+        });
+
+        const overlay = document.getElementById('modal-overlay');
+        window.openModal = function(modalId, isEdit = false) {
+            overlay.classList.remove('hidden');
+            setTimeout(() => {
+                overlay.classList.remove('opacity-0');
+                document.getElementById(modalId).classList.remove('hidden');
+                document.getElementById(modalId).classList.add('modal-enter');
+            }, 10);
+            if(modalId === 'create-modal' && !isEdit) {
+                document.getElementById('req-short-title').value = '';
+                document.getElementById('req-title').value = '';
+                document.getElementById('req-project').value = '';
+                document.getElementById('req-assignee').value = 'none';
+                const assInput = document.getElementById('req-assignee-input');
+                if(assInput) assInput.value = '';
+                document.getElementById('req-date').value = '';
+                document.getElementById('req-link').value = '';
+                document.querySelectorAll('.req-channel').forEach(cb => cb.checked = false);
+                document.getElementById('channel-other-cb').checked = false;
+                window.toggleOtherInput();
+                window.resetUploadZone();
+            }
+        }
+        
+        window.closeAllModals = function() {
+            overlay.classList.add('opacity-0');
+            const el = document.getElementById('create-modal');
+            if(el) { el.classList.remove('modal-enter'); el.classList.add('hidden'); }
+            setTimeout(() => { overlay.classList.add('hidden'); }, 300);
         }
 
         // ================= 核心一：草稿箱渲染与置顶 =================
@@ -429,7 +686,7 @@
                 title: shortTitle, fullText: fullDesc, project: document.getElementById('req-project').value, 
                 assignee: document.getElementById('req-assignee').value, date: document.getElementById('req-date').value, 
                 link: document.getElementById('req-link').value, channels: selectedChannels,
-                otherChannel: otherChannelText, fileName: getFileNameFromUI(), fileData: currentUploadedFileData, time: new Date().getTime() 
+                otherChannel: otherChannelText, fileName: window.getFileNameFromUI(), fileData: currentUploadedFileData, time: new Date().getTime() 
             };
             
             try {
@@ -477,7 +734,7 @@
                 
                 if(draft.channels) {
                     document.querySelectorAll('.req-channel').forEach(cb => { cb.checked = draft.channels.includes(cb.value); });
-                    toggleOtherInput();
+                    window.toggleOtherInput();
                     if(draft.otherChannel) document.getElementById('req-channel-other').value = draft.otherChannel;
                 }
 
@@ -485,7 +742,7 @@
                     currentUploadedFileData = draft.fileData;
                     const uploadText = document.getElementById('upload-text');
                     const uploadZone = document.getElementById('upload-zone');
-                    uploadText.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> 已选附件: <span class="font-bold truncate max-w-[120px]">${draft.fileName}</span>`;
+                    uploadText.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> 已选附件: <span class="font-bold truncate max-w-[120px]">${draft.fileName}</span>`;
                     uploadText.className = "text-xs font-medium flex items-center gap-1.5 text-indigo-400 w-full justify-center";
                     uploadZone.className = "w-full bg-indigo-500/10 border border-indigo-500/50 rounded-xl px-4 py-2.5 flex flex-col items-center justify-center cursor-pointer transition-colors h-[46px]";
                 }
@@ -544,7 +801,7 @@
                 case 'pending_approval': sColor = 'text-amber-500'; sText = '框架待审批'; targetUrl = 'task-detail-locked.html'; break;
                 case 'processing': sColor = 'text-emerald-500'; sText = '设计制作中'; targetUrl = 'task-detail-processing.html'; break;
                 case 'completed': case 'archived': sColor = 'text-zinc-400'; sText = '已完结'; targetUrl = 'task-detail-archived.html'; break;
-                default: sColor = 'text-sky-400'; sText = '待排期/待分配'; targetUrl = 'task-detail-new.html';
+                default: sColor = 'text-sky-400'; sText = '待分配'; targetUrl = 'task-detail-new.html';
             }
 
             const isCompleted = task.status === 'completed' || task.status === 'archived';
@@ -623,7 +880,7 @@
             }
             
             try {
-                // 💡 并发优化查询：列表页只查极轻量的 LIGHT_FIELDS，去除大图！
+                // 💡 3. 并发优化查询：列表页只查极轻量的 LIGHT_FIELDS，去除大图！
                 // 将已完结的数据控制在 15 条，防止长年累月变卡
                 const [ongoingRes, completedRes] = await Promise.all([
                     window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS).not('status', 'in', '("completed","archived")').order('created_at', { ascending: false }),
@@ -711,21 +968,17 @@
             const originalText = btn.innerText;
             btn.innerText = "数据同步中..."; btn.disabled = true;
             
-            // 💡 查最大单号并自增 TEST-00X
+            // 💡 4. 单号自增：每次查询真实库的最大单号
             let nextNum = 1;
-            const { data: latestData } = await window.supabase.from(window.DB_TABLE).select('id').order('created_at', { ascending: false }).limit(1);
-            if(latestData && latestData.length > 0) {
-                const lastId = latestData[0].id;
-                const match = lastId.match(/\d+$/);
-                if(match) nextNum = parseInt(match[0], 10) + 1;
-            }
+            const { data } = await window.supabase.from(window.DB_TABLE).select('id').order('created_at', { ascending: false }).limit(1);
+            if(data && data.length > 0) { nextNum = (parseInt(data[0].id.split('-')[1]) || 0) + 1; }
             const newId = 'TEST-' + nextNum.toString().padStart(3, '0');
 
             const user = JSON.parse(localStorage.getItem('activeUserObj'));
             const taskData = {
                 id: newId, title: shortTitle, full_desc: fullDesc, summary_desc: finalDesc, project: projectVal,
                 due_date: dateInput, assignee: assigneeVal, link: linkInput, channels: selectedChannels,
-                file_name: getFileNameFromUI(), file_data: currentUploadedFileData, status: finalStatus, creator: user.displayName || user.cnName || user.enName
+                file_name: window.getFileNameFromUI(), file_data: currentUploadedFileData, status: finalStatus, creator: user.displayName || user.cnName || user.enName
             };
 
             const { error } = await window.supabase.from(window.DB_TABLE).insert([taskData]);
@@ -737,240 +990,54 @@
 
             localStorage.removeItem('myDraftTask');
             
-            // 存入过渡缓存，让任务详情页能读取
+            // 临时存一下供详情页读取
             localStorage.setItem('myNewTask', JSON.stringify({
                 id: newId, title: shortTitle, fullDesc: fullDesc, desc: finalDesc, project: projectVal,
                 date: dateInput, assignee: assigneeVal, link: linkInput, channels: selectedChannels,
-                fileName: getFileNameFromUI(), fileData: currentUploadedFileData, status: finalStatus, time: new Date().getTime() 
+                fileName: window.getFileNameFromUI(), fileData: currentUploadedFileData, status: finalStatus, time: new Date().getTime() 
             }));
 
             closeAllModals();
             
             const successOverlay = document.getElementById('success-overlay'); 
-            const successContent = document.getElementById('success-content'); 
-            const checkPath = document.querySelector('.success-check-path');
-            
-            successOverlay.classList.remove('hidden'); 
-            void successOverlay.offsetWidth; 
-            successOverlay.classList.remove('opacity-0'); 
-            successContent.classList.remove('scale-95', 'opacity-0'); 
-            checkPath.classList.add('animate-check-draw');
+            successOverlay.classList.remove('hidden'); void successOverlay.offsetWidth; successOverlay.classList.remove('opacity-0');
 
             // 💡 不再刷新全屏网页！直接静默加载最新云端数据秒上墙
             await window.loadTasksFromCloud();
-            
+
             setTimeout(() => {
                 successOverlay.classList.add('opacity-0');
-                successContent.classList.add('scale-95', 'opacity-0');
                 setTimeout(() => {
                     successOverlay.classList.add('hidden');
-                    previewTask(newId);
+                    // 强制焦点回到新提交的单据
+                    window.previewTask(newId);
                     document.getElementById('card-' + newId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }, 300);
-            }, 1200);
+            }, 1000);
         }
 
-        window.clearTestData = async function() {
-            if(!window.supabase) return;
-            if(!confirm("⚠️ 警告：这将直接清空云端测试表中的所有需求数据！且不可恢复！\n确定要继续吗？")) return;
-            try {
-                const { error } = await window.supabase.from(window.DB_TABLE).delete().neq('id', '0');
-                if (error) throw error;
-                showToast('已清空', '云端测试数据已全部清空！', 'success');
-                setTimeout(() => window.location.reload(), 1500);
-            } catch(e) { alert("清理失败: " + e.message); }
-        }
-
-        window.cancelTask = async function(taskId) {
-            if(!window.supabase) return;
-            if(!confirm(`确定要彻底撤销并删除需求单 ${taskId} 吗？`)) return;
-            try {
-                const { error } = await window.supabase.from(window.DB_TABLE).delete().eq('id', taskId);
-                if (error) throw error;
-                showToast('已撤销', `需求单 ${taskId} 已被彻底删除。`, 'info');
-                await loadTasksFromCloud(); // 无刷新重载
-            } catch(e) { alert("撤销失败: " + e.message); }
-        }
-
-        // ================= 下拉菜单、文件处理等辅助函数 =================
-        window.renderProjects = function(filterText = '') {
-            const listEl = document.getElementById('project-dropdown-list');
-            let filtered = PROJECT_LIST.filter(p => p.toLowerCase().includes(filterText.toLowerCase()));
-            let html = '';
-            if(filtered.length === 0) {
-                html = `<div class="px-4 py-3 text-[13px] text-zinc-500 cursor-default">将直接使用您的手写输入 "${filterText}"</div>`;
-            } else {
-                filtered.forEach(p => { html += `<div class="px-4 py-2.5 text-[13px] text-zinc-300 hover:bg-indigo-500/20 hover:text-indigo-300 cursor-pointer transition-colors" onmousedown="selectProject('${p}')">${p}</div>`; });
-            }
-            listEl.innerHTML = html;
-        }
-
-        window.selectProject = function(val) {
-            document.getElementById('req-project').value = val;
-            document.getElementById('project-dropdown').classList.add('hidden');
-        }
-        window.showProjectDropdown = function() {
-            window.renderProjects(document.getElementById('req-project').value);
-            document.getElementById('project-dropdown').classList.remove('hidden');
-            document.getElementById('assignee-dropdown').classList.add('hidden');
-        }
-        window.filterProjectDropdown = function() {
-            window.renderProjects(document.getElementById('req-project').value);
-        }
-
-        window.renderAssignees = function(filterText = '') {
-            const listEl = document.getElementById('assignee-dropdown-list');
-            if(!listEl) return;
-            let filtered = finalAssigneeList.filter(name => name.toLowerCase().includes(filterText.toLowerCase()));
-            let html = '';
-            if ('不指定 (系统统筹)'.includes(filterText)) {
-                html += `<div class="px-4 py-3 text-[13px] text-zinc-300 hover:bg-indigo-500/20 hover:text-indigo-300 cursor-pointer transition-colors border-b border-zinc-800" onmousedown="selectAssignee('none', '不指定 (系统统筹)')">不指定 (系统统筹)</div>`;
-            }
-            if (filtered.length === 0 && !('不指定 (系统统筹)'.includes(filterText))) {
-                html += `<div class="px-4 py-3 text-[13px] text-zinc-500 cursor-default">系统无此执行人，不可指派</div>`;
-            } else {
-                filtered.forEach(name => { html += `<div class="px-4 py-2.5 text-[13px] text-zinc-300 hover:bg-indigo-500/20 hover:text-indigo-300 cursor-pointer transition-colors" onmousedown="selectAssignee('${name}', '${name}')">${name}</div>`; });
-            }
-            listEl.innerHTML = html;
-        }
-
-        window.loadAssigneesFromCloud = async function() {
-            if(!window.supabase) return;
-            try {
-                const { data, error } = await window.supabase.from('user_profiles').select('en_name');
-                if(!error && data) {
-                    const dbNames = data.map(u => u.en_name).filter(n => n && n !== 'judyzzhang');
-                    const mergedSet = new Set([...PREDEFINED_ASSIGNEES, ...dbNames]);
-                    finalAssigneeList = Array.from(mergedSet).sort();
-                }
-            } catch(e) { console.log(e); }
-        }
-
-        window.selectAssignee = function(val, text) {
-            document.getElementById('req-assignee').value = val;
-            document.getElementById('req-assignee-input').value = text;
-            document.getElementById('assignee-dropdown').classList.add('hidden');
-        }
-
-        window.showAssigneeDropdown = function() {
-            window.renderAssignees('');
-            document.getElementById('assignee-dropdown').classList.remove('hidden');
-            document.getElementById('project-dropdown').classList.add('hidden');
-        }
-
-        window.filterAssigneeDropdown = function() {
-            window.renderAssignees(document.getElementById('req-assignee-input').value);
-            document.getElementById('assignee-dropdown').classList.remove('hidden');
-        }
-
-        window.validateAssigneeInput = function() {
-            setTimeout(() => {
-                const inputVal = document.getElementById('req-assignee-input').value.trim();
-                const hiddenVal = document.getElementById('req-assignee').value;
-                if (inputVal === '' || inputVal === '不指定 (系统统筹)') { selectAssignee('none', '不指定 (系统统筹)'); return; }
-                const matchedName = finalAssigneeList.find(n => n.toLowerCase() === inputVal.toLowerCase());
-                if (matchedName) { selectAssignee(matchedName, matchedName); } 
-                else {
-                    const prevVal = hiddenVal === 'none' ? '不指定 (系统统筹)' : hiddenVal;
-                    document.getElementById('req-assignee-input').value = prevVal;
-                }
-            }, 150); 
-        }
-
-        window.toggleOtherInput = function() {
-            const otherCb = document.getElementById('channel-other-cb');
-            const otherContainer = document.getElementById('other-channel-input-container');
-            if(otherCb && otherCb.checked) {
-                otherContainer.classList.remove('hidden');
-                document.getElementById('req-channel-other').focus();
-            } else {
-                otherContainer.classList.add('hidden');
-                document.getElementById('req-channel-other').value = ''; 
-            }
-        }
-
-        window.handleFileSelect = function(event) {
-            const fileList = event.target.files;
-            const uploadZone = document.getElementById('upload-zone');
-            const uploadText = document.getElementById('upload-text');
-            if(fileList.length > 0) {
-                let file = fileList[0];
-                let fileName = file.name;
-                const reader = new FileReader();
-                reader.onload = function(e) { currentUploadedFileData = e.target.result; };
-                reader.readAsDataURL(file); 
-                uploadText.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> 已选附件: <span class="font-bold truncate max-w-[120px]">${fileName}</span>`;
-                uploadText.className = "text-xs font-medium flex items-center gap-1.5 text-indigo-400 w-full justify-center";
-                uploadZone.className = "w-full bg-indigo-500/10 border border-indigo-500/50 rounded-xl px-4 py-2.5 flex flex-col items-center justify-center cursor-pointer transition-colors h-[46px]";
-            }
-        }
-
-        window.resetUploadZone = function() {
-            document.getElementById('real-file-upload').value = '';
-            currentUploadedFileData = null; 
-            document.getElementById('upload-text').innerHTML = `<svg id="upload-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg> 点击选择参考附件...`;
-            document.getElementById('upload-text').className = "text-xs font-medium flex items-center gap-2 text-zinc-500";
-            document.getElementById('upload-zone').className = "w-full bg-[#09090b] border border-zinc-700 border-dashed rounded-xl px-4 py-2.5 flex flex-col items-center justify-center cursor-pointer hover:border-indigo-500 transition-colors h-[46px]";
-        }
-
-        window.getFileNameFromUI = function() {
-            const uploadTextEl = document.getElementById('upload-text');
-            if(uploadTextEl && uploadTextEl.innerText.includes('已选附件:')) { return uploadTextEl.innerText.split('已选附件:')[1].trim(); }
-            return '';
-        }
-
-        window.showToast = function(title, desc, type = 'success') {
-            const toast = document.getElementById('action-toast');
-            document.getElementById('toast-title').innerText = title;
-            document.getElementById('toast-desc').innerText = desc;
-            const icon = document.getElementById('toast-icon');
-            if(type === 'info') {
-                icon.className = "w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0";
-                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
-            } else if(type === 'error') {
-                icon.className = "w-8 h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0";
-                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
-            } else {
-                icon.className = "w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0";
-                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-            }
-            toast.classList.remove('hidden');
-            setTimeout(() => { toast.classList.add('hidden'); }, 3000);
-        }
-
-        window.markAllAsRead = function(event) {
-            if(event) event.stopPropagation();
-            const bellDot = document.getElementById('bell-dot');
-            if (bellDot) { bellDot.classList.remove('bg-rose-500', 'animate-pulse', 'border-[#141417]'); bellDot.classList.add('bg-zinc-600', 'border-transparent', 'hidden'); }
-            window.showToast('消息已清空', '所有未读消息已成功标记为已读。', 'info');
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            if(!initRBAC()) return;
-            window.renderAssignees();
-
-            const idBtn = document.getElementById('identityBtn');
-            const idMenu = document.getElementById('identityMenu');
-            if(idBtn && idMenu) idBtn.addEventListener('click', (e) => { e.stopPropagation(); idMenu.classList.toggle('hidden'); });
+        window.previewTask = function(taskId) {
+            document.querySelectorAll('.interactive-card').forEach(el => el.classList.remove('active-card'));
+            const targetCard = document.getElementById('card-' + taskId);
+            if(targetCard) targetCard.classList.add('active-card');
             
-            const notifBtn = document.getElementById('notifBtn');
-            const notifMenu = document.getElementById('notifMenu');
-            if(notifBtn && notifMenu) notifBtn.addEventListener('click', (e) => { e.stopPropagation(); notifMenu.classList.toggle('hidden'); });
-            
-            document.addEventListener('click', (e) => { 
-                if(idMenu && !idMenu.contains(e.target)) idMenu.classList.add('hidden'); 
-                if(notifMenu && !notifMenu.contains(e.target)) notifMenu.classList.add('hidden'); 
-                
-                const projWrap = document.getElementById('project-wrapper');
-                const projDrop = document.getElementById('project-dropdown');
-                if (projWrap && projDrop && !projWrap.contains(e.target)) projDrop.classList.add('hidden');
-                
-                const assWrap = document.getElementById('assignee-wrapper');
-                const assDrop = document.getElementById('assignee-dropdown');
-                if (assWrap && assDrop && !assWrap.contains(e.target)) assDrop.classList.add('hidden');
-            });
-        });
-
+            document.querySelectorAll('[id^="timeline-"]').forEach(el => el.classList.add('hidden'));
+            const timeline = document.getElementById('timeline-' + taskId);
+            if(timeline) {
+                timeline.classList.remove('hidden');
+                const focusEl = document.getElementById('tracking-focus-text');
+                if(focusEl) {
+                    focusEl.innerText = `${taskId} (${timeline.dataset.title})`;
+                    focusEl.className = `${timeline.dataset.col} font-mono font-bold`;
+                }
+            } else if (taskId === 'draft-card') {
+                const focusEl = document.getElementById('tracking-focus-text');
+                if(focusEl) {
+                    focusEl.innerText = `草稿 (暂存中)`;
+                    focusEl.className = `text-zinc-400 font-mono font-bold`;
+                }
+            }
+        }
     </script>
 </body>
 </html>
