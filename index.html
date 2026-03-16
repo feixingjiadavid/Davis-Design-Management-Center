@@ -109,7 +109,7 @@
                     <div id="notifMenu" class="hidden absolute right-0 top-[120%] w-[340px] bg-[#121217] border border-white/10 rounded-2xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.8)] py-3 dropdown-enter z-[9999]">
                         <div class="px-5 pb-3 border-b border-white/5 flex justify-between items-center">
                             <h3 class="text-[14px] font-bold text-white">消息通知</h3>
-                            <button onclick="markAllAsRead(event)" class="text-[11px] text-indigo-400 hover:text-indigo-300 btn-press transition-colors">全部已读</button>
+                            <button onclick="window.markAllAsRead(event)" class="text-[11px] text-indigo-400 hover:text-indigo-300 btn-press transition-colors">全部已读</button>
                         </div>
                         <div class="max-h-[300px] overflow-y-auto custom-scrollbar">
                             <div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读消息</div>
@@ -345,13 +345,12 @@
     <script type="module">
         import { supabase } from './supabase-config.js';
         window.supabase = supabase;
-        window.DB_TABLE = 'test_tasks'; // 测试表
+        window.DB_TABLE = 'test_tasks'; 
         
-        // 🚀 性能优化核心：列表轻量化查询，剔除图片等沉重字段，实现秒开！
+        // 💡 性能优化核心：列表轻量化查询，剔除图片等沉重字段，实现秒开！
         window.LIGHT_FIELDS = 'id, title, status, project, due_date, creator, created_at, summary_desc, assignee';
 
         if(window.loadTasksFromCloud) window.loadTasksFromCloud();
-        if(window.loadAssigneesFromCloud) window.loadAssigneesFromCloud();
     </script>
 
     <script>
@@ -459,7 +458,7 @@
             }, 150); 
         }
 
-        window.toggleOtherInput = function() {
+        function toggleOtherInput() {
             const otherCb = document.getElementById('channel-other-cb');
             const otherContainer = document.getElementById('other-channel-input-container');
             if(otherCb && otherCb.checked) {
@@ -471,7 +470,7 @@
             }
         }
 
-        window.handleFileSelect = function(event) {
+        function handleFileSelect(event) {
             const fileList = event.target.files;
             const uploadZone = document.getElementById('upload-zone');
             const uploadText = document.getElementById('upload-text');
@@ -481,13 +480,13 @@
                 const reader = new FileReader();
                 reader.onload = function(e) { currentUploadedFileData = e.target.result; };
                 reader.readAsDataURL(file); 
-                uploadText.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> 已选附件: <span class="font-bold truncate max-w-[120px]">${fileName}</span>`;
+                uploadText.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg> 已选附件: <span class="font-bold truncate max-w-[120px]">${fileName}</span>`;
                 uploadText.className = "text-xs font-medium flex items-center gap-1.5 text-indigo-400 w-full justify-center";
                 uploadZone.className = "w-full bg-indigo-500/10 border border-indigo-500/50 rounded-xl px-4 py-2.5 flex flex-col items-center justify-center cursor-pointer transition-colors h-[46px]";
             }
         }
 
-        window.resetUploadZone = function() {
+        function resetUploadZone() {
             document.getElementById('real-file-upload').value = '';
             currentUploadedFileData = null; 
             document.getElementById('upload-text').innerHTML = `<svg id="upload-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg> 点击选择参考附件...`;
@@ -495,7 +494,7 @@
             document.getElementById('upload-zone').className = "w-full bg-[#09090b] border border-zinc-700 border-dashed rounded-xl px-4 py-2.5 flex flex-col items-center justify-center cursor-pointer hover:border-indigo-500 transition-colors h-[46px]";
         }
 
-        window.getFileNameFromUI = function() {
+        function getFileNameFromUI() {
             const uploadTextEl = document.getElementById('upload-text');
             if(uploadTextEl && uploadTextEl.innerText.includes('已选附件:')) { return uploadTextEl.innerText.split('已选附件:')[1].trim(); }
             return '';
@@ -507,7 +506,6 @@
             window.location.href = 'login.html'; 
         }
 
-        // 💡 时间与花名问候提取
         function updateGreeting(user) {
             const hour = new Date().getHours();
             let timeStr = '晚上好';
@@ -531,7 +529,6 @@
             
             updateGreeting(user);
 
-            // 💡 清空测试数据按钮仅白名单可见
             const testUsers = ['ponyxu', 'davidxxu', 'yoshyliu', 'judyzzhang', '小戴维斯'];
             const isTestUser = testUsers.includes(enName) || testUsers.includes(user.displayName) || testUsers.includes(user.cnName);
             if(isTestUser) {
@@ -546,7 +543,6 @@
                 if (user.perms.includes('design')) { 
                     html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='assistant-workspace.html'"><div class="w-7 h-7 rounded-lg bg-orange-500/10 text-orange-500 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div><span class="text-[13px] font-medium">设计方视角 (去接单)</span></div>`; 
                 }
-                // 💡 修复：完美恢复 admin 权限入口！
                 if (user.perms.includes('admin')) { 
                     html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='manager-workspace.html'"><div class="w-7 h-7 rounded-lg bg-fuchsia-500/10 text-fuchsia-400 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg></div><span class="text-[13px] font-medium">管理方视角 (统筹大盘)</span></div>`; 
                 }
@@ -556,13 +552,6 @@
             const triggerBtn = document.getElementById('identityBtn');
             if (triggerBtn) { triggerBtn.innerHTML = `<span class="text-indigo-400 font-black">•</span> 身份: 需求方 (当前) <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 ml-1"><polyline points="6 9 12 15 18 9"></polyline></svg>`; }
             return true;
-        }
-
-        window.markAllAsRead = function(event) {
-            if(event) event.stopPropagation();
-            const bellDot = document.getElementById('bell-dot');
-            if (bellDot) { bellDot.classList.remove('bg-rose-500', 'animate-pulse', 'border-[#141417]'); bellDot.classList.add('bg-zinc-600', 'border-transparent', 'hidden'); }
-            window.showToast('消息已清空', '所有未读消息已成功标记为已读。', 'info');
         }
 
         window.openPwdModal = function() {
@@ -575,7 +564,7 @@
             const pwdModal = document.getElementById('pwd-modal');
             pwdOverlay.classList.add('opacity-0'); pwdModal.classList.add('scale-95'); setTimeout(() => { pwdOverlay.classList.add('hidden'); pwdModal.classList.add('hidden'); }, 300);
         }
-        window.submitPwdChange = function() { alert('请联系管理员修改密码。'); window.closePwdModal(); }
+        window.submitPwdChange = function() { alert('请联系管理员修改密码。'); closePwdModal(); }
 
         window.clearTestData = async function() {
             if(!window.supabase) return;
@@ -603,7 +592,7 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             if(!initRBAC()) return;
-            window.renderAssignees();
+            window.loadAssigneesFromCloud();
 
             const idBtn = document.getElementById('identityBtn');
             const idMenu = document.getElementById('identityMenu');
@@ -670,17 +659,16 @@
             
             if (savedDraft) {
                 const draft = JSON.parse(savedDraft);
-                // 💡 草稿 UI 改为低调灰色
                 const draftHTML = `
-                    <div class="rounded-2xl p-5 border border-zinc-700 bg-transparent opacity-40 mb-4 cursor-pointer hover:opacity-70 transition-opacity" id="draft-card" onclick="editDraft()">
+                    <div class="rounded-2xl p-5 border border-zinc-700 bg-transparent opacity-40 mb-4 cursor-pointer hover:opacity-70 transition-opacity" id="draft-card" onclick="window.editDraft()">
                         <div class="flex justify-between items-center mb-1">
                             <span class="text-[10px] text-zinc-500 font-bold bg-zinc-800/50 px-2 py-0.5 rounded">📝 需求草稿 (仅本地可见)</span>
-                            <button onclick="deleteDraft(event, this)" class="text-rose-500 text-[10px] hover:text-white transition-colors">删除</button>
+                            <button onclick="window.deleteDraft(event, this)" class="text-rose-500 text-[10px] hover:text-white transition-colors">删除</button>
                         </div>
                         <h4 class="text-zinc-400 font-bold">${draft.title || '无标题草稿'}</h4>
                     </div>
                 `;
-                container.insertAdjacentHTML('afterbegin', draftHTML); // 保证永远在最前面
+                container.insertAdjacentHTML('afterbegin', draftHTML);
             }
         }
 
@@ -704,12 +692,10 @@
                 window.closeAllModals(); 
                 window.showToast('📝 暂存成功', '草稿与附件已保存，始终置顶。', 'info'); 
                 
-                // 瞬间渲染草稿，隐藏空状态提示
                 window.renderDraftToUI();
                 const spinner = document.getElementById('loading-spinner');
                 if(spinner) spinner.classList.add('hidden');
             } catch (e) {
-                // 💡 附件过大容错
                 draftData.fileData = null;
                 draftData.fileName = draftData.fileName ? draftData.fileName + " (因体积过大暂存未包含)" : "";
                 try {
@@ -768,7 +754,6 @@
                 if(dcard) dcard.remove();
                 window.showToast('已删除', '草稿已永久移除。', 'info');
 
-                // 检查是否全空
                 setTimeout(() => {
                     const container = document.getElementById('ongoing-tasks-container');
                     const realCards = container.querySelectorAll('.interactive-card:not(#draft-card)');
@@ -786,28 +771,8 @@
             }
         }
 
-        window.showToast = function(title, desc, type = 'success') {
-            const toast = document.getElementById('action-toast');
-            document.getElementById('toast-title').innerText = title;
-            document.getElementById('toast-desc').innerText = desc;
-            const icon = document.getElementById('toast-icon');
-            if(type === 'success') {
-                icon.className = "w-8 h-8 rounded-full bg-sky-500/20 text-sky-400 flex items-center justify-center shrink-0";
-                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-            } else if(type === 'info') {
-                icon.className = "w-8 h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0";
-                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
-            } else if(type === 'error') {
-                icon.className = "w-8 h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0";
-                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
-            }
-            toast.classList.remove('hidden');
-            setTimeout(() => { toast.classList.add('hidden'); }, 3000);
-        }
-
-        // ================= 核心：状态UI工厂引擎 (完美还原+rejected状态) =================
+        // ================= 核心：状态UI工厂引擎 =================
         function createTaskHTML(task, currentUser) {
-            // 💡 1. 绝对隐私控制：大厅只显示本人提的单（Judy主管额外可看待审批）
             const isOwner = task.creator === currentUser.displayName || task.creator === currentUser.cnName || task.creator === currentUser.enName;
             const isJudy = currentUser.enName.toLowerCase() === 'judyzzhang';
             if(!isOwner && !(isJudy && task.status === 'pending_approval')) return null;
@@ -815,7 +780,6 @@
             let sColor, sText, targetUrl;
             let isUrgent = false;
 
-            // 💡 2. 紧急判定：距离期望交付 2 天以内
             if(task.due_date && !['completed','archived'].includes(task.status)) {
                 const due = new Date(task.due_date);
                 const today = new Date();
@@ -825,7 +789,6 @@
             }
 
             switch(task.status) {
-                // 💡 新增打回状态，强制红色警戒
                 case 'rejected': 
                     sColor = 'text-rose-500'; sText = '需求被打回修改'; targetUrl = 'task-detail-new.html?id=' + task.id; 
                     isUrgent = true; 
@@ -840,7 +803,6 @@
 
             const isCompleted = task.status === 'completed' || task.status === 'archived';
 
-            // 边框色必须与文字色一致，若是紧急情况则启用红色呼吸灯
             const borderColBase = isUrgent ? 'rgba(244,63,94,0.7)' : sColor.replace('text-', 'rgba(').replace('sky','56,189,248').replace('amber','251,191,36').replace('emerald','16,185,129').replace('rose','244,63,94').replace('zinc','113,113,122') + ',0.3)';
             const breatheClass = isUrgent ? 'breathe-rose' : '';
             const canCancel = (task.status === 'pending' || task.status === 'pending_accept' || task.status === 'rejected') && isOwner;
@@ -872,7 +834,7 @@
             if(strokeColor === 'zinc') strokeColor = 'gray'; 
 
             const timelineHTML = `
-                <div id="timeline-${task.id}" class="relative z-10 hidden" data-col="${sColor}" data-title="${task.title}">
+                <div id="timeline-${task.id}" class="hidden" data-col="${sColor}" data-title="${task.title}">
                     <div class="timeline-item relative flex gap-4 z-10 pb-6">
                         <div class="timeline-line"></div>
                         <div class="w-7 h-7 rounded-full bg-[#121217] border-[2px] border-${strokeColor}-500 flex items-center justify-center shrink-0 z-10 shadow-[0_0_15px_rgba(255,255,255,0.1)]">
@@ -880,7 +842,7 @@
                         </div>
                         <div class="pt-0.5">
                             <p class="text-[13px] font-bold ${sColor} mb-0.5">${sText}</p>
-                            <p class="text-[10px] text-zinc-500">${task.summary_desc || '系统正在跟踪中'}</p>
+                            <p class="text-[10px] text-zinc-500">${task.summary_desc || '系统同步中'}</p>
                         </div>
                     </div>
                     <div class="timeline-item relative flex gap-4 z-10 pb-2 opacity-40 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-300">
@@ -899,7 +861,6 @@
             return { isCompleted, cardHTML, timelineHTML };
         }
 
-        // ================= 云端极速加载与重绘 =================
         window.loadTasksFromCloud = async function() {
             const userStr = localStorage.getItem('activeUserObj');
             if(!userStr) return;
@@ -914,7 +875,6 @@
             }
             
             try {
-                // 💡 3. 并发优化查询：列表页只查极轻量的 LIGHT_FIELDS，去除大图！
                 const [ongoingRes, completedRes] = await Promise.all([
                     window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS).not('status', 'in', '("completed","archived")').order('created_at', { ascending: false }),
                     window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS).in('status', '("completed","archived")').order('created_at', { ascending: false }).limit(15)
@@ -927,18 +887,15 @@
                 ongoingC.querySelectorAll('.interactive-card:not(#draft-card)').forEach(el => el.remove());
                 completedC.innerHTML = ''; timelineC.innerHTML = '';
 
-                // 对进行中的数据进行权重智能排序 (Reviewing 排最上面, Rejected也很高)
                 const weights = { 'reviewing': 1, 'rejected': 1.5, 'pending': 2, 'pending_accept': 3, 'pending_approval': 4, 'processing': 5 };
                 const ongoingData = ongoingRes.data || [];
                 ongoingData.sort((a, b) => (weights[a.status] || 99) - (weights[b.status] || 99));
 
-                // 挂载进行中数据
                 ongoingData.forEach(t => {
                     const res = createTaskHTML(t, user);
                     if(res) { ongoingC.insertAdjacentHTML('beforeend', res.cardHTML); timelineC.insertAdjacentHTML('beforeend', res.timelineHTML); }
                 });
 
-                // 挂载已完结数据
                 const completedData = completedRes.data || [];
                 completedData.forEach(t => {
                     const res = createTaskHTML(t, user);
@@ -962,11 +919,10 @@
                     completedC.innerHTML = `<div class="text-center py-8 text-zinc-600 text-sm">暂无已完结/归档的工单</div>`;
                 }
 
-                // 自动聚焦第一个卡片
                 if (localStorage.getItem('myDraftTask')) {
                     window.previewTask('draft-card', '草稿', 'text-zinc-400');
                 } else if (ongoingData.length > 0) {
-                    window.previewTask(ongoingData[0].id, ongoingData[0].title, 'text-sky-400'); // It will override text col automatically
+                    window.previewTask(ongoingData[0].id, ongoingData[0].title, 'text-sky-400');
                 }
 
             } catch(e) { console.error(e); }
@@ -1001,7 +957,6 @@
             const originalText = btn.innerText;
             btn.innerText = "数据同步中..."; btn.disabled = true;
             
-            // 💡 4. 单号自增：每次查询真实库的最大单号
             let nextNum = 1;
             const { data: latestData } = await window.supabase.from(window.DB_TABLE).select('id').order('created_at', { ascending: false }).limit(1);
             if(latestData && latestData.length > 0) {
@@ -1032,7 +987,6 @@
             const successOverlay = document.getElementById('success-overlay'); 
             successOverlay.classList.remove('hidden'); void successOverlay.offsetWidth; successOverlay.classList.remove('opacity-0');
 
-            // 💡 不再刷新全屏网页！直接静默加载最新云端数据秒上墙
             await window.loadTasksFromCloud();
 
             setTimeout(() => {
@@ -1067,6 +1021,103 @@
                 }
             }
         }
+
+        // ================= 🔔 全局消息通知与悬浮预警引擎 =================
+        window.loadNotifications = function() {
+            const userStr = localStorage.getItem('activeUserObj');
+            if(!userStr) return;
+            const user = JSON.parse(userStr);
+            const enName = user.enName ? user.enName.toLowerCase() : '';
+            const isLeader = enName === 'judyzzhang' || enName === 'davidxxu';
+
+            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
+
+            let myNotifs = sysNotifs.filter(n => {
+                if (typeof PAGE_TYPE !== 'undefined' && PAGE_TYPE === 'req' && n.role === 'req') return true;
+                if (isLeader && n.role === 'admin') return true;
+                return false;
+            });
+
+            myNotifs.sort((a, b) => b.id - a.id);
+
+            const unreadCount = myNotifs.filter(n => !n.read).length;
+            const bellDot = document.getElementById('bell-dot');
+            const notifContainer = document.querySelector('#notifMenu .max-h-\\[300px\\]');
+
+            if (bellDot) {
+                if (unreadCount > 0) {
+                    bellDot.classList.remove('hidden', 'bg-zinc-600', 'border-transparent');
+                    bellDot.classList.add('bg-rose-500', 'animate-pulse', 'border-[#141417]');
+                } else {
+                    bellDot.classList.add('hidden');
+                }
+            }
+
+            if (notifContainer) {
+                if (myNotifs.length === 0) {
+                    notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无新消息</div>';
+                } else {
+                    let html = '';
+                    myNotifs.forEach(n => {
+                        const dot = n.read ? '' : '<span class="w-2 h-2 rounded-full bg-rose-500 shrink-0 shadow-[0_0_8px_rgba(244,63,94,0.8)]"></span>';
+                        const opacity = n.read ? 'opacity-50' : '';
+                        const dateStr = new Date(n.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                        html += `
+                            <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer ${opacity}" onclick="window.markSingleAsRead(${n.id})">
+                                <div class="flex justify-between items-start mb-1">
+                                    <h4 class="text-[13px] font-bold text-white flex items-center gap-2">${n.title} ${dot}</h4>
+                                    <span class="text-[10px] text-zinc-500">${dateStr}</span>
+                                </div>
+                                <p class="text-[11px] text-zinc-400 leading-relaxed">${n.desc}</p>
+                            </div>
+                        `;
+                    });
+                    notifContainer.innerHTML = html;
+                }
+            }
+
+            const latestUnread = myNotifs.find(n => !n.read);
+            if (latestUnread) {
+                const lastToasted = sessionStorage.getItem('last_toasted_notif_id');
+                if (lastToasted != latestUnread.id) {
+                    if(window.showToast) window.showToast('🔔 ' + latestUnread.title, latestUnread.desc, 'info');
+                    sessionStorage.setItem('last_toasted_notif_id', latestUnread.id);
+                }
+            }
+        }
+
+        window.markSingleAsRead = function(id) {
+            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
+            let target = sysNotifs.find(n => n.id === id);
+            if(target) {
+                target.read = true;
+                localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs));
+                window.loadNotifications();
+            }
+        }
+
+        // 覆盖默认标记已读
+        window.markAllAsRead = function(event) {
+            if(event) event.stopPropagation();
+            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
+            const user = JSON.parse(localStorage.getItem('activeUserObj'));
+            const isLeader = user.enName.toLowerCase() === 'judyzzhang' || user.enName.toLowerCase() === 'davidxxu';
+
+            sysNotifs.forEach(n => {
+                if (typeof PAGE_TYPE !== 'undefined' && PAGE_TYPE === 'req' && n.role === 'req') n.read = true;
+                if (isLeader && n.role === 'admin') n.read = true;
+            });
+
+            localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs));
+            window.loadNotifications();
+            if(window.showToast) window.showToast('消息已清空', '所有未读消息已成功标记为已读。', 'success');
+        }
+
+        // 🚀 核心：DOM 加载完成后，挂载轮询
+        document.addEventListener('DOMContentLoaded', () => {
+            window.loadNotifications();
+            setInterval(window.loadNotifications, 3000); 
+        });
     </script>
 </body>
 </html>
