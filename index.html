@@ -64,6 +64,10 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
                 <span class="font-medium text-[14px]">我的提单记录</span>
             </button>
+            <button onclick="window.location.href='calendar.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                <span class="font-medium text-[14px]">我的需求日历</span>
+            </button>
         </div>
 
         <div class="px-5 py-5 mt-auto border-t border-white/5 bg-[#09090b] shrink-0 flex items-center justify-between">
@@ -121,7 +125,6 @@
                                 <h3 class="text-sm font-bold text-indigo-400 flex items-center gap-2.5 mb-4">
                                     <span class="w-1.5 h-1.5 bg-indigo-500 rounded-full shadow-[0_0_8px_#6366f1]"></span>我的进行中工单
                                 </h3>
-                                
                                 <div class="space-y-4 transition-opacity duration-300" id="ongoing-tasks-container">
                                     <div class="text-center py-10">
                                         <p class="text-sm text-zinc-500">正在连接云端获取数据...</p>
@@ -142,7 +145,6 @@
                         </div>
                         <p class="text-[11px] text-zinc-500">当前预览: <span class="text-zinc-400 font-mono font-bold" id="tracking-focus-text">无选中的单据</span></p>
                     </div>
-                    
                     <div class="relative flex-1 custom-scrollbar pointer-events-none" id="all-timelines-container">
                     </div>
                 </div>
@@ -177,51 +179,16 @@
                             <label class="cursor-pointer flex-1"><input type="radio" name="rt" class="hidden pill-radio"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-xs py-3 rounded-lg text-center transition-colors">视频动效</div></label>
                         </div>
                     </div>
-                    <div>
+                    
+                    <div class="relative" id="project-wrapper">
                         <label class="block text-[13px] font-bold text-zinc-300 mb-2">4. 归属项目 <span class="text-rose-500">*</span></label>
-                        <input list="project-options" id="req-project" class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-300 outline-none focus:border-indigo-500 transition-colors" placeholder="-- 请下拉选择或输入检索 --">
-                        <datalist id="project-options">
-                            <option value="Smart文化-OpenTalk"></option>
-                            <option value="Smart文化-1024"></option>
-                            <option value="Smart文化-后勤小管家"></option>
-                            <option value="Smart文化-小蓝书运营"></option>
-                            <option value="Smart文化-送物机器人"></option>
-                            <option value="荣誉体系-即时激励"></option>
-                            <option value="荣誉体系-荣誉奖项"></option>
-                            <option value="荣誉体系-AI奖项"></option>
-                            <option value="荣誉体系-最佳拍档"></option>
-                            <option value="荣誉体系-科技合作社"></option>
-                            <option value="荣誉体系-极客团"></option>
-                            <option value="年度大会-武汉"></option>
-                            <option value="年度大会-上海"></option>
-                            <option value="年度大会-行庆"></option>
-                            <option value="HR侧相关-周年庆"></option>
-                            <option value="HR侧相关-初八团拜"></option>
-                            <option value="工会相关-团建旅游"></option>
-                            <option value="工会相关-运动季"></option>
-                            <option value="工会相关-文体活动"></option>
-                            <option value="常规活动-新人入职"></option>
-                            <option value="常规活动-科技合规银监人行类支持"></option>
-                            <option value="常规活动-年决"></option>
-                            <option value="常规活动-管理团队活动"></option>
-                            <option value="常规活动-外籍员工支持"></option>
-                            <option value="品宣支持"></option>
-                            <option value="科技子支持"></option>
-                            <option value="行品宣设计对接"></option>
-                            <option value="部门-基科"></option>
-                            <option value="部门-数业"></option>
-                            <option value="部门-贷款"></option>
-                            <option value="部门-存款"></option>
-                            <option value="部门-企同"></option>
-                            <option value="部门-财富"></option>
-                            <option value="部门-政科"></option>
-                            <option value="部门-数发"></option>
-                            <option value="部门-安全"></option>
-                            <option value="部门-上海"></option>
-                            <option value="部门-武汉"></option>
-                            <option value="部门-成都"></option>
-                            <option value="部门-科管"></option>
-                        </datalist>
+                        <div class="relative">
+                            <input type="text" id="req-project" class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-300 outline-none focus:border-indigo-500 transition-colors" placeholder="-- 请下拉选择或输入检索 --" autocomplete="off" onfocus="showProjectDropdown()" oninput="filterProjectDropdown()">
+                            <svg class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </div>
+                        <div id="project-dropdown" class="hidden absolute left-0 right-0 top-[100%] mt-1 bg-[#121217] border border-zinc-700 rounded-xl shadow-2xl z-[99999] max-h-56 overflow-y-auto custom-scrollbar py-2">
+                            <div id="project-dropdown-list"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -237,40 +204,23 @@
                         <label class="cursor-pointer"><input type="checkbox" value="其他" id="channel-other-cb" class="hidden pill-checkbox req-channel" onchange="toggleOtherInput()"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-4 py-2 rounded-full transition-colors">其他</div></label>
                     </div>
                     <div id="other-channel-input-container" class="mt-3 hidden">
-                        <input type="text" id="req-channel-other" placeholder="请填写其他具体渠道名称..." class="w-full bg-[#09090b] border border-zinc-700 border-dashed rounded-xl px-4 py-2.5 text-sm text-zinc-300 outline-none focus:border-indigo-500 transition-colors">
+                        <input type="text" id="req-channel-other" placeholder="请手写填入具体渠道名称..." class="w-full bg-[#09090b] border border-zinc-700 border-dashed rounded-xl px-4 py-2.5 text-sm text-zinc-300 outline-none focus:border-indigo-500 transition-colors">
                     </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-6">
-                    <div>
+                    <div class="relative" id="assignee-wrapper">
                         <label class="block text-[13px] font-bold text-zinc-300 mb-2">6. 期望执行人 <span class="text-rose-500">*</span></label>
-                        <select id="req-assignee" class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3.5 text-sm text-white outline-none transition-colors">
-                            <option value="none">不指定 (系统统筹)</option>
-                            <option value="anckyyu">anckyyu</option>
-                            <option value="davidxxu">davidxxu</option>
-                            <option value="debbiehuang">debbiehuang</option>
-                            <option value="evazzhu">evazzhu</option>
-                            <option value="hscheng">hscheng</option>
-                            <option value="mengmengli">mengmengli</option>
-                            <option value="skylerhuang">skylerhuang</option>
-                            <option value="sophiachen">sophiachen</option>
-                            <option value="tiaouyang">tiaouyang</option>
-                            <option value="v_lijuangchen">v_lijuangchen</option>
-                            <option value="v_lucui">v_lucui</option>
-                            <option value="v_sijieli">v_sijieli</option>
-                            <option value="v_siyifu">v_siyifu</option>
-                            <option value="v_sjtian">v_sjtian</option>
-                            <option value="v_wbchye">v_wbchye</option>
-                            <option value="v_wbjgao">v_wbjgao</option>
-                            <option value="v_wbmtli">v_wbmtli</option>
-                            <option value="v_zqlan">v_zqlan</option>
-                            <option value="wenjiawu">wenjiawu</option>
-                            <option value="yamyzhang">yamyzhang</option>
-                            <option value="yaozhong">yaozhong</option>
-                            <option value="yoshyliu">yoshyliu</option>
-                            <option value="zoeyzhou">zoeyzhou</option>
-                        </select>
+                        <input type="hidden" id="req-assignee" value="none">
+                        <div id="assignee-trigger" class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3.5 text-sm text-zinc-300 outline-none cursor-pointer flex justify-between items-center transition-colors hover:border-indigo-500" onclick="toggleAssigneeDropdown(event)">
+                            <span id="assignee-display" class="truncate">不指定 (系统统筹)</span>
+                            <svg class="w-4 h-4 text-zinc-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </div>
+                        <div id="assignee-dropdown" class="hidden absolute left-0 right-0 top-[100%] mt-1 bg-[#121217] border border-zinc-700 rounded-xl shadow-2xl z-[99999] max-h-56 overflow-y-auto custom-scrollbar py-2">
+                            <div id="assignee-dropdown-list"></div>
+                        </div>
                     </div>
+                    
                     <div>
                         <label class="block text-[13px] font-bold text-zinc-300 mb-2">7. 期望交付日 <span class="text-rose-500">*</span></label>
                         <input type="date" id="req-date" class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3.5 text-sm text-white outline-none transition-colors" style="color-scheme: dark;">
@@ -325,16 +275,88 @@
     <script type="module">
         import { supabase } from './supabase-config.js';
         window.supabase = supabase;
-        if(window.loadTasksFromCloud) {
-            window.loadTasksFromCloud();
-        }
+        if(window.loadTasksFromCloud) window.loadTasksFromCloud();
+        if(window.loadAssigneesFromCloud) window.loadAssigneesFromCloud();
     </script>
 
     <script>
         const PAGE_TYPE = 'req'; 
         let currentUploadedFileData = null;
 
-        // 切换“其他渠道”输入框
+        // ================= 高级自定义下拉菜单数据与逻辑 =================
+        const PROJECT_LIST = [
+            "Smart文化-OpenTalk", "Smart文化-1024", "Smart文化-后勤小管家", "Smart文化-小蓝书运营", "Smart文化-送物机器人",
+            "荣誉体系-即时激励", "荣誉体系-荣誉奖项", "荣誉体系-AI奖项", "荣誉体系-最佳拍档", "荣誉体系-科技合作社", "荣誉体系-极客团",
+            "年度大会-武汉", "年度大会-上海", "年度大会-行庆", "HR侧相关-周年庆", "HR侧相关-初八团拜", 
+            "工会相关-团建旅游", "工会相关-运动季", "工会相关-文体活动",
+            "常规活动-新人入职", "常规活动-科技合规银监人行类支持", "常规活动-年决", "常规活动-管理团队活动", "常规活动-外籍员工支持",
+            "品宣支持", "科技子支持", "行品宣设计对接", 
+            "部门-基科", "部门-数业", "部门-贷款", "部门-存款", "部门-企同", "部门-财富", "部门-政科", "部门-数发", "部门-安全", "部门-上海", "部门-武汉", "部门-成都", "部门-科管"
+        ];
+
+        const PREDEFINED_ASSIGNEES = ['anckyyu', 'davidxxu', 'debbiehuang', 'evazzhu', 'hscheng', 'mengmengli', 'skylerhuang', 'sophiachen', 'tiaouyang', 'v_lijuangchen', 'v_lucui', 'v_sijieli', 'v_siyifu', 'v_sjtian', 'v_wbchye', 'v_wbjgao', 'v_wbmtli', 'v_zqlan', 'wenjiawu', 'yamyzhang', 'yaozhong', 'yoshyliu', 'zoeyzhou'];
+        let finalAssigneeList = [...PREDEFINED_ASSIGNEES];
+
+        function renderProjects(filterText = '') {
+            const listEl = document.getElementById('project-dropdown-list');
+            let filtered = PROJECT_LIST.filter(p => p.toLowerCase().includes(filterText.toLowerCase()));
+            let html = '';
+            if(filtered.length === 0) {
+                html = `<div class="px-4 py-3 text-[13px] text-zinc-500 cursor-default">将直接使用您的手写输入 "${filterText}"</div>`;
+            } else {
+                filtered.forEach(p => {
+                    html += `<div class="px-4 py-2.5 text-[13px] text-zinc-300 hover:bg-indigo-500/20 hover:text-indigo-300 cursor-pointer transition-colors" onclick="selectProject('${p}')">${p}</div>`;
+                });
+            }
+            listEl.innerHTML = html;
+        }
+
+        window.selectProject = function(val) {
+            document.getElementById('req-project').value = val;
+            document.getElementById('project-dropdown').classList.add('hidden');
+        }
+        window.showProjectDropdown = function() {
+            renderProjects(document.getElementById('req-project').value);
+            document.getElementById('project-dropdown').classList.remove('hidden');
+            document.getElementById('assignee-dropdown').classList.add('hidden');
+        }
+        window.filterProjectDropdown = function() {
+            renderProjects(document.getElementById('req-project').value);
+        }
+
+        window.loadAssigneesFromCloud = async function() {
+            renderAssignees(); // 先渲染预定义列表
+            if(!window.supabase) return;
+            const { data, error } = await window.supabase.from('user_profiles').select('en_name');
+            if(!error && data) {
+                const dbNames = data.map(u => u.en_name).filter(n => n && n !== 'judyzzhang');
+                const mergedSet = new Set([...PREDEFINED_ASSIGNEES, ...dbNames]);
+                finalAssigneeList = Array.from(mergedSet).sort();
+                renderAssignees();
+            }
+        }
+
+        function renderAssignees() {
+            const listEl = document.getElementById('assignee-dropdown-list');
+            let html = `<div class="px-4 py-3 text-[13px] text-zinc-300 hover:bg-indigo-500/20 hover:text-indigo-300 cursor-pointer transition-colors border-b border-zinc-800" onclick="selectAssignee('none', '不指定 (系统统筹)')">不指定 (系统统筹)</div>`;
+            finalAssigneeList.forEach(name => {
+                html += `<div class="px-4 py-2.5 text-[13px] text-zinc-300 hover:bg-indigo-500/20 hover:text-indigo-300 cursor-pointer transition-colors" onclick="selectAssignee('${name}', '${name}')">${name}</div>`;
+            });
+            listEl.innerHTML = html;
+        }
+
+        window.selectAssignee = function(val, text) {
+            document.getElementById('req-assignee').value = val;
+            document.getElementById('assignee-display').innerText = text;
+            document.getElementById('assignee-dropdown').classList.add('hidden');
+        }
+        window.toggleAssigneeDropdown = function(e) {
+            e.stopPropagation();
+            document.getElementById('assignee-dropdown').classList.toggle('hidden');
+            document.getElementById('project-dropdown').classList.add('hidden');
+        }
+        // ===================================================================
+
         function toggleOtherInput() {
             const otherCb = document.getElementById('channel-other-cb');
             const otherContainer = document.getElementById('other-channel-input-container');
@@ -347,12 +369,10 @@
             }
         }
 
-        // 文件上传逻辑 (存为 Base64)
         function handleFileSelect(event) {
             const fileList = event.target.files;
             const uploadZone = document.getElementById('upload-zone');
             const uploadText = document.getElementById('upload-text');
-            
             if(fileList.length > 0) {
                 let file = fileList[0];
                 let fileName = file.name;
@@ -423,13 +443,23 @@
             const idBtn = document.getElementById('identityBtn');
             const idMenu = document.getElementById('identityMenu');
             if(idBtn && idMenu) idBtn.addEventListener('click', (e) => { e.stopPropagation(); idMenu.classList.toggle('hidden'); });
+            
+            // 点击空白处关闭自定义下拉菜单
             document.addEventListener('click', (e) => { 
                 if(idMenu && !idMenu.contains(e.target)) idMenu.classList.add('hidden'); 
+                
+                const projWrap = document.getElementById('project-wrapper');
+                const projDrop = document.getElementById('project-dropdown');
+                if (projWrap && projDrop && !projWrap.contains(e.target)) projDrop.classList.add('hidden');
+                
+                const assWrap = document.getElementById('assignee-wrapper');
+                const assDrop = document.getElementById('assignee-dropdown');
+                if (assWrap && assDrop && !assWrap.contains(e.target)) assDrop.classList.add('hidden');
             });
         });
 
         const overlay = document.getElementById('modal-overlay');
-        function openModal(modalId, isEdit = false) {
+        window.openModal = function(modalId, isEdit = false) {
             overlay.classList.remove('hidden');
             setTimeout(() => {
                 overlay.classList.remove('opacity-0');
@@ -441,6 +471,7 @@
                 document.getElementById('req-title').value = '';
                 document.getElementById('req-project').value = '';
                 document.getElementById('req-assignee').value = 'none';
+                document.getElementById('assignee-display').innerText = '不指定 (系统统筹)';
                 document.getElementById('req-date').value = '';
                 document.getElementById('req-link').value = '';
                 document.querySelectorAll('.req-channel').forEach(cb => cb.checked = false);
@@ -450,7 +481,7 @@
             }
         }
         
-        function closeAllModals() {
+        window.closeAllModals = function() {
             overlay.classList.add('opacity-0');
             const el = document.getElementById('create-modal');
             if(el) { el.classList.remove('modal-enter'); el.classList.add('hidden'); }
@@ -476,7 +507,6 @@
             setTimeout(() => { toast.classList.add('hidden'); }, 3000);
         }
 
-        // ================= 草稿箱逻辑彻底恢复 =================
         window.saveDraft = function() { 
             const shortTitle = document.getElementById('req-short-title').value.trim();
             const fullDesc = document.getElementById('req-title').value.trim();
@@ -517,7 +547,11 @@
                 document.getElementById('req-short-title').value = draft.title || '';
                 document.getElementById('req-title').value = draft.fullText || '';
                 document.getElementById('req-project').value = draft.project || '';
-                document.getElementById('req-assignee').value = draft.assignee || 'none';
+                
+                const assVal = draft.assignee || 'none';
+                document.getElementById('req-assignee').value = assVal;
+                document.getElementById('assignee-display').innerText = assVal === 'none' ? '不指定 (系统统筹)' : assVal;
+                
                 document.getElementById('req-date').value = draft.date || '';
                 document.getElementById('req-link').value = draft.link || '';
                 
@@ -557,7 +591,7 @@
 
             const shortTitle = document.getElementById('req-short-title').value.trim();
             const fullDesc = document.getElementById('req-title').value.trim();
-            const projectVal = document.getElementById('req-project').value;
+            const projectVal = document.getElementById('req-project').value.trim();
             const assigneeVal = document.getElementById('req-assignee').value;
             const dateInput = document.getElementById('req-date').value;
 
@@ -573,8 +607,7 @@
             let finalDesc = '系统正在进行统筹评估，等待分配。';
             if (assigneeVal !== 'none' && assigneeVal !== '') {
                 finalStatus = 'pending_accept'; 
-                const selectEl = document.getElementById('req-assignee');
-                const assigneeName = selectEl.options[selectEl.selectedIndex].text;
+                const assigneeName = document.getElementById('assignee-display').innerText;
                 finalDesc = `已直接指派给设计师 ${assigneeName}，等待接单。`;
             }
 
@@ -594,7 +627,7 @@
                     title: shortTitle,
                     full_desc: fullDesc,
                     summary_desc: finalDesc,
-                    project: projectVal,
+                    project: projectVal, // 使用手写或者选中的值
                     due_date: dateInput,
                     assignee: assigneeVal,
                     link: linkInput,
@@ -683,7 +716,7 @@
                     let bgClass = 'bg-sky-500/10';
 
                     if (task.status === 'pending_accept') { 
-                        statusText = '已派单，待接单'; 
+                        statusText = '已派单，待设计师接单'; 
                         statusColor = 'text-amber-400'; 
                         borderClass = 'border-amber-500/30';
                         bgClass = 'bg-amber-500/10';
