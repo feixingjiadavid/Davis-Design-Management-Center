@@ -154,7 +154,8 @@
                                     <span class="w-1.5 h-1.5 bg-indigo-500 rounded-full shadow-[0_0_8px_#6366f1]"></span>我的进行中工单
                                 </h3>
                                 
-                                <div class="space-y-4 transition-opacity duration-300" id="ongoing-tasks-container">
+                                <div class="space-y-4" id="ongoing-tasks-container">
+                                    <div id="dynamic-draft-anchor"></div>
                                     <div class="text-center py-10" id="loading-spinner">
                                         <p class="text-sm text-zinc-500 flex justify-center items-center gap-2"><svg class="animate-spin h-4 w-4 text-zinc-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 数据正在载入中...</p>
                                     </div>
@@ -165,7 +166,7 @@
                                 <h3 class="text-sm font-bold text-zinc-400 flex items-center gap-2.5 mb-4 shrink-0">
                                     <span class="w-1.5 h-1.5 bg-zinc-500 rounded-full"></span>已完结/归档工单
                                 </h3>
-                                <div class="space-y-4 transition-opacity duration-300" id="completed-tasks-container">
+                                <div class="space-y-4" id="completed-tasks-container">
                                 </div>
                             </div>
 
@@ -300,7 +301,7 @@
                 </svg>
             </div>
             <h2 class="text-2xl font-bold text-white mb-2 tracking-tight">需求提单成功</h2>
-            <p class="text-zinc-400 text-sm">系统正在为您生成专属排号，数据同步云端中...</p>
+            <p class="text-zinc-400 text-sm">正在同步云端数据...</p>
         </div>
     </div>
 
@@ -314,8 +315,11 @@
     <script type="module">
         import { supabase } from './supabase-config.js';
         window.supabase = supabase;
-        window.DB_TABLE = 'test_tasks'; // 测试表
+        window.DB_TABLE = 'test_tasks'; 
         
+        // 💡 性能优化核心：列表轻量化查询，剔除图片等沉重字段，实现秒开！
+        window.LIGHT_FIELDS = 'id, title, status, project, due_date, creator, created_at, summary_desc';
+
         if(window.loadTasksFromCloud) window.loadTasksFromCloud();
         if(window.loadAssigneesFromCloud) window.loadAssigneesFromCloud();
     </script>
@@ -337,136 +341,6 @@
         const PREDEFINED_ASSIGNEES = ['anckyyu', 'davidxxu', 'debbiehuang', 'evazzhu', 'hscheng', 'mengmengli', 'skylerhuang', 'sophiachen', 'tiaouyang', 'v_lijuangchen', 'v_lucui', 'v_sijieli', 'v_siyifu', 'v_sjtian', 'v_wbchye', 'v_wbjgao', 'v_wbmtli', 'v_zqlan', 'wenjiawu', 'yamyzhang', 'yaozhong', 'yoshyliu', 'zoeyzhou'];
         let finalAssigneeList = [...PREDEFINED_ASSIGNEES];
 
-        function renderProjects(filterText = '') {
-            const listEl = document.getElementById('project-dropdown-list');
-            let filtered = PROJECT_LIST.filter(p => p.toLowerCase().includes(filterText.toLowerCase()));
-            let html = '';
-            if(filtered.length === 0) {
-                html = `<div class="px-4 py-3 text-[13px] text-zinc-500 cursor-default">将直接使用您的手写输入 "${filterText}"</div>`;
-            } else {
-                filtered.forEach(p => {
-                    html += `<div class="px-4 py-2.5 text-[13px] text-zinc-300 hover:bg-indigo-500/20 hover:text-indigo-300 cursor-pointer transition-colors" onmousedown="selectProject('${p}')">${p}</div>`;
-                });
-            }
-            listEl.innerHTML = html;
-        }
-
-        window.selectProject = function(val) {
-            document.getElementById('req-project').value = val;
-            document.getElementById('project-dropdown').classList.add('hidden');
-        }
-        window.showProjectDropdown = function() {
-            renderProjects(document.getElementById('req-project').value);
-            document.getElementById('project-dropdown').classList.remove('hidden');
-            document.getElementById('assignee-dropdown').classList.add('hidden');
-        }
-        window.filterProjectDropdown = function() {
-            renderProjects(document.getElementById('req-project').value);
-        }
-
-        window.renderAssignees = function(filterText = '') {
-            const listEl = document.getElementById('assignee-dropdown-list');
-            if(!listEl) return;
-            let filtered = finalAssigneeList.filter(name => name.toLowerCase().includes(filterText.toLowerCase()));
-            let html = '';
-            if ('不指定 (系统统筹)'.includes(filterText)) {
-                html += `<div class="px-4 py-3 text-[13px] text-zinc-300 hover:bg-indigo-500/20 hover:text-indigo-300 cursor-pointer transition-colors border-b border-zinc-800" onmousedown="selectAssignee('none', '不指定 (系统统筹)')">不指定 (系统统筹)</div>`;
-            }
-            if (filtered.length === 0 && !('不指定 (系统统筹)'.includes(filterText))) {
-                html += `<div class="px-4 py-3 text-[13px] text-zinc-500 cursor-default">系统无此执行人，不可指派</div>`;
-            } else {
-                filtered.forEach(name => {
-                    html += `<div class="px-4 py-2.5 text-[13px] text-zinc-300 hover:bg-indigo-500/20 hover:text-indigo-300 cursor-pointer transition-colors" onmousedown="selectAssignee('${name}', '${name}')">${name}</div>`;
-                });
-            }
-            listEl.innerHTML = html;
-        }
-
-        window.loadAssigneesFromCloud = async function() {
-            if(!window.supabase) return;
-            try {
-                const { data, error } = await window.supabase.from('user_profiles').select('en_name');
-                if(!error && data) {
-                    const dbNames = data.map(u => u.en_name).filter(n => n && n !== 'judyzzhang');
-                    const mergedSet = new Set([...PREDEFINED_ASSIGNEES, ...dbNames]);
-                    finalAssigneeList = Array.from(mergedSet).sort();
-                }
-            } catch(e) { console.log(e); }
-        }
-
-        window.selectAssignee = function(val, text) {
-            document.getElementById('req-assignee').value = val;
-            document.getElementById('req-assignee-input').value = text;
-            document.getElementById('assignee-dropdown').classList.add('hidden');
-        }
-
-        window.showAssigneeDropdown = function() {
-            renderAssignees('');
-            document.getElementById('assignee-dropdown').classList.remove('hidden');
-            document.getElementById('project-dropdown').classList.add('hidden');
-        }
-
-        window.filterAssigneeDropdown = function() {
-            renderAssignees(document.getElementById('req-assignee-input').value);
-            document.getElementById('assignee-dropdown').classList.remove('hidden');
-        }
-
-        window.validateAssigneeInput = function() {
-            setTimeout(() => {
-                const inputVal = document.getElementById('req-assignee-input').value.trim();
-                const hiddenVal = document.getElementById('req-assignee').value;
-                if (inputVal === '' || inputVal === '不指定 (系统统筹)') { selectAssignee('none', '不指定 (系统统筹)'); return; }
-                const matchedName = finalAssigneeList.find(n => n.toLowerCase() === inputVal.toLowerCase());
-                if (matchedName) { selectAssignee(matchedName, matchedName); } 
-                else {
-                    const prevVal = hiddenVal === 'none' ? '不指定 (系统统筹)' : hiddenVal;
-                    document.getElementById('req-assignee-input').value = prevVal;
-                }
-            }, 150); 
-        }
-
-        function toggleOtherInput() {
-            const otherCb = document.getElementById('channel-other-cb');
-            const otherContainer = document.getElementById('other-channel-input-container');
-            if(otherCb && otherCb.checked) {
-                otherContainer.classList.remove('hidden');
-                document.getElementById('req-channel-other').focus();
-            } else {
-                otherContainer.classList.add('hidden');
-                document.getElementById('req-channel-other').value = ''; 
-            }
-        }
-
-        function handleFileSelect(event) {
-            const fileList = event.target.files;
-            const uploadZone = document.getElementById('upload-zone');
-            const uploadText = document.getElementById('upload-text');
-            if(fileList.length > 0) {
-                let file = fileList[0];
-                let fileName = file.name;
-                const reader = new FileReader();
-                reader.onload = function(e) { currentUploadedFileData = e.target.result; };
-                reader.readAsDataURL(file); 
-                uploadText.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> 已选附件: <span class="font-bold truncate max-w-[120px]">${fileName}</span>`;
-                uploadText.className = "text-xs font-medium flex items-center gap-1.5 text-indigo-400 w-full justify-center";
-                uploadZone.className = "w-full bg-indigo-500/10 border border-indigo-500/50 rounded-xl px-4 py-2.5 flex flex-col items-center justify-center cursor-pointer transition-colors h-[46px]";
-            }
-        }
-
-        function resetUploadZone() {
-            document.getElementById('real-file-upload').value = '';
-            currentUploadedFileData = null; 
-            document.getElementById('upload-text').innerHTML = `<svg id="upload-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg> 点击选择参考附件...`;
-            document.getElementById('upload-text').className = "text-xs font-medium flex items-center gap-2 text-zinc-500";
-            document.getElementById('upload-zone').className = "w-full bg-[#09090b] border border-zinc-700 border-dashed rounded-xl px-4 py-2.5 flex flex-col items-center justify-center cursor-pointer hover:border-indigo-500 transition-colors h-[46px]";
-        }
-
-        function getFileNameFromUI() {
-            const uploadTextEl = document.getElementById('upload-text');
-            if(uploadTextEl && uploadTextEl.innerText.includes('已选附件:')) { return uploadTextEl.innerText.split('已选附件:')[1].trim(); }
-            return '';
-        }
-
         function logout(e) {
             if(e) e.stopPropagation();
             localStorage.removeItem('activeUserObj'); 
@@ -476,9 +350,7 @@
         // 💡 时间与花名问候提取
         function updateGreeting(user) {
             const hour = new Date().getHours();
-            let timeStr = '晚上好';
-            if (hour >= 5 && hour < 12) timeStr = '上午好';
-            else if (hour >= 12 && hour < 18) timeStr = '下午好';
+            let timeStr = (hour < 5) ? '凌晨好' : (hour < 12) ? '上午好' : (hour < 18 ? '下午好' : '晚上好');
             const display = user.displayName || user.cnName || user.enName;
             document.getElementById('header-greeting').innerText = `${timeStr}，${display}。`;
         }
@@ -493,12 +365,12 @@
 
             const avatarEl = document.getElementById('sidebar-avatar');
             if(avatarEl) { avatarEl.innerText = user.avatar; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-indigo-600'} border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg`; }
-            if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName;
+            if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.cnName || user.enName;
             
             updateGreeting(user);
 
             // 💡 清空测试数据按钮仅白名单可见
-            const testUsers = ['ponyxu', 'davidxxu', 'yoshyliu', '小戴维斯'];
+            const testUsers = ['ponyxu', 'davidxxu', 'yoshyliu', 'judyzzhang', '小戴维斯'];
             const isTestUser = testUsers.includes(enName) || testUsers.includes(user.displayName) || testUsers.includes(user.cnName);
             if(isTestUser) {
                 const clrBtn = document.getElementById('clear-db-btn');
@@ -508,12 +380,9 @@
             const menuContainer = document.getElementById('dynamic-identity-list');
             if (menuContainer) {
                 let html = '';
-                html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#2a2a35] text-indigo-300 cursor-default"><div class="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div><span class="text-[13px] font-bold">需求方 (当前)</span></div>`;
+                html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#2a2a35] text-indigo-300 cursor-default"><div class="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div><span class="text-[13px] font-bold">需求方视角 (当前)</span></div>`;
                 if (user.perms.includes('design')) { 
-                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='assistant-workspace.html'"><div class="w-7 h-7 rounded-lg bg-orange-500/10 text-orange-500 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div><span class="text-[13px] font-medium">设计方 (去执行接单)</span></div>`; 
-                }
-                if (user.perms.includes('admin')) { 
-                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='manager-workspace.html'"><div class="w-7 h-7 rounded-lg bg-fuchsia-500/10 text-fuchsia-400 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg></div><span class="text-[13px] font-medium">管理方 (统筹/大盘)</span></div>`; 
+                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='assistant-workspace.html'"><div class="w-7 h-7 rounded-lg bg-orange-500/10 text-orange-500 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div><span class="text-[13px] font-medium">设计方视角 (去接单)</span></div>`; 
                 }
                 menuContainer.innerHTML = html;
             }
@@ -523,95 +392,7 @@
             return true;
         }
 
-        window.markAllAsRead = function(event) {
-            if(event) event.stopPropagation();
-            const bellDot = document.getElementById('bell-dot');
-            if (bellDot) { bellDot.classList.remove('bg-rose-500', 'animate-pulse', 'border-[#141417]'); bellDot.classList.add('bg-zinc-600', 'border-transparent', 'hidden'); }
-            showToast('消息已清空', '所有未读消息已成功标记为已读。', 'info');
-        }
-
-        window.clearTestData = async function() {
-            if(!window.supabase) return;
-            if(!confirm("⚠️ 警告：这将直接清空云端测试表中的所有需求数据！且不可恢复！\n确定要继续吗？")) return;
-            try {
-                const { error } = await window.supabase.from(window.DB_TABLE).delete().neq('id', '0');
-                if (error) throw error;
-                showToast('已清空', '云端测试数据已全部清空！', 'success');
-                setTimeout(() => window.location.reload(), 1500);
-            } catch(e) { alert("清理失败: " + e.message); }
-        }
-
-        window.cancelTask = async function(taskId) {
-            if(!window.supabase) return;
-            if(!confirm(`确定要彻底撤销并删除需求单 ${taskId} 吗？`)) return;
-            try {
-                const { error } = await window.supabase.from(window.DB_TABLE).delete().eq('id', taskId);
-                if (error) throw error;
-                const card = document.getElementById('card-' + taskId);
-                if(card) card.remove();
-                showToast('已撤销', `需求单 ${taskId} 已被彻底删除。`, 'info');
-                setTimeout(async () => { await loadTasksFromCloud(); }, 300);
-            } catch(e) { alert("撤销失败: " + e.message); }
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            if(!initRBAC()) return;
-            window.renderAssignees();
-
-            const idBtn = document.getElementById('identityBtn');
-            const idMenu = document.getElementById('identityMenu');
-            if(idBtn && idMenu) idBtn.addEventListener('click', (e) => { e.stopPropagation(); idMenu.classList.toggle('hidden'); });
-            
-            const notifBtn = document.getElementById('notifBtn');
-            const notifMenu = document.getElementById('notifMenu');
-            if(notifBtn && notifMenu) notifBtn.addEventListener('click', (e) => { e.stopPropagation(); notifMenu.classList.toggle('hidden'); });
-            
-            document.addEventListener('click', (e) => { 
-                if(idMenu && !idMenu.contains(e.target)) idMenu.classList.add('hidden'); 
-                if(notifMenu && !notifMenu.contains(e.target)) notifMenu.classList.add('hidden'); 
-                
-                const projWrap = document.getElementById('project-wrapper');
-                const projDrop = document.getElementById('project-dropdown');
-                if (projWrap && projDrop && !projWrap.contains(e.target)) projDrop.classList.add('hidden');
-                
-                const assWrap = document.getElementById('assignee-wrapper');
-                const assDrop = document.getElementById('assignee-dropdown');
-                if (assWrap && assDrop && !assWrap.contains(e.target)) assDrop.classList.add('hidden');
-            });
-        });
-
-        const overlay = document.getElementById('modal-overlay');
-        window.openModal = function(modalId, isEdit = false) {
-            overlay.classList.remove('hidden');
-            setTimeout(() => {
-                overlay.classList.remove('opacity-0');
-                document.getElementById(modalId).classList.remove('hidden');
-                document.getElementById(modalId).classList.add('modal-enter');
-            }, 10);
-            if(modalId === 'create-modal' && !isEdit) {
-                document.getElementById('req-short-title').value = '';
-                document.getElementById('req-title').value = '';
-                document.getElementById('req-project').value = '';
-                document.getElementById('req-assignee').value = 'none';
-                const assInput = document.getElementById('req-assignee-input');
-                if(assInput) assInput.value = '';
-                document.getElementById('req-date').value = '';
-                document.getElementById('req-link').value = '';
-                document.querySelectorAll('.req-channel').forEach(cb => cb.checked = false);
-                document.getElementById('channel-other-cb').checked = false;
-                toggleOtherInput();
-                resetUploadZone();
-            }
-        }
-        
-        window.closeAllModals = function() {
-            overlay.classList.add('opacity-0');
-            const el = document.getElementById('create-modal');
-            if(el) { el.classList.remove('modal-enter'); el.classList.add('hidden'); }
-            setTimeout(() => { overlay.classList.add('hidden'); }, 300);
-        }
-
-        // ================= 草稿箱逻辑 =================
+        // ================= 核心一：草稿箱渲染与置顶 =================
         function renderDraftToUI() {
             const savedDraft = localStorage.getItem('myDraftTask');
             const container = document.getElementById('ongoing-tasks-container');
@@ -624,14 +405,15 @@
                 const draft = JSON.parse(savedDraft);
                 // 💡 草稿 UI 改为低调灰色
                 const draftHTML = `
-                    <div class="task-page-1 border-zinc-600 border-dashed rounded-2xl p-5 interactive-card flex flex-col bg-transparent relative group mb-4 opacity-60 hover:opacity-80 transition-opacity" onclick="editDraft()" id="draft-card">
-                        <button onclick="deleteDraft(event, this)" class="absolute top-4 right-4 text-zinc-500 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all p-1.5 hover:bg-rose-500/10 rounded-lg btn-press z-20" title="删除草稿"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
-                        <div class="flex items-center justify-between mb-3 pr-8 relative z-10"><span class="text-zinc-400 font-bold text-[10px] border border-zinc-700 bg-zinc-800/50 px-2.5 py-0.5 rounded shadow-sm">📝 需求待提交 (草稿置顶)</span><span class="text-[11px] text-zinc-400 font-bold opacity-0 group-hover:opacity-100 transition-opacity">继续编辑 ↗</span></div>
-                        <h4 class="text-[16px] font-medium text-zinc-300 mb-1 pr-8 relative z-10">${draft.title || '无标题草稿'}</h4>
-                        <p class="text-xs text-zinc-500 line-clamp-1 relative z-10">点击恢复表单数据、渠道及附件并继续完善。</p>
+                    <div class="rounded-2xl p-5 border border-zinc-700 bg-transparent opacity-40 mb-4 cursor-pointer hover:opacity-70 transition-opacity" id="draft-card" onclick="editDraft()">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-[10px] text-zinc-500 font-bold bg-zinc-800/50 px-2 py-0.5 rounded">📝 需求草稿 (仅本地可见)</span>
+                            <button onclick="deleteDraft(event, this)" class="text-rose-500 text-[10px] hover:text-white transition-colors">删除</button>
+                        </div>
+                        <h4 class="text-zinc-400 font-bold">${draft.title || '无标题草稿'}</h4>
                     </div>
                 `;
-                container.insertAdjacentHTML('afterbegin', draftHTML);
+                container.insertAdjacentHTML('afterbegin', draftHTML); // 保证永远在最前面
             }
         }
 
@@ -654,6 +436,8 @@
                 localStorage.setItem('myDraftTask', JSON.stringify(draftData));
                 closeAllModals(); 
                 showToast('📝 暂存成功', '草稿与附件已保存，始终置顶。', 'info'); 
+                
+                // 瞬间渲染草稿，隐藏空状态提示
                 renderDraftToUI();
                 const spinner = document.getElementById('loading-spinner');
                 if(spinner) spinner.classList.add('hidden');
@@ -713,83 +497,78 @@
             event.stopPropagation(); 
             if(confirm("确定要永久删除这条草稿吗？")) {
                 localStorage.removeItem('myDraftTask');
-                btn.closest('.interactive-card').remove();
+                const dcard = document.getElementById('draft-card');
+                if(dcard) dcard.remove();
                 showToast('已删除', '草稿已永久移除。', 'info');
-                setTimeout(async () => { await loadTasksFromCloud(); }, 300);
+
+                // 检查是否全空
+                setTimeout(() => {
+                    const container = document.getElementById('ongoing-tasks-container');
+                    const realCards = container.querySelectorAll('.interactive-card:not(#draft-card)');
+                    if(realCards.length === 0) {
+                        container.innerHTML = `
+                            <div class="text-center py-20 bg-[#121217] rounded-3xl border border-white/5 border-dashed">
+                                <div class="w-16 h-16 bg-zinc-800/50 rounded-full flex items-center justify-center mx-auto mb-4 text-zinc-500">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+                                </div>
+                                <p class="text-sm font-bold text-zinc-400 mb-1">大厅空空如也</p>
+                                <p class="text-xs text-zinc-600">快点击右上角发起你的第一个需求吧！</p>
+                            </div>`;
+                    }
+                }, 300);
             }
         }
 
-        // ================= 状态UI引擎 =================
-        function createTaskHTML(task) {
-            let sColor, sBorder, sBg, sText, targetUrl, alertBadge = '';
-            let isCompleted = false;
+        // ================= 核心二：状态UI工厂引擎 (带隐私与红色预警) =================
+        function createTaskHTML(task, currentUser) {
+            // 💡 1. 绝对隐私控制：大厅只显示本人提的单（Judy主管额外可看待审批）
+            const isOwner = task.creator === currentUser.displayName || task.creator === currentUser.cnName || task.creator === currentUser.enName;
+            const isJudy = currentUser.enName.toLowerCase() === 'judyzzhang';
+            if(!isOwner && !(isJudy && task.status === 'pending_approval')) return null;
 
-            // 💡 严格的临期判定 (<= 2天)
+            let sColor, sText, targetUrl;
             let isUrgent = false;
-            if (task.due_date && task.status !== 'completed' && task.status !== 'archived') {
+
+            // 💡 2. 紧急判定：距离期望交付 2 天以内
+            if(task.due_date && !['completed','archived'].includes(task.status)) {
                 const due = new Date(task.due_date);
                 const today = new Date();
-                due.setHours(0,0,0,0);
-                today.setHours(0,0,0,0);
+                due.setHours(0,0,0,0); today.setHours(0,0,0,0);
                 const diffDays = (due - today) / (1000 * 60 * 60 * 24);
-                if (diffDays <= 2 && diffDays >= -999) isUrgent = true;
+                if(diffDays <= 2 && diffDays >= -999) isUrgent = true;
             }
 
             switch(task.status) {
-                case 'pending_accept':
-                    sColor = 'text-amber-400'; sBorder = 'border-amber-500/30'; sBg = 'bg-amber-500/10';
-                    sText = '已派单，待接单'; targetUrl = 'task-detail-new.html';
-                    break;
-                case 'pending_approval':
-                    sColor = 'text-amber-500'; sBorder = 'border-amber-500/30'; sBg = 'bg-amber-500/10';
-                    sText = '框架草图审核中'; targetUrl = 'task-detail-locked.html';
-                    break;
-                case 'processing':
-                    sColor = 'text-emerald-500'; sBorder = 'border-emerald-500/30'; sBg = 'bg-emerald-500/10';
-                    sText = '正稿设计制作中'; targetUrl = 'task-detail-processing.html';
-                    break;
-                case 'reviewing':
-                    sColor = 'text-rose-500'; sBorder = 'border-rose-500/30'; sBg = 'bg-rose-500/10';
-                    sText = '交付方案待您确认'; targetUrl = 'task-detail-v1.html'; 
-                    break;
-                case 'completed':
-                case 'archived':
-                    sColor = 'text-zinc-400'; sBorder = 'border-zinc-700'; sBg = 'bg-zinc-800';
-                    sText = '验收通过，已归档'; targetUrl = 'task-detail-archived.html';
-                    isCompleted = true;
-                    break;
-                default: 
-                    sColor = 'text-sky-400'; sBorder = 'border-sky-500/30'; sBg = 'bg-sky-500/10';
-                    sText = '等待系统统筹分配'; targetUrl = 'task-detail-new.html';
+                case 'reviewing': sColor = 'text-rose-500'; sText = '方案待验收'; targetUrl = 'task-detail.html'; break;
+                case 'pending_accept': sColor = 'text-amber-400'; sText = '待接单'; targetUrl = 'task-detail-new.html'; break;
+                case 'pending_approval': sColor = 'text-amber-500'; sText = '框架待审批'; targetUrl = 'task-detail-locked.html'; break;
+                case 'processing': sColor = 'text-emerald-500'; sText = '设计制作中'; targetUrl = 'task-detail-processing.html'; break;
+                case 'completed': case 'archived': sColor = 'text-zinc-400'; sText = '已完结'; targetUrl = 'task-detail-archived.html'; break;
+                default: sColor = 'text-sky-400'; sText = '待排期/待分配'; targetUrl = 'task-detail-new.html';
             }
 
-            // 💡 只有紧急，才会覆盖外框颜色为红色呼吸灯
-            let breatheClass = '';
-            if (isUrgent) {
-                breatheClass = 'breathe-rose'; 
-                alertBadge = `<div class="absolute top-0 right-0 bg-rose-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl shadow-lg flex items-center gap-1 z-10"><span class="w-1.5 h-1.5 bg-white rounded-full animate-ping"></span> 临期预警</div>`;
-            }
+            const isCompleted = task.status === 'completed' || task.status === 'archived';
 
-            // 撤销机制
-            const currentUserStr = localStorage.getItem('activeUserObj');
-            const currentUserName = currentUserStr ? JSON.parse(currentUserStr).displayName : '';
-            const canCancel = (task.status === 'pending' || task.status === 'pending_accept') && task.creator === currentUserName;
-            const cancelBtn = canCancel ? `<button onclick="event.stopPropagation(); cancelTask('${task.id}')" class="text-[11px] bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white px-2.5 py-1 rounded transition-colors z-20 relative">撤销并删除</button>` : '';
+            // 边框色必须与文字色一致，若是紧急情况则启用红色呼吸灯
+            const borderColBase = isUrgent ? 'rgba(244,63,94,0.7)' : sColor.replace('text-', 'rgba(').replace('sky','56,189,248').replace('amber','251,191,36').replace('emerald','16,185,129').replace('rose','244,63,94').replace('zinc','113,113,122') + ',0.3)';
+            const breatheClass = isUrgent ? 'breathe-rose' : '';
+            const canCancel = (task.status === 'pending' || task.status === 'pending_accept') && isOwner;
+            const cancelBtn = canCancel ? `<button onclick="event.stopPropagation(); cancelTask('${task.id}')" class="text-[10px] text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded ml-2 hover:bg-rose-500 hover:text-white transition-colors">撤销并删除</button>` : '';
 
             const iconHtml = (task.status === 'reviewing' || isCompleted) ? '' : `<svg class="animate-spin h-3 w-3 ${sColor}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
 
             const cardHTML = `
-                <div class="task-page-1 rounded-2xl p-5 interactive-card flex flex-col relative overflow-hidden bg-[#18181b] ${sBorder} cursor-pointer mb-4 ${isCompleted ? 'opacity-60' : breatheClass}" id="card-${task.id}" onmouseenter="previewTask('${task.id}')" onclick="window.location.href='${targetUrl}'">
-                    ${alertBadge}
+                <div class="rounded-2xl p-5 interactive-card flex flex-col relative overflow-hidden bg-[#121217] border ${breatheClass} mb-4 ${isCompleted ? 'opacity-60' : ''}" style="border-color: ${borderColBase}" id="card-${task.id}" onmouseenter="previewTask('${task.id}', '${task.title}', '${sColor}')" onclick="window.location.href='${targetUrl}'">
+                    ${isUrgent ? '<div class="absolute top-0 right-0 bg-rose-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl z-10 animate-pulse">临期预警</div>' : ''}
                     <div class="flex items-center justify-between mb-3 mt-1 relative z-10">
-                        <div class="flex gap-3 items-center">
-                            <span class="font-mono text-[10px] font-bold ${sColor} ${sBg} px-2 py-0.5 rounded border border-white/10">${task.id}</span>
+                        <div class="flex gap-2 items-center">
+                            <span class="font-mono text-[10px] font-bold ${sColor} bg-white/5 px-2 py-0.5 rounded border border-white/5">${task.id}</span>
                             <span class="text-xs ${sColor} font-bold tracking-wide flex items-center gap-1.5">${iconHtml} ${sText}</span>
                         </div>
                         ${cancelBtn || `<span class="text-[11px] ${sColor} font-bold opacity-0 group-hover:opacity-100 transition-opacity">查看详情 ↗</span>`}
                     </div>
                     <h4 class="text-[17px] font-bold text-zinc-100 mb-2 relative z-10">${task.title}</h4>
-                    ${isCompleted ? '' : `<p class="text-xs text-zinc-400 mb-4 line-clamp-1 relative z-10">${task.full_desc || ''}</p>`}
+                    ${isCompleted ? '' : `<p class="text-xs text-zinc-400 mb-4 line-clamp-1 relative z-10">${task.summary_desc || ''}</p>`}
                     <div class="flex items-center justify-between text-[11px] text-zinc-400 border-t border-white/5 pt-3 relative z-10">
                         <span>归属: ${task.project}</span>
                         <span>执行人: ${task.assignee === 'none' ? '待定' : task.assignee}</span>
@@ -810,7 +589,7 @@
                         </div>
                         <div class="pt-0.5">
                             <p class="text-[13px] font-bold ${sColor} mb-0.5">${sText}</p>
-                            <p class="text-[10px] text-zinc-500">${task.summary_desc || '系统正在跟踪中'}</p>
+                            <p class="text-[10px] text-zinc-500">${task.summary_desc || '系统同步中'}</p>
                         </div>
                     </div>
                     <div class="timeline-item relative flex gap-4 z-10 pb-2 opacity-40 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-300">
@@ -821,101 +600,88 @@
                         <div class="pt-0.5">
                             <p class="text-[13px] font-bold text-zinc-300 mb-0.5">需求发单成功</p>
                             <p class="text-[10px] text-zinc-500">发起人: ${task.creator || '系统'}</p>
-                            ${task.file_name ? `<p class="text-[10px] text-indigo-400 mt-1 flex items-center gap-1"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg> 附件已存入云端</p>` : ''}
                         </div>
                     </div>
                 </div>
             `;
 
-            return { cardHTML, timelineHTML, isCompleted };
+            return { isCompleted, cardHTML, timelineHTML };
         }
 
-        // ================= 云端加载与乐观重绘 =================
+        // ================= 数据分流与极致提速 =================
         window.loadTasksFromCloud = async function() {
-            if (!window.supabase) {
+            const userStr = localStorage.getItem('activeUserObj');
+            if(!userStr) return;
+            const user = JSON.parse(userStr);
+            
+            renderDraftToUI(); 
+            
+            if(!window.supabase) {
                 const spinner = document.getElementById('loading-spinner');
                 if(spinner) spinner.innerHTML = '<p class="text-sm font-bold text-zinc-400 mb-1">大厅空空如也</p><p class="text-xs text-zinc-600">快点击右上角发起你的第一个需求吧！</p>';
-                renderDraftToUI();
                 return;
             }
             
-            const { data, error } = await window.supabase.from(window.DB_TABLE).select('*');
-            if (error) return console.error(error);
+            try {
+                // 💡 并发优化查询：列表页只查极轻量的 LIGHT_FIELDS，去除大图！
+                // 将已完结的数据控制在 15 条，防止长年累月变卡
+                const [ongoingRes, completedRes] = await Promise.all([
+                    window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS).not('status', 'in', '("completed","archived")').order('created_at', { ascending: false }),
+                    window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS).in('status', '("completed","archived")').order('created_at', { ascending: false }).limit(15)
+                ]);
 
-            const ongoing = [];
-            const completed = [];
-            
-            data.forEach(t => {
-                if (t.status === 'completed' || t.status === 'archived') completed.push(t);
-                else ongoing.push(t);
-            });
+                const ongoingC = document.getElementById('ongoing-tasks-container');
+                const completedC = document.getElementById('completed-tasks-container');
+                const timelineC = document.getElementById('all-timelines-container');
 
-            // 💡 高优排序规则
-            const weights = { 'reviewing': 1, 'pending': 2, 'pending_accept': 3, 'pending_approval': 4, 'processing': 5 };
-            
-            ongoing.sort((a, b) => {
-                const wA = weights[a.status] || 99;
-                const wB = weights[b.status] || 99;
-                if (wA !== wB) return wA - wB; 
-                return new Date(b.created_at) - new Date(a.created_at); 
-            });
-            
-            completed.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                ongoingC.querySelectorAll('.interactive-card:not(#draft-card)').forEach(el => el.remove());
+                completedC.innerHTML = ''; timelineC.innerHTML = '';
 
-            let ongoingCardsHTML = '';
-            let completedCardsHTML = '';
-            let timelinesHTML = '';
+                // 对进行中的数据进行权重智能排序 (Reviewing 排最上面)
+                const weights = { 'reviewing': 1, 'pending': 2, 'pending_accept': 3, 'pending_approval': 4, 'processing': 5 };
+                const ongoingData = ongoingRes.data || [];
+                ongoingData.sort((a, b) => (weights[a.status] || 99) - (weights[b.status] || 99));
 
-            ongoing.forEach(task => {
-                const res = createTaskHTML(task);
-                ongoingCardsHTML += res.cardHTML;
-                timelinesHTML += res.timelineHTML;
-            });
+                // 挂载进行中数据
+                ongoingData.forEach(t => {
+                    const res = createTaskHTML(t, user);
+                    if(res) { ongoingC.insertAdjacentHTML('beforeend', res.cardHTML); timelineC.insertAdjacentHTML('beforeend', res.timelineHTML); }
+                });
 
-            completed.forEach(task => {
-                const res = createTaskHTML(task);
-                completedCardsHTML += res.cardHTML;
-                timelinesHTML += res.timelineHTML;
-            });
+                // 挂载已完结数据
+                const completedData = completedRes.data || [];
+                completedData.forEach(t => {
+                    const res = createTaskHTML(t, user);
+                    if(res) { completedC.insertAdjacentHTML('beforeend', res.cardHTML); timelineC.insertAdjacentHTML('beforeend', res.timelineHTML); }
+                });
 
-            const ongoingContainer = document.getElementById('ongoing-tasks-container');
-            const completedContainer = document.getElementById('completed-tasks-container');
-            const timelineContainer = document.getElementById('all-timelines-container');
+                document.getElementById('loading-spinner')?.classList.add('hidden');
+                
+                if(!ongoingC.querySelector('.interactive-card')) {
+                    ongoingC.innerHTML = `
+                        <div class="text-center py-20 bg-[#121217] rounded-3xl border border-white/5 border-dashed">
+                            <div class="w-16 h-16 bg-zinc-800/50 rounded-full flex items-center justify-center mx-auto mb-4 text-zinc-500">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+                            </div>
+                            <p class="text-sm font-bold text-zinc-400 mb-1">大厅空空如也</p>
+                            <p class="text-xs text-zinc-600">快点击右上角发起你的第一个需求吧！</p>
+                        </div>`;
+                }
 
-            ongoingContainer.innerHTML = '';
-            timelineContainer.innerHTML = timelinesHTML;
+                if(completedC.innerHTML === '') {
+                    completedC.innerHTML = `<div class="text-center py-8 text-zinc-600 text-sm">暂无已完结/归档的工单</div>`;
+                }
 
-            // 1. 本地草稿绝对置顶
-            renderDraftToUI();
-            
-            // 2. 真实进行中数据
-            if (ongoing.length === 0 && !localStorage.getItem('myDraftTask')) {
-                ongoingContainer.innerHTML = `
-                    <div class="text-center py-20 bg-[#121217] rounded-3xl border border-white/5 border-dashed">
-                        <div class="w-16 h-16 bg-zinc-800/50 rounded-full flex items-center justify-center mx-auto mb-4 text-zinc-500">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
-                        </div>
-                        <p class="text-sm font-bold text-zinc-400 mb-1">大厅空空如也</p>
-                        <p class="text-xs text-zinc-600">快点击右上角发起你的第一个需求吧！</p>
-                    </div>`;
-            } else {
-                ongoingContainer.insertAdjacentHTML('beforeend', ongoingCardsHTML);
-            }
+                // 自动聚焦第一个卡片
+                if (localStorage.getItem('myDraftTask')) {
+                    previewTask('draft-card');
+                } else if (ongoingData.length > 0) {
+                    previewTask(ongoingData[0].id);
+                }
 
-            if (completed.length === 0) {
-                completedContainer.innerHTML = `<div class="text-center py-8 text-zinc-600 text-sm">暂无已完结/归档的工单</div>`;
-            } else {
-                completedContainer.innerHTML = completedCardsHTML;
-            }
-
-            if (localStorage.getItem('myDraftTask')) {
-                previewTask('draft-card');
-            } else if (ongoing.length > 0) {
-                previewTask(ongoing[0].id);
-            }
+            } catch(e) { console.error(e); }
         }
 
-        // ================= 智能单号生成 =================
         window.submitNewReq = async function() {
             if(!window.supabase) return alert("云端服务仍在初始化，请稍等！");
 
@@ -941,15 +707,11 @@
                 finalDesc = `已直接指派给设计师 ${assigneeName}，等待接单。`;
             }
 
-            const activeUserStr = localStorage.getItem('activeUserObj');
-            const creatorName = activeUserStr ? JSON.parse(activeUserStr).displayName : '未知提交者';
-
             const btn = document.querySelector('button[onclick="submitNewReq()"]');
             const originalText = btn.innerText;
-            btn.innerText = "生成单号中...";
-            btn.disabled = true;
-
-            // 💡 动态查最大单号并自增 TEST-00X
+            btn.innerText = "数据同步中..."; btn.disabled = true;
+            
+            // 💡 查最大单号并自增 TEST-00X
             let nextNum = 1;
             const { data: latestData } = await window.supabase.from(window.DB_TABLE).select('id').order('created_at', { ascending: false }).limit(1);
             if(latestData && latestData.length > 0) {
@@ -957,16 +719,16 @@
                 const match = lastId.match(/\d+$/);
                 if(match) nextNum = parseInt(match[0], 10) + 1;
             }
-            const randomId = 'TEST-' + nextNum.toString().padStart(3, '0');
+            const newId = 'TEST-' + nextNum.toString().padStart(3, '0');
 
-            const fakeTask = {
-                id: randomId, title: shortTitle, full_desc: fullDesc, summary_desc: finalDesc, project: projectVal,
+            const user = JSON.parse(localStorage.getItem('activeUserObj'));
+            const taskData = {
+                id: newId, title: shortTitle, full_desc: fullDesc, summary_desc: finalDesc, project: projectVal,
                 due_date: dateInput, assignee: assigneeVal, link: linkInput, channels: selectedChannels,
-                file_name: getFileNameFromUI(), file_data: currentUploadedFileData, status: finalStatus, creator: creatorName,
-                created_at: new Date().toISOString()
+                file_name: getFileNameFromUI(), file_data: currentUploadedFileData, status: finalStatus, creator: user.displayName || user.cnName || user.enName
             };
 
-            const { error } = await window.supabase.from(window.DB_TABLE).insert([fakeTask]);
+            const { error } = await window.supabase.from(window.DB_TABLE).insert([taskData]);
 
             btn.innerText = originalText;
             btn.disabled = false;
@@ -975,8 +737,9 @@
 
             localStorage.removeItem('myDraftTask');
             
+            // 存入过渡缓存，让任务详情页能读取
             localStorage.setItem('myNewTask', JSON.stringify({
-                id: randomId, title: shortTitle, fullDesc: fullDesc, desc: finalDesc, project: projectVal,
+                id: newId, title: shortTitle, fullDesc: fullDesc, desc: finalDesc, project: projectVal,
                 date: dateInput, assignee: assigneeVal, link: linkInput, channels: selectedChannels,
                 fileName: getFileNameFromUI(), fileData: currentUploadedFileData, status: finalStatus, time: new Date().getTime() 
             }));
@@ -993,7 +756,7 @@
             successContent.classList.remove('scale-95', 'opacity-0'); 
             checkPath.classList.add('animate-check-draw');
 
-            // 💡 无刷新云重载！
+            // 💡 不再刷新全屏网页！直接静默加载最新云端数据秒上墙
             await window.loadTasksFromCloud();
             
             setTimeout(() => {
@@ -1001,34 +764,213 @@
                 successContent.classList.add('scale-95', 'opacity-0');
                 setTimeout(() => {
                     successOverlay.classList.add('hidden');
-                    previewTask(randomId);
-                    document.getElementById('card-' + randomId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    previewTask(newId);
+                    document.getElementById('card-' + newId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }, 300);
-            }, 800);
+            }, 1200);
         }
 
-        window.previewTask = function(taskId) {
-            document.querySelectorAll('.interactive-card').forEach(el => el.classList.remove('active-card'));
-            const targetCard = document.getElementById('card-' + taskId);
-            if(targetCard) targetCard.classList.add('active-card');
-            
-            document.querySelectorAll('[id^="timeline-"]').forEach(el => el.classList.add('hidden'));
-            const timeline = document.getElementById('timeline-' + taskId);
-            if(timeline) {
-                timeline.classList.remove('hidden');
-                const focusEl = document.getElementById('tracking-focus-text');
-                if(focusEl) {
-                    focusEl.innerText = `${taskId} (${timeline.dataset.title})`;
-                    focusEl.className = `${timeline.dataset.col} font-mono font-bold`;
+        window.clearTestData = async function() {
+            if(!window.supabase) return;
+            if(!confirm("⚠️ 警告：这将直接清空云端测试表中的所有需求数据！且不可恢复！\n确定要继续吗？")) return;
+            try {
+                const { error } = await window.supabase.from(window.DB_TABLE).delete().neq('id', '0');
+                if (error) throw error;
+                showToast('已清空', '云端测试数据已全部清空！', 'success');
+                setTimeout(() => window.location.reload(), 1500);
+            } catch(e) { alert("清理失败: " + e.message); }
+        }
+
+        window.cancelTask = async function(taskId) {
+            if(!window.supabase) return;
+            if(!confirm(`确定要彻底撤销并删除需求单 ${taskId} 吗？`)) return;
+            try {
+                const { error } = await window.supabase.from(window.DB_TABLE).delete().eq('id', taskId);
+                if (error) throw error;
+                showToast('已撤销', `需求单 ${taskId} 已被彻底删除。`, 'info');
+                await loadTasksFromCloud(); // 无刷新重载
+            } catch(e) { alert("撤销失败: " + e.message); }
+        }
+
+        // ================= 下拉菜单、文件处理等辅助函数 =================
+        window.renderProjects = function(filterText = '') {
+            const listEl = document.getElementById('project-dropdown-list');
+            let filtered = PROJECT_LIST.filter(p => p.toLowerCase().includes(filterText.toLowerCase()));
+            let html = '';
+            if(filtered.length === 0) {
+                html = `<div class="px-4 py-3 text-[13px] text-zinc-500 cursor-default">将直接使用您的手写输入 "${filterText}"</div>`;
+            } else {
+                filtered.forEach(p => { html += `<div class="px-4 py-2.5 text-[13px] text-zinc-300 hover:bg-indigo-500/20 hover:text-indigo-300 cursor-pointer transition-colors" onmousedown="selectProject('${p}')">${p}</div>`; });
+            }
+            listEl.innerHTML = html;
+        }
+
+        window.selectProject = function(val) {
+            document.getElementById('req-project').value = val;
+            document.getElementById('project-dropdown').classList.add('hidden');
+        }
+        window.showProjectDropdown = function() {
+            window.renderProjects(document.getElementById('req-project').value);
+            document.getElementById('project-dropdown').classList.remove('hidden');
+            document.getElementById('assignee-dropdown').classList.add('hidden');
+        }
+        window.filterProjectDropdown = function() {
+            window.renderProjects(document.getElementById('req-project').value);
+        }
+
+        window.renderAssignees = function(filterText = '') {
+            const listEl = document.getElementById('assignee-dropdown-list');
+            if(!listEl) return;
+            let filtered = finalAssigneeList.filter(name => name.toLowerCase().includes(filterText.toLowerCase()));
+            let html = '';
+            if ('不指定 (系统统筹)'.includes(filterText)) {
+                html += `<div class="px-4 py-3 text-[13px] text-zinc-300 hover:bg-indigo-500/20 hover:text-indigo-300 cursor-pointer transition-colors border-b border-zinc-800" onmousedown="selectAssignee('none', '不指定 (系统统筹)')">不指定 (系统统筹)</div>`;
+            }
+            if (filtered.length === 0 && !('不指定 (系统统筹)'.includes(filterText))) {
+                html += `<div class="px-4 py-3 text-[13px] text-zinc-500 cursor-default">系统无此执行人，不可指派</div>`;
+            } else {
+                filtered.forEach(name => { html += `<div class="px-4 py-2.5 text-[13px] text-zinc-300 hover:bg-indigo-500/20 hover:text-indigo-300 cursor-pointer transition-colors" onmousedown="selectAssignee('${name}', '${name}')">${name}</div>`; });
+            }
+            listEl.innerHTML = html;
+        }
+
+        window.loadAssigneesFromCloud = async function() {
+            if(!window.supabase) return;
+            try {
+                const { data, error } = await window.supabase.from('user_profiles').select('en_name');
+                if(!error && data) {
+                    const dbNames = data.map(u => u.en_name).filter(n => n && n !== 'judyzzhang');
+                    const mergedSet = new Set([...PREDEFINED_ASSIGNEES, ...dbNames]);
+                    finalAssigneeList = Array.from(mergedSet).sort();
                 }
-            } else if (taskId === 'draft-card') {
-                const focusEl = document.getElementById('tracking-focus-text');
-                if(focusEl) {
-                    focusEl.innerText = `草稿 (暂存中)`;
-                    focusEl.className = `text-zinc-400 font-mono font-bold`;
+            } catch(e) { console.log(e); }
+        }
+
+        window.selectAssignee = function(val, text) {
+            document.getElementById('req-assignee').value = val;
+            document.getElementById('req-assignee-input').value = text;
+            document.getElementById('assignee-dropdown').classList.add('hidden');
+        }
+
+        window.showAssigneeDropdown = function() {
+            window.renderAssignees('');
+            document.getElementById('assignee-dropdown').classList.remove('hidden');
+            document.getElementById('project-dropdown').classList.add('hidden');
+        }
+
+        window.filterAssigneeDropdown = function() {
+            window.renderAssignees(document.getElementById('req-assignee-input').value);
+            document.getElementById('assignee-dropdown').classList.remove('hidden');
+        }
+
+        window.validateAssigneeInput = function() {
+            setTimeout(() => {
+                const inputVal = document.getElementById('req-assignee-input').value.trim();
+                const hiddenVal = document.getElementById('req-assignee').value;
+                if (inputVal === '' || inputVal === '不指定 (系统统筹)') { selectAssignee('none', '不指定 (系统统筹)'); return; }
+                const matchedName = finalAssigneeList.find(n => n.toLowerCase() === inputVal.toLowerCase());
+                if (matchedName) { selectAssignee(matchedName, matchedName); } 
+                else {
+                    const prevVal = hiddenVal === 'none' ? '不指定 (系统统筹)' : hiddenVal;
+                    document.getElementById('req-assignee-input').value = prevVal;
                 }
+            }, 150); 
+        }
+
+        window.toggleOtherInput = function() {
+            const otherCb = document.getElementById('channel-other-cb');
+            const otherContainer = document.getElementById('other-channel-input-container');
+            if(otherCb && otherCb.checked) {
+                otherContainer.classList.remove('hidden');
+                document.getElementById('req-channel-other').focus();
+            } else {
+                otherContainer.classList.add('hidden');
+                document.getElementById('req-channel-other').value = ''; 
             }
         }
+
+        window.handleFileSelect = function(event) {
+            const fileList = event.target.files;
+            const uploadZone = document.getElementById('upload-zone');
+            const uploadText = document.getElementById('upload-text');
+            if(fileList.length > 0) {
+                let file = fileList[0];
+                let fileName = file.name;
+                const reader = new FileReader();
+                reader.onload = function(e) { currentUploadedFileData = e.target.result; };
+                reader.readAsDataURL(file); 
+                uploadText.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> 已选附件: <span class="font-bold truncate max-w-[120px]">${fileName}</span>`;
+                uploadText.className = "text-xs font-medium flex items-center gap-1.5 text-indigo-400 w-full justify-center";
+                uploadZone.className = "w-full bg-indigo-500/10 border border-indigo-500/50 rounded-xl px-4 py-2.5 flex flex-col items-center justify-center cursor-pointer transition-colors h-[46px]";
+            }
+        }
+
+        window.resetUploadZone = function() {
+            document.getElementById('real-file-upload').value = '';
+            currentUploadedFileData = null; 
+            document.getElementById('upload-text').innerHTML = `<svg id="upload-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg> 点击选择参考附件...`;
+            document.getElementById('upload-text').className = "text-xs font-medium flex items-center gap-2 text-zinc-500";
+            document.getElementById('upload-zone').className = "w-full bg-[#09090b] border border-zinc-700 border-dashed rounded-xl px-4 py-2.5 flex flex-col items-center justify-center cursor-pointer hover:border-indigo-500 transition-colors h-[46px]";
+        }
+
+        window.getFileNameFromUI = function() {
+            const uploadTextEl = document.getElementById('upload-text');
+            if(uploadTextEl && uploadTextEl.innerText.includes('已选附件:')) { return uploadTextEl.innerText.split('已选附件:')[1].trim(); }
+            return '';
+        }
+
+        window.showToast = function(title, desc, type = 'success') {
+            const toast = document.getElementById('action-toast');
+            document.getElementById('toast-title').innerText = title;
+            document.getElementById('toast-desc').innerText = desc;
+            const icon = document.getElementById('toast-icon');
+            if(type === 'info') {
+                icon.className = "w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0";
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+            } else if(type === 'error') {
+                icon.className = "w-8 h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0";
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+            } else {
+                icon.className = "w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0";
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+            }
+            toast.classList.remove('hidden');
+            setTimeout(() => { toast.classList.add('hidden'); }, 3000);
+        }
+
+        window.markAllAsRead = function(event) {
+            if(event) event.stopPropagation();
+            const bellDot = document.getElementById('bell-dot');
+            if (bellDot) { bellDot.classList.remove('bg-rose-500', 'animate-pulse', 'border-[#141417]'); bellDot.classList.add('bg-zinc-600', 'border-transparent', 'hidden'); }
+            window.showToast('消息已清空', '所有未读消息已成功标记为已读。', 'info');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if(!initRBAC()) return;
+            window.renderAssignees();
+
+            const idBtn = document.getElementById('identityBtn');
+            const idMenu = document.getElementById('identityMenu');
+            if(idBtn && idMenu) idBtn.addEventListener('click', (e) => { e.stopPropagation(); idMenu.classList.toggle('hidden'); });
+            
+            const notifBtn = document.getElementById('notifBtn');
+            const notifMenu = document.getElementById('notifMenu');
+            if(notifBtn && notifMenu) notifBtn.addEventListener('click', (e) => { e.stopPropagation(); notifMenu.classList.toggle('hidden'); });
+            
+            document.addEventListener('click', (e) => { 
+                if(idMenu && !idMenu.contains(e.target)) idMenu.classList.add('hidden'); 
+                if(notifMenu && !notifMenu.contains(e.target)) notifMenu.classList.add('hidden'); 
+                
+                const projWrap = document.getElementById('project-wrapper');
+                const projDrop = document.getElementById('project-dropdown');
+                if (projWrap && projDrop && !projWrap.contains(e.target)) projDrop.classList.add('hidden');
+                
+                const assWrap = document.getElementById('assignee-wrapper');
+                const assDrop = document.getElementById('assignee-dropdown');
+                if (assWrap && assDrop && !assWrap.contains(e.target)) assDrop.classList.add('hidden');
+            });
+        });
+
     </script>
 </body>
 </html>
