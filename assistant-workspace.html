@@ -28,16 +28,9 @@
         .toast-slide-in { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-        /* 同色系呼吸灯防漏 */
-        @keyframes pulse-sky { 50% { box-shadow: inset 0 0 0 1px rgba(56,189,248,0.4), 0 0 20px rgba(56,189,248,0.2); } }
-        @keyframes pulse-amber { 50% { box-shadow: inset 0 0 0 1px rgba(251,191,36,0.4), 0 0 20px rgba(251,191,36,0.2); } }
-        @keyframes pulse-emerald { 50% { box-shadow: inset 0 0 0 1px rgba(16,185,129,0.4), 0 0 20px rgba(16,185,129,0.2); } }
-        @keyframes pulse-rose { 50% { box-shadow: inset 0 0 0 1px rgba(244,63,94,0.4), 0 0 20px rgba(244,63,94,0.2); } }
-        
-        .breathe-sky { animation: pulse-sky 2s infinite ease-in-out; border-color: rgba(56,189,248,0.6) !important; }
-        .breathe-amber { animation: pulse-amber 2s infinite ease-in-out; border-color: rgba(251,191,36,0.6) !important; }
-        .breathe-emerald { animation: pulse-emerald 2s infinite ease-in-out; border-color: rgba(16,185,129,0.6) !important; }
-        .breathe-rose { animation: pulse-rose 2s infinite ease-in-out; border-color: rgba(244,63,94,0.6) !important; }
+        /* 💡 强制红色预警呼吸灯 (不再有杂色) */
+        @keyframes pulse-rose { 50% { box-shadow: inset 0 0 0 1px rgba(244,63,94,0.6), 0 0 20px rgba(244,63,94,0.3); } }
+        .breathe-rose { animation: pulse-rose 2s infinite ease-in-out; border-color: rgba(244,63,94,0.8) !important; }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-orange-500/30 text-zinc-300">
@@ -197,10 +190,10 @@
             <div class="flex-1 min-w-[280px] max-w-[360px] flex flex-col kanban-column">
                 <div class="flex items-center justify-between mb-4 px-2">
                     <h3 class="text-[13px] font-bold text-zinc-400 flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full bg-zinc-500"></span> 审核挂起中
+                        <span class="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]"></span> 审核挂起中
                     </h3>
                 </div>
-                <div class="flex-1 bg-[#121217]/30 border border-white/5 rounded-2xl p-3 overflow-y-auto custom-scrollbar space-y-3 opacity-80" id="lane-blocked">
+                <div class="flex-1 bg-[#121217]/30 border border-white/5 rounded-2xl p-3 overflow-y-auto custom-scrollbar space-y-3 opacity-90" id="lane-blocked">
                 </div>
             </div>
             
@@ -282,6 +275,8 @@
         import { supabase } from './supabase-config.js';
         window.supabase = supabase;
         window.DB_TABLE = 'test_tasks'; // 保证设计看板查的也是 test_tasks 表！
+        // 🚀 性能优化核心：列表轻量化查询
+        window.LIGHT_FIELDS = 'id, title, status, project, due_date, creator, created_at, summary_desc, assignee';
         
         if(window.loadTasksFromCloud) window.loadTasksFromCloud();
     </script>
@@ -297,9 +292,7 @@
 
         function updateGreeting(user) {
             const hour = new Date().getHours();
-            let timeStr = '晚上好';
-            if (hour >= 5 && hour < 12) timeStr = '上午好';
-            else if (hour >= 12 && hour < 18) timeStr = '下午好';
+            let timeStr = (hour < 5) ? '凌晨好' : (hour < 12) ? '上午好' : (hour < 18 ? '下午好' : '晚上好');
             const display = user.displayName || user.cnName || user.enName;
             document.getElementById('header-greeting').innerHTML = `${timeStr}，${display}。 <span class="bg-orange-500/20 text-orange-400 text-[11px] px-2.5 py-0.5 rounded-lg border border-orange-500/30 ml-2">设计看板</span>`;
         }
@@ -318,12 +311,12 @@
 
             const avatarEl = document.getElementById('sidebar-avatar');
             if(avatarEl) { avatarEl.innerText = user.avatar; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-orange-600'} border border-white/20 flex items-center justify-center text-white font-bold text-sm shadow-lg`; }
-            if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName;
+            if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.cnName || user.enName;
             
             updateGreeting(user);
 
             // 💡 清空测试数据按钮白名单
-            const testUsers = ['ponyxu', 'davidxxu', 'yoshyliu', '小戴维斯'];
+            const testUsers = ['ponyxu', 'davidxxu', 'yoshyliu', 'judyzzhang', '小戴维斯'];
             const isTestUser = testUsers.includes(enName) || testUsers.includes(user.displayName) || testUsers.includes(user.cnName);
             if(isTestUser) {
                 const clrBtn = document.getElementById('clear-db-btn');
@@ -377,8 +370,10 @@
             
             const userStr = localStorage.getItem('activeUserObj');
             const currentUserEn = userStr ? JSON.parse(userStr).enName.toLowerCase() : '';
+            const isJudy = currentUserEn === 'judyzzhang';
 
-            const { data, error } = await window.supabase.from(window.DB_TABLE).select('*').order('created_at', { ascending: false });
+            // 💡 性能优化：只查询轻量字段，极速秒开
+            const { data, error } = await window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS).order('created_at', { ascending: false });
             if(error) return console.error(error);
 
             const pendingLane = document.getElementById('lane-pending');
@@ -395,22 +390,23 @@
 
             data.forEach(task => {
                 const taskAssignee = task.assignee ? task.assignee.toLowerCase() : 'none';
+                
+                // 💡 权限与隐私控制
                 const isForMe = (taskAssignee === 'none' || taskAssignee === currentUserEn);
+                // 只有属于自己的任务，或者 Judy 处于待审批状态的任务，才会在看板显示
+                if (!isForMe && !(isJudy && task.status === 'pending_approval')) return; 
 
-                if (!isForMe) return; 
-
-                // 💡 提取统一的临期判定 (<= 2天)
+                // 💡 提取统一的临期判定 (<= 2天 红色警戒)
                 let isUrgent = false;
                 if (task.due_date && task.status !== 'completed' && task.status !== 'archived') {
                     const due = new Date(task.due_date);
                     const today = new Date();
-                    due.setHours(0,0,0,0);
-                    today.setHours(0,0,0,0);
+                    due.setHours(0,0,0,0); today.setHours(0,0,0,0);
                     const diffDays = (due - today) / (1000 * 60 * 60 * 24);
                     if (diffDays <= 2 && diffDays >= -999) isUrgent = true;
                 }
 
-                if(task.status !== 'completed' && task.status !== 'archived') {
+                if(task.status !== 'completed' && task.status !== 'archived' && isForMe) {
                     myTaskCount++;
                 }
 
@@ -418,7 +414,7 @@
                 if (task.status === 'pending' || task.status === 'pending_accept') {
                     let alertBadge = isUrgent ? `<div class="absolute top-0 right-0 bg-rose-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl shadow-lg flex items-center gap-1 z-10"><span class="w-1.5 h-1.5 bg-white rounded-full animate-ping"></span> 临期预警</div>` : '';
                     let breatheClass = isUrgent ? 'breathe-rose' : '';
-                    let cardBorder = isUrgent ? 'border-rose-500/60' : 'border-sky-500/30 hover:border-sky-500/60';
+                    let cardBorder = isUrgent ? 'border-rose-500/80' : 'border-sky-500/30 hover:border-sky-500/60';
 
                     const cardHTML = `
                         <div class="bg-[#18181b] border ${cardBorder} rounded-xl p-4 kanban-card flex flex-col relative overflow-hidden group cursor-pointer ${breatheClass}" onclick="window.location.href='assistant-task-new.html'">
@@ -429,7 +425,7 @@
                                 <span class="text-[10px] text-zinc-500">${task.status === 'pending' ? '统筹池公海单' : '主管定向派发'}</span>
                             </div>
                             <h4 class="text-[14px] font-bold text-zinc-100 mb-1.5 pl-1 leading-snug relative z-10">${task.title}</h4>
-                            <p class="text-[11px] text-zinc-400 line-clamp-2 mb-3 pl-1 relative z-10">${task.full_desc || ''}</p>
+                            <p class="text-[11px] text-zinc-400 line-clamp-2 mb-3 pl-1 relative z-10">${task.summary_desc || '请尽快接单并排期'}</p>
                             
                             <div class="mt-auto border-t border-white/5 pt-3 pl-1 flex gap-2 relative z-10">
                                 <button onclick="event.stopPropagation(); window.location.href='assistant-task-new.html'" class="flex-1 bg-sky-600 hover:bg-sky-500 text-white rounded-lg py-2 text-[11px] font-bold btn-press transition-colors shadow-[0_4px_12px_rgba(56,189,248,0.25)]">去接单并上传框架</button>
@@ -444,7 +440,7 @@
                 else if (task.status === 'processing') {
                     let alertBadge = isUrgent ? `<div class="absolute top-0 right-0 bg-rose-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl shadow-lg flex items-center gap-1 z-10"><span class="w-1.5 h-1.5 bg-white rounded-full animate-ping"></span> 临期预警</div>` : '';
                     let breatheClass = isUrgent ? 'breathe-rose' : '';
-                    let cardBorder = isUrgent ? 'border-rose-500/60' : 'border-orange-500/30 hover:border-orange-500/60';
+                    let cardBorder = isUrgent ? 'border-rose-500/80' : 'border-orange-500/30 hover:border-orange-500/60';
 
                     const cardHTML = `
                         <div class="bg-[#18181b] border ${cardBorder} rounded-xl p-4 kanban-card flex flex-col relative overflow-hidden group cursor-pointer ${breatheClass}" onclick="window.location.href='assistant-task-processing.html'">
@@ -470,7 +466,13 @@
                 else if (task.status === 'pending_approval') {
                     let alertBadge = isUrgent ? `<div class="absolute top-0 right-0 bg-rose-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl shadow-lg flex items-center gap-1 z-10"><span class="w-1.5 h-1.5 bg-white rounded-full animate-ping"></span> 临期预警</div>` : '';
                     let breatheClass = isUrgent ? 'breathe-rose' : '';
-                    let cardBorder = isUrgent ? 'border-rose-500/60' : 'border-amber-500/30 hover:border-amber-500/60';
+                    let cardBorder = isUrgent ? 'border-rose-500/80' : 'border-amber-500/30 hover:border-amber-500/60';
+
+                    // 💡 Judy 的专属操作按钮
+                    let actionBtn = `<button onclick="event.stopPropagation(); showToast('已发送', '已催促主管审批', 'info')" class="w-full bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/20 rounded-lg py-2 text-[11px] font-bold btn-press transition-colors">催促主管审批</button>`;
+                    if(isJudy) {
+                        actionBtn = `<button onclick="event.stopPropagation(); window.location.href='assistant-task-locked.html'" class="w-full bg-amber-600 hover:bg-amber-500 text-white shadow-[0_4px_12px_rgba(245,158,11,0.25)] rounded-lg py-2 text-[11px] font-bold btn-press transition-colors">去审批框架方案</button>`;
+                    }
 
                     const cardHTML = `
                         <div class="bg-[#16161d] border ${cardBorder} rounded-xl p-4 flex flex-col cursor-pointer kanban-card relative overflow-hidden ${breatheClass}" onclick="window.location.href='assistant-task-locked.html'">
@@ -481,10 +483,10 @@
                                 <span class="text-[10px] text-amber-500 flex items-center gap-1 font-bold"><svg class="animate-spin h-2.5 w-2.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 领导审批中</span>
                             </div>
                             <h4 class="text-[14px] font-bold text-zinc-400 mb-1.5 pl-1 leading-snug line-through decoration-zinc-600 relative z-10">${task.title}</h4>
-                            <p class="text-[11px] text-zinc-500 mb-3 pl-1 relative z-10">您已提交前期草图。系统防偏离锁定中，等待审核。</p>
+                            <p class="text-[11px] text-zinc-500 mb-3 pl-1 relative z-10">${isJudy ? '设计师已提交框架草图，请您审批。' : '您已提交前期草图，等待主管审批。'}</p>
                             
                             <div class="mt-auto border-t border-white/5 pt-3 pl-1 relative z-10 flex">
-                                <button onclick="event.stopPropagation(); showToast('已发送', '已催促主管审批', 'info')" class="w-full bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/20 rounded-lg py-2 text-[11px] font-bold btn-press transition-colors">催促主管审批</button>
+                                ${actionBtn}
                             </div>
                         </div>
                     `;
@@ -495,7 +497,7 @@
                 else if (task.status === 'reviewing') {
                     let alertBadge = isUrgent ? `<div class="absolute top-0 right-0 bg-rose-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl shadow-lg flex items-center gap-1 z-10"><span class="w-1.5 h-1.5 bg-white rounded-full animate-ping"></span> 临期预警</div>` : '';
                     let breatheClass = isUrgent ? 'breathe-rose' : '';
-                    let cardBorder = isUrgent ? 'border-rose-500/60' : 'border-emerald-500/30 hover:border-emerald-500/60';
+                    let cardBorder = isUrgent ? 'border-rose-500/80' : 'border-emerald-500/30 hover:border-emerald-500/60';
 
                     const cardHTML = `
                         <div class="bg-[#18181b] border ${cardBorder} rounded-xl p-4 kanban-card flex flex-col relative overflow-hidden group cursor-pointer ${breatheClass}" onclick="window.location.href='assistant-task-locked.html'">
@@ -517,18 +519,10 @@
                 }
             });
 
-            if (pendingLane.innerHTML.trim() === '') {
-                pendingLane.innerHTML = `<div class="text-center py-6 text-zinc-600 text-[11px]">暂无待排期任务</div>`;
-            }
-            if (processingLane.innerHTML.trim() === '') {
-                processingLane.innerHTML = `<div class="text-center py-6 text-zinc-600 text-[11px]">暂无制作中任务</div>`;
-            }
-            if (blockedLane.innerHTML.trim() === '') {
-                blockedLane.innerHTML = `<div class="text-center py-6 text-zinc-600 text-[11px]">暂无审核挂起任务</div>`;
-            }
-            if (reviewLane.innerHTML.trim() === '') {
-                reviewLane.innerHTML = `<div class="text-center py-6 text-zinc-600 text-[11px]">暂无待验收任务</div>`;
-            }
+            if (pendingLane.innerHTML.trim() === '') pendingLane.innerHTML = `<div class="text-center py-6 text-zinc-600 text-[11px]">暂无待排期任务</div>`;
+            if (processingLane.innerHTML.trim() === '') processingLane.innerHTML = `<div class="text-center py-6 text-zinc-600 text-[11px]">暂无制作中任务</div>`;
+            if (blockedLane.innerHTML.trim() === '') blockedLane.innerHTML = `<div class="text-center py-6 text-zinc-600 text-[11px]">暂无审核挂起任务</div>`;
+            if (reviewLane.innerHTML.trim() === '') reviewLane.innerHTML = `<div class="text-center py-6 text-zinc-600 text-[11px]">暂无待验收任务</div>`;
 
             document.getElementById('dashboard-tasks-count').innerHTML = `${myTaskCount} <span class="text-[11px] text-zinc-600 font-normal ml-1">单</span>`;
         }
@@ -541,7 +535,7 @@
             document.addEventListener('click', (e) => { if(idMenu && !idMenu.contains(e.target)) idMenu.classList.add('hidden'); });
         });
 
-        // ================= 转单功能写入云端 =================
+        // ================= 转单功能乐观更新 =================
         const modalOverlay = document.getElementById('transfer-modal-overlay');
         const modal = document.getElementById('transfer-modal');
         let currentTransferTaskId = null;
@@ -575,7 +569,7 @@
             closeTransferModal(); 
             showToast('转单成功', '任务已退回统筹池等待重新分配', 'success');
             
-            // 乐观重载
+            // 💡 乐观重载看板
             setTimeout(async () => { await loadTasksFromCloud(); }, 300);
         }
 
