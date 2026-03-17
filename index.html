@@ -476,6 +476,15 @@
             if(fileList.length > 0) {
                 let file = fileList[0];
                 let fileName = file.name;
+                
+                // ⚠️ 核心修复：附件防爆机制 (限制最大2.5MB)
+                const maxSize = 2.5 * 1024 * 1024;
+                if (file.size > maxSize) {
+                    alert("⚠️ 附件体积过大！\n\n您选择的文件超过了 2.5MB。由于当前系统暂未接入云端图床，大文件将导致浏览器存储崩溃（如您截图所遇错误）。\n\n建议您：\n1. 压缩图片后再上传\n2. 或者将源文件传至腾讯文档，在上方【需求参考链接】处提供 URL。");
+                    document.getElementById('real-file-upload').value = ''; // 清空
+                    return;
+                }
+
                 const reader = new FileReader();
                 reader.onload = function(e) { currentUploadedFileData = e.target.result; };
                 reader.readAsDataURL(file); 
@@ -695,6 +704,7 @@
                 const spinner = document.getElementById('loading-spinner');
                 if(spinner) spinner.classList.add('hidden');
             } catch (e) {
+                // 💡 修复：即使本地缓存满，也能安全提示
                 draftData.fileData = null;
                 draftData.fileName = draftData.fileName ? draftData.fileName + " (因体积过大暂存未包含)" : "";
                 try {
@@ -705,7 +715,7 @@
                     const spinner = document.getElementById('loading-spinner');
                     if(spinner) spinner.classList.add('hidden');
                 } catch (err) {
-                    alert("【存储失败】浏览器本地存储空间已满。");
+                    alert("【存储失败】浏览器本地存储空间已满。清理空间后重试。");
                 }
             }
         }
@@ -770,19 +780,18 @@
             }
         }
 
-        // ================= 💡 核心：带有路由大脑的状态UI工厂引擎 (已重构) =================
         function createTaskHTML(task, currentUser) {
             const creator = task.creator || '';
             const currentUserEn = currentUser.enName ? currentUser.enName.toLowerCase() : '';
             const isOwner = creator === currentUser.displayName || creator === currentUser.cnName || creator === currentUser.enName;
             
             let isJudy = currentUserEn === 'judyzzhang';
-            let isSuperAdmin = currentUserEn === 'davidxxu';
+            let isSuperAdmin = currentUserEn === 'davidxxu'; 
             
             if(!isOwner && !(isJudy && task.status === 'pending_approval') && !isSuperAdmin) return null;
 
             let sColor, sText;
-            let targetUrl = `task-detail-requester.html?id=${task.id}`;
+            let targetUrl = `task-detail-requester.html?id=${task.id}`; 
             let isUrgent = false;
 
             if(task.due_date && !['completed','archived','terminated'].includes(task.status)) {
@@ -987,11 +996,12 @@
             const newId = 'TEST-' + nextNum.toString().padStart(3, '0');
 
             const user = JSON.parse(localStorage.getItem('activeUserObj'));
+            
+            // ⚠️ 核心修复：已被注释的 reject_count，请在 Supabase 后台建好字段后再解开注释！
             const taskData = {
                 id: newId, title: shortTitle, full_desc: fullDesc, summary_desc: finalDesc, project: projectVal,
                 due_date: dateInput, assignee: assigneeVal, link: linkInput, channels: selectedChannels,
                 file_name: window.getFileNameFromUI(), file_data: currentUploadedFileData, status: finalStatus, creator: user.displayName || user.cnName || user.enName,
-                // 💡 修复：临时注释掉报错的字段，直到你在 Supabase 中添加了该字段为止
                 // reject_count: 0 
             };
 
@@ -1000,7 +1010,13 @@
             btn.innerText = originalText;
             btn.disabled = false;
 
-            if (error) return alert("云端写入失败: " + error.message);
+            if (error) {
+                // 打印出更直观的错误，如果是找不到 reject_count，就明确告诉用户。
+                if (error.message.includes("reject_count")) {
+                    return alert("云端写入失败！请进入 Supabase 后台的 test_tasks 表，新建一列名为 reject_count，类型为 int4，默认值为 0 的字段。");
+                }
+                return alert("云端写入失败: " + error.message);
+            }
 
             localStorage.removeItem('myDraftTask');
             
