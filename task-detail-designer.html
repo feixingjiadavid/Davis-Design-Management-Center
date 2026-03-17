@@ -111,7 +111,7 @@
                         </div>
                     </div>
 
-                    <div id="approved-framework-block" class="hidden bg-[#121217] border border-emerald-500/30 rounded-2xl p-8 relative overflow-hidden shadow-2xl">
+                    <div id="approved-framework-block" class="hidden bg-[#121217] border border-emerald-500/30 rounded-2xl p-8 relative overflow-hidden shadow-lg">
                         <div class="absolute right-0 top-0 bg-emerald-500/10 text-emerald-500 text-[10px] font-bold px-3 py-1 rounded-bl-xl border-b border-l border-emerald-500/20">领导已批复框架</div>
                         <h3 class="text-[15px] font-bold text-white mb-4 flex items-center gap-2">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-emerald-500"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> 
@@ -166,15 +166,17 @@
                         </div>
                     </div>
 
-                    <div id="locked-waiting-area" class="hidden">
-                        <div class="bg-[#121217] border border-white/5 rounded-2xl p-12 flex flex-col items-center justify-center text-center shadow-inner">
-                            <div class="w-20 h-20 rounded-full bg-zinc-800/50 flex items-center justify-center mb-6">
-                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-400"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                            </div>
-                            <h3 class="text-xl font-bold text-white mb-3">任务已锁定防穿透</h3>
-                            <p class="text-[13px] text-zinc-400 max-w-md leading-relaxed" id="locked-desc-text">
-                                您已将方案提交，目前正在甲方或领导审批流转中。<br>为防止数据冲突，系统已暂时冻结您的上传权限。
-                            </p>
+                    <div id="readonly-preview-area" class="hidden bg-[#121217] border border-white/5 rounded-2xl p-8 relative overflow-hidden shadow-2xl">
+                        <h3 class="text-[15px] font-bold text-white mb-4 flex items-center gap-2" id="readonly-preview-title">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                            当前提交方案预览
+                        </h3>
+                        <div class="w-full aspect-[16/9] bg-[#09090b] rounded-xl border border-white/10 overflow-hidden relative shadow-inner p-2 flex items-center justify-center">
+                            <img id="readonly-preview-img" src="" class="max-w-full max-h-full object-contain cursor-pointer transition-transform hover:scale-[1.02]" onclick="openPreview(this.src)" title="点击全屏查看">
+                        </div>
+                        <div class="mt-4 bg-white/5 border border-white/10 rounded-xl p-4">
+                            <p class="text-[12px] font-bold text-zinc-400 mb-1">📝 交付说明：</p>
+                            <p class="text-[12px] text-zinc-200 leading-relaxed whitespace-pre-wrap" id="readonly-preview-desc">--</p>
                         </div>
                     </div>
 
@@ -231,7 +233,7 @@
 
     <div id="image-preview-modal" onclick="closePreview()">
         <div class="w-full h-full flex items-center justify-center relative p-8">
-            <button onclick="closePreview()" class="absolute top-8 right-8 text-white/50 hover:text-white bg-white/10 hover:bg-rose-500 rounded-full p-2 btn-press z-50">
+            <button onclick="closePreview()" class="absolute top-8 right-8 text-white/50 hover:text-white bg-white/10 hover:bg-rose-500 rounded-full p-2 transition-all btn-press z-50">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
             <img id="modal-image" src="" alt="全屏预览图" class="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-[0_0_50px_rgba(0,0,0,0.8)]" onclick="event.stopPropagation()">
@@ -279,7 +281,7 @@
         let globalTaskData = null;
         let globalHistoryArr = [];
         let currentUser = null;
-        let currentUploadPhase = 'framework'; // framework 或 draft
+        let currentUploadPhase = 'framework'; 
         let localPreviewUrl = null;
         let tempFileBlob = null; 
 
@@ -289,7 +291,6 @@
             currentUser = JSON.parse(userStr);
             document.getElementById('sidebar-avatar').innerText = currentUser.avatar || '?';
             
-            // 💡 修复：非法访问跳回正确看板
             if(!currentTaskId) { alert("非法访问：未找到需求单号！"); window.location.href = 'assistant-workspace.html'; return; }
 
             const checkAndLoad = setInterval(() => {
@@ -301,7 +302,6 @@
         async function fetchTaskData() {
             try {
                 const { data, error } = await window.supabase.from(window.DB_TABLE).select('*').eq('id', currentTaskId).single();
-                // 💡 修复：报错后跳回正确看板
                 if(error || !data) { alert("需求不存在或已删除！"); window.location.href = 'assistant-workspace.html'; return; }
                 
                 globalTaskData = data;
@@ -314,7 +314,6 @@
             } catch(e) { console.error(e); showToast("数据加载失败", e.message, "error"); }
         }
 
-        // 渲染基础信息（左上常驻区）
         function renderStaticInfo() {
             const d = globalTaskData;
             safeSetTxt('req-id', d.id || '--');
@@ -332,7 +331,7 @@
 
             if(d.link) {
                 document.getElementById('dt-link-container').classList.remove('hidden');
-                document.getElementById('dt-link').innerHTML = `<a href="${d.link}" target="_blank">${d.link}</a>`;
+                document.getElementById('dt-link').innerHTML = `<a href="${d.link}" target="_blank" class="text-sky-400 hover:underline break-all">${d.link}</a>`;
             }
             if(d.file_name && d.file_data) {
                 document.getElementById('attachment-container').innerHTML = `<button onclick="window.downloadAttachment('${d.file_name}', '${d.file_data}')" class="mt-4 text-[11px] bg-white/5 text-indigo-300 px-3 py-1.5 rounded-lg border border-white/10 hover:bg-white/10 flex items-center gap-1.5 btn-press"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg> 下载甲方源文件：${d.file_name}</button>`;
@@ -343,7 +342,7 @@
             const a = document.createElement('a'); a.href = dataBase64; a.download = name; a.click();
         }
 
-        // 💡 智能判断渲染设计面板
+        // 💡 智能判断渲染设计面板 (移除黑屏锁，开放全览只读)
         function renderSmartDesignerPanel() {
             const status = globalTaskData.status;
             const hBadge = document.getElementById('header-status-badge');
@@ -351,7 +350,7 @@
             const dGlow = document.getElementById('dynamic-glow');
             
             const upArea = document.getElementById('designer-upload-area');
-            const lockArea = document.getElementById('locked-waiting-area');
+            const readonlyArea = document.getElementById('readonly-preview-area');
             const fbBlock = document.getElementById('reject-feedback-block');
             const frBlock = document.getElementById('approved-framework-block');
 
@@ -367,6 +366,9 @@
             let approvedFrameworkImg = null;
             let leaderApprovedNotes = '直接通过';
 
+            // 倒序寻找各类最新信息
+            let latestImg = '';
+            let latestDesc = '未填写说明';
             for(let i = globalHistoryArr.length - 1; i >= 0; i--) {
                 const h = globalHistoryArr[i];
                 if(h.is_rejected) {
@@ -374,13 +376,17 @@
                 }
                 if(h.action === 'submit_framework' && h.img_url && !approvedFrameworkImg) approvedFrameworkImg = h.img_url;
                 if(h.reply_by && h.reply_by.includes('领导') && !h.is_rejected && h.reply) leaderApprovedNotes = h.reply;
+                if(!latestImg && h.img_url) {
+                    latestImg = h.img_url;
+                    latestDesc = h.desc || '未填写说明';
+                }
             }
 
             if (status === 'pending' || status === 'pending_accept') {
                 sCol = 'sky'; sText = '需求待评估接单';
                 sIcon = `<svg class="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
                 
-                upArea.classList.add('hidden'); lockArea.classList.add('hidden');
+                upArea.classList.add('hidden'); readonlyArea.classList.add('hidden');
                 
                 pnlClasses = 'bg-gradient-to-b from-[#0a1e29] to-[#121217] border border-sky-500/30 rounded-3xl p-7 shadow-[0_20px_40px_-10px_rgba(56,189,248,0.15)] relative overflow-hidden';
                 pnlHtml = `
@@ -399,7 +405,6 @@
             
             } else if (status === 'processing' || status === 'rejected') {
                 const isReject = status === 'rejected';
-                
                 let hasLeaderApproved = false;
                 for(let i = globalHistoryArr.length - 1; i >= 0; i--) {
                     if(globalHistoryArr[i].reply_by && globalHistoryArr[i].reply_by.includes('领导') && !globalHistoryArr[i].is_rejected) hasLeaderApproved = true;
@@ -415,7 +420,7 @@
                 sText = isReject ? '根据打回意见修改中' : (currentUploadPhase === 'draft' ? '绘制最终正式稿中' : '绘制初版框架中');
                 sIcon = isReject ? `<svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>` : `<svg class="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
 
-                upArea.classList.remove('hidden'); lockArea.classList.add('hidden');
+                upArea.classList.remove('hidden'); readonlyArea.classList.add('hidden');
                 
                 if (isReject) {
                     fbBlock.classList.remove('hidden');
@@ -443,7 +448,6 @@
 
                 pnlClasses = `bg-gradient-to-b from-[#1a110a] to-[#121217] border border-${sCol}-500/30 rounded-3xl p-7 shadow-[0_20px_40px_-10px_rgba(var(--tw-colors-${sCol}-500),0.15)] relative overflow-hidden`;
                 
-                // 💡 修复：按照要求添加 AI 手填框
                 pnlHtml = `
                     <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-${sCol}-500"></div>
                     <h3 class="text-[16px] font-bold text-white mb-6 border-b border-white/5 pb-4">效能填报记录</h3>
@@ -473,22 +477,28 @@
                 `;
 
             } else if (status === 'pending_approval' || status === 'reviewing') {
+                // 💡 核心修复：移除黑屏锁，开放只读预览
                 sCol = 'emerald'; 
-                sText = status === 'pending_approval' ? '锁定：主管审批框架中' : '锁定：甲方验收正稿中';
+                sText = status === 'pending_approval' ? '待主管审批框架' : '待甲方验收正稿';
                 sIcon = `<svg class="animate-pulse h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" stroke="currentColor" d="M5 13l4 4L19 7"></path></svg>`;
                 
                 upArea.classList.add('hidden'); 
-                lockArea.classList.remove('hidden');
-                document.getElementById('locked-desc-text').innerHTML = status === 'pending_approval' 
-                    ? `框架方案已推送给领导审批，请耐心等待。<br>如果领导打回，上传权限将自动解锁重新开放。`
-                    : `最终正稿已交付至需求发起人。<br>如果甲方不满意打回，您可以继续修改上传新版本。`;
+                readonlyArea.classList.remove('hidden'); // 显示只读预览
+                
+                document.getElementById('readonly-preview-img').src = latestImg || globalTaskData.design_img_url;
+                document.getElementById('readonly-preview-desc').innerText = latestDesc;
+                document.getElementById('readonly-preview-title').innerHTML = status === 'pending_approval'
+                    ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg> 等待领导审批的框架预览`
+                    : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg> 等待甲方验收的正稿预览`;
 
                 pnlClasses = 'bg-[#18181b] border border-zinc-700 rounded-3xl p-7 shadow-2xl relative overflow-hidden';
                 pnlHtml = `
                     <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-zinc-500"></div>
-                    <div class="w-12 h-12 bg-zinc-800 rounded-full flex items-center justify-center mb-5 text-zinc-400"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div>
-                    <h3 class="text-[16px] font-bold text-white mb-3">系统防穿透锁定激活</h3>
-                    <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">为避免版本冲突覆盖，当前单据已临时锁定。您可以先处理看板里的其他任务。</p>
+                    <div class="w-12 h-12 bg-zinc-800 rounded-full flex items-center justify-center mb-5 text-zinc-400"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></div>
+                    <h3 class="text-[16px] font-bold text-white mb-3">方案流转审核中</h3>
+                    <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">
+                        您已提交方案，目前正在${status === 'pending_approval' ? '领导' : '甲方'}端进行审核/验收。<br>此时不可修改，您可以先欣赏自己的大作或处理其他任务。如果对方不满意打回，您可以继续修改并上传新版本。
+                    </p>
                     <button onclick="window.location.href='assistant-workspace.html'" class="w-full py-3.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-[13px] font-bold transition-all btn-press">返回看板看其他单</button>
                 `;
 
@@ -496,13 +506,18 @@
                 sCol = status==='terminated'?'rose':'zinc'; sText = status==='terminated'?'已强行终止 (废弃)':'任务已圆满结项';
                 sIcon = status==='terminated'?`<svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`:`<svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
                 
-                upArea.classList.add('hidden'); lockArea.classList.add('hidden');
+                upArea.classList.add('hidden'); 
+                readonlyArea.classList.remove('hidden'); // 完结状态也显示只读预览
+
+                document.getElementById('readonly-preview-img').src = latestImg || globalTaskData.design_img_url;
+                document.getElementById('readonly-preview-desc').innerText = latestDesc;
+                document.getElementById('readonly-preview-title').innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg> 最终留档方案`;
                 
                 pnlClasses = 'bg-[#121217] border border-white/10 rounded-3xl p-7 shadow-xl relative overflow-hidden opacity-80';
                 pnlHtml = `
                     <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-${sCol}-500"></div>
                     <h3 class="text-[16px] font-bold text-white mb-3">${sText}</h3>
-                    <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">该需求在此刻已永久封存闭环，感谢你的设计输出。相关的资产可前往资产库查阅。</p>
+                    <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">该需求在此刻已永久封存闭环，感谢你的设计输出。左侧为您最终保留的设计大作。</p>
                     <button onclick="window.location.href='assistant-workspace.html'" class="w-full py-3.5 bg-[#1a1a24] border border-zinc-700 text-zinc-400 hover:bg-zinc-800 hover:text-white rounded-xl text-[13px] font-bold transition-all btn-press">回到工作台</button>
                 `;
             }
@@ -645,7 +660,6 @@
                 if (error) { btn.disabled = false; btn.innerText = "保存排期并接单"; return alert("云端更新失败：" + error.message); }
             }
             closeActionModals(); showToast('✅ 接单成功', '任务已分配给您并进入制作池。', 'success');
-            // 💡 修复2：接单完成后，平滑返回看板
             setTimeout(() => { window.location.href = 'assistant-workspace.html'; }, 1000);
         }
 
@@ -656,7 +670,7 @@
             btn.disabled = true; btn.innerText = "退回中...";
 
             if (window.supabase) {
-                const summary = `需求被退回大厅重提：${reason}`;
+                const summary = `需求被执行层退回大厅重提：${reason}`;
                 
                 let hist = [...globalHistoryArr];
                 hist.push({
@@ -670,7 +684,7 @@
                 if (error) { btn.disabled = false; btn.innerText = "确认退回"; return alert("云端更新失败：" + error.message); }
             }
             closeActionModals(); showToast('已退回', '该需求已退回给甲方。', 'info');
-            setTimeout(() => { window.location.href = 'assistant-workspace.html'; }, 1000);
+            setTimeout(() => { window.location.href = 'manager-workspace.html'; }, 1000);
         }
 
         // 🚀 终极防崩上传流
@@ -719,12 +733,9 @@
                 }
             }
 
-            // 💡 修复3：收集手填 AI 工具
             const checkedAIs = Array.from(document.querySelectorAll('.ai-tool-cb:checked')).map(cb => cb.value);
             const manualAI = document.getElementById('ai-tool-manual')?.value.trim();
-            if (manualAI) {
-                checkedAIs.push(manualAI); // 将手填的工具合并进数组
-            }
+            if (manualAI) checkedAIs.push(manualAI);
 
             const newHistoryRecord = {
                 version: `v-${globalHistoryArr.length + 1}`,
