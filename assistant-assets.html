@@ -58,8 +58,8 @@
 
         <div class="px-7 py-7 mt-auto border-t border-white/5 bg-[#09090b] shrink-0">
             <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-full bg-orange-900 border border-orange-700 flex items-center justify-center text-white font-bold text-sm shadow-[0_0_10px_rgba(249,115,22,0.4)]">SK</div>
-                <div><p class="text-xs font-bold text-white mb-0.5">Skyler</p><p class="text-[10px] text-orange-400">资深视觉设计</p></div>
+                <div id="sidebar-avatar" class="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg">?</div>
+                <div><p id="sidebar-name" class="text-xs font-bold text-white mb-0.5">加载中...</p><p id="sidebar-role" class="text-[10px] text-zinc-500">读取中</p></div>
             </div>
         </div>
     </aside>
@@ -77,7 +77,7 @@
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <svg class="h-4 w-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                     </div>
-                    <input type="text" class="w-full bg-[#121217] border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm text-white placeholder-zinc-500 outline-none focus:border-orange-500 transition-colors" placeholder="搜索项目、标签...">
+                    <input type="text" id="asset-search" onkeyup="filterAssets()" class="w-full bg-[#121217] border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm text-white placeholder-zinc-500 outline-none focus:border-orange-500 transition-colors" placeholder="搜索项目、标签...">
                 </div>
 
                 <div class="w-px h-8 bg-white/10"></div>
@@ -86,25 +86,18 @@
                     <div class="relative" id="notif-wrapper">
                         <button id="notifBtn" class="w-10 h-10 rounded-xl bg-[#141417] border border-white/5 flex items-center justify-center text-zinc-400 hover:text-white transition-colors btn-press relative">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-                            <span id="bell-dot" class="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-[#141417] animate-pulse"></span>
+                            <span id="bell-dot" class="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-[#141417] animate-pulse hidden"></span>
                         </button>
                         <div id="notifMenu" class="hidden absolute right-0 top-[120%] w-[340px] bg-[#121217] border border-white/10 rounded-2xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.8)] py-3 dropdown-enter z-[9999]">
                             <div class="px-5 pb-3 border-b border-white/5 flex justify-between items-center">
                                 <h3 class="text-[14px] font-bold text-white">消息通知</h3>
-                                <button onclick="document.getElementById('notifMenu').classList.add('hidden'); document.getElementById('bell-dot').classList.add('hidden');" class="text-[11px] text-indigo-400 hover:text-indigo-300 btn-press transition-colors">全部已读</button>
+                                <button onclick="window.markAllAsRead(event)" class="text-[11px] text-indigo-400 hover:text-indigo-300 btn-press transition-colors">全部已读</button>
                             </div>
-                            <div class="max-h-[300px] overflow-y-auto custom-scrollbar">
-                                <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors relative btn-press">
-                                    <div class="absolute left-2 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-rose-500 rounded-full"></div>
-                                    <p class="text-[12px] font-bold text-white mb-1 leading-tight"><span class="text-rose-400 mr-1">[被打回]</span>TK-0810 画册排版被退回</p>
-                                    <p class="text-[11px] text-zinc-400 leading-relaxed mb-1.5">需求方 Debbie 提出了修改意见，请及时查看并更新方案。</p>
-                                    <p class="text-[10px] text-zinc-500">10 分钟前</p>
-                                </div>
-                                <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors relative btn-press opacity-60">
-                                    <p class="text-[12px] font-bold text-white mb-1 leading-tight"><span class="text-emerald-400 mr-1">[派单提醒]</span>TK-0825 新单指派</p>
-                                    <p class="text-[11px] text-zinc-400 leading-relaxed mb-1.5">文哥指派了一个新任务给你：宣传片脚本分镜梳理。</p>
-                                    <p class="text-[10px] text-zinc-500">1 小时前</p>
-                                </div>
+                            <div class="max-h-[300px] overflow-y-auto custom-scrollbar" id="notif-list-container">
+                                <div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无新消息</div>
+                            </div>
+                            <div class="pt-3 px-5 border-t border-white/5 text-center">
+                                <button onclick="window.location.href='message-center.html?role=design'" class="text-[11px] text-zinc-500 hover:text-white transition-colors btn-press">查看全部历史消息 ↗</button>
                             </div>
                         </div>
                     </div>
@@ -114,7 +107,7 @@
                             <span class="text-orange-500 font-black flex items-center gap-1.5">
                                 <span class="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span>
                             </span>
-                            设计方 (接单)
+                            设计方 (资产库)
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 ml-1"><polyline points="6 9 12 15 18 9"></polyline></svg>
                         </button>
                         <div id="identityMenu" class="hidden absolute right-0 top-[120%] w-[240px] bg-[#1a1a1f] border border-white/10 rounded-2xl shadow-2xl py-2 dropdown-enter z-[9999]">
@@ -138,62 +131,264 @@
             </div>
         </header>
 
-        <div class="flex-1 p-10 overflow-y-auto custom-scrollbar flex justify-center">
-            <div class="w-full max-w-[1400px] columns-1 md:columns-2 lg:columns-3 xl:columns-4 gap-6 space-y-6">
-                
-                <div class="asset-card bg-[#121217] rounded-2xl border border-white/5 overflow-hidden group cursor-pointer shadow-lg">
-                    <div class="aspect-[4/3] bg-zinc-900 relative overflow-hidden">
-                        <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
-                        <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
-                            <button class="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-orange-500 transition-colors" title="下载源文件"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg></button>
-                        </div>
-                    </div>
-                    <div class="p-5">
-                        <h3 class="text-[14px] font-bold text-zinc-100 mb-1">科技风发布会 KV 源文件</h3>
-                        <p class="text-[11px] text-zinc-500 mb-3">TK-0621 · 2026-02</p>
-                        <div class="flex gap-1.5 flex-wrap">
-                            <span class="text-[10px] bg-white/5 border border-white/10 px-2 py-0.5 rounded text-zinc-400">PSD</span>
-                            <span class="text-[10px] bg-white/5 border border-white/10 px-2 py-0.5 rounded text-zinc-400">3D元素</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="asset-card bg-[#121217] rounded-2xl border border-white/5 overflow-hidden group cursor-pointer shadow-lg">
-                    <div class="aspect-[3/4] bg-zinc-900 relative overflow-hidden">
-                        <img src="https://images.unsplash.com/photo-1586075010923-2dd4570fb338?q=80&w=2564&auto=format&fit=crop" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
-                        <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
-                            <button class="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-orange-500 transition-colors" title="下载源文件"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg></button>
-                        </div>
-                    </div>
-                    <div class="p-5">
-                        <h3 class="text-[14px] font-bold text-zinc-100 mb-1">企业文化画册通用排版</h3>
-                        <p class="text-[11px] text-zinc-500 mb-3">TK-0580 · 2026-01</p>
-                        <div class="flex gap-1.5 flex-wrap">
-                            <span class="text-[10px] bg-white/5 border border-white/10 px-2 py-0.5 rounded text-zinc-400">AI</span>
-                            <span class="text-[10px] bg-white/5 border border-white/10 px-2 py-0.5 rounded text-zinc-400">画册模板</span>
-                        </div>
-                    </div>
-                </div>
-
+        <div class="flex-1 p-10 overflow-y-auto custom-scrollbar flex justify-center relative">
+            
+            <div id="assets-loading" class="absolute inset-0 bg-[#0c0c0e]/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center">
+                <svg class="animate-spin h-8 w-8 text-orange-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                <p class="text-xs text-zinc-500 font-bold tracking-widest uppercase">SYNCING ASSETS...</p>
             </div>
+
+            <div id="emptyState" class="hidden flex-col items-center justify-center py-24 opacity-50 w-full h-full">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-zinc-500 mb-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                <p class="text-[14px] font-medium text-zinc-400">尚未发现任何完结的设计资产</p>
+                <p class="text-[11px] text-zinc-500 mt-2">当需求被验收完结后，作品会自动收录在此处</p>
+            </div>
+
+            <div class="w-full max-w-[1400px] columns-1 md:columns-2 lg:columns-3 xl:columns-4 gap-6 space-y-6" id="assets-container">
+                </div>
         </div>
     </main>
 
+    <script type="module">
+        import { supabase } from './supabase-config.js';
+        window.supabase = supabase;
+        window.DB_TABLE = 'test_tasks'; 
+        if(window.loadAssetsFromCloud) window.loadAssetsFromCloud();
+    </script>
+
     <script>
-        // 💡 修复：确保交互脚本运行，控制下拉菜单
+        const PAGE_TYPE = 'design';
+
+        function initRBAC() {
+            const userStr = localStorage.getItem('activeUserObj');
+            if (!userStr) { window.location.href = 'login.html'; return false; }
+            const user = JSON.parse(userStr);
+
+            if (!(user.perms || []).includes(PAGE_TYPE)) {
+                alert(`【权限拦截】您没有执行层做图权限，为您退回大厅。`);
+                window.location.href = 'index.html';
+                return false;
+            }
+
+            const avatarEl = document.getElementById('sidebar-avatar');
+            if(avatarEl) { avatarEl.innerText = user.avatar || '?'; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-orange-600'} border border-white/20 flex items-center justify-center text-white font-bold text-sm shadow-lg`; }
+            if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.cnName || user.enName;
+            
+            return user;
+        }
+
+        // ================= 💡 核心：全量剥离过稿数字资产 =================
+        window.loadAssetsFromCloud = async function() {
+            if(!window.supabase) return;
+            const currentUser = initRBAC();
+            if(!currentUser) return;
+            const currentUserEn = currentUser.enName ? currentUser.enName.toLowerCase() : '';
+            const isSuperAdmin = currentUserEn === 'davidxxu' || currentUserEn === 'judyzzhang';
+
+            try {
+                // 仅拉取已完结和已归档的数据
+                const { data, error } = await window.supabase.from(window.DB_TABLE)
+                    .select('id, title, project, created_at, assignee, channels, history_json, source_file_link')
+                    .in('status', ['completed', 'archived'])
+                    .order('created_at', { ascending: false });
+
+                if(error) throw error;
+
+                const container = document.getElementById('assets-container');
+                container.innerHTML = '';
+                let renderCount = 0;
+
+                (data || []).forEach(task => {
+                    const taskAssignee = task.assignee ? task.assignee.toLowerCase() : 'none';
+                    const isMyDesignTask = taskAssignee === currentUserEn;
+
+                    // 只能看自己画的单子，或者超管可以看全盘
+                    if (!isSuperAdmin && !isMyDesignTask) return;
+
+                    let finalImg = '';
+                    let finalSourceLink = task.source_file_link || '';
+                    
+                    // 探入历史账本，抓取“最后一次交稿”时的图片和源文件
+                    try {
+                        const historyArr = JSON.parse(task.history_json || '[]');
+                        for(let i = historyArr.length - 1; i >= 0; i--) {
+                            if(historyArr[i].action === 'submit_draft') {
+                                if(!finalImg && historyArr[i].img_url) finalImg = historyArr[i].img_url;
+                                if(!finalSourceLink && historyArr[i].source_link) finalSourceLink = historyArr[i].source_link;
+                                break;
+                            }
+                        }
+                    } catch(e){}
+
+                    // 如果没图，跳过不渲染
+                    if (!finalImg) return;
+
+                    // 解析标签
+                    let tagsHtml = '';
+                    let tagsArr = [];
+                    if(task.channels && task.channels.length > 0) {
+                        try {
+                            const arr = typeof task.channels === 'string' ? JSON.parse(task.channels) : task.channels;
+                            tagsArr = arr;
+                        }catch(e){}
+                    }
+                    tagsArr.forEach(t => {
+                        tagsHtml += `<span class="text-[10px] bg-white/5 border border-white/10 px-2 py-0.5 rounded text-zinc-400 truncate max-w-[100px]">${t}</span>`;
+                    });
+                    
+                    if(!tagsHtml) tagsHtml = `<span class="text-[10px] bg-white/5 border border-white/10 px-2 py-0.5 rounded text-zinc-500">通用资产</span>`;
+
+                    // 格式化源文件下载动作
+                    let downloadBtnHtml = '';
+                    if (finalSourceLink) {
+                        let href = finalSourceLink.trim();
+                        if(!href.match(/^https?:\/\//i) && !href.startsWith('//')) href = 'http://' + href;
+                        downloadBtnHtml = `<button onclick="event.stopPropagation(); window.open('${href}', '_blank')" class="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-orange-500 transition-colors btn-press" title="提取归档源文件"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg></button>`;
+                    }
+
+                    const yyyyMM = task.created_at ? task.created_at.substring(0, 7) : '2026-03';
+                    const targetUrl = `task-detail-designer.html?id=${task.id}`;
+
+                    const cardHtml = `
+                        <div class="asset-card bg-[#121217] rounded-2xl border border-white/5 overflow-hidden group cursor-pointer shadow-lg" data-search="${task.title} ${task.project} ${tagsArr.join(' ')}" onclick="window.location.href='${targetUrl}'">
+                            <div class="bg-zinc-900 relative overflow-hidden min-h-[150px]">
+                                <img src="${finalImg}" class="w-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+                                    ${downloadBtnHtml}
+                                </div>
+                            </div>
+                            <div class="p-5">
+                                <h3 class="text-[14px] font-bold text-zinc-100 mb-1 leading-snug">${task.title}</h3>
+                                <p class="text-[11px] text-zinc-500 mb-3">${task.id} · ${yyyyMM}</p>
+                                <div class="flex gap-1.5 flex-wrap">
+                                    ${tagsHtml}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    container.insertAdjacentHTML('beforeend', cardHtml);
+                    renderCount++;
+                });
+
+                document.getElementById('assets-loading').classList.add('hidden');
+                
+                if(renderCount === 0) {
+                    document.getElementById('emptyState').style.display = 'flex';
+                }
+
+            } catch (err) {
+                console.error(err);
+                document.getElementById('assets-loading').innerHTML = `<p class="text-rose-500 font-bold">数据拉取失败</p><p class="text-xs text-zinc-500">${err.message}</p>`;
+            }
+        }
+
+        // ================= 前端轻量级实时搜索 =================
+        window.filterAssets = function() {
+            const input = document.getElementById("asset-search").value.toLowerCase();
+            const cards = document.querySelectorAll(".asset-card");
+            let visibleCount = 0;
+
+            cards.forEach(card => {
+                const searchStr = card.getAttribute('data-search').toLowerCase();
+                if (searchStr.includes(input)) {
+                    card.style.display = "";
+                    visibleCount++;
+                } else {
+                    card.style.display = "none";
+                }
+            });
+
+            if(visibleCount === 0) {
+                document.getElementById('emptyState').style.display = 'flex';
+                document.querySelector('#emptyState p:first-of-type').innerText = '没有找到匹配的资产';
+            } else {
+                document.getElementById('emptyState').style.display = 'none';
+            }
+        }
+
+        // ================= 🔔 全局消息通知 =================
+        window.loadNotifications = function() {
+            const userStr = localStorage.getItem('activeUserObj');
+            if(!userStr) return;
+            const user = JSON.parse(userStr);
+            const enName = user.enName ? user.enName.toLowerCase() : '';
+            const isLeader = enName === 'judyzzhang' || enName === 'davidxxu';
+
+            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
+            let myNotifs = sysNotifs.filter(n => {
+                if (n.role === 'design') return true;
+                if (isLeader && n.role === 'admin') return true;
+                return false;
+            });
+            myNotifs.sort((a, b) => b.id - a.id);
+
+            const unreadCount = myNotifs.filter(n => !n.read).length;
+            const bellDot = document.getElementById('bell-dot');
+            const notifContainer = document.getElementById('notif-list-container');
+
+            if (bellDot) {
+                if (unreadCount > 0) {
+                    bellDot.classList.remove('hidden', 'bg-zinc-600', 'border-transparent');
+                    bellDot.classList.add('bg-rose-500', 'animate-pulse', 'border-[#141417]');
+                } else {
+                    bellDot.classList.add('hidden');
+                }
+            }
+
+            if (notifContainer) {
+                if (myNotifs.length === 0) {
+                    notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无新消息</div>';
+                } else {
+                    let html = '';
+                    myNotifs.forEach(n => {
+                        const dot = n.read ? '' : '<span class="w-2 h-2 rounded-full bg-rose-500 shrink-0 shadow-[0_0_8px_rgba(244,63,94,0.8)]"></span>';
+                        const opacity = n.read ? 'opacity-50' : '';
+                        const dateStr = new Date(n.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                        html += `
+                            <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer ${opacity}" onclick="window.markSingleAsRead(${n.id})">
+                                <div class="flex justify-between items-start mb-1">
+                                    <h4 class="text-[13px] font-bold text-white flex items-center gap-2">${n.title} ${dot}</h4>
+                                    <span class="text-[10px] text-zinc-500">${dateStr}</span>
+                                </div>
+                                <p class="text-[11px] text-zinc-400 leading-relaxed">${n.desc}</p>
+                            </div>
+                        `;
+                    });
+                    notifContainer.innerHTML = html;
+                }
+            }
+        }
+
+        window.markSingleAsRead = function(id) {
+            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
+            let target = sysNotifs.find(n => n.id === id);
+            if(target) { target.read = true; localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs)); window.loadNotifications(); }
+        }
+
+        window.markAllAsRead = function(event) {
+            if(event) event.stopPropagation();
+            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
+            sysNotifs.forEach(n => { if (n.role === 'design' || n.role === 'admin') n.read = true; });
+            localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs));
+            window.loadNotifications();
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             const idBtn = document.getElementById('identityBtn');
             const idMenu = document.getElementById('identityMenu');
-            if(idBtn && idMenu) { idBtn.addEventListener('click', (e) => { e.stopPropagation(); idMenu.classList.toggle('hidden'); }); }
+            if(idBtn && idMenu) idBtn.addEventListener('click', (e) => { e.stopPropagation(); idMenu.classList.toggle('hidden'); });
             
             const notifBtn = document.getElementById('notifBtn');
             const notifMenu = document.getElementById('notifMenu');
-            if(notifBtn && notifMenu) { notifBtn.addEventListener('click', (e) => { e.stopPropagation(); notifMenu.classList.toggle('hidden'); }); }
+            if(notifBtn && notifMenu) notifBtn.addEventListener('click', (e) => { e.stopPropagation(); notifMenu.classList.toggle('hidden'); });
 
             document.addEventListener('click', (e) => { 
                 if(idMenu && !idMenu.contains(e.target)) idMenu.classList.add('hidden'); 
                 if(notifMenu && !notifMenu.contains(e.target)) notifMenu.classList.add('hidden'); 
             });
+
+            window.loadNotifications();
         });
     </script>
 </body>
