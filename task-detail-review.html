@@ -87,7 +87,7 @@
                         <div id="draft-source-link-container" class="hidden bg-indigo-500/10 border border-indigo-500/20 p-4 rounded-xl flex items-center justify-between mb-5">
                             <div class="flex items-center gap-3">
                                 <div class="w-10 h-10 bg-indigo-500/20 rounded-lg flex items-center justify-center text-indigo-400"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg></div>
-                                <div><p class="text-sm font-bold text-white">源文件 / 高清素材包</p><p class="text-[10px] text-indigo-400/70">设计师已存放在第三方网盘，验收通过后请提取</p></div>
+                                <div><p class="text-sm font-bold text-white">源文件 / 高清素材包</p><p class="text-[10px] text-indigo-400/70">设计师已存放在第三方网盘，验收通过后请前往提取</p></div>
                             </div>
                             <a id="draft-source-link-btn" href="#" target="_blank" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg transition-colors">前往提取</a>
                         </div>
@@ -115,16 +115,10 @@
                     <div id="requester-action-area" class="hidden bg-gradient-to-b from-[#061e13] to-[#121217] border border-emerald-500/40 rounded-3xl p-7 shadow-2xl relative overflow-hidden">
                         <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-emerald-500"></div>
                         <h3 class="text-[16px] font-bold text-emerald-400 mb-2">正式设计稿待您验收</h3>
-                        <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">请仔细核对左侧设计产出物。如无问题请点击确认验收，该需求将圆满完结闭环。</p>
+                        <p class="text-[12px] text-zinc-400 leading-relaxed mb-6" id="action-hint-text">请仔细核对左侧设计产出物。如无问题请点击确认验收，该需求将圆满完结闭环。</p>
                         
-                        <div class="space-y-4">
-                            <button onclick="submitReqAccept()" class="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[14px] font-bold shadow-[0_5px_15px_rgba(16,185,129,0.3)] btn-press transition-all flex items-center justify-center gap-2">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                                满意，确认验收并结案
-                            </button>
-                            <button onclick="openRejectModal()" class="w-full py-3.5 bg-rose-600/10 hover:bg-rose-500 hover:text-white text-rose-500 border border-rose-500/30 rounded-xl text-[13px] font-bold btn-press transition-all">
-                                细节仍需调整，打回修改
-                            </button>
+                        <div class="space-y-4" id="action-buttons-container">
+                            <div class="text-center text-zinc-500 text-sm py-4">检测限制中...</div>
                         </div>
                     </div>
 
@@ -139,7 +133,7 @@
                     </div>
 
                     <div class="bg-[#121217] border border-white/5 rounded-3xl p-7 flex flex-col shadow-xl">
-                        <h3 class="text-[14px] font-bold text-white mb-6 border-b border-white/5 pb-4">任务从立项至今的流转记录</h3>
+                        <h3 class="text-[14px] font-bold text-white mb-6 border-b border-white/5 pb-4">全量流转生命周期日志</h3>
                         <div class="relative space-y-6 flex-1" id="task-timeline-container"></div>
                     </div>
 
@@ -156,7 +150,7 @@
                 <h2 class="text-[16px] font-bold text-white" id="reject-title">打回正式稿要求重修</h2>
                 <button onclick="closeRejectModal()" class="text-zinc-500 hover:text-white bg-zinc-800 rounded-full p-1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
             </div>
-            <textarea id="reject-reason" class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-rose-500 h-24 resize-none mb-4 custom-scrollbar" placeholder="请详细写下需要设计师调整或修改的细节..."></textarea>
+            <textarea id="reject-reason" class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-rose-500 h-24 resize-none mb-4 custom-scrollbar" placeholder="请详细写下需要设计师调整或修改的细节 (将永久留档)..."></textarea>
             <button id="btn-reject-submit" onclick="submitReject()" class="w-full py-3.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-[13px] font-bold btn-press">确认打回修改</button>
         </div>
     </div>
@@ -178,6 +172,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const currentTaskId = urlParams.get('id');
         let windowHistoryArr = [];  
+        let rejectCountLimit = 5; // 限制打回修改次数
 
         const safeSetTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.innerText = txt; };
 
@@ -187,25 +182,100 @@
             if(!currentTaskId) { alert("未找到需求编号！"); window.history.back(); }
         });
 
-        // ================= 渲染完整历史时间轴 =================
-        function renderTimeline(data, history) {
+        // ================= 💡 终极不覆盖全量时间轴引擎 =================
+        function renderFullTimeline(data, history) {
             let html = '';
+            
+            // 顶部当前状态高亮
             let currentStatusText = '甲方正式稿验收中';
             let currentStatusColor = 'emerald-500';
 
-            html += `<div class="relative flex gap-4 z-10"><div class="w-6 h-6 rounded-full bg-[#121217] border-2 border-${currentStatusColor} flex items-center justify-center shrink-0 shadow-[0_0_10px_currentColor] text-${currentStatusColor}"><div class="w-1.5 h-1.5 bg-current rounded-full animate-pulse"></div></div><div class="pt-0.5 pb-4"><p class="text-[13px] font-bold text-${currentStatusColor} mb-0.5">${currentStatusText}</p></div></div>`;
+            html += `
+                <div class="relative flex gap-4 z-10 pb-2">
+                   <div class="w-6 h-6 rounded-full bg-[#121217] border-2 border-${currentStatusColor} flex items-center justify-center shrink-0 shadow-[0_0_10px_currentColor] text-${currentStatusColor}">
+                       <div class="w-1.5 h-1.5 bg-current rounded-full animate-pulse"></div>
+                   </div>
+                   <div class="pt-0.5 pb-4">
+                       <p class="text-[13px] font-bold text-${currentStatusColor} mb-0.5">${currentStatusText}</p>
+                   </div>
+                </div>
+            `;
 
+            // 倒序渲染全量历史流水账
             if (history && history.length > 0) {
-                [...history].reverse().forEach(h => {
-                    if (h.reply) {
-                        let replyCol = h.is_rejected ? 'rose' : 'emerald';
-                        html += `<div class="relative flex gap-4 z-10 pb-4"><div class="timeline-line"></div><div class="w-6 h-6 rounded-full bg-[#121217] border-2 border-${replyCol}-500 flex items-center justify-center shrink-0 text-${replyCol}-500 z-10"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg></div><div class="pt-0.5 w-full pr-2 z-10"><p class="text-[12px] font-bold text-${replyCol}-400 mb-0.5">${h.reply_by} ${h.is_rejected ? '打回了方案' : '审批通过了方案'}</p><div class="bg-${replyCol}-500/10 border border-${replyCol}-500/20 p-2.5 rounded-lg mt-1.5"><p class="text-[11px] text-${replyCol}-300 leading-relaxed whitespace-pre-wrap">🗣️ 意见：${h.reply}</p></div></div></div>`;
+                let revHistory = [...history].reverse();
+                revHistory.forEach(h => {
+                    let iconHtml, titleHtml, contentHtml, dotColor;
+                    let timeStr = new Date(h.created_at || h.time).toLocaleString();
+
+                    if (h.action === 'submit_framework' || h.action === 'submit_draft') {
+                        dotColor = 'zinc';
+                        let isDraft = h.action === 'submit_draft';
+                        iconHtml = `<div class="w-1.5 h-1.5 bg-zinc-500 rounded-full"></div>`;
+                        titleHtml = `<p class="text-[12px] font-bold text-white mb-0.5">${h.operator || '设计师'} 提交了${isDraft ? '正稿' : '框架'} <span class="bg-white/10 text-zinc-300 px-1.5 py-0.5 rounded text-[9px] ml-1">${h.version || ''}</span></p>`;
+                        contentHtml = `<div class="bg-white/5 border border-white/10 p-2.5 rounded-lg"><p class="text-[11px] text-zinc-300 whitespace-pre-wrap">📝 交付说明：${h.desc || '未填写'}</p></div>`;
+                    } 
+                    else if (h.action === 'reject_framework' || h.action === 'reject_draft' || h.is_rejected === true) {
+                        dotColor = 'rose';
+                        iconHtml = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+                        titleHtml = `<p class="text-[12px] font-bold text-rose-400 mb-0.5">${h.reply_by || h.operator || '审核方'} 打回了方案</p>`;
+                        contentHtml = `<div class="bg-rose-500/10 border border-rose-500/20 p-2.5 rounded-lg mt-1.5"><p class="text-[11px] text-rose-300 leading-relaxed whitespace-pre-wrap">💥 打回意见：${h.reply || h.content || '无详细意见'}</p></div>`;
                     }
-                    let actText = h.action === 'submit_draft' ? '提交正式设计稿' : '提交框架方案';
-                    html += `<div class="relative flex gap-4 z-10 pb-4 opacity-70"><div class="timeline-line"></div><div class="w-6 h-6 rounded-full bg-[#121217] border-2 border-zinc-500 flex items-center justify-center shrink-0 z-10"><div class="w-1.5 h-1.5 bg-zinc-500 rounded-full"></div></div><div class="pt-0.5 w-full pr-2 z-10"><div class="flex items-center justify-between"><p class="text-[12px] font-bold text-white mb-0.5">设计师 ${actText} <span class="bg-white/10 text-zinc-300 px-1.5 py-0.5 rounded text-[9px] ml-1">${h.version || ''}</span></p></div><p class="text-[10px] text-zinc-500 mb-1.5">${new Date(h.created_at).toLocaleString()}</p><div class="bg-white/5 border border-white/10 p-2.5 rounded-lg"><p class="text-[11px] text-zinc-300 whitespace-pre-wrap">📝 说明：${h.desc || '未填写'}</p></div></div></div>`;
+                    else if (h.action === 'approve_framework' || h.action === 'approve_draft' || h.action === 'complete' || (h.reply && h.is_rejected === false)) {
+                        dotColor = 'emerald';
+                        iconHtml = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+                        titleHtml = `<p class="text-[12px] font-bold text-emerald-400 mb-0.5">${h.reply_by || h.operator || '审核方'} 通过了方案</p>`;
+                        contentHtml = `<div class="bg-emerald-500/10 border border-emerald-500/20 p-2.5 rounded-lg mt-1.5"><p class="text-[11px] text-emerald-300 leading-relaxed whitespace-pre-wrap">✅ 意见/批注：${h.reply || h.content || '同意'}</p></div>`;
+                    }
+                    else if (h.action === 'transfer') {
+                        dotColor = 'amber';
+                        iconHtml = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M17 3v2M7 3v2M3 14h18M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2-2v12a2 2 0 0 0 2 2z"></path></svg>`;
+                        titleHtml = `<p class="text-[12px] font-bold text-amber-400 mb-0.5">${h.operator || '操作人'} 转交了需求</p>`;
+                        contentHtml = `<div class="bg-amber-500/10 border border-amber-500/20 p-2.5 rounded-lg mt-1.5"><p class="text-[11px] text-amber-300 leading-relaxed whitespace-pre-wrap">🔄 原因：${h.desc || h.content}</p></div>`;
+                    }
+                    else {
+                        // 兜底渲染未识别的动作
+                        dotColor = 'zinc';
+                        iconHtml = `<div class="w-1.5 h-1.5 bg-zinc-500 rounded-full"></div>`;
+                        titleHtml = `<p class="text-[12px] font-bold text-zinc-300 mb-0.5">系统记录更新</p>`;
+                        contentHtml = `<p class="text-[10px] text-zinc-500">${h.desc || h.reply || ''}</p>`;
+                    }
+
+                    html += `
+                    <div class="relative flex gap-4 z-10 pb-6 opacity-90 hover:opacity-100 transition-opacity">
+                       <div class="timeline-line"></div>
+                       <div class="w-6 h-6 rounded-full bg-[#121217] border-[2px] border-${dotColor}-500 flex items-center justify-center shrink-0 text-${dotColor}-500 z-10">
+                           ${iconHtml}
+                       </div>
+                       <div class="pt-0.5 w-full pr-2 z-10">
+                           <div class="flex items-center justify-between mb-1">
+                               ${titleHtml}
+                               <p class="text-[9px] text-zinc-600">${timeStr}</p>
+                           </div>
+                           ${contentHtml}
+                       </div>
+                    </div>`;
                 });
             }
-            html += `<div class="relative flex gap-4 z-10 opacity-40 grayscale pb-4"><div class="w-6 h-6 rounded-full bg-[#121217] border-2 border-zinc-500 flex items-center justify-center shrink-0 z-10"><div class="w-1.5 h-1.5 bg-zinc-500 rounded-full"></div></div><div class="pt-0.5 z-10"><p class="text-[12px] font-bold text-white mb-0.5">需求立项并接单</p><p class="text-[10px] text-zinc-500">承接人: ${data.assignee || '未知'}</p></div></div>`;
+
+            // 垫底的立项流水
+            html += `
+                <div class="relative flex gap-4 z-10 opacity-40 grayscale pb-6">
+                   <div class="timeline-line"></div>
+                   <div class="w-6 h-6 rounded-full bg-[#121217] border-[2px] border-zinc-500 flex items-center justify-center shrink-0 z-10"><div class="w-1.5 h-1.5 bg-zinc-500 rounded-full"></div></div>
+                   <div class="pt-0.5 z-10">
+                       <p class="text-[12px] font-bold text-white mb-0.5">主管接单/统筹分配</p>
+                       <p class="text-[10px] text-zinc-500">执行人: ${data.assignee || '系统'}</p>
+                   </div>
+                </div>
+                <div class="relative flex gap-4 z-10 opacity-30 grayscale">
+                   <div class="w-6 h-6 rounded-full bg-[#121217] border-[2px] border-zinc-500 flex items-center justify-center shrink-0 z-10"><div class="w-1.5 h-1.5 bg-zinc-500 rounded-full"></div></div>
+                   <div class="pt-0.5 z-10">
+                       <p class="text-[12px] font-bold text-white mb-0.5">需求建单成功</p>
+                       <p class="text-[10px] text-zinc-500">发起人: ${data.creator || '未知'}</p>
+                   </div>
+                </div>
+            `;
             const container = document.getElementById('task-timeline-container');
             if(container) container.innerHTML = html;
         }
@@ -224,15 +294,24 @@
             const descEl = document.getElementById('req-desc-display');
             if(descEl) descEl.innerHTML = (data.full_desc || '暂无描述').replace(/\n/g, '<br>');
 
-            // 解析历史，抓取最新的一版正稿图（Draft）
+            // 💡 解析历史，提取渲染数据
             try { windowHistoryArr = JSON.parse(data.history_json || '[]'); } catch(e) { windowHistoryArr = []; }
+
+            // ================= 💡 核心：计算打回次数 (熔断机制) =================
+            let currentRejectCount = 0;
+            for(let i = 0; i < windowHistoryArr.length; i++) {
+                // 只要 is_rejected 为 true，或者 action 是 reject_xx 开头的，就记作一次修改轮回
+                if(windowHistoryArr[i].is_rejected === true || (windowHistoryArr[i].action && windowHistoryArr[i].action.startsWith('reject'))) {
+                    currentRejectCount++;
+                }
+            }
 
             let draftImgUrl = null; 
             let draftDesc = '未填写正稿交付说明';
             let draftVersion = '';
             let draftSourceLink = data.source_file_link || '';
 
-            // 倒序寻找：最新提交的正稿
+            // 倒序寻找最新提交的正稿
             for(let i = windowHistoryArr.length - 1; i >= 0; i--) {
                 const h = windowHistoryArr[i];
                 if(h.action === 'submit_draft') {
@@ -243,8 +322,6 @@
                     break;
                 }
             }
-
-            // 兜底
             if(!draftImgUrl) draftImgUrl = data.design_img_url;
 
             // 渲染正稿信息
@@ -266,15 +343,13 @@
                 }
             }
 
-            // ================= 💡 绝对安全的身份判定逻辑 =================
+            // ================= 身份判定与动态按钮 (5次熔断切换) =================
             const userStr = localStorage.getItem('activeUserObj');
             const user = JSON.parse(userStr);
             const enName = user.enName.toLowerCase();
             const dispName = user.displayName || user.cnName || user.enName;
             
-            // 是否是发起人
             const isRequesterData = (dispName === data.creator || enName === (data.creator || '').toLowerCase());
-            // 是否是管理员 (管理员在这里视同具有审核全权，或者只读，取决于业务，这里我们将发起人视为甲方)
             
             const hTag = document.getElementById('header-identity-tag');
             const sRole = document.getElementById('sidebar-role');
@@ -285,21 +360,54 @@
             const desWaitArea = document.getElementById('designer-waiting-area');
 
             if (isRequesterData) {
-                // 是甲方：展示验收打回按钮
+                // 甲方视角：展示验收打回按钮
                 if(hTag) hTag.innerHTML = `身份: 需求方 (正在验收)`;
                 if(sRole) sRole.innerText = `需求方视角`;
                 if(reqActArea) reqActArea.classList.remove('hidden');
                 if(desWaitArea) desWaitArea.classList.add('hidden');
+
+                // 💡 渲染熔断按钮
+                const btnContainer = document.getElementById('action-buttons-container');
+                if (btnContainer) {
+                    if (currentRejectCount >= rejectCountLimit) {
+                        // 触发熔断
+                        document.getElementById('action-hint-text').innerText = `⚠️ 警告：当前需求修改次数已达 ${rejectCountLimit} 次上限！系统为保障进度质量，无法继续执行常规打回。`;
+                        document.getElementById('action-hint-text').classList.replace('text-zinc-400', 'text-rose-400');
+                        document.getElementById('action-hint-text').classList.add('font-bold');
+
+                        btnContainer.innerHTML = `
+                            <button onclick="submitReqAccept()" class="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[14px] font-bold shadow-[0_5px_15px_rgba(16,185,129,0.3)] btn-press transition-all flex items-center justify-center gap-2">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                妥协验收此版本
+                            </button>
+                            <button onclick="submitTerminate()" class="w-full py-4 bg-rose-600 hover:bg-rose-500 text-white shadow-[0_5px_15px_rgba(244,63,94,0.3)] rounded-xl text-[13px] font-bold btn-press transition-all">
+                                终止此单，准备创建新需求
+                            </button>
+                        `;
+                    } else {
+                        // 常规状态
+                        btnContainer.innerHTML = `
+                            <button onclick="submitReqAccept()" class="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[14px] font-bold shadow-[0_5px_15px_rgba(16,185,129,0.3)] btn-press transition-all flex items-center justify-center gap-2">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                满意，确认验收并结案
+                            </button>
+                            <button onclick="openRejectModal()" class="w-full py-3.5 bg-rose-600/10 hover:bg-rose-500 hover:text-white text-rose-500 border border-rose-500/30 rounded-xl text-[13px] font-bold btn-press transition-all flex justify-center items-center gap-1.5">
+                                细节仍需调整，打回修改 <span class="text-[10px] opacity-80">(已修 ${currentRejectCount}/${rejectCountLimit} 次)</span>
+                            </button>
+                        `;
+                    }
+                }
+
             } else {
-                // 设计师或旁观者：只能看，显示等待甲方验收
+                // 设计师/旁观者视角
                 if(hTag) hTag.innerHTML = `身份: 设计方 (只读等待)`;
                 if(sRole) sRole.innerText = `设计方视角`;
                 if(reqActArea) reqActArea.classList.add('hidden');
                 if(desWaitArea) desWaitArea.classList.remove('hidden');
             }
 
-            // 渲染时间轴
-            renderTimeline(data, windowHistoryArr);
+            // 渲染全量时间轴
+            renderFullTimeline(data, windowHistoryArr);
         }
 
         window.openPreview = function(srcUrl) {
@@ -316,13 +424,13 @@
         }
 
         window.urgeRequester = function(btn) {
-            btn.innerHTML = '✓ 已发送催办提醒';
+            btn.innerHTML = '✓ 已发送系统催办提醒';
             btn.className = "w-full py-3.5 bg-zinc-800 border border-zinc-700 text-zinc-500 rounded-xl text-[13px] font-bold cursor-not-allowed";
             btn.disabled = true;
             alert("已成功下发催促提醒至该需求发起人！");
         }
 
-        // ================= 弹窗逻辑 =================
+        // ================= 打回弹窗逻辑 =================
         const rejectOverlay = document.getElementById('reject-modal-overlay');
         const rejectModal = document.getElementById('reject-modal');
 
@@ -336,17 +444,22 @@
             setTimeout(() => { rejectOverlay.classList.add('hidden'); rejectModal.classList.add('hidden'); }, 300);
         }
 
-        // ================= 验收与打回动作 =================
+        // ================= 验收、打回与熔断终止动作 =================
+        
+        // 动作1：验收通过
         window.submitReqAccept = async function() {
             if (!confirm("确认对当前设计正稿非常满意，同意验收并完结任务吗？")) return;
             const userStr = localStorage.getItem('activeUserObj');
             const dispName = JSON.parse(userStr).displayName || JSON.parse(userStr).enName;
 
-            if (windowHistoryArr.length > 0) {
-                windowHistoryArr[windowHistoryArr.length - 1].reply = '甲方对正稿非常满意，已验收通过！';
-                windowHistoryArr[windowHistoryArr.length - 1].is_rejected = false;
-                windowHistoryArr[windowHistoryArr.length - 1].reply_by = `${dispName} (需求方)`;
-            }
+            // Push 到全量账本中
+            windowHistoryArr.push({
+                action: 'complete',
+                operator: `${dispName} (需求方)`,
+                time: new Date().toISOString(),
+                reply: '甲方对正稿非常满意，已验收通过！',
+                is_rejected: false
+            });
 
             if (window.supabase) {
                 const { error } = await window.supabase.from(window.DB_TABLE).update({
@@ -359,9 +472,10 @@
             }
 
             alert('恭喜，该任务已顺利验收完结！');
-            window.location.href = 'index.html'; // 需求方跳回大厅
+            window.location.href = 'index.html'; 
         }
 
+        // 动作2：常规打回
         window.submitReject = async function() {
             const reason = document.getElementById('reject-reason').value.trim();
             if(!reason) return alert("请填写打回原因，以便设计师修改！");
@@ -372,15 +486,18 @@
             const userStr = localStorage.getItem('activeUserObj');
             const dispName = JSON.parse(userStr).displayName || JSON.parse(userStr).enName;
 
-            if (windowHistoryArr.length > 0) {
-                windowHistoryArr[windowHistoryArr.length - 1].reply = reason; 
-                windowHistoryArr[windowHistoryArr.length - 1].is_rejected = true;
-                windowHistoryArr[windowHistoryArr.length - 1].reply_by = `${dispName} (需求方)`;
-            }
+            // Push 打回记录到账本
+            windowHistoryArr.push({
+                action: 'reject_draft',
+                operator: `${dispName} (需求方)`,
+                time: new Date().toISOString(),
+                reply: reason,
+                is_rejected: true // 记录为一次有效的打回轮回
+            });
 
             if (window.supabase) {
                 const { error } = await window.supabase.from(window.DB_TABLE).update({
-                    status: 'rejected', // 状态变回 rejected，路由大脑会自动将它打回给设计师的 assistant-task-draft 页
+                    status: 'rejected', 
                     summary_desc: `甲方打回正式稿要求重修：${reason}`,
                     history_json: JSON.stringify(windowHistoryArr)
                 }).eq('id', currentTaskId);
@@ -393,6 +510,36 @@
 
             alert('打回成功！该任务已发回给设计师重新修改。');
             window.location.href = 'index.html';
+        }
+
+        // 动作3：熔断终止 (新增)
+        window.submitTerminate = async function() {
+            if (!confirm("确定因为修改次数过多而终止此需求吗？\n终止后该记录将被彻底封存归档，您需要重新在大厅发起新需求。")) return;
+            
+            const userStr = localStorage.getItem('activeUserObj');
+            const dispName = JSON.parse(userStr).displayName || JSON.parse(userStr).enName;
+
+            windowHistoryArr.push({
+                action: 'terminate',
+                operator: `${dispName} (需求方)`,
+                time: new Date().toISOString(),
+                reply: '因修改次数达到上限，需求方主动选择终止该需求，后续将另起新单。',
+                is_rejected: true 
+            });
+
+            if (window.supabase) {
+                // 状态变更为 terminated (强行终止归档)
+                const { error } = await window.supabase.from(window.DB_TABLE).update({
+                    status: 'terminated', 
+                    summary_desc: '修改次数达上限，需求方已将此单强行终止。',
+                    history_json: JSON.stringify(windowHistoryArr)
+                }).eq('id', currentTaskId);
+
+                if (error) return alert("云端状态更新失败：" + error.message);
+            }
+
+            alert('该单据已强行终止！即将为您跳转回大厅。');
+            window.location.href = 'index.html?action=new'; // 带上参数，方便未来在大厅自动弹窗
         }
     </script>
 </body>
