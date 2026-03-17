@@ -20,6 +20,8 @@
         #image-preview-modal { display: none; position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.9); backdrop-filter: blur(5px); z-index: 999999; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s ease; }
         #image-preview-modal.visible { display: flex; opacity: 1; }
         .timeline-line { position: absolute; left: 11px; top: 24px; bottom: -8px; width: 2px; background-color: rgba(255,255,255,0.05); z-index: 0; }
+        .toast-slide-in { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-emerald-500/30 text-zinc-300">
@@ -75,7 +77,7 @@
                 
                 <div class="flex-1 flex flex-col gap-8 min-w-0">
                     
-                    <div id="approved-framework-section" class="bg-[#121217] border border-emerald-500/30 rounded-2xl p-8 relative overflow-hidden shadow-2xl">
+                    <div class="bg-[#121217] border border-emerald-500/30 rounded-2xl p-8 relative overflow-hidden shadow-2xl">
                         <div class="absolute right-0 top-0 bg-emerald-500/10 text-emerald-500 text-[10px] font-bold px-3 py-1 rounded-bl-xl border-b border-l border-emerald-500/20">领导已批复的框架基底</div>
                         <h3 class="text-[15px] font-bold text-white mb-4 flex items-center gap-2">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-emerald-500"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> 
@@ -199,7 +201,7 @@
                         <div class="mt-8 pt-5 border-t border-white/5">
                             <button id="btn-submit-design" onclick="submitDraftDesign()" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[14px] font-bold shadow-[0_10px_20px_-10px_rgba(16,185,129,0.6)] btn-press transition-all flex items-center justify-center gap-2">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                                <span id="submit-btn-text">提交正式稿发甲方验收</span>
+                                <span id="submit-btn-text">提交正式稿发送甲方验收</span>
                             </button>
                         </div>
                     </div>
@@ -224,6 +226,25 @@
             </div>
         </div>
     </main>
+
+    <div id="success-overlay" class="fixed inset-0 bg-[#09090b]/95 backdrop-blur-md z-[100000] hidden opacity-0 transition-opacity duration-300 flex flex-col items-center justify-center">
+        <div id="success-content" class="flex flex-col items-center transform scale-95 opacity-0 transition-all duration-500 delay-100">
+            <div class="w-20 h-20 rounded-full bg-emerald-500/20 border-2 border-emerald-500/50 flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(16,185,129,0.3)]">
+                <svg class="w-10 h-10 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+                </svg>
+            </div>
+            <h2 class="text-2xl font-bold text-white mb-2 tracking-tight">正式稿交付成功</h2>
+            <p class="text-zinc-400 text-sm">系统正在通知甲方进行在线验收...</p>
+        </div>
+    </div>
+
+    <div id="action-toast" class="fixed top-8 right-8 z-[100000] hidden toast-slide-in">
+        <div class="bg-[#1a1a1f] border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-3 w-72">
+            <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0"></div>
+            <div><h4 id="toast-title" class="text-white text-sm font-bold">提示</h4><p id="toast-desc" class="text-zinc-400 text-[11px] mt-0.5">操作已执行。</p></div>
+        </div>
+    </div>
 
     <div id="image-preview-modal" onclick="closePreview()">
         <div class="w-full h-full flex items-center justify-center relative p-8">
@@ -251,11 +272,32 @@
         // 安全获取 DOM 元素并赋值
         const safeSetTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.innerText = txt; };
 
+        // 💡 Toast 通知模块
+        function showToast(title, desc, type = 'success') {
+            const toast = document.getElementById('action-toast');
+            document.getElementById('toast-title').innerText = title;
+            document.getElementById('toast-desc').innerText = desc;
+            const icon = document.getElementById('toast-icon');
+            if(type === 'error') {
+                icon.className = "w-8 h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0";
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+            } else if(type === 'info') {
+                icon.className = "w-8 h-8 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0";
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+            } else {
+                icon.className = "w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0";
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+            }
+            toast.classList.remove('hidden');
+            setTimeout(() => { toast.classList.add('hidden'); }, 3000);
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             const userStr = localStorage.getItem('activeUserObj');
             if (!userStr) { window.location.href = 'login.html'; return; }
             if(!currentTaskId) {
-                alert("未找到需求编号！"); window.history.back(); 
+                showToast('错误', '未找到需求编号！', 'error');
+                setTimeout(() => { window.history.back(); }, 1500);
             }
         });
 
@@ -266,7 +308,7 @@
             let currentStatusColor = 'emerald-500';
             
             if(data.status === 'rejected') {
-                currentStatusText = '正式稿被打回，设计师正在修改';
+                currentStatusText = '正式稿被打回，正在重新修改';
                 currentStatusColor = 'rose-500';
             }
 
@@ -284,7 +326,7 @@
                     html += `<div class="relative flex gap-4 z-10 pb-4 opacity-70"><div class="timeline-line"></div><div class="w-6 h-6 rounded-full bg-[#121217] border-2 border-zinc-500 flex items-center justify-center shrink-0 z-10"><div class="w-1.5 h-1.5 bg-zinc-500 rounded-full"></div></div><div class="pt-0.5 w-full pr-2 z-10"><div class="flex items-center justify-between"><p class="text-[12px] font-bold text-white mb-0.5">设计师 ${actText} <span class="bg-white/10 text-zinc-300 px-1.5 py-0.5 rounded text-[9px] ml-1">${h.version || ''}</span></p></div><p class="text-[10px] text-zinc-500 mb-1.5">${new Date(h.created_at).toLocaleString()}</p><div class="bg-white/5 border border-white/10 p-2.5 rounded-lg"><p class="text-[11px] text-zinc-300 whitespace-pre-wrap">📝 说明：${h.desc || '未填写说明'}</p></div></div></div>`;
                 });
             }
-            html += `<div class="relative flex gap-4 z-10 opacity-40 grayscale pb-4"><div class="w-6 h-6 rounded-full bg-[#121217] border-2 border-zinc-500 flex items-center justify-center shrink-0 z-10"><div class="w-1.5 h-1.5 bg-zinc-500 rounded-full"></div></div><div class="pt-0.5 z-10"><p class="text-[12px] font-bold text-white mb-0.5">需求立项并接单</p><p class="text-[10px] text-zinc-500">承接人: ${data.assignee || '未知'}</p></div></div>`;
+            html += `<div class="relative flex gap-4 z-10 opacity-40 grayscale pb-4"><div class="timeline-line"></div><div class="w-6 h-6 rounded-full bg-[#121217] border-2 border-zinc-500 flex items-center justify-center shrink-0 z-10"><div class="w-1.5 h-1.5 bg-zinc-500 rounded-full"></div></div><div class="pt-0.5 z-10"><p class="text-[12px] font-bold text-white mb-0.5">需求立项并接单</p><p class="text-[10px] text-zinc-500">承接人: ${data.assignee || '未知'}</p></div></div>`;
             const container = document.getElementById('task-timeline-container');
             if(container) container.innerHTML = html;
         }
@@ -293,7 +335,7 @@
             if(!window.supabase || !currentTaskId) return;
 
             const { data, error } = await window.supabase.from(window.DB_TABLE).select('*').eq('id', currentTaskId).single();
-            if(error || !data) { alert("未找到该需求！"); window.location.href = 'assistant-workspace.html'; return; }
+            if(error || !data) { showToast("错误", "未找到该需求！", "error"); setTimeout(()=>{window.location.href = 'assistant-workspace.html';}, 1500); return; }
 
             // 填充基础信息
             safeSetTxt('req-id', data.id || '--');
@@ -308,7 +350,7 @@
             const linkCon = document.getElementById('dt-link-container');
             if(linkCon && data.link) linkCon.innerHTML = `参考链接: <a href="${data.link}" target="_blank" class="text-sky-400 hover:underline">点击访问</a>`;
 
-            // 💡 解析历史记录，提取之前过审的框架图、领导反馈意见、设计师填的说明
+            // 解析历史记录，提取过审的框架图和意见
             try { windowHistoryArr = JSON.parse(data.history_json || '[]'); } catch(e) { windowHistoryArr = []; }
             const newVerNum = windowHistoryArr.length + 1;
             
@@ -330,25 +372,14 @@
                 }
             }
 
-            // 如果没能在历史里抓到图，兜底使用系统主字段里的图
             if(!approvedImgUrl) approvedImgUrl = data.design_img_url;
 
             // 渲染前置过审信息
-            const sec = document.getElementById('approved-framework-section');
             if (approvedImgUrl) {
                 const img = document.getElementById('approved-framework-img');
                 const pEl = document.getElementById('no-framework-placeholder');
-                
-                if(sec) sec.classList.remove('hidden');
                 if(img) { img.src = approvedImgUrl; img.classList.remove('hidden'); }
                 if(pEl) pEl.classList.add('hidden');
-
-                safeSetTxt('approved-leader-feedback', leaderFeedback);
-                safeSetTxt('approved-designer-desc', designerDesc);
-            } else {
-                if(sec) sec.classList.remove('hidden');
-                const pEl = document.getElementById('no-framework-placeholder');
-                if(pEl) pEl.classList.remove('hidden');
                 safeSetTxt('approved-leader-feedback', leaderFeedback);
                 safeSetTxt('approved-designer-desc', designerDesc);
             }
@@ -359,11 +390,8 @@
             const enName = user.enName.toLowerCase();
             const dispName = user.displayName || user.cnName || user.enName;
             
-            // 核心修复：优先判断是否为执行人（设计师）！
-            const isDesigner = enName === (data.assignee || '').toLowerCase();
-            const isRequester = (dispName === data.creator || enName === (data.creator || '').toLowerCase());
+            const isRequester = dispName === data.creator || enName === (data.creator || '').toLowerCase();
             
-            // 安全赋值顶部/左侧身份标识
             const hTag = document.getElementById('header-identity-tag');
             const sRole = document.getElementById('sidebar-role');
             const sAva = document.getElementById('sidebar-avatar');
@@ -374,18 +402,7 @@
             const reqWaitArea = document.getElementById('requester-waiting-area');
             const reqActArea = document.getElementById('requester-action-area');
 
-            if (isDesigner) {
-                // 设计师视角：正常显示上传
-                if(hTag) hTag.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> 身份: 设计方 (当前操作人)`;
-                if(sRole) sRole.innerText = `设计方视角`;
-                
-                if(dUploadArea) dUploadArea.classList.remove('hidden');
-                if(dFormArea) dFormArea.classList.remove('hidden');
-                
-                if(reqWaitArea) reqWaitArea.classList.add('hidden');
-                if(reqActArea) reqActArea.classList.add('hidden');
-
-            } else if (isRequester) {
+            if (isRequester) {
                 // 需求方：隐藏设计师传图和填报区，显示等待占位和催办区
                 if(hTag) hTag.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> 身份: 需求方 (只读视角)`;
                 if(sRole) sRole.innerText = `需求方视角`;
@@ -396,18 +413,17 @@
                 if(reqWaitArea) reqWaitArea.classList.remove('hidden');
                 if(reqActArea) reqActArea.classList.remove('hidden');
             } else {
-                // 访客旁观者
-                if(hTag) hTag.innerHTML = `身份: 访客 (只读视角)`;
-                if(sRole) sRole.innerText = `访客`;
+                // 设计师/其他人：显示上传和填报，隐藏占位和催办
+                if(hTag) hTag.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> 身份: 设计方 (当前操作人)`;
+                if(sRole) sRole.innerText = `设计方视角`;
                 
-                if(dUploadArea) dUploadArea.classList.add('hidden');
-                if(dFormArea) dFormArea.classList.add('hidden');
+                if(dUploadArea) dUploadArea.classList.remove('hidden');
+                if(dFormArea) dFormArea.classList.remove('hidden');
                 
-                if(reqWaitArea) reqWaitArea.classList.remove('hidden');
+                if(reqWaitArea) reqWaitArea.classList.add('hidden');
                 if(reqActArea) reqActArea.classList.add('hidden');
             }
 
-            // 渲染时间轴
             renderTimeline(data, windowHistoryArr);
         }
 
@@ -449,7 +465,7 @@
             const files = event.target.files;
             if(files.length > 0) {
                 const file = files[0];
-                tempFileBlob = file; // 强行保留原图，防止压缩导致异步报错
+                tempFileBlob = file; 
                 
                 const upPh = document.getElementById('upload-placeholder');
                 const upPrev = document.getElementById('upload-preview');
@@ -495,7 +511,7 @@
             btn.innerHTML = '✓ 已发送催办提醒';
             btn.className = "w-full py-3.5 bg-zinc-800 border border-zinc-700 text-zinc-500 rounded-xl text-[13px] font-bold cursor-not-allowed";
             btn.disabled = true;
-            alert("已成功通过系统下发催促提醒至该设计师！");
+            showToast('已提醒', '已成功通过系统下发催促提醒至该设计师！', 'success');
         }
 
         // ================= 提交正式稿 (绝对不卡死保底) =================
@@ -507,12 +523,16 @@
 
             // 二选一保底提交
             if(!rawFile && !sourceLink) {
-                return alert("【提交被驳回】您必须上传一张 JPG/PNG 正式稿预览图，或者提供一个有效的源文件网盘链接！");
+                showToast('校验失败', '您必须上传一张 JPG/PNG 正式稿预览图，或者提供一个有效的源文件网盘链接！', 'error');
+                return;
             }
 
             const hrEl = document.getElementById('work-hours');
             const hours = hrEl ? hrEl.value : 0;
-            if(!hours || hours <= 0) return alert("请准确填报您本次推正稿消耗的工时！");
+            if(!hours || hours <= 0) {
+                showToast('校验失败', '请准确填报您本次推正稿消耗的工时！', 'error');
+                return;
+            }
 
             const descEl = document.getElementById('delivery-desc');
             const deliveryDesc = descEl ? descEl.value.trim() : '';
@@ -520,7 +540,7 @@
             const btn = document.getElementById('btn-submit-design');
             const originalBtnText = btn.innerHTML;
             btn.disabled = true; 
-            safeSetTxt('submit-btn-text', "🚀 正在向甲方提交...");
+            safeSetTxt('submit-btn-text', "🚀 正在向云端提交...");
 
             let finalCloudUrl = '';
 
@@ -544,7 +564,8 @@
                 }
             } catch (err) {
                 btn.disabled = false; btn.innerHTML = originalBtnText;
-                return alert("云端图片上传失败，请重试！\n" + err.message);
+                showToast('上传失败', '云端图片上传失败，请重试！\n' + err.message, 'error');
+                return;
             }
 
             const newVersionNum = windowHistoryArr.length + 1;
@@ -554,7 +575,7 @@
                 img_url: finalCloudUrl, 
                 source_link: sourceLink, 
                 created_at: new Date().toISOString(), 
-                action: 'submit_draft' // 明确记录这是一次正式稿的提交
+                action: 'submit_draft' 
             };
             windowHistoryArr.push(newHistoryRecord);
 
@@ -578,12 +599,27 @@
 
                 if (error) {
                     btn.disabled = false; btn.innerHTML = originalBtnText;
-                    return alert("云端状态更新失败：" + error.message);
+                    showToast('更新失败', '云端状态更新失败：' + error.message, 'error');
+                    return;
                 }
             }
 
-            alert(`正式稿已成功提交！系统已发送验收通知给甲方。`);
-            window.location.href = 'assistant-workspace.html';
+            // 成功后调起全屏遮罩
+            const successOverlay = document.getElementById('success-overlay');
+            const successContent = document.getElementById('success-content');
+            if (successOverlay && successContent) {
+                successOverlay.classList.remove('hidden');
+                void successOverlay.offsetWidth; // 触发回流
+                successOverlay.classList.remove('opacity-0');
+                successContent.classList.remove('scale-95', 'opacity-0');
+                successContent.classList.add('scale-100', 'opacity-100');
+                
+                setTimeout(() => {
+                    window.location.href = 'assistant-workspace.html';
+                }, 1500); 
+            } else {
+                window.location.href = 'assistant-workspace.html';
+            }
         }
     </script>
 </body>
