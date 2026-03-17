@@ -347,8 +347,8 @@
         window.supabase = supabase;
         window.DB_TABLE = 'test_tasks'; 
         
-        // 💡 性能优化核心：列表轻量化查询
-        window.LIGHT_FIELDS = 'id, title, status, project, due_date, creator, created_at, summary_desc, assignee';
+        // 💡 性能优化核心：列表轻量化查询，必须包含 history_json 才能让路由大脑生效！
+        window.LIGHT_FIELDS = 'id, title, status, project, due_date, creator, created_at, summary_desc, assignee, history_json';
 
         if(window.loadTasksFromCloud) window.loadTasksFromCloud();
     </script>
@@ -771,17 +771,19 @@
             }
         }
 
-        // ================= 💡 核心：路由大脑 =================
+        // ================= 💡 核心：带有路由大脑的状态UI工厂引擎 =================
         function createTaskHTML(task, currentUser) {
             const creator = task.creator || '';
+            const currentUserEn = currentUser.enName ? currentUser.enName.toLowerCase() : '';
             const isOwner = creator === currentUser.displayName || creator === currentUser.cnName || creator === currentUser.enName;
             
-            let isJudy = false;
-            if (currentUser.enName) {
-                isJudy = currentUser.enName.toLowerCase() === 'judyzzhang';
-            }
+            const taskAssignee = task.assignee ? task.assignee.toLowerCase() : 'none';
+            const isMyDesignTask = taskAssignee === currentUserEn;
+
+            let isJudy = currentUserEn === 'judyzzhang';
             
-            if(!isOwner && !(isJudy && task.status === 'pending_approval')) return null;
+            // 权限过滤
+            if(!isOwner && !isMyDesignTask && !(isJudy && task.status === 'pending_approval')) return null;
 
             let sColor, sText, targetUrl;
             let isUrgent = false;
@@ -794,21 +796,35 @@
                 if(diffDays <= 2 && diffDays >= -999) isUrgent = true;
             }
 
-            // 💡 智能路由大脑：通过检查摘要中是否包含过审等字眼，决定是否跳入 Draft 正稿页
+            // 💡 智能判断阶段：决定后续如果是 processing/rejected 应该跳转到哪个页面
             let isDraftPhase = false;
+            if (task.history_json) {
+                try {
+                    const history = JSON.parse(task.history_json);
+                    for (let i = history.length - 1; i >= 0; i--) {
+                        if (history[i].reply_by && (history[i].reply_by.includes('主管') || history[i].reply_by.includes('领导')) && !history[i].is_rejected) isDraftPhase = true;
+                        if (history[i].action === 'submit_draft') isDraftPhase = true;
+                    }
+                } catch(e) {}
+            }
             if (task.summary_desc && (task.summary_desc.includes('正式稿') || task.summary_desc.includes('过审') || task.summary_desc.includes('大方向') || task.summary_desc.includes('通过框架'))) {
                 isDraftPhase = true;
             }
 
+            // 💡 路由大脑：优先依据操作人身份派发专属工作台
+            // 设计师去工作台 (processing 或 draft)；需求方去只读验收台 (locked 或 review)
+            const baseProcessingUrl = isMyDesignTask ? 'assistant-task-processing.html' : 'task-detail-locked.html';
+            const baseDraftUrl = isMyDesignTask ? 'assistant-task-draft.html' : 'task-detail-review.html';
+
             switch(task.status) {
                 case 'rejected': 
                     sColor = 'text-rose-500'; sText = '需求被打回修改'; 
-                    targetUrl = isDraftPhase ? 'assistant-task-draft.html?id=' + task.id : 'assistant-task-processing.html?id=' + task.id; 
+                    targetUrl = isDraftPhase ? baseDraftUrl + '?id=' + task.id : baseProcessingUrl + '?id=' + task.id; 
                     isUrgent = true; 
                     break;
                 case 'reviewing': 
                     sColor = 'text-rose-500'; sText = '方案待验收'; 
-                    targetUrl = 'task-detail-locked.html?id=' + task.id; 
+                    targetUrl = isMyDesignTask ? 'assistant-task-draft.html?id=' + task.id : 'task-detail-review.html?id=' + task.id; 
                     break;
                 case 'pending_accept': 
                     sColor = 'text-amber-400'; sText = '待接单'; 
@@ -816,11 +832,13 @@
                     break;
                 case 'pending_approval': 
                     sColor = 'text-amber-500'; sText = '框架待审批'; 
-                    targetUrl = 'task-detail-locked.html?id=' + task.id; 
+                    // 领导特权：如果是 judy 并且是待审批状态，强行送进 locked 页去批复
+                    const lockedUrl = (isJudy) ? 'task-detail-locked.html' : baseProcessingUrl;
+                    targetUrl = lockedUrl + '?id=' + task.id; 
                     break;
                 case 'processing': 
                     sColor = 'text-emerald-500'; sText = '设计制作中'; 
-                    targetUrl = isDraftPhase ? 'assistant-task-draft.html?id=' + task.id : 'assistant-task-processing.html?id=' + task.id; 
+                    targetUrl = isDraftPhase ? baseDraftUrl + '?id=' + task.id : baseProcessingUrl + '?id=' + task.id; 
                     break;
                 case 'completed': 
                 case 'archived': 
@@ -833,12 +851,10 @@
             }
 
             const isCompleted = task.status === 'completed' || task.status === 'archived';
-
             const borderColBase = isUrgent ? 'rgba(244,63,94,0.7)' : sColor.replace('text-', 'rgba(').replace('sky','56,189,248').replace('amber','251,191,36').replace('emerald','16,185,129').replace('rose','244,63,94').replace('zinc','113,113,122') + ',0.3)';
             const breatheClass = isUrgent ? 'breathe-rose' : '';
             const canCancel = (task.status === 'pending' || task.status === 'pending_accept' || task.status === 'rejected') && isOwner;
             const cancelBtn = canCancel ? `<button onclick="event.stopPropagation(); window.cancelTask('${task.id}')" class="text-[10px] text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded ml-2 hover:bg-rose-500 hover:text-white transition-colors">撤销</button>` : '';
-
             const iconHtml = (task.status === 'reviewing' || task.status === 'rejected' || isCompleted) ? '' : `<svg class="animate-spin h-3 w-3 ${sColor}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
 
             const cardHTML = `
