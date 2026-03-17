@@ -18,7 +18,6 @@
         .modal-enter { animation: modalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes modalFadeIn { 0% { opacity: 0; transform: scale(0.97) translateY(10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
         
-        /* 💡 修复：移除放大特效，恢复克制的高级浮雕交互 */
         .interactive-card { 
             transition: all 0.2s ease; 
             cursor: pointer; 
@@ -156,7 +155,7 @@
             <div class="flex gap-10 h-full items-start w-full max-w-[1280px]">
                 
                 <div class="w-full max-w-[800px] flex flex-col h-full min-w-0 pb-4 shrink-0">
-                    <div class="bg-[#1a1306] border border-amber-600/30 rounded-2xl p-5 mb-6 flex items-start gap-4 shrink-0">
+                    <div class="bg-[#1a1306] border border-amber-600/30 rounded-2xl p-5 mb-6 flex items-start gap-4 shrink-0 shadow-md">
                         <div class="text-amber-500 mt-0.5">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
                         </div>
@@ -244,11 +243,11 @@
                     <label class="block text-[13px] font-bold text-zinc-300 mb-2">5. 期望分发渠道 (可多选) <span class="text-rose-500">*</span></label>
                     <div class="flex flex-wrap gap-2">
                         <label class="cursor-pointer"><input type="checkbox" value="企业号" class="hidden pill-checkbox req-channel"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-4 py-2 rounded-full transition-colors">企业号</div></label>
-                        <label class="cursor-pointer"><input type="checkbox" value="邮件" class="hidden pill-checkbox req-channel"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-4 py-2 rounded-full transition-colors">邮件</div></label>
-                        <label class="cursor-pointer"><input type="checkbox" value="立地屏" class="hidden pill-checkbox req-channel"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-4 py-2 rounded-full transition-colors">立地屏</div></label>
                         <label class="cursor-pointer"><input type="checkbox" value="其他" id="channel-other-cb" class="hidden pill-checkbox req-channel" onchange="toggleOtherInput()"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-4 py-2 rounded-full transition-colors">其他</div></label>
                     </div>
-                    <div id="other-channel-input-container" class="mt-3 hidden"><input type="text" id="req-channel-other" placeholder="请手写填入具体渠道名称..." class="w-full bg-[#09090b] border border-zinc-700 border-dashed rounded-xl px-4 py-2.5 text-sm text-zinc-300 outline-none focus:border-indigo-500 transition-colors"></div>
+                    <div id="other-channel-input-container" class="mt-3 hidden">
+                        <input type="text" id="req-channel-other" placeholder="请手写填入具体渠道名称..." class="w-full bg-[#09090b] border border-zinc-700 border-dashed rounded-xl px-4 py-2.5 text-sm text-zinc-300 outline-none focus:border-indigo-500 transition-colors">
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-6">
@@ -425,7 +424,6 @@
             const avatarEl = document.getElementById('sidebar-avatar');
             if(avatarEl) { avatarEl.innerText = user.avatar || '?'; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-indigo-600'} border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg shrink-0`; }
             if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.cnName || user.enName;
-            if(document.getElementById('sidebar-role')) document.getElementById('sidebar-role').innerText = user.role || '系统成员';
             
             updateGreeting(user);
 
@@ -452,6 +450,18 @@
             return user;
         }
 
+        window.clearTestData = async function() {
+            if(!window.supabase) return;
+            window.showConfirm("清空数据", "⚠️ 警告：这将直接清空云端测试表中的所有需求数据！且不可恢复！<br><br>确定要继续吗？", async () => {
+                try {
+                    const { error } = await window.supabase.from(window.DB_TABLE).delete().neq('id', '0');
+                    if (error) throw error;
+                    window.showToast('已清空', '云端测试数据已全部清空！', 'success');
+                    setTimeout(() => window.location.reload(), 1500);
+                } catch(e) { window.showAlert("清理失败", e.message, "danger"); }
+            }, "danger");
+        }
+
         window.showToast = function(title, desc, type = 'success') {
             const toast = document.getElementById('action-toast');
             document.getElementById('toast-title').innerText = title;
@@ -471,29 +481,17 @@
             setTimeout(() => { toast.classList.add('hidden'); }, 3000);
         }
 
-        window.clearTestData = async function() {
-            if(!window.supabase) return;
-            showConfirm("清空数据", "⚠️ 警告：这将直接清空云端测试表中的所有需求数据！且不可恢复！<br><br>确定要继续吗？", async () => {
-                try {
-                    const { error } = await window.supabase.from(window.DB_TABLE).delete().neq('id', '0');
-                    if (error) throw error;
-                    showToast('已清空', '云端测试数据已全部清空！', 'success');
-                    setTimeout(() => window.location.reload(), 1500);
-                } catch(e) { showAlert("清理失败", e.message, "danger"); }
-            }, "danger");
-        }
-
         window.cancelTask = async function(taskId) {
             if(!window.supabase) return;
-            showConfirm("确认撤销", `确定要彻底撤销并删除需求单 ${taskId} 吗？此操作不可恢复。`, async () => {
+            window.showConfirm("确认撤销", `确定要彻底撤销并删除需求单 ${taskId} 吗？此操作不可恢复。`, async () => {
                 try {
                     const { error } = await window.supabase.from(window.DB_TABLE).delete().eq('id', taskId);
                     if (error) throw error;
                     const card = document.getElementById('card-' + taskId);
                     if(card) card.remove();
-                    showToast('已撤销', `需求单 ${taskId} 已被彻底删除。`, 'info');
+                    window.showToast('已撤销', `需求单 ${taskId} 已被彻底删除。`, 'info');
                     setTimeout(async () => { await window.loadTasksFromCloud(true); }, 300);
-                } catch(e) { showAlert("撤销失败", e.message, "danger"); }
+                } catch(e) { window.showAlert("撤销失败", e.message, "danger"); }
             }, "danger");
         }
 
@@ -510,10 +508,10 @@
             pwdOverlay.classList.add('opacity-0'); pwdModal.classList.add('scale-95'); setTimeout(() => { pwdOverlay.classList.add('hidden'); pwdModal.classList.add('hidden'); }, 300);
         }
         
-        window.submitPwdChange = function() { showAlert('提示', '系统演示环境暂不可自助修改密码，请联系管理员。', 'info'); closePwdModal(); }
+        window.submitPwdChange = function() { window.showAlert('提示', '系统演示环境暂不可自助修改密码，请联系管理员。', 'info'); window.closePwdModal(); }
 
 
-        // ================= 💡 核心：生成大厅卡片 (移除了浮夸的放大) =================
+        // ================= 💡 核心：生成卡片 =================
         function createTaskHTML(task, currentUser) {
             const currentUserEn = currentUser.enName ? currentUser.enName.toLowerCase() : '';
             const creator = task.creator || '';
@@ -572,7 +570,6 @@
 
             const iconHtml = (task.status === 'reviewing' || task.status === 'rejected' || isCompleted) ? '' : `<svg class="animate-spin h-3.5 w-3.5 ${sColor}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
 
-            // 💡 卡片采用了高级沉稳的交互
             const cardHTML = `
                 <div class="rounded-2xl p-5 interactive-card flex flex-col relative overflow-hidden ${breatheClass} mb-4 ${isCompleted ? 'opacity-60' : ''}" style="border-color: ${borderColBase}" id="card-${task.id}" onmouseenter="window.previewTask('${task.id}', '${task.title}', '${sColor}')" onclick="window.location.href='${targetUrl}'">
                     ${isUrgent ? '<div class="absolute top-0 right-0 bg-rose-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl z-10 animate-pulse">临期预警</div>' : ''}
@@ -644,6 +641,7 @@
             return { isCompleted, cardHTML, timelineHTML };
         }
 
+        // ================= 云端探脉与渲染 =================
         window.loadTasksFromCloud = async function(isSilent = false) {
             if(!window.supabase) return;
             
@@ -673,7 +671,6 @@
                 if(!isSilent && completedC) completedC.innerHTML = ''; 
                 if(!isSilent && timelineC) timelineC.innerHTML = '';
 
-                // 💡 雷达探脉对比
                 let knownHistories = JSON.parse(localStorage.getItem('known_histories_req') || '{}');
                 let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
                 let hasNewNotification = false;
@@ -829,7 +826,7 @@
         window.saveDraft = function() { 
             const shortTitle = document.getElementById('req-short-title').value.trim();
             const fullDesc = document.getElementById('req-title').value.trim();
-            if(!shortTitle || !fullDesc) return showAlert('暂存失败', '请至少填写标题和需求描述！', 'danger');
+            if(!shortTitle || !fullDesc) return window.showAlert('暂存失败', '请至少填写标题和需求描述！', 'danger');
             
             const selectedChannels = Array.from(document.querySelectorAll('.req-channel:checked')).map(cb => cb.value);
             const otherChannelText = document.getElementById('req-channel-other').value;
@@ -858,7 +855,7 @@
                     window.renderDraftToUI();
                     const spinner = document.getElementById('loading-spinner');
                     if(spinner) spinner.classList.add('hidden');
-                } catch (err) { showAlert("存储失败", "浏览器本地存储空间已满。清理空间后重试。", "danger"); }
+                } catch (err) { window.showAlert("存储失败", "浏览器本地存储空间已满。清理空间后重试。", "danger"); }
             }
         }
 
@@ -899,7 +896,7 @@
 
         window.deleteDraft = function(event, btn) {
             event.stopPropagation(); 
-            showConfirm("删除草稿", "确定要永久删除这条草稿吗？", () => {
+            window.showConfirm("删除草稿", "确定要永久删除这条草稿吗？", () => {
                 localStorage.removeItem('myDraftTask');
                 const dcard = document.getElementById('draft-card');
                 if(dcard) dcard.remove();
@@ -923,7 +920,7 @@
         }
 
         window.submitNewReq = async function() {
-            if(!window.supabase) return showAlert("系统错误", "云端服务仍在初始化，请稍等！", "danger");
+            if(!window.supabase) return window.showAlert("系统错误", "云端服务仍在初始化，请稍等！", "danger");
 
             const shortTitle = document.getElementById('req-short-title').value.trim();
             const fullDesc = document.getElementById('req-title').value.trim();
@@ -931,7 +928,7 @@
             const assigneeVal = document.getElementById('req-assignee').value;
             const dateInput = document.getElementById('req-date').value;
 
-            if(!shortTitle || !fullDesc || !projectVal || !dateInput) return showAlert("校验失败", "带星号的为必填项！", "danger");
+            if(!shortTitle || !fullDesc || !projectVal || !dateInput) return window.showAlert("校验失败", "带星号的为必填项！", "danger");
             
             const selectedChannels = Array.from(document.querySelectorAll('.req-channel:checked')).map(cb => cb.value);
             const otherChannelText = document.getElementById('req-channel-other').value.trim();
@@ -974,7 +971,7 @@
             btn.disabled = false;
 
             if (error) {
-                return showAlert("写入失败", error.message, "danger");
+                return window.showAlert("写入失败", error.message, "danger");
             }
 
             localStorage.removeItem('myDraftTask');
@@ -1059,7 +1056,7 @@
                         const opacity = n.read ? 'opacity-50' : '';
                         const dateStr = new Date(n.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                         html += `
-                            <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer ${opacity}" onclick="window.markSingleAsRead(${n.id}, '${n.taskId}')">
+                            <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer ${opacity}" onclick="window.markSingleAsRead(${n.id})">
                                 <div class="flex justify-between items-start mb-1">
                                     <h4 class="text-[13px] font-bold text-white flex items-center gap-2">${n.title} ${dot}</h4>
                                     <span class="text-[10px] text-zinc-500">${dateStr}</span>
@@ -1073,7 +1070,7 @@
             }
         }
 
-        window.markSingleAsRead = function(id, taskId) {
+        window.markSingleAsRead = function(id) {
             let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
             let target = sysNotifs.find(n => n.id === id);
             if(target) {
@@ -1149,9 +1146,17 @@
         }
         window.getFileNameFromUI = getFileNameFromUI;
 
-        // 项目与成员下拉数据
-        const PROJECT_LIST = ["Smart文化-OpenTalk", "荣誉体系-即时激励", "年度大会-武汉", "日常行政支撑", "2026战略宣发矩阵"];
-        const PREDEFINED_ASSIGNEES = ['davidxxu', 'judyzzhang', 'wang', 'skyler', 'liuruoyu'];
+        // 💡 核心修复：完全复原你原来设定的 40+真实项目名单 和 20+真实执行人名单
+        const PROJECT_LIST = [
+            "Smart文化-OpenTalk", "Smart文化-1024", "Smart文化-后勤小管家", "Smart文化-小蓝书运营", "Smart文化-送物机器人",
+            "荣誉体系-即时激励", "荣誉体系-荣誉奖项", "荣誉体系-AI奖项", "荣誉体系-最佳拍档", "荣誉体系-科技合作社", "荣誉体系-极客团",
+            "年度大会-武汉", "年度大会-上海", "年度大会-行庆", "HR侧相关-周年庆", "HR侧相关-初八团拜", 
+            "工会相关-团建旅游", "工会相关-运动季", "工会相关-文体活动",
+            "常规活动-新人入职", "常规活动-科技合规银监人行类支持", "常规活动-年决", "常规活动-管理团队活动", "常规活动-外籍员工支持",
+            "品宣支持", "科技子支持", "行品宣设计对接", 
+            "部门-基科", "部门-数业", "部门-贷款", "部门-存款", "部门-企同", "部门-财富", "部门-政科", "部门-数发", "部门-安全", "部门-上海", "部门-武汉", "部门-成都", "部门-科管"
+        ];
+        const PREDEFINED_ASSIGNEES = ['anckyyu', 'davidxxu', 'debbiehuang', 'evazzhu', 'hscheng', 'mengmengli', 'skylerhuang', 'sophiachen', 'tiaouyang', 'v_lijuangchen', 'v_lucui', 'v_sijieli', 'v_siyifu', 'v_sjtian', 'v_wbchye', 'v_wbjgao', 'v_wbmtli', 'v_zqlan', 'wenjiawu', 'yamyzhang', 'yaozhong', 'yoshyliu', 'zoeyzhou'];
         let finalAssigneeList = [...PREDEFINED_ASSIGNEES];
         
         window.showProjectDropdown = function() { document.getElementById('project-dropdown').classList.remove('hidden'); window.renderProjects(document.getElementById('req-project').value); document.getElementById('assignee-dropdown').classList.add('hidden'); }
@@ -1227,6 +1232,7 @@
 
                 window.loadNotifications();
                 
+                // 💡 部署 8秒后台静默雷达
                 setInterval(() => { window.loadTasksFromCloud(true); }, 8000); 
             }
         });
