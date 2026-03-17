@@ -349,7 +349,7 @@
             }
         }
 
-        // 💡 滚雪球模块显隐逻辑：根据历史记录动态点亮框架和正稿区
+        // 💡 滚雪球模块显隐逻辑：严格按照状态控制框架和正式稿的显示
         function renderSnowballBlocks() {
             let frameworkImg = null, frameworkDesc = '无详细说明';
             let draftImg = null, draftDesc = '无详细说明', draftVer = '', draftLink = globalTaskData.source_file_link || '';
@@ -365,27 +365,42 @@
                     if(h.source_link) draftLink = h.source_link;
                 }
             }
-            // 兼容容灾字段
-            if(!draftImg && globalTaskData.design_img_url) draftImg = globalTaskData.design_img_url;
 
-            // 如果已经有了框架图，点亮阶段2
+            // 🚨 修正核心：严格的状态隔离，避免框架图错误地跑到正式稿区域！
+            // 只有当状态是 reviewing, completed, archived, terminated 时，才允许显示正式稿！
+            const isDraftPhase = ['reviewing', 'completed', 'archived', 'terminated'].includes(globalTaskData.status);
+
+            // 如果在正式稿阶段，且历史记录里没找到图（容灾），才去取 design_img_url
+            if(isDraftPhase && !draftImg && globalTaskData.design_img_url) {
+                draftImg = globalTaskData.design_img_url;
+            }
+
+            // 如果不在正式稿阶段，强制清空 draftImg，绝对不显示正式稿区块
+            if (!isDraftPhase) {
+                draftImg = null;
+            }
+
+            // 渲染框架块
             if(frameworkImg) {
                 const bFrame = document.getElementById('block-framework');
                 bFrame.classList.remove('hidden');
                 document.getElementById('framework-img').src = frameworkImg;
                 document.getElementById('framework-desc').innerText = frameworkDesc;
-            } else {
-                // 没有独立的框架图，也有可能是直接越级交了正稿，那么隐藏框架层即可
             }
 
-            // 如果已经有了正稿图，点亮阶段3
+            // 渲染正稿块
             if(draftImg) {
                 const bDraft = document.getElementById('block-draft');
                 bDraft.classList.remove('hidden');
                 document.getElementById('draft-img').src = draftImg;
                 document.getElementById('draft-img').classList.remove('hidden');
                 document.getElementById('draft-desc').innerText = draftDesc;
-                if(draftVer) document.getElementById('draft-version-title').innerHTML += `<span class="bg-white/10 text-white px-2 py-0.5 rounded text-xs ml-2 font-mono shadow-sm border border-white/20">v-${draftVer.replace('V','')}</span>`;
+                
+                const titleEl = document.getElementById('draft-version-title');
+                titleEl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg> 设计师提交的正稿验收`;
+                if(draftVer) {
+                    titleEl.innerHTML += `<span class="bg-white/10 text-white px-2 py-0.5 rounded text-xs ml-2 font-mono shadow-sm border border-white/20">v-${draftVer.replace('V','')}</span>`;
+                }
                 
                 if(draftLink) {
                     document.getElementById('draft-source-link-container').classList.remove('hidden');
@@ -402,7 +417,7 @@
             }, 300);
         }
 
-        // 💡 智能大一统 Action Panel (核心架构)
+        // 💡 智能大一统 Action Panel
         function renderSmartActionPanel() {
             const status = globalTaskData.status;
             const enName = currentUser.enName.toLowerCase();
@@ -505,7 +520,6 @@
                     
                     let limitHtml = '';
                     if(currentRejectCount >= rejectCountLimit) {
-                        // 触发 5 次熔断！
                         limitHtml = `
                             <div class="bg-rose-500/10 border border-rose-500/30 rounded-xl p-4 mb-5">
                                 <p class="text-[12px] text-rose-400 font-bold mb-1">⚠️ 警告：系统熔断保护触发</p>
@@ -521,7 +535,6 @@
                             </div>
                         `;
                     } else {
-                        // 常规验收
                         limitHtml = `
                             <p class="text-[12px] text-emerald-500/80 leading-relaxed mb-6">设计师已交付最终稿件。如无问题请确认验收，系统将自动结算完结。若细节仍需调整，可打回重修。</p>
                             <div class="space-y-4">
@@ -560,7 +573,6 @@
                 `;
 
             } else {
-                // 已完结 / 归档 / 强制终止
                 sCol = status==='terminated'?'rose':'zinc'; sText = status==='terminated'?'已强行终止 (废弃)':'任务已圆满结项';
                 sIcon = status==='terminated'?`<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`:`<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
                 
@@ -572,7 +584,6 @@
                 `;
             }
 
-            // 更新 DOM
             hBadge.innerHTML = `${sIcon} ${sText}`;
             hBadge.className = `bg-${sCol}-500/20 text-${sCol}-400 border border-${sCol}-500/30 px-3 py-1.5 rounded-lg text-[12px] font-bold flex items-center gap-1.5 shadow-[0_0_10px_rgba(var(--tw-colors-${sCol}-500),0.2)]`;
             hBadge.classList.remove('hidden');
@@ -627,8 +638,8 @@
                     html += `
                     <div class="relative flex gap-4 z-10 pb-6 group">
                        <div class="timeline-line group-last:hidden"></div>
-                       <div class="w-6 h-6 rounded-full bg-[#121217] border-[2px] border-${dotColor}-500 flex items-center justify-center shrink-0 text-${dotColor}-500 z-10 shadow-[0_0_10px_rgba(var(--tw-colors-${dotColor}-500),0.2)]">
-                           ${iconHtml}
+                       <div class="w-7 h-7 rounded-full bg-[#121217] border-[2px] border-${dotColor}-500 flex items-center justify-center shrink-0 z-10 shadow-[0_0_15px_rgba(255,255,255,0.1)]">
+                           ${iconHtml || `<div class="w-2 h-2 bg-${dotColor}-500 rounded-full"></div>`}
                        </div>
                        <div class="pt-0.5 w-full pr-2 z-10">
                            <div class="flex items-center justify-between mb-1.5">
@@ -645,14 +656,14 @@
             html += `
                 <div class="relative flex gap-4 z-10 opacity-50 grayscale pb-6">
                    <div class="timeline-line"></div>
-                   <div class="w-6 h-6 rounded-full bg-[#121217] border-[2px] border-zinc-500 flex items-center justify-center shrink-0 z-10"><div class="w-1.5 h-1.5 bg-zinc-500 rounded-full"></div></div>
+                   <div class="w-7 h-7 rounded-full bg-[#121217] border-[2px] border-zinc-500 flex items-center justify-center shrink-0 z-10"><div class="w-1.5 h-1.5 bg-zinc-500 rounded-full"></div></div>
                    <div class="pt-0.5 z-10">
                        <p class="text-[12px] font-bold text-white mb-0.5">设计排期统筹并接单</p>
                        <p class="text-[10px] text-zinc-500 font-mono">执行人绑定: ${globalTaskData.assignee || '无'}</p>
                    </div>
                 </div>
                 <div class="relative flex gap-4 z-10 opacity-30 grayscale">
-                   <div class="w-6 h-6 rounded-full bg-[#121217] border-[2px] border-zinc-500 flex items-center justify-center shrink-0 z-10"><div class="w-1.5 h-1.5 bg-zinc-500 rounded-full"></div></div>
+                   <div class="w-7 h-7 rounded-full bg-[#121217] border-[2px] border-zinc-500 flex items-center justify-center shrink-0 z-10"><div class="w-1.5 h-1.5 bg-zinc-500 rounded-full"></div></div>
                    <div class="pt-0.5 z-10">
                        <p class="text-[12px] font-bold text-white mb-0.5">大厅建单成功并下发系统</p>
                        <p class="text-[10px] text-zinc-500 font-mono">发起账号: ${globalTaskData.creator || '未知'}</p>
