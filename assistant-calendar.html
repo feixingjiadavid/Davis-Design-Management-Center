@@ -167,19 +167,23 @@
 
             <div class="w-full max-w-[1400px] flex gap-8 items-start h-full pb-4">
                 
-                <div class="flex-1 bg-[#121217] border border-white/5 rounded-3xl overflow-hidden shadow-2xl flex flex-col h-full min-w-0" id="main-grid-wrapper">
+                <div class="flex-1 bg-[#121217] border border-white/5 rounded-3xl overflow-hidden shadow-2xl flex flex-col h-full min-w-0" id="main-grid-wrapper" onscroll="hideHoverCard()">
+                    
                     <div id="view-month" class="view-section active flex-col h-full">
                         <div class="grid grid-cols-7 border-b border-white/5 bg-[#16161d] shrink-0">
                             <div class="py-4 text-center text-[12px] font-bold text-zinc-500">周日</div><div class="py-4 text-center text-[12px] font-bold text-zinc-500">周一</div><div class="py-4 text-center text-[12px] font-bold text-zinc-500">周二</div><div class="py-4 text-center text-[12px] font-bold text-zinc-500">周三</div><div class="py-4 text-center text-[12px] font-bold text-zinc-500">周四</div><div class="py-4 text-center text-[12px] font-bold text-zinc-500">周五</div><div class="py-4 text-center text-[12px] font-bold text-orange-400/50">周六</div>
                         </div>
                         <div id="month-grid" class="flex-1 grid grid-cols-7 auto-rows-fr bg-[#121217]"></div>
                     </div>
+
                     <div id="view-week" class="view-section flex-col h-full bg-transparent border-none shadow-none">
                         <div id="week-grid" class="flex-1 grid grid-cols-7 gap-3 rounded-3xl overflow-hidden"></div>
                     </div>
+
                     <div id="view-year" class="view-section flex-col h-full bg-transparent border-none shadow-none p-2 overflow-y-auto custom-scrollbar">
                         <div id="year-grid" class="grid grid-cols-4 gap-4"></div>
                     </div>
+
                 </div>
 
                 <div class="w-[340px] bg-[#121217] border border-white/5 rounded-3xl p-7 flex flex-col h-full shadow-2xl shrink-0 overflow-y-auto custom-scrollbar">
@@ -246,7 +250,7 @@
     </main>
 
     <div id="hover-detail-card" class="fixed z-[999999] pointer-events-none opacity-0 transition-opacity duration-200 hidden bg-[#121217]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8)] p-5 w-80 flex-col">
-        </div>
+    </div>
 
     <div id="period-detail-modal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center">
         <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('period-detail-modal')"></div>
@@ -294,7 +298,7 @@
             <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
             </div>
-            <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-[11px] text-zinc-400 mt-0.5">操作已执行。</p></div>
+            <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-zinc-400 text-[11px] mt-0.5">操作已执行。</p></div>
         </div>
     </div>
 
@@ -302,7 +306,7 @@
         import { supabase } from './supabase-config.js';
         window.supabase = supabase;
         window.DB_TABLE = 'test_tasks'; 
-        if(window.initApp) window.initApp();
+        if(window.loadTasksFromCloud) window.loadTasksFromCloud();
     </script>
 
     <script>
@@ -358,7 +362,6 @@
             showDialogUI();
         }
 
-        // ================= 基础交互 =================
         window.logout = function(e) {
             if(e) e.stopPropagation();
             localStorage.removeItem('activeUserObj'); window.location.href = 'login.html'; 
@@ -415,25 +418,6 @@
 
             currentUserData = user;
             return user;
-        }
-
-        window.showToast = function(title, desc, type = 'success') {
-            const toast = document.getElementById('action-toast');
-            document.getElementById('toast-title').innerText = title;
-            document.getElementById('toast-desc').innerText = desc;
-            const icon = document.getElementById('toast-icon');
-            if(type === 'success') {
-                icon.className = "w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0";
-                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-            } else if(type === 'info') {
-                icon.className = "w-8 h-8 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center shrink-0";
-                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
-            } else {
-                icon.className = "w-8 h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0";
-                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
-            }
-            toast.classList.remove('hidden');
-            setTimeout(() => { toast.classList.add('hidden'); }, 3000);
         }
 
         // ================= 💡 核心：拉取云端数据 =================
