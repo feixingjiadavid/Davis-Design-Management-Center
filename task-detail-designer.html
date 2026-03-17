@@ -49,8 +49,8 @@
         </div>
 
         <div class="flex-1 overflow-y-auto p-5 space-y-2">
-            <button onclick="window.location.href='manager-workspace.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-white transition-all btn-press">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            <button onclick="window.location.href='assistant-workspace.html'" class="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-white/10 text-white hover:bg-white/20 transition-all btn-press shadow-sm">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
                 <span class="font-bold text-[14px]">返回执行看板</span>
             </button>
         </div>
@@ -289,7 +289,8 @@
             currentUser = JSON.parse(userStr);
             document.getElementById('sidebar-avatar').innerText = currentUser.avatar || '?';
             
-            if(!currentTaskId) { alert("非法访问：未找到需求单号！"); window.location.href = 'manager-workspace.html'; return; }
+            // 💡 修复：非法访问跳回正确看板
+            if(!currentTaskId) { alert("非法访问：未找到需求单号！"); window.location.href = 'assistant-workspace.html'; return; }
 
             const checkAndLoad = setInterval(() => {
                 if(window.supabase) { clearInterval(checkAndLoad); fetchTaskData(); }
@@ -300,7 +301,8 @@
         async function fetchTaskData() {
             try {
                 const { data, error } = await window.supabase.from(window.DB_TABLE).select('*').eq('id', currentTaskId).single();
-                if(error || !data) { alert("需求不存在或已删除！"); window.location.href = 'manager-workspace.html'; return; }
+                // 💡 修复：报错后跳回正确看板
+                if(error || !data) { alert("需求不存在或已删除！"); window.location.href = 'assistant-workspace.html'; return; }
                 
                 globalTaskData = data;
                 try { globalHistoryArr = JSON.parse(data.history_json || '[]'); } catch(e) { globalHistoryArr = []; }
@@ -312,6 +314,7 @@
             } catch(e) { console.error(e); showToast("数据加载失败", e.message, "error"); }
         }
 
+        // 渲染基础信息（左上常驻区）
         function renderStaticInfo() {
             const d = globalTaskData;
             safeSetTxt('req-id', d.id || '--');
@@ -340,6 +343,7 @@
             const a = document.createElement('a'); a.href = dataBase64; a.download = name; a.click();
         }
 
+        // 💡 智能判断渲染设计面板
         function renderSmartDesignerPanel() {
             const status = globalTaskData.status;
             const hBadge = document.getElementById('header-status-badge');
@@ -439,6 +443,7 @@
 
                 pnlClasses = `bg-gradient-to-b from-[#1a110a] to-[#121217] border border-${sCol}-500/30 rounded-3xl p-7 shadow-[0_20px_40px_-10px_rgba(var(--tw-colors-${sCol}-500),0.15)] relative overflow-hidden`;
                 
+                // 💡 修复：按照要求添加 AI 手填框
                 pnlHtml = `
                     <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-${sCol}-500"></div>
                     <h3 class="text-[16px] font-bold text-white mb-6 border-b border-white/5 pb-4">效能填报记录</h3>
@@ -449,7 +454,7 @@
                         </div>
                         <div>
                             <label class="block text-[12px] font-bold text-zinc-300 mb-2">借助的 AI 生产力</label>
-                            <div class="grid grid-cols-3 gap-2">
+                            <div class="grid grid-cols-3 gap-2 mb-3">
                                 <label class="cursor-pointer"><input type="checkbox" class="hidden ai-tool-cb" value="Midjourney"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[10px] px-2 py-1.5 rounded-md text-center transition-colors">Midjourney</div></label>
                                 <label class="cursor-pointer"><input type="checkbox" class="hidden ai-tool-cb" value="Gemini"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[10px] px-2 py-1.5 rounded-md text-center transition-colors">Gemini</div></label>
                                 <label class="cursor-pointer"><input type="checkbox" class="hidden ai-tool-cb" value="豆包"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[10px] px-2 py-1.5 rounded-md text-center transition-colors">豆包</div></label>
@@ -457,6 +462,7 @@
                                 <label class="cursor-pointer"><input type="checkbox" class="hidden ai-tool-cb" value="PS生成填充"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[10px] px-2 py-1.5 rounded-md text-center transition-colors">PS填充</div></label>
                                 <label class="cursor-pointer"><input type="checkbox" class="hidden ai-tool-cb" value="无AI辅助"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[10px] px-2 py-1.5 rounded-md text-center transition-colors">纯手绘</div></label>
                             </div>
+                            <input type="text" id="ai-tool-manual" class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-2.5 text-[12px] text-white outline-none focus:border-${sCol}-500 transition-colors" placeholder="补充其他手填工具...">
                         </div>
                     </div>
                     <div class="mt-8 pt-5 border-t border-white/5">
@@ -483,7 +489,7 @@
                     <div class="w-12 h-12 bg-zinc-800 rounded-full flex items-center justify-center mb-5 text-zinc-400"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div>
                     <h3 class="text-[16px] font-bold text-white mb-3">系统防穿透锁定激活</h3>
                     <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">为避免版本冲突覆盖，当前单据已临时锁定。您可以先处理看板里的其他任务。</p>
-                    <button onclick="window.location.href='manager-workspace.html'" class="w-full py-3.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-[13px] font-bold transition-all btn-press">返回看板看其他单</button>
+                    <button onclick="window.location.href='assistant-workspace.html'" class="w-full py-3.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-[13px] font-bold transition-all btn-press">返回看板看其他单</button>
                 `;
 
             } else {
@@ -497,7 +503,7 @@
                     <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-${sCol}-500"></div>
                     <h3 class="text-[16px] font-bold text-white mb-3">${sText}</h3>
                     <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">该需求在此刻已永久封存闭环，感谢你的设计输出。相关的资产可前往资产库查阅。</p>
-                    <button onclick="window.location.href='manager-workspace.html'" class="w-full py-3.5 bg-[#1a1a24] border border-zinc-700 text-zinc-400 hover:bg-zinc-800 hover:text-white rounded-xl text-[13px] font-bold transition-all btn-press">回到工作台</button>
+                    <button onclick="window.location.href='assistant-workspace.html'" class="w-full py-3.5 bg-[#1a1a24] border border-zinc-700 text-zinc-400 hover:bg-zinc-800 hover:text-white rounded-xl text-[13px] font-bold transition-all btn-press">回到工作台</button>
                 `;
             }
 
@@ -562,7 +568,6 @@
             });
         }
 
-        // 强力 Base64 转换器 (用于云端失效时的兜底)
         function blobToBase64(blob) {
             return new Promise((resolve, _) => {
                 const reader = new FileReader();
@@ -640,7 +645,8 @@
                 if (error) { btn.disabled = false; btn.innerText = "保存排期并接单"; return alert("云端更新失败：" + error.message); }
             }
             closeActionModals(); showToast('✅ 接单成功', '任务已分配给您并进入制作池。', 'success');
-            setTimeout(() => { window.location.reload(); }, 1000);
+            // 💡 修复2：接单完成后，平滑返回看板
+            setTimeout(() => { window.location.href = 'assistant-workspace.html'; }, 1000);
         }
 
         window.submitRejectOrder = async function() {
@@ -650,7 +656,7 @@
             btn.disabled = true; btn.innerText = "退回中...";
 
             if (window.supabase) {
-                const summary = `需求被执行层退回大厅重提：${reason}`;
+                const summary = `需求被退回大厅重提：${reason}`;
                 
                 let hist = [...globalHistoryArr];
                 hist.push({
@@ -664,7 +670,7 @@
                 if (error) { btn.disabled = false; btn.innerText = "确认退回"; return alert("云端更新失败：" + error.message); }
             }
             closeActionModals(); showToast('已退回', '该需求已退回给甲方。', 'info');
-            setTimeout(() => { window.location.href = 'manager-workspace.html'; }, 1000);
+            setTimeout(() => { window.location.href = 'assistant-workspace.html'; }, 1000);
         }
 
         // 🚀 终极防崩上传流
@@ -697,7 +703,6 @@
                 const safeFileName = `output_${currentTaskId}_${Date.now()}.${fileExt}`;
                 
                 try {
-                    // 1. 尝试上传到 Supabase Bucket
                     const { error: uploadError } = await window.supabase.storage.from('designs').upload(safeFileName, fileToUpload, { contentType: `image/${fileExt === 'png' ? 'png' : 'jpeg'}` });
                     if (uploadError) throw uploadError;
 
@@ -705,7 +710,6 @@
                     finalCloudUrl = urlData.publicUrl;
                 } catch (err) {
                     console.warn("⚠️ 云端 Storage Bucket 尚未建立或配置错误，系统自动降级为 Base64 文本存储...");
-                    // 2. 防崩溃降级机制 -> Base64
                     try {
                         finalCloudUrl = await blobToBase64(fileToUpload);
                     } catch(b64Err) {
@@ -715,7 +719,13 @@
                 }
             }
 
+            // 💡 修复3：收集手填 AI 工具
             const checkedAIs = Array.from(document.querySelectorAll('.ai-tool-cb:checked')).map(cb => cb.value);
+            const manualAI = document.getElementById('ai-tool-manual')?.value.trim();
+            if (manualAI) {
+                checkedAIs.push(manualAI); // 将手填的工具合并进数组
+            }
+
             const newHistoryRecord = {
                 version: `v-${globalHistoryArr.length + 1}`,
                 desc: descText,
@@ -750,7 +760,7 @@
             }
 
             showToast('推送成功', `该节点产出已流转至下一步。`, 'success');
-            setTimeout(() => { window.location.reload(); }, 1500);
+            setTimeout(() => { window.location.href = 'assistant-workspace.html'; }, 1500);
         }
     </script>
 </body>
