@@ -209,7 +209,8 @@
 
         </div>
     </main>
-<div id="transfer-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closeTransferModal()">
+
+    <div id="transfer-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closeTransferModal()">
         <div id="transfer-modal" class="hidden w-full max-w-lg bg-[#121217] border border-orange-500/20 rounded-3xl shadow-[0_20px_50px_-10px_rgba(249,115,22,0.2)] flex flex-col scale-95 transition-transform duration-300">
             <div class="px-6 py-5 border-b border-white/5 flex justify-between items-center bg-[#1a1a1f] rounded-t-3xl">
                 <h2 class="text-[15px] font-bold text-white flex items-center gap-2">
@@ -275,8 +276,8 @@
         window.supabase = supabase;
         window.DB_TABLE = 'test_tasks'; 
         
-        // 🚀 性能优化核心：列表轻量化查询
-        window.LIGHT_FIELDS = 'id, title, status, project, due_date, creator, created_at, summary_desc, assignee';
+        // 💡 增加 history_json 以支持路由大脑判定
+        window.LIGHT_FIELDS = 'id, title, status, project, due_date, creator, created_at, summary_desc, assignee, history_json';
 
         if(window.loadTasksFromCloud) window.loadTasksFromCloud();
     </script>
@@ -290,7 +291,6 @@
             window.location.href = 'login.html'; 
         }
 
-        // 💡 时间与花名问候提取
         function updateGreeting(user) {
             const hour = new Date().getHours();
             let timeStr = '晚上好';
@@ -318,7 +318,6 @@
             
             updateGreeting(user);
 
-            // 💡 清空测试数据按钮白名单
             const testUsers = ['ponyxu', 'davidxxu', 'yoshyliu', 'judyzzhang', '小戴维斯'];
             const isTestUser = testUsers.includes(enName) || testUsers.includes(user.displayName) || testUsers.includes(user.cnName);
             if(isTestUser) {
@@ -326,7 +325,6 @@
                 if(clrBtn) { clrBtn.classList.remove('hidden'); clrBtn.classList.add('flex'); }
             }
 
-            // 💡 完整恢复：动态身份下拉菜单
             const menuContainer = document.getElementById('dynamic-identity-list');
             if (menuContainer) {
                 let html = '';
@@ -386,12 +384,11 @@
         }
         window.submitPwdChange = function() { alert('请联系管理员修改密码。'); closePwdModal(); }
 
-        // ================= 核心：生成卡片逻辑 =================
+        // ================= 💡 核心：路由大分发与卡片生成 =================
         function createTaskHTML(task, currentUser, currentUserEn, isJudy, isDavid) {
             const taskAssignee = task.assignee ? task.assignee.toLowerCase() : 'none';
             const taskCreator = task.creator;
             
-            // 💡 权限与隐私控制引擎
             const isUnassigned = taskAssignee === 'none' || taskAssignee === '';
             const isMyDesignTask = taskAssignee === currentUserEn;
             const isMyReqTask = taskCreator === currentUser.displayName || taskCreator === currentUser.cnName || taskCreator === currentUser.enName;
@@ -408,11 +405,23 @@
                 if (diffDays <= 2 && diffDays >= -999) isUrgent = true;
             }
 
+            // 💡 智能判断阶段：如果历史记录里有提交过 draft 或 有领导审批记录，就是正稿阶段
+            let isDraftPhase = false;
+            if (task.history_json) {
+                try {
+                    const history = JSON.parse(task.history_json);
+                    for (let i = history.length - 1; i >= 0; i--) {
+                        if (history[i].reply_by && (history[i].reply_by.includes('主管') || history[i].reply_by.includes('领导')) && !history[i].is_rejected) isDraftPhase = true;
+                        if (history[i].action === 'submit_draft') isDraftPhase = true;
+                    }
+                } catch(e) {}
+            }
+            if (task.summary_desc && (task.summary_desc.includes('正式稿') || task.summary_desc.includes('已通过框架'))) isDraftPhase = true;
+
             let sColor, sText, targetUrl, laneId, actionBtnHtml = '';
             let alertBadge = isUrgent ? `<div class="absolute top-0 right-0 bg-rose-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl shadow-lg z-10 animate-pulse">临期预警</div>` : '';
             let breatheClass = isUrgent ? 'breathe-rose' : '';
 
-            // 💡 解析转单记录，如果有则高亮显示
             let transferHtml = '';
             let displayDesc = task.summary_desc || task.full_desc || '暂无详细描述';
             
@@ -426,7 +435,7 @@
                         </div>
                     </div>
                 `;
-                displayDesc = task.full_desc || '请点击查看详情'; // 降级显示原描述，避免重复
+                displayDesc = task.full_desc || '请点击查看详情'; 
             }
 
             switch (task.status) {
@@ -437,9 +446,18 @@
                     actionBtnHtml = `<div class="mt-auto border-t border-white/5 pt-3 pl-1 flex gap-2 relative z-10"><button onclick="event.stopPropagation(); window.location.href='${targetUrl}'" class="flex-1 bg-sky-600 hover:bg-sky-500 text-white rounded-lg py-2 text-[11px] font-bold btn-press transition-colors shadow-[0_4px_12px_rgba(56,189,248,0.25)]">去接单并响应</button><button onclick="event.stopPropagation(); window.openTransferModal('${task.id}', '${task.title}')" class="px-3 bg-[#1a1a24] text-sky-400 border border-sky-500/30 hover:bg-sky-500/10 rounded-lg text-[11px] font-bold btn-press transition-colors flex items-center justify-center gap-1" title="排期冲突，申请转单">转单</button></div>`;
                     break;
                 case 'processing':
-                    laneId = 'lane-processing'; sColor = 'text-orange-400'; sText = '你已接单推进中'; 
-                    targetUrl = `assistant-task-processing.html?id=${task.id}`;
-                    actionBtnHtml = `<div class="mt-auto border-t border-white/5 pt-3 pl-1 flex gap-2 relative z-10"><button onclick="event.stopPropagation(); window.location.href='${targetUrl}'" class="flex-1 bg-orange-600 hover:bg-orange-500 text-white rounded-lg py-2 text-[11px] font-bold btn-press transition-colors shadow-[0_4px_12px_rgba(249,115,22,0.25)]">去上传方案</button><button onclick="event.stopPropagation(); window.openTransferModal('${task.id}', '${task.title}')" class="px-3 bg-[#1a1a24] text-orange-400 border border-orange-500/30 hover:bg-orange-500/10 rounded-lg text-[11px] font-bold btn-press transition-colors flex items-center justify-center gap-1" title="遇到阻力，转交他人">转单</button></div>`;
+                case 'rejected': // 💡 打回重修也归属到制作中，通过颜色和文案区分
+                    laneId = 'lane-processing'; 
+                    sColor = task.status === 'rejected' ? 'text-rose-500' : 'text-orange-400'; 
+                    sText = task.status === 'rejected' ? '被打回，急需修改' : '你已接单推进中'; 
+                    
+                    // 💡 核心：如果判断是推正稿阶段，跳 draft，否则跳 processing
+                    targetUrl = isDraftPhase ? `assistant-task-draft.html?id=${task.id}` : `assistant-task-processing.html?id=${task.id}`;
+                    
+                    let btnColor = task.status === 'rejected' ? 'bg-rose-600 hover:bg-rose-500 shadow-[0_4px_12px_rgba(244,63,94,0.25)]' : 'bg-orange-600 hover:bg-orange-500 shadow-[0_4px_12px_rgba(249,115,22,0.25)]';
+                    let btnText = task.status === 'rejected' ? '去修改并重新提交' : (isDraftPhase ? '去交付正式稿' : '去上传框架');
+
+                    actionBtnHtml = `<div class="mt-auto border-t border-white/5 pt-3 pl-1 flex gap-2 relative z-10"><button onclick="event.stopPropagation(); window.location.href='${targetUrl}'" class="flex-1 ${btnColor} text-white rounded-lg py-2 text-[11px] font-bold btn-press transition-colors">${btnText}</button><button onclick="event.stopPropagation(); window.openTransferModal('${task.id}', '${task.title}')" class="px-3 bg-[#1a1a24] text-orange-400 border border-orange-500/30 hover:bg-orange-500/10 rounded-lg text-[11px] font-bold btn-press transition-colors flex items-center justify-center gap-1" title="遇到阻力，转交他人">转单</button></div>`;
                     break;
                 case 'pending_approval':
                     laneId = 'lane-blocked'; sColor = 'text-amber-500'; sText = '领导审批中'; 
@@ -630,12 +648,11 @@
                 if(notifMenu && !notifMenu.contains(e.target)) notifMenu.classList.add('hidden'); 
             });
 
-            // 🚀 核心：挂载后台心跳轮询
             window.loadNotifications();
             setInterval(window.loadNotifications, 3000); 
         });
 
-        // ================= 💡 转单逻辑优化（记录格式化追踪） =================
+        // ================= 💡 转单逻辑 =================
         const modalOverlay = document.getElementById('transfer-modal-overlay');
         const modal = document.getElementById('transfer-modal');
         let currentTransferTaskId = null;
@@ -664,7 +681,6 @@
             const user = JSON.parse(userStr);
             const dispName = user.displayName || user.cnName || user.enName;
 
-            // 💡 核心：专门加上 [转单记录] 标识前缀，供渲染工厂抓取高亮
             const { error } = await window.supabase.from(window.DB_TABLE)
                 .update({ status: 'pending', assignee: 'none', summary_desc: `[转单记录] ${dispName} 退回公海：${reason}` })
                 .eq('id', currentTransferTaskId);
