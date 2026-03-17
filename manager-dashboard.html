@@ -21,7 +21,6 @@
         .toast-slide-in { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-        /* 水位条动画 */
         .progress-bar-fill { transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1); }
         
         .workload-card { transition: all 0.2s ease; border: 1px solid rgba(255,255,255,0.05); background: #121217; }
@@ -52,13 +51,17 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
                 <span class="font-medium text-[14px]">总监控制台</span>
             </button>
-            <button class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl bg-fuchsia-500/10 text-fuchsia-400 border border-fuchsia-500/20 transition-all btn-press cursor-default">
+            <button class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl bg-fuchsia-500/10 text-fuchsia-400 border border-fuchsia-500/20 transition-all cursor-default">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                 <span class="font-bold text-[14px]">团队效能大盘</span>
             </button>
             <button onclick="window.location.href='project-analysis.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
                 <span class="font-medium text-[14px]">项目投入分析</span>
+            </button>
+            <button onclick="window.location.href='manager-members.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                <span class="font-medium text-[14px]">组织架构与账号</span>
             </button>
             <button onclick="window.location.href='message-center.html?role=admin'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
@@ -121,39 +124,42 @@
             </div>
         </header>
 
-        <div class="flex-1 p-8 md:p-10 overflow-y-auto custom-scrollbar flex flex-col z-10 relative">
+        <div class="flex-1 p-8 md:p-10 overflow-y-auto custom-scrollbar flex flex-col z-10 relative items-center">
             
             <div id="dashboard-loading" class="absolute inset-0 bg-[#0c0c0e]/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
                 <svg class="animate-spin h-8 w-8 text-fuchsia-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                 <p class="text-xs text-zinc-500 font-bold tracking-widest uppercase">CALCULATING METRICS...</p>
             </div>
 
-            <div class="w-full max-w-[1400px] mx-auto flex flex-col gap-8">
+            <div class="w-full max-w-[1400px] flex flex-col gap-8">
                 
                 <div class="grid grid-cols-4 gap-6">
-                    <div class="bg-[#121217] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden">
-                        <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-fuchsia-500"></div>
-                        <p class="text-[12px] text-zinc-500 font-bold mb-2">当期全盘消耗工时 (h)</p>
-                        <p class="text-[40px] font-black text-white font-mono leading-none mb-1" id="metric-cur-hours">0</p>
-                        <p class="text-[11px] text-zinc-500 mt-2">基于日志提取的总人力</p>
+                    <div class="bg-[#121217] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
+                        <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-fuchsia-500 group-hover:w-2.5 transition-all"></div>
+                        <p class="text-[13px] text-zinc-500 font-bold mb-2 uppercase tracking-wider" id="stat-period-title">本周期交付吞吐量</p>
+                        <p class="text-[48px] font-black text-white font-mono leading-none mb-1"><span id="stat-completed">0</span> <span class="text-sm text-zinc-600 font-sans font-normal ml-1">单</span></p>
+                        <p class="text-[11px] text-zinc-500 mt-2 bg-white/5 inline-block px-2 py-1 rounded">包含该时段内所有已完结记录</p>
                     </div>
-                    <div class="bg-[#121217] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden">
-                        <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-emerald-500"></div>
-                        <p class="text-[12px] text-zinc-500 font-bold mb-2">全队交付一稿通过率</p>
-                        <p class="text-[40px] font-black text-emerald-400 font-mono leading-none mb-1" id="metric-first-pass">0%</p>
-                        <p class="text-[11px] text-zinc-500 mt-2">未曾被打回的完结单占比</p>
+
+                    <div class="bg-[#121217] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
+                        <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-indigo-500 group-hover:w-2.5 transition-all"></div>
+                        <p class="text-[13px] text-zinc-500 font-bold mb-2 uppercase tracking-wider">团队平均一稿通过率</p>
+                        <p class="text-[48px] font-black text-indigo-400 font-mono leading-none mb-1" id="stat-first-pass">0%</p>
+                        <p class="text-[11px] text-zinc-500 mt-2 bg-white/5 inline-block px-2 py-1 rounded" id="stat-first-pass-desc">当前周期无验收记录</p>
                     </div>
-                    <div class="bg-[#121217] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden">
-                        <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-amber-500"></div>
-                        <p class="text-[12px] text-zinc-500 font-bold mb-2">AI 累计节约人效</p>
-                        <p class="text-[40px] font-black text-amber-400 font-mono leading-none mb-1">+<span id="metric-ai-hours">0</span> <span class="text-sm font-sans font-normal text-amber-500/50">h</span></p>
-                        <p class="text-[11px] text-amber-500/60 mt-2 bg-amber-500/10 inline-block px-2 py-1 rounded border border-amber-500/20" id="metric-ai-desc">无使用记录</p>
+
+                    <div class="bg-[#121217] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
+                        <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-emerald-500 group-hover:w-2.5 transition-all"></div>
+                        <p class="text-[13px] text-zinc-500 font-bold mb-2 uppercase tracking-wider">AI 工具提效折算工时</p>
+                        <p class="text-[48px] font-black text-emerald-400 font-mono leading-none mb-1">+<span id="stat-ai-hours">0.0</span> <span class="text-sm text-emerald-600/50 font-sans font-normal ml-1">h</span></p>
+                        <p class="text-[11px] text-emerald-500/60 mt-2 bg-emerald-500/10 inline-block px-2 py-1 rounded border border-emerald-500/20" id="stat-ai-desc">无使用记录</p>
                     </div>
+
                     <div class="bg-rose-500/5 border border-rose-500/20 rounded-3xl p-6 shadow-xl relative overflow-hidden" id="card-overdue">
                         <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-rose-500"></div>
-                        <p class="text-[12px] text-rose-400 font-bold mb-2">当前全局超期预警</p>
-                        <p class="text-[40px] font-black text-rose-500 font-mono leading-none mb-1" id="metric-overdue">0</p>
-                        <p class="text-[11px] text-rose-400/80 mt-2">超期或延期风险项</p>
+                        <p class="text-[13px] text-rose-400 font-bold mb-2 uppercase tracking-wider">当前全局超期预警</p>
+                        <p class="text-[48px] font-black text-rose-500 font-mono leading-none mb-1" id="metric-overdue">0</p>
+                        <p class="text-[11px] text-rose-400/80 mt-2 bg-rose-500/10 inline-block px-2 py-1 rounded border border-rose-500/20">超期或延期风险项</p>
                     </div>
                 </div>
 
@@ -167,14 +173,22 @@
                             </h3>
                             <span class="text-xs font-mono text-zinc-500 bg-white/5 px-2 py-0.5 rounded border border-white/10">已按负荷极性降序排列</span>
                         </div>
-                        <p class="text-xs text-zinc-500 mb-6 pb-4 border-b border-white/5">基于该周期内每位成员的<span class="text-fuchsia-400">真实填报工时</span>与<span class="text-amber-500">当前积压单量</span>动态计算，合理调配全职设计与排版助理。</p>
+                        <p class="text-xs text-zinc-500 mb-6 pb-4 border-b border-white/5">基于该周期内每位成员的<span class="text-fuchsia-400">填报工时</span>与<span class="text-amber-500">压单量</span>动态计算，合理调配全职设计与排版助理。</p>
                         
                         <div class="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-2" id="workload-list">
                             </div>
                     </div>
 
-                    <div class="flex-[2] flex flex-col h-full">
-                        
+                    <div class="flex-[2] flex flex-col gap-6 h-full">
+                        <div class="bg-[#121217] border border-white/5 rounded-3xl p-7 shadow-xl">
+                            <h3 class="text-[14px] font-bold text-zinc-300 mb-5 flex items-center gap-2">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                                资源流向 (Top 项目消耗)
+                            </h3>
+                            <div class="space-y-4" id="project-dist-container">
+                            </div>
+                        </div>
+
                         <div class="bg-ai-report rounded-3xl p-8 flex flex-col shadow-2xl relative overflow-hidden flex-1 border border-white/10">
                             <div class="absolute top-0 right-0 opacity-10 pointer-events-none">
                                 <svg width="200" height="200" viewBox="0 0 24 24" fill="none" stroke="#d946ef" stroke-width="1"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
@@ -190,7 +204,7 @@
                                 </div>
                                 <button onclick="triggerAIReport()" id="btn-generate-ai" class="bg-[#1a1a24] hover:bg-fuchsia-600 border border-fuchsia-500/30 hover:border-transparent text-fuchsia-400 hover:text-white px-5 py-2.5 rounded-xl text-[13px] font-bold transition-all flex items-center gap-2 btn-press">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-                                    一键生成诊断报告
+                                    一键生成调度建议
                                 </button>
                             </div>
 
@@ -207,10 +221,9 @@
                                 <p class="text-[13px]">点击右上角按钮，获取左侧人员负荷的自动化调度建议</p>
                             </div>
                         </div>
-
                     </div>
-                </div>
 
+                </div>
             </div>
         </div>
     </main>
@@ -273,6 +286,7 @@
             document.getElementById('dialog-message').innerHTML = message;
             const colorBar = document.getElementById('dialog-color-bar');
             const icon = document.getElementById('dialog-icon');
+            
             if(type === 'danger') {
                 colorBar.className = 'absolute top-0 left-0 right-0 h-1 bg-rose-500';
                 icon.className = 'w-8 h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0';
@@ -356,11 +370,10 @@
             const triggerBtn = document.getElementById('identityBtn');
             if (triggerBtn) { triggerBtn.innerHTML = `<span class="text-fuchsia-500 font-black flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500 animate-pulse"></span></span> 身份: 管理方 (当前) <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 ml-1"><polyline points="6 9 12 15 18 9"></polyline></svg>`; }
 
-            currentUserData = user;
             return user;
         }
 
-        // ================= 💡 视图与时间引擎 =================
+        // ================= 💡 三维时间引擎 =================
         window.switchView = function(view) {
             currentView = view;
             const btns = ['week', 'month', 'year'];
@@ -378,7 +391,6 @@
             else if(view === 'week') jumpBtn.innerText = '回到本周';
             else jumpBtn.innerText = '回到今年';
 
-            // Hide AI report on view switch
             document.getElementById('ai-report-content').classList.add('hidden');
             document.getElementById('ai-report-content').innerHTML = '';
             document.getElementById('ai-empty').classList.remove('hidden');
@@ -453,10 +465,6 @@
             const dateWrap = document.getElementById('date-selector-wrapper');
             const dateDrop = document.getElementById('date-dropdown');
             if (dateWrap && dateDrop && !dateWrap.contains(e.target)) dateDrop.classList.add('hidden');
-            
-            const idWrap = document.getElementById('identity-wrapper');
-            const idMenu = document.getElementById('identityMenu');
-            if (idWrap && idMenu && !idWrap.contains(e.target)) idMenu.classList.add('hidden');
         });
 
         // ================= 💡 核心：全量数据解析与水位表渲染 =================
@@ -485,7 +493,7 @@
                 if (error) throw error;
                 myAllTasks = tasks || [];
 
-                switchView('month'); // 默认月度大盘
+                switchView('month'); 
                 document.getElementById('dashboard-loading').classList.add('hidden');
 
             } catch (err) {
@@ -500,7 +508,6 @@
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
 
-            // 更新展示文本
             if (currentView === 'month') {
                 document.getElementById('current-date-text').innerText = `${year}年 ${month+1}月`;
                 document.getElementById('stat-period-title').innerText = '本月交付吞吐量';
@@ -516,13 +523,11 @@
                 document.getElementById('stat-period-title').innerText = '本年交付吞吐量';
             }
 
-            // 💡 开始计算大盘数据
             let completedCount = 0;
             let firstPassCount = 0;
             let totalAiHours = 0;
             let overdueCount = 0;
 
-            // 💡 构建字典用于动态水位表：以小写英文名为 key
             let designerStats = {};
             allDesigners.forEach(u => {
                 const k = u.en_name.toLowerCase();
@@ -534,6 +539,7 @@
             });
 
             const today = new Date(); today.setHours(0,0,0,0);
+            let projectDist = {};
 
             myAllTasks.forEach(t => {
                 let isCompletedInPeriod = false;
@@ -544,20 +550,15 @@
                     const hist = JSON.parse(t.history_json || '[]');
                     
                     hist.forEach(h => {
-                        // 找打回记录
                         if(h.is_rejected || (h.action && h.action.includes('reject'))) hasReject = true;
                         
-                        // 找 AI 工具记录
                         if (h.action === 'submit_draft' || h.action === 'submit_framework') {
                             const tools = h.ai_tools || [];
                             tools.forEach(tool => {
-                                if (tool && tool !== '无AI辅助') {
-                                    tUsedAiCount++;
-                                }
+                                if (tool && tool !== '无AI辅助') { tUsedAiCount++; }
                             });
                         }
 
-                        // 找每个人的填报工时 (只算当前所选周期内的)
                         const hDate = new Date(h.created_at || h.time);
                         let matchPeriod = false;
                         if (currentView === 'month') matchPeriod = (hDate.getFullYear() === year && hDate.getMonth() === month);
@@ -579,7 +580,6 @@
                             }
                         }
 
-                        // 找完结量
                         if (['completed', 'archived'].includes(t.status)) {
                             if (h.action === 'complete' || h.action === 'approve_draft') {
                                 const cDate = new Date(h.created_at || h.time);
@@ -592,20 +592,23 @@
                                     cDate.setHours(0,0,0,0);
                                     cMatch = (cDate >= sw && cDate <= ew);
                                 }
-                                if(cMatch) isCompletedInPeriod = true;
+                                if(cMatch) {
+                                    isCompletedInPeriod = true;
+                                    const pName = t.project || '其他支持';
+                                    if (!projectDist[pName]) projectDist[pName] = 0;
+                                    projectDist[pName]++;
+                                }
                             }
                         }
                     });
                 } catch(e){}
 
-                // 算顶部大盘
                 if (isCompletedInPeriod) {
                     completedCount++;
                     if (!hasReject) firstPassCount++;
-                    if (tUsedAiCount > 0) totalAiHours += (tUsedAiCount * 2.4); // 简单估算
+                    if (tUsedAiCount > 0) totalAiHours += (tUsedAiCount * 2.4); 
                 }
 
-                // 算超期量
                 if (t.due_date) {
                     const dueDate = new Date(t.due_date); dueDate.setHours(0,0,0,0);
                     const isFinished = ['completed', 'archived'].includes(t.status);
@@ -629,12 +632,10 @@
                         }
                         if (mMatch && endDate > dueDate) overdueCount++;
                     } else if (!['terminated', 'rejected'].includes(t.status)) { 
-                        // 未完结的只算截止今天是不是超了
                         if (today > dueDate) overdueCount++;
                     }
                 }
 
-                // 算活体积压排期量 (不分周期，就是现在手里压着的活)
                 if (t.assignee && t.assignee !== 'none' && !['completed', 'archived', 'terminated', 'pending'].includes(t.status)) {
                     let aKey = t.assignee.toLowerCase();
                     for (let key in designerStats) {
@@ -646,7 +647,6 @@
                 }
             });
 
-            // ================== 渲染顶部四大指标 ==================
             document.getElementById('stat-completed').innerText = completedCount;
             
             const firstPassRate = completedCount > 0 ? Math.round((firstPassCount / completedCount) * 100) : 0;
@@ -654,25 +654,47 @@
             document.getElementById('stat-first-pass-desc').innerText = completedCount > 0 ? `该时段内 ${firstPassCount} 单一稿即过` : '当前周期无验收记录';
             
             document.getElementById('stat-ai-hours').innerText = totalAiHours.toFixed(1);
-            document.getElementById('stat-ai-desc').innerText = totalAiHours > 0 ? '基于该时段内产出折算' : '无使用记录';
 
             document.getElementById('metric-overdue').innerText = overdueCount;
             if(overdueCount > 0) document.getElementById('card-overdue').className = 'bg-rose-500/10 border border-rose-500/40 rounded-3xl p-6 shadow-[0_0_20px_rgba(244,63,94,0.2)] relative overflow-hidden animate-pulse';
-            else document.getElementById('card-overdue').className = 'bg-[#121217] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden';
+            else document.getElementById('card-overdue').className = 'bg-[#121217] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden group';
 
+            const distContainer = document.getElementById('project-dist-container');
+            if (completedCount === 0) {
+                distContainer.innerHTML = '<div class="text-center text-zinc-500 py-10 text-sm">当前周期无完结产出记录</div>';
+            } else {
+                let distHtml = '';
+                const sortedProj = Object.keys(projectDist).map(k => ({ name: k, count: projectDist[k] })).sort((a,b) => b.count - a.count).slice(0,5);
+                const colors = ['fuchsia', 'indigo', 'sky', 'emerald', 'orange'];
 
-            // ================== 💡 渲染全员水位监控表 ==================
+                sortedProj.forEach((p, idx) => {
+                    const pct = Math.round((p.count / completedCount) * 100);
+                    const col = colors[idx % colors.length];
+                    distHtml += `
+                    <div class="mb-4">
+                        <div class="flex justify-between items-end mb-1.5">
+                            <h4 class="text-[13px] font-bold text-zinc-200 truncate pr-2">${p.name}</h4>
+                            <div class="text-right shrink-0">
+                                <span class="text-[13px] font-mono font-bold text-${col}-400">${p.count} <span class="text-[10px] text-${col}-400/60 font-sans font-normal">单</span></span>
+                            </div>
+                        </div>
+                        <div class="w-full h-1.5 bg-zinc-900 rounded-full overflow-hidden">
+                            <div class="h-full bg-${col}-500 rounded-full opacity-80 shadow-[0_0_10px_var(--tw-colors-${col}-500)]" style="width: ${pct}%"></div>
+                        </div>
+                    </div>`;
+                });
+                distContainer.innerHTML = distHtml;
+            }
+
             const wlContainer = document.getElementById('workload-list');
             let wlHtml = '';
             
-            // 计算排序：优先按积压单量排，其次按已记录填报工时排
             const sortedDesigners = Object.keys(designerStats).map(k => ({ key: k, ...designerStats[k] }))
                                   .sort((a,b) => {
                                       if (b.activeTasks !== a.activeTasks) return b.activeTasks - a.activeTasks;
                                       return b.loggedHours - a.loggedHours;
                                   });
 
-            // 动态决定红线标准 (周: 40h, 月: 160h, 年: 1920h)
             let capacityLimit = currentView === 'week' ? 40 : (currentView === 'month' ? 160 : 1920);
 
             if (sortedDesigners.length === 0) {
@@ -717,7 +739,6 @@
                 wlContainer.innerHTML = wlHtml;
             }
 
-            // 快照给 AI 使用
             aiReportDataSnap = {
                 period: currentView === 'month' ? `${year}年${month+1}月` : (currentView === 'year' ? `${year}年` : `本周`),
                 overdue: overdueCount,
