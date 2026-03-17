@@ -21,15 +21,11 @@
         .toast-slide-in { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-        /* 柱状图生长动画 */
         .bar-grow { animation: growUp 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; transform-origin: bottom; }
         @keyframes growUp { 0% { transform: scaleY(0); } 100% { transform: scaleY(1); } }
 
-        /* AI 报告生成打字机特效光标 */
         .ai-cursor::after { content: '|'; animation: blink 1s step-start infinite; color: #a855f7; font-weight: bold; }
         @keyframes blink { 50% { opacity: 0; } }
-        
-        /* 绚丽的 AI 分析背景 */
         .bg-ai-report { background: linear-gradient(145deg, rgba(23,23,23,0.9) 0%, rgba(30,27,75,0.8) 100%); border: 1px solid rgba(168,85,247,0.3); }
     </style>
 </head>
@@ -53,13 +49,17 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
                 <span class="font-medium text-[14px]">总监控制台</span>
             </button>
-            <button class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl bg-fuchsia-500/10 text-fuchsia-400 border border-fuchsia-500/20 transition-all btn-press cursor-default">
+            <button onclick="window.location.href='manager-dashboard.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                <span class="font-medium text-[14px]">团队效能大盘</span>
+            </button>
+            <button class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl bg-fuchsia-500/10 text-fuchsia-400 border border-fuchsia-500/20 transition-all cursor-default">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
                 <span class="font-bold text-[14px]">项目投入分析</span>
             </button>
-            <button onclick="window.showAlert('开发中','团队效能大盘正在接入中...','info')" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                <span class="font-medium text-[14px]">团队效能大盘</span>
+            <button onclick="window.location.href='manager-members.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                <span class="font-medium text-[14px]">组织架构与账号</span>
             </button>
             <button onclick="window.location.href='message-center.html?role=admin'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
@@ -89,7 +89,7 @@
     <main class="flex-1 flex flex-col h-full overflow-hidden relative z-10 bg-[#0c0c0e]">
         <header class="h-[88px] px-10 flex justify-between items-center shrink-0 border-b border-white/5 bg-[#09090b]/80 backdrop-blur-xl z-20">
             <div>
-                <h2 class="text-2xl font-bold text-white tracking-tight mb-1.5 flex items-center gap-2">
+                <h2 class="text-[24px] font-bold text-white tracking-tight mb-1.5 flex items-center gap-2">
                     多维项目投入分析
                     <span class="bg-fuchsia-500/20 text-fuchsia-400 text-[11px] px-2.5 py-0.5 rounded-lg border border-fuchsia-500/30 ml-2">管理视角</span>
                     <div id="sync-indicator" class="hidden w-2 h-2 rounded-full bg-emerald-500 animate-pulse ml-2" title="云端连接中..."></div>
@@ -258,9 +258,9 @@
                 <button onclick="window.closePwdModal()" class="text-zinc-500 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-full p-1 transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
             </div>
             <div class="space-y-4">
-                <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">当前密码</label><input type="password" id="old-pwd" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-fuchsia-500 transition-colors"></div>
-                <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">新密码</label><input type="password" id="new-pwd" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-fuchsia-500 transition-colors"></div>
-                <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">确认新密码</label><input type="password" id="new-pwd-confirm" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-fuchsia-500 transition-colors"></div>
+                <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">当前密码</label><input type="password" id="old-pwd" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-fuchsia-500 transition-colors" placeholder="输入原密码"></div>
+                <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">新密码</label><input type="password" id="new-pwd" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-fuchsia-500 transition-colors" placeholder="输入新密码"></div>
+                <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">确认新密码</label><input type="password" id="new-pwd-confirm" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-fuchsia-500 transition-colors" placeholder="再次输入新密码"></div>
             </div>
             <button onclick="window.submitPwdChange()" class="w-full mt-6 py-3.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded-xl text-sm font-bold shadow-[0_5px_15px_rgba(217,70,239,0.3)] transition-all btn-press">确认修改并重新登录</button>
         </div>
@@ -294,7 +294,7 @@
         let currentSelectedProject = 'all'; // 'all' or specific project string
         let dropdownData = []; 
         let currentUserData = null;
-        let aiReportDataSnap = null; // 用于发给 AI 的快照
+        let aiReportDataSnap = null; 
 
         // ================= 高定弹窗引擎 =================
         window.closeCustomDialog = function() {
@@ -413,7 +413,6 @@
             if(view === 'month') jumpBtn.innerText = '回到本月';
             else jumpBtn.innerText = '回到今年';
 
-            // Hide AI report on view switch
             document.getElementById('ai-report-content').classList.add('hidden');
             document.getElementById('ai-report-content').innerHTML = '';
             document.getElementById('ai-empty').classList.remove('hidden');
@@ -536,7 +535,7 @@
                 myAllTasks.forEach(t => { if(t.project) pSet.add(t.project); });
                 allProjects = Array.from(pSet).sort();
 
-                switchView('year'); // 默认进来看当年的总盘
+                switchView('year'); 
                 document.getElementById('dashboard-loading').classList.add('hidden');
 
             } catch (err) {
@@ -549,7 +548,7 @@
 
         function extractDataForPeriod(year, month, isYearly) {
             let totalHours = 0;
-            let peopleMap = {}; // { 'davidxxu': 25.5, ... }
+            let peopleMap = {}; 
             let aiCount = 0;
             let totalTasksSet = new Set();
 
@@ -566,17 +565,15 @@
                         else { matchPeriod = (hDate.getFullYear() === year && hDate.getMonth() === month); }
 
                         if (matchPeriod) {
-                            // 工时与人员
                             const hVal = parseFloat(h.work_hours) || 0;
                             if (hVal > 0 && h.operator) {
                                 isTaskInPeriod = true;
                                 totalHours += hVal;
-                                let cleanName = h.operator.split(' ')[0].split('(')[0].trim(); // Extract real name
+                                let cleanName = h.operator.split(' ')[0].split('(')[0].trim(); 
                                 if(!peopleMap[cleanName]) peopleMap[cleanName] = 0;
                                 peopleMap[cleanName] += hVal;
                             }
                             
-                            // AI
                             if (h.action === 'submit_draft' || h.action === 'submit_framework') {
                                 const tools = h.ai_tools || [];
                                 tools.forEach(tool => {
@@ -598,17 +595,14 @@
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
 
-            // 更新展示文本
             if (currentView === 'month') {
                 document.getElementById('current-date-text').innerText = `${year}年 ${month+1}月`;
             } else {
                 document.getElementById('current-date-text').innerText = `${year} 年度`;
             }
 
-            // 💡 1. 抓取本期数据
             const currentData = extractDataForPeriod(year, month, currentView === 'year');
             
-            // 💡 2. 抓取上期、上上期数据做历史对比
             let prev1Data, prev2Data;
             let periodLabels = [];
             if (currentView === 'month') {
@@ -623,7 +617,6 @@
                 periodLabels = [`${year-2}年`, `${year-1}年`, `${year}年 (本期)`];
             }
 
-            // --- 渲染顶部四块指标 ---
             document.getElementById('metric-cur-hours').innerText = currentData.totalHours.toFixed(1);
             document.getElementById('metric-cur-people').innerText = Object.keys(currentData.peopleMap).length;
             document.getElementById('metric-cur-tasks').innerText = currentData.tasksCount;
@@ -638,7 +631,6 @@
             const trendA = currentData.aiCount - prev1Data.aiCount;
             document.getElementById('metric-trend-ai').innerHTML = prev1Data.aiCount === 0 ? `对比前期: <span class="text-zinc-400">无记录</span>` : `对比前期: <span class="${trendA>0?'text-emerald-400':'text-rose-400'} font-bold">${trendA>0?'↑':'↓'} ${Math.abs(Math.round((trendA/prev1Data.aiCount)*100))}%</span>`;
 
-            // --- 渲染人员贡献图 ---
             const pplContainer = document.getElementById('people-dist-container');
             if (currentData.totalHours === 0) {
                 pplContainer.innerHTML = '<div class="text-center py-6 text-zinc-500 text-sm">该周期无工时投入记录</div>';
@@ -667,7 +659,6 @@
                 pplContainer.innerHTML = pplHtml;
             }
 
-            // --- 渲染 AI 工具全局数据 ---
             let globalAiFreq = {};
             myAllTasks.forEach(t => {
                 if (currentSelectedProject !== 'all' && t.project !== currentSelectedProject) return;
@@ -716,9 +707,8 @@
                 aiContainer.innerHTML = aiHtml;
             }
 
-            // --- 渲染三期比对复合图表 (纯 DOM 生成) ---
             const chartContainer = document.getElementById('history-chart-container');
-            const maxHours = Math.max(prev2Data.totalHours, prev1Data.totalHours, currentData.totalHours, 10); // Minimum 10 to avoid div by zero
+            const maxHours = Math.max(prev2Data.totalHours, prev1Data.totalHours, currentData.totalHours, 10); 
             
             const datasets = [prev2Data, prev1Data, currentData];
             let chartHtml = `
@@ -732,7 +722,7 @@
             `;
 
             datasets.forEach((d, idx) => {
-                const hPct = Math.round((d.totalHours / maxHours) * 85); // cap at 85% visual height
+                const hPct = Math.round((d.totalHours / maxHours) * 85); 
                 const isCur = idx === 2;
                 
                 chartHtml += `
@@ -751,7 +741,6 @@
             });
             chartContainer.innerHTML = chartHtml;
 
-            // Snapshot for AI
             aiReportDataSnap = {
                 project: currentSelectedProject === 'all' ? '全局大盘' : currentSelectedProject,
                 period: currentView === 'month' ? `${year}年${month+1}月` : `${year}年`,
@@ -761,7 +750,7 @@
             };
         }
 
-        // ================= 🧠 本地模拟的 Gemini 智能报告生成器 =================
+        // ================= 🧠 Gemini 智能报告生成器 =================
         window.triggerAIReport = function() {
             const btn = document.getElementById('btn-generate-ai');
             const loading = document.getElementById('ai-loading');
@@ -776,26 +765,17 @@
             loading.classList.remove('hidden');
             loading.classList.add('flex');
 
-            /* 真实接入 Gemini API 的写法示例：
-               const API_KEY = "YOUR_GEMINI_KEY";
-               const prompt = `基于以下JSON分析效能: ${JSON.stringify(aiReportDataSnap)}...`;
-               fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key='+API_KEY, { ... })
-               .then(res => res.json()).then(data => { render(data.candidates[0].content.parts[0].text) })
-            */
-
-            // 因为是前端纯静态运行，这里用 setTimeout 模拟大模型推理延迟，并结合实际快照数据动态拼接真实 HTML 报告。
             setTimeout(() => {
                 loading.classList.remove('flex');
                 loading.classList.add('hidden');
                 
                 btn.disabled = false;
-                btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg> 重新生成`;
+                btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg> 重新生成`;
 
                 const snap = aiReportDataSnap;
                 const topPerson = Object.keys(snap.currentData.peopleMap).sort((a,b)=>snap.currentData.peopleMap[b]-snap.currentData.peopleMap[a])[0] || '无记录';
                 
-                let evaluation = '健康';
-                let evaCol = 'emerald';
+                let evaluation = '健康'; let evaCol = 'emerald';
                 let suggestion = `目前 <b>${snap.project}</b> 在 <b>${snap.period}</b> 的人效投入合理。主力 <b>${topPerson}</b> 输出了最大的工时贡献。建议继续保持，可尝试进一步增加 AI (如 Midjourney) 的介入，提升基础物料的产出速度。`;
 
                 if (snap.trendH > 20) {
@@ -806,7 +786,6 @@
                     suggestion = `该时段内未检测到 <b>${snap.project}</b> 有任何工时投入。请确认项目是否已搁置或未规范填写日志。`;
                 }
 
-                // 模拟大模型 Markdown 转 Tailwind HTML
                 const reportHTML = `
                     <div class="mb-4 flex items-center justify-between border-b border-fuchsia-500/20 pb-3">
                         <span class="text-[12px] text-fuchsia-400 font-bold bg-fuchsia-500/10 px-2 py-1 rounded">分析对象: ${snap.project} (${snap.period})</span>
@@ -827,13 +806,12 @@
                 content.innerHTML = reportHTML;
                 content.classList.remove('hidden');
                 
-                // 去掉打字机光标动画
                 setTimeout(() => {
                     const cursorP = content.querySelector('.ai-cursor');
                     if(cursorP) cursorP.classList.remove('ai-cursor');
                 }, 1500);
 
-            }, 1800); // 模拟 1.8秒推理延时
+            }, 1800); 
         }
     </script>
 </body>
