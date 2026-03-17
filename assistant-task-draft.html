@@ -90,11 +90,11 @@
                             <div class="flex-1 flex flex-col gap-4">
                                 <div class="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex-1">
                                     <p class="text-[12px] font-bold text-emerald-400 mb-1">🗣️ 领导审批意见：</p>
-                                    <p class="text-[12px] text-zinc-200 leading-relaxed whitespace-pre-wrap" id="approved-leader-feedback">读取中...</p>
+                                    <p class="text-[12px] text-zinc-200 leading-relaxed whitespace-pre-wrap" id="approved-leader-feedback">无附加意见</p>
                                 </div>
                                 <div class="bg-white/5 border border-white/10 rounded-xl p-4">
-                                    <p class="text-[12px] font-bold text-zinc-400 mb-1">📝 框架交付说明：</p>
-                                    <p class="text-[12px] text-zinc-300 leading-relaxed whitespace-pre-wrap line-clamp-3" id="approved-designer-desc">读取中...</p>
+                                    <p class="text-[12px] font-bold text-zinc-400 mb-1">📝 您框架时的交付说明：</p>
+                                    <p class="text-[12px] text-zinc-300 leading-relaxed whitespace-pre-wrap line-clamp-3" id="approved-designer-desc">未填写说明</p>
                                 </div>
                             </div>
                         </div>
@@ -230,7 +230,7 @@
             <button onclick="closePreview()" class="absolute top-8 right-8 text-white/50 hover:text-white bg-white/10 hover:bg-rose-500 rounded-full p-2 transition-all btn-press z-50">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
-            <img id="modal-image" src="" alt="预览图" class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl" onclick="event.stopPropagation()">
+            <img id="modal-image" src="" alt="预览图" class="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl" onclick="event.stopPropagation()">
         </div>
     </div>
 
@@ -281,7 +281,7 @@
                     }
                     // 渲染提交历史
                     let actText = h.action === 'submit_draft' ? '提交正式设计稿' : '提交框架方案';
-                    html += `<div class="relative flex gap-4 z-10 pb-4 opacity-70"><div class="timeline-line"></div><div class="w-6 h-6 rounded-full bg-[#121217] border-2 border-zinc-500 flex items-center justify-center shrink-0 z-10"><div class="w-1.5 h-1.5 bg-zinc-500 rounded-full"></div></div><div class="pt-0.5 w-full pr-2 z-10"><div class="flex items-center justify-between"><p class="text-[12px] font-bold text-white mb-0.5">设计师 ${actText} <span class="bg-white/10 text-zinc-300 px-1.5 py-0.5 rounded text-[9px] ml-1">${h.version || ''}</span></p></div><p class="text-[10px] text-zinc-500 mb-1.5">${new Date(h.created_at).toLocaleString()}</p><div class="bg-white/5 border border-white/10 p-2.5 rounded-lg"><p class="text-[11px] text-zinc-300 whitespace-pre-wrap">📝 说明：${h.desc || '未填写说明'}</p></div></div></div>`;
+                    html += `<div class="relative flex gap-4 z-10 pb-4 opacity-70"><div class="timeline-line"></div><div class="w-6 h-6 rounded-full bg-[#121217] border-2 border-zinc-500 flex items-center justify-center shrink-0 z-10"><div class="w-1.5 h-1.5 bg-zinc-500 rounded-full"></div></div><div class="pt-0.5 w-full pr-2 z-10"><div class="flex items-center justify-between"><p class="text-[12px] font-bold text-white mb-0.5">设计师 ${actText} <span class="bg-white/10 text-zinc-300 px-1.5 py-0.5 rounded text-[9px] ml-1">${h.version || ''}</span></p></div><p class="text-[10px] text-zinc-500 mb-1.5">${new Date(h.created_at).toLocaleString()}</p><div class="bg-white/5 border border-white/10 p-2.5 rounded-lg"><p class="text-[11px] text-zinc-300 whitespace-pre-wrap">📝 说明：${h.desc || '未填写'}</p></div></div></div>`;
                 });
             }
             html += `<div class="relative flex gap-4 z-10 opacity-40 grayscale pb-4"><div class="w-6 h-6 rounded-full bg-[#121217] border-2 border-zinc-500 flex items-center justify-center shrink-0 z-10"><div class="w-1.5 h-1.5 bg-zinc-500 rounded-full"></div></div><div class="pt-0.5 z-10"><p class="text-[12px] font-bold text-white mb-0.5">需求立项并接单</p><p class="text-[10px] text-zinc-500">承接人: ${data.assignee || '未知'}</p></div></div>`;
@@ -298,9 +298,9 @@
             // 填充基础信息
             safeSetTxt('req-id', data.id || '--');
             safeSetTxt('req-title-display', data.title || '无标题');
-            safeSetTxt('dt-project', `归属项目: ${data.project || '--'}`);
+            safeSetTxt('dt-project', `${data.project || '--'}`);
             safeSetTxt('dt-date', data.due_date || '--');
-            safeSetTxt('dt-creator', `发起人: ${data.creator || '--'}`);
+            safeSetTxt('dt-creator', `${data.creator || '--'}`);
             
             const descEl = document.getElementById('req-desc-display');
             if(descEl) descEl.innerHTML = (data.full_desc || '暂无描述').replace(/\n/g, '<br>');
@@ -308,7 +308,7 @@
             const linkCon = document.getElementById('dt-link-container');
             if(linkCon && data.link) linkCon.innerHTML = `参考链接: <a href="${data.link}" target="_blank" class="text-sky-400 hover:underline">点击访问</a>`;
 
-            // 💡 解析历史记录，提取之前过审的框架图、领导反馈意见、设计师填的说明
+            // 💡 提取历史，准备回显
             try { windowHistoryArr = JSON.parse(data.history_json || '[]'); } catch(e) { windowHistoryArr = []; }
             const newVerNum = windowHistoryArr.length + 1;
             
@@ -316,13 +316,14 @@
             if(vTag) vTag.innerText = `(记录为 v-${newVerNum})`;
 
             let approvedImgUrl = null; 
-            let leaderFeedback = '大方向没问题，同意推进正稿。';
-            let designerDesc = '未填写框架说明';
+            let leaderFeedback = '无附加意见';
+            let designerDesc = '未填写说明';
 
+            // 倒序寻找：获取最新通过的那次框架的信息
             for(let i = windowHistoryArr.length - 1; i >= 0; i--) {
                 const h = windowHistoryArr[i];
                 if(h.reply_by && (h.reply_by.includes('主管') || h.reply_by.includes('领导')) && !h.is_rejected) {
-                    leaderFeedback = h.reply || leaderFeedback;
+                    if(h.reply) leaderFeedback = h.reply;
                 }
                 if(h.action === 'submit_framework' && h.img_url && !approvedImgUrl) {
                     approvedImgUrl = h.img_url; 
@@ -330,40 +331,34 @@
                 }
             }
 
-            // 如果没能在历史里抓到图，兜底使用系统主字段里的图
+            // 即使历史没图，如果系统有主图也拿来兜底
             if(!approvedImgUrl) approvedImgUrl = data.design_img_url;
 
             // 渲染前置过审信息
-            const sec = document.getElementById('approved-framework-section');
             if (approvedImgUrl) {
                 const img = document.getElementById('approved-framework-img');
                 const pEl = document.getElementById('no-framework-placeholder');
-                
-                if(sec) sec.classList.remove('hidden');
                 if(img) { img.src = approvedImgUrl; img.classList.remove('hidden'); }
                 if(pEl) pEl.classList.add('hidden');
-
+                
                 safeSetTxt('approved-leader-feedback', leaderFeedback);
                 safeSetTxt('approved-designer-desc', designerDesc);
             } else {
-                if(sec) sec.classList.remove('hidden');
                 const pEl = document.getElementById('no-framework-placeholder');
                 if(pEl) pEl.classList.remove('hidden');
-                safeSetTxt('approved-leader-feedback', leaderFeedback);
-                safeSetTxt('approved-designer-desc', designerDesc);
             }
 
-            // ================= 💡 千人千面身份判定逻辑 =================
+            // ================= 💡 优先保护执行人视角的身份判定 =================
             const userStr = localStorage.getItem('activeUserObj');
             const user = JSON.parse(userStr);
             const enName = user.enName.toLowerCase();
             const dispName = user.displayName || user.cnName || user.enName;
             
-            // 核心修复：优先判断是否为执行人（设计师）！
-            const isDesigner = enName === (data.assignee || '').toLowerCase();
-            const isRequester = (dispName === data.creator || enName === (data.creator || '').toLowerCase());
+            // 🔥 核心修改：如果是接单人（执行人），那他就是设计师，就算他同时也是发起人，也要优先赋予他设计师权限！
+            const isDesigner = (data.assignee && enName === data.assignee.toLowerCase());
+            // 只有当他不是设计师，但他是发起人的时候，才作为纯需求方看待
+            const isPureRequester = !isDesigner && (dispName === data.creator || enName === (data.creator || '').toLowerCase());
             
-            // 安全赋值顶部/左侧身份标识
             const hTag = document.getElementById('header-identity-tag');
             const sRole = document.getElementById('sidebar-role');
             const sAva = document.getElementById('sidebar-avatar');
@@ -375,34 +370,31 @@
             const reqActArea = document.getElementById('requester-action-area');
 
             if (isDesigner) {
-                // 设计师视角：正常显示上传
+                // 设计师视角：正常显示上传和表单
                 if(hTag) hTag.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> 身份: 设计方 (当前操作人)`;
                 if(sRole) sRole.innerText = `设计方视角`;
                 
                 if(dUploadArea) dUploadArea.classList.remove('hidden');
                 if(dFormArea) dFormArea.classList.remove('hidden');
-                
                 if(reqWaitArea) reqWaitArea.classList.add('hidden');
                 if(reqActArea) reqActArea.classList.add('hidden');
 
-            } else if (isRequester) {
-                // 需求方：隐藏设计师传图和填报区，显示等待占位和催办区
+            } else if (isPureRequester) {
+                // 纯需求方视角：隐藏上传区，显示等待占位
                 if(hTag) hTag.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> 身份: 需求方 (只读视角)`;
                 if(sRole) sRole.innerText = `需求方视角`;
                 
                 if(dUploadArea) dUploadArea.classList.add('hidden');
                 if(dFormArea) dFormArea.classList.add('hidden');
-                
                 if(reqWaitArea) reqWaitArea.classList.remove('hidden');
                 if(reqActArea) reqActArea.classList.remove('hidden');
             } else {
-                // 访客旁观者
+                // 旁观者视角
                 if(hTag) hTag.innerHTML = `身份: 访客 (只读视角)`;
                 if(sRole) sRole.innerText = `访客`;
                 
                 if(dUploadArea) dUploadArea.classList.add('hidden');
                 if(dFormArea) dFormArea.classList.add('hidden');
-                
                 if(reqWaitArea) reqWaitArea.classList.remove('hidden');
                 if(reqActArea) reqActArea.classList.add('hidden');
             }
@@ -411,7 +403,7 @@
             renderTimeline(data, windowHistoryArr);
         }
 
-        // ================= 极速兜底图片防卡死机制 =================
+        // ================= 拖拽与图片防呆机制 =================
         function compressImage(file, maxWidth = 1200, quality = 0.6) {
             return new Promise((resolve) => {
                 const reader = new FileReader();
@@ -449,7 +441,7 @@
             const files = event.target.files;
             if(files.length > 0) {
                 const file = files[0];
-                tempFileBlob = file; // 强行保留原图，防止压缩导致异步报错
+                tempFileBlob = file; // 强行把文件锁入全局，避免异步失效
                 
                 const upPh = document.getElementById('upload-placeholder');
                 const upPrev = document.getElementById('upload-preview');
@@ -490,7 +482,6 @@
             if(upPrev) upPrev.classList.add('hidden');
         }
 
-        // ================= 催办交互 =================
         window.urgeDesigner = function(btn) {
             btn.innerHTML = '✓ 已发送催办提醒';
             btn.className = "w-full py-3.5 bg-zinc-800 border border-zinc-700 text-zinc-500 rounded-xl text-[13px] font-bold cursor-not-allowed";
@@ -498,16 +489,15 @@
             alert("已成功通过系统下发催促提醒至该设计师！");
         }
 
-        // ================= 提交正式稿 (绝对不卡死保底) =================
+        // ================= 提交正式稿 =================
         window.submitDraftDesign = async function() {
             const fileInputEl = document.getElementById('design-upload');
             let rawFile = tempFileBlob || (fileInputEl && fileInputEl.files.length > 0 ? fileInputEl.files[0] : null);
             const srcLinkEl = document.getElementById('source-link');
             const sourceLink = srcLinkEl ? srcLinkEl.value.trim() : '';
 
-            // 二选一保底提交
             if(!rawFile && !sourceLink) {
-                return alert("【提交被驳回】您必须上传一张 JPG/PNG 正式稿预览图，或者提供一个有效的源文件网盘链接！");
+                return alert("【提交被驳回】您必须上传一张 JPG/PNG 预览图，或者提供一个有效的网盘链接，两者至少填一项！");
             }
 
             const hrEl = document.getElementById('work-hours');
@@ -520,14 +510,14 @@
             const btn = document.getElementById('btn-submit-design');
             const originalBtnText = btn.innerHTML;
             btn.disabled = true; 
-            safeSetTxt('submit-btn-text', "🚀 正在向甲方提交...");
+            safeSetTxt('submit-btn-text', "🚀 正在向云端同步...");
 
             let finalCloudUrl = '';
 
             try {
                 if (rawFile) {
                     let fileToUpload = rawFile;
-                    try { fileToUpload = await compressImage(rawFile, 1200, 0.6); } catch(e) { console.warn("压缩报错，使用原图"); }
+                    try { fileToUpload = await compressImage(rawFile, 1200, 0.6); } catch(e) { console.warn("压缩报错，直接传原图"); }
 
                     let fileExt = 'jpg';
                     if(rawFile.name) fileExt = rawFile.name.split('.').pop().toLowerCase();
@@ -544,7 +534,7 @@
                 }
             } catch (err) {
                 btn.disabled = false; btn.innerHTML = originalBtnText;
-                return alert("云端图片上传失败，请重试！\n" + err.message);
+                return alert("云端上传失败，请重试！\n" + err.message);
             }
 
             const newVersionNum = windowHistoryArr.length + 1;
@@ -554,14 +544,14 @@
                 img_url: finalCloudUrl, 
                 source_link: sourceLink, 
                 created_at: new Date().toISOString(), 
-                action: 'submit_draft' // 明确记录这是一次正式稿的提交
+                action: 'submit_draft' 
             };
             windowHistoryArr.push(newHistoryRecord);
 
             if (window.supabase) {
-                const summary = `正式稿已上传等待甲方验收 (版本: v-${newVersionNum}) | 说明: ${deliveryDesc || '无'}`;
+                const summary = `正式稿已上传等待甲方验收 (版本: v-${newVersionNum})`;
                 
-                // 如果没传新图，就用回历史里的图或者 approvedImg
+                // 如果没传图，用上一版的图兜底
                 let fallbackImg = finalCloudUrl;
                 if (!fallbackImg) {
                     const oldImgEl = document.getElementById('approved-framework-img');
@@ -569,8 +559,8 @@
                 }
 
                 const { error } = await window.supabase.from(window.DB_TABLE).update({
-                    status: 'reviewing', // 状态变更为 reviewing，进入甲方验收环节
-                    design_img_url: fallbackImg, 
+                    status: 'reviewing', 
+                    design_img_url: fallbackImg,
                     source_file_link: sourceLink,
                     history_json: JSON.stringify(windowHistoryArr),
                     summary_desc: summary
@@ -578,7 +568,7 @@
 
                 if (error) {
                     btn.disabled = false; btn.innerHTML = originalBtnText;
-                    return alert("云端状态更新失败：" + error.message);
+                    return alert("云端数据更新失败：" + error.message);
                 }
             }
 
