@@ -94,6 +94,7 @@
     </aside>
 
     <main class="flex-1 flex flex-col h-full overflow-hidden relative z-10 bg-[#0c0c0e]">
+        
         <header class="h-[88px] px-10 flex justify-between items-center shrink-0 border-b border-white/5 bg-[#09090b]/80 backdrop-blur-xl z-20">
             <div>
                 <h2 class="text-2xl font-bold text-white tracking-tight mb-1.5 flex items-center gap-2">
@@ -160,6 +161,7 @@
         </header>
 
         <div class="flex-1 p-8 md:p-10 overflow-y-hidden flex justify-center z-10 relative">
+            
             <div id="calendar-loading" class="absolute inset-0 bg-[#0c0c0e]/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
                 <svg class="animate-spin h-8 w-8 text-orange-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                 <p class="text-xs text-zinc-500 font-bold tracking-widest uppercase">SYNCING DATA...</p>
@@ -389,7 +391,6 @@
             const userStr = localStorage.getItem('activeUserObj');
             if (!userStr) { window.location.href = 'login.html'; return false; }
             const user = JSON.parse(userStr);
-            const enName = user.enName ? user.enName.toLowerCase() : '';
 
             if (!(user.perms || []).includes(PAGE_TYPE)) {
                 window.showAlert("权限拦截", "您没有执行层做图权限，为您退回大厅。", "danger");
@@ -400,7 +401,7 @@
             const avatarEl = document.getElementById('sidebar-avatar');
             if(avatarEl) { avatarEl.innerText = user.avatar || '?'; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-orange-600'} border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg shrink-0`; }
             if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.cnName || user.enName;
-            if(document.getElementById('sidebar-role')) document.getElementById('sidebar-role').innerText = user.role || '系统成员';
+            if(document.getElementById('sidebar-role')) document.getElementById('sidebar-role').innerHTML = `<span class="text-orange-400 font-bold">当前视角: 设计方</span>`;
             
             const menuContainer = document.getElementById('dynamic-identity-list');
             if (menuContainer) {
@@ -433,7 +434,7 @@
                 icon.className = "w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0";
                 icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
             } else if(type === 'info') {
-                icon.className = "w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0";
+                icon.className = "w-8 h-8 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center shrink-0";
                 icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
             } else {
                 icon.className = "w-8 h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0";
@@ -949,7 +950,7 @@
             const grid = document.getElementById('week-grid');
             let html = '';
             let tasksInView = [];
-            
+
             for(let i=0; i<7; i++) {
                 let d = new Date(startWeek);
                 d.setDate(d.getDate() + i);
@@ -1115,7 +1116,7 @@
 
         window.openPeriodDetail = function(periodTitle, tasksStr) {
             let tasks = JSON.parse(decodeURIComponent(tasksStr));
-            document.getElementById('period-modal-title').innerText = periodTitle + ' 参与记录';
+            document.getElementById('period-modal-title').innerText = periodTitle + ' 交付清单';
             const list = document.getElementById('period-modal-list');
             list.innerHTML = '';
             
@@ -1362,21 +1363,28 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            const idBtn = document.getElementById('identityBtn');
-            const idMenu = document.getElementById('identityMenu');
-            if(idBtn && idMenu) idBtn.addEventListener('click', (e) => { e.stopPropagation(); idMenu.classList.toggle('hidden'); });
-            
-            const notifBtn = document.getElementById('notifBtn');
-            const notifMenu = document.getElementById('notifMenu');
-            if(notifBtn && notifMenu) notifBtn.addEventListener('click', (e) => { e.stopPropagation(); notifMenu.classList.toggle('hidden'); });
+            if(initRBAC()) {
+                const idBtn = document.getElementById('identityBtn');
+                const idMenu = document.getElementById('identityMenu');
+                if(idBtn && idMenu) idBtn.addEventListener('click', (e) => { e.stopPropagation(); idMenu.classList.toggle('hidden'); });
+                
+                const notifBtn = document.getElementById('notifBtn');
+                const notifMenu = document.getElementById('notifMenu');
+                if(notifBtn && notifMenu) notifBtn.addEventListener('click', (e) => { e.stopPropagation(); notifMenu.classList.toggle('hidden'); });
 
-            document.addEventListener('click', (e) => { 
-                if(idMenu && !idMenu.contains(e.target)) idMenu.classList.add('hidden'); 
-                if(notifMenu && !notifMenu.contains(e.target)) notifMenu.classList.add('hidden'); 
-            });
+                document.addEventListener('click', (e) => { 
+                    if(idMenu && !idMenu.contains(e.target)) idMenu.classList.add('hidden'); 
+                    if(notifMenu && !notifMenu.contains(e.target)) notifMenu.classList.add('hidden'); 
+                    const dateWrap = document.getElementById('date-selector-wrapper');
+                    const dateDrop = document.getElementById('date-dropdown');
+                    if (dateWrap && dateDrop && !dateWrap.contains(e.target)) dateDrop.classList.add('hidden');
+                });
 
-            window.loadNotifications();
-            setInterval(() => { window.syncNotificationsFromCloud(); }, 8000);
+                window.loadNotifications();
+                
+                // 💡 部署后台静默雷达
+                setInterval(() => { window.loadTasksFromCloud(true); }, 8000); 
+            }
         });
 
     </script>
