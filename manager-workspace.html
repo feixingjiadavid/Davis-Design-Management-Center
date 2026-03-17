@@ -52,7 +52,7 @@
                 <span class="font-medium text-[14px]">团队效能大盘</span>
             </button>
             <button id="nav-members-btn" onclick="window.location.href='manager-members.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v2a4 4 0 0 1-4 4H5a4 4 0 0 1-4-4v-2"></path><polyline points="9 11 12 14 22 4"></polyline></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 1-4 4H5a4 4 0 0 1-4-4v-2"></path><polyline points="9 11 12 14 22 4"></polyline></svg>
                 <span class="font-medium text-[14px]">组织架构与账号</span>
             </button>
             <button onclick="window.location.href='message-center.html?role=admin'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
@@ -93,21 +93,18 @@
                                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
                             </div>
                             <div>
-                                <p class="text-[11px] text-zinc-500 font-bold mb-1 uppercase tracking-wider">团队运转状态</p>
-                                <p class="text-[22px] font-black text-emerald-400 font-mono leading-none">健康 <span class="text-xs text-zinc-500 font-normal ml-1 font-sans">78% 负载率</span></p>
+                                <p class="text-[11px] text-zinc-500 font-bold mb-1 uppercase tracking-wider">进行中项目</p>
+                                <p class="text-[22px] font-black text-emerald-400 font-mono leading-none" id="top-ongoing-count">0</p>
                             </div>
                         </div>
                         
                         <div class="bg-[#16161d] border border-white/5 rounded-2xl p-4 flex items-center gap-4 shadow-lg min-w-[220px]">
-                            <div class="w-12 h-12 rounded-full bg-fuchsia-500/10 flex items-center justify-center text-fuchsia-400 border border-fuchsia-500/20">
-                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                            <div class="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                             </div>
                             <div>
-                                <p class="text-[11px] text-zinc-500 font-bold mb-1 uppercase tracking-wider">整体 AI 提效</p>
-                                <div class="flex items-baseline gap-2">
-                                    <p class="text-[22px] font-black text-white font-mono leading-none">62%</p>
-                                    <span class="text-[10px] bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 px-1.5 py-0.5 rounded font-bold">↑ 提升</span>
-                                </div>
+                                <p class="text-[11px] text-zinc-500 font-bold mb-1 uppercase tracking-wider">待响应/审批数</p>
+                                <p class="text-[22px] font-black text-amber-400 font-mono leading-none" id="top-pending-count">0</p>
                             </div>
                         </div>
                     </div>
@@ -117,20 +114,15 @@
                     <div class="relative" id="notif-wrapper">
                         <button id="notifBtn" class="w-10 h-10 rounded-xl bg-[#141417] border border-white/5 flex items-center justify-center text-zinc-400 hover:text-white transition-colors btn-press relative">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-                            <span id="bell-dot" class="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-[#141417] animate-pulse"></span>
+                            <span id="bell-dot" class="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-[#141417] animate-pulse hidden"></span>
                         </button>
                         <div id="notifMenu" class="hidden absolute right-0 top-[120%] w-[340px] bg-[#121217] border border-white/10 rounded-2xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.8)] py-3 dropdown-enter z-[9999]">
                             <div class="px-5 pb-3 border-b border-white/5 flex justify-between items-center">
                                 <h3 class="text-[14px] font-bold text-white">全局报警</h3>
-                                <button onclick="document.getElementById('notifMenu').classList.add('hidden'); document.getElementById('bell-dot').classList.add('hidden');" class="text-[11px] text-indigo-400 hover:text-indigo-300 btn-press transition-colors">全部已读</button>
+                                <button onclick="window.markAllAsRead(event)" class="text-[11px] text-indigo-400 hover:text-indigo-300 btn-press transition-colors">全部已读</button>
                             </div>
-                            <div class="max-h-[300px] overflow-y-auto custom-scrollbar">
-                                <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors relative btn-press" onclick="document.getElementById('notifMenu').classList.add('hidden'); document.getElementById('section-approval').scrollIntoView({behavior: 'smooth', block: 'center'});">
-                                    <div class="absolute left-2 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-rose-500 rounded-full"></div>
-                                    <p class="text-[12px] font-bold text-white mb-1 leading-tight"><span class="text-amber-500 mr-1">[待您审批]</span>TK-0817 框架草图已提交</p>
-                                    <p class="text-[11px] text-zinc-400 leading-relaxed mb-1.5">Skyler 提交了草图，等待总监大方向过审。</p>
-                                    <p class="text-[10px] text-zinc-500">10 分钟前</p>
-                                </div>
+                            <div class="max-h-[300px] overflow-y-auto custom-scrollbar" id="notif-list-container">
+                                <div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无新报警</div>
                             </div>
                             <div class="pt-3 px-5 border-t border-white/5 text-center">
                                 <button onclick="window.location.href='message-center.html?role=admin'" class="text-[11px] text-zinc-500 hover:text-white transition-colors btn-press">查看全部历史消息 ↗</button>
@@ -155,16 +147,25 @@
                 <section id="section-pending" class="hidden">
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="text-[15px] font-bold text-white flex items-center gap-2">
-                            <span class="w-2.5 h-2.5 rounded-full bg-sky-400 animate-pulse shadow-[0_0_8px_rgba(56,189,248,0.6)]"></span> 
+                            <span class="w-2.5 h-2.5 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.6)]"></span> 
                             待分派需求池
                         </h3>
-                        <button class="text-[12px] text-fuchsia-400 hover:text-fuchsia-300 btn-press">自动统筹分配</button>
                     </div>
                     <div id="pending-cards-container" class="space-y-4"></div>
                 </section>
 
+                <section id="section-approval" class="hidden">
+                    <div class="flex items-center justify-between mb-4 mt-4">
+                        <h3 class="text-[15px] font-bold text-white flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]"></span> 
+                            框架方向待审批
+                        </h3>
+                    </div>
+                    <div id="approval-cards-container" class="space-y-4"></div>
+                </section>
+
                 <section id="section-assigned" class="hidden">
-                    <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center justify-between mb-4 mt-4">
                         <h3 class="text-[15px] font-bold text-zinc-400 flex items-center gap-2">
                             <span class="w-2 h-2 rounded-full bg-emerald-500"></span> 
                             已分派流转中工单
@@ -172,58 +173,14 @@
                     </div>
                     <div id="assigned-cards-container" class="space-y-4"></div>
                 </section>
-                
-                <section id="section-approval">
-                    <div class="flex items-center justify-between mb-4 mt-4">
-                        <h3 class="text-[15px] font-bold text-white flex items-center gap-2">
-                            <span class="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]"></span> 
-                            框架方向待审批
-                        </h3>
-                    </div>
-                    <div id="approval-cards-container" class="space-y-4">
-                        <div class="manager-card rounded-2xl p-5 flex flex-col relative overflow-hidden border border-amber-500/20">
-                            <div class="absolute left-0 top-0 bottom-0 w-[4px] bg-amber-500"></div>
-                            <div class="flex items-start justify-between mb-3 pl-1">
-                                <div><span class="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 mr-2">TK-0817</span><span class="text-[14px] font-bold text-zinc-100">端午节礼盒插图设计</span></div>
-                                <span class="text-[11px] text-zinc-500">提交人: Skyler</span>
-                            </div>
-                            <div class="flex gap-4 mt-2 pl-1">
-                                <div class="w-32 h-20 bg-[#09090b] rounded-lg border border-white/10 overflow-hidden shrink-0 cursor-zoom-in">
-                                    <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop" class="w-full h-full object-cover opacity-80">
-                                </div>
-                                <div class="flex-1 flex flex-col justify-between">
-                                    <p class="text-[11px] text-zinc-400 leading-relaxed line-clamp-2">已完成草稿构图，采用国潮插画风格，请总监确认大方向是否偏题。</p>
-                                    <div class="flex gap-2 mt-2">
-                                        <button onclick="approveFramework()" class="bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 px-4 py-1.5 rounded-lg text-[11px] font-bold transition-all btn-press border border-emerald-500/30">同意推进正稿</button>
-                                        <button onclick="rejectFramework()" class="bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 px-4 py-1.5 rounded-lg text-[11px] font-bold transition-all btn-press border border-rose-500/20">大方向错，驳回</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
 
             </div>
 
             <div class="w-[360px] shrink-0 flex flex-col gap-6">
                 <div class="bg-gradient-to-b from-[#18181b] to-[#121217] border border-white/5 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
-                    <h3 class="text-[14px] font-bold text-white mb-5 border-b border-white/5 pb-4">实时资源池监控</h3>
-                    <div class="space-y-6">
-                        <div>
-                            <div class="flex items-center justify-between mb-2">
-                                <div class="flex items-center gap-2"><div class="w-6 h-6 rounded-full bg-fuchsia-900 text-fuchsia-200 text-[9px] font-bold flex items-center justify-center">DX</div><span class="text-[12px] font-bold text-zinc-200">Davidxxu</span></div>
-                                <span class="text-[11px] text-emerald-400 font-mono">空闲 (15h/周)</span>
-                            </div>
-                            <div class="w-full h-1.5 bg-zinc-900 rounded-full overflow-hidden"><div class="h-full bg-emerald-500 w-[35%] rounded-full"></div></div>
-                        </div>
-                        <div class="p-3 bg-indigo-500/5 border border-indigo-500/20 rounded-xl relative overflow-hidden">
-                            <div class="absolute right-0 top-0 text-[80px] opacity-5 leading-none">💪</div>
-                            <p class="text-[10px] text-indigo-400 font-bold mb-3">行政支持组 (重点提效表扬对象)</p>
-                            <div class="space-y-4 relative z-10">
-                                <div><div class="flex items-center justify-between mb-1.5"><span class="text-[12px] font-medium text-zinc-300">王助理</span><span class="text-[11px] text-orange-400 font-mono">饱和 (38h/周)</span></div><div class="w-full h-1 bg-zinc-900 rounded-full overflow-hidden"><div class="h-full bg-orange-500 w-[95%] rounded-full"></div></div></div>
-                                <div><div class="flex items-center justify-between mb-1.5"><span class="text-[12px] font-medium text-zinc-300">Skyler</span><span class="text-[11px] text-orange-400 font-mono">饱满 (32h/周)</span></div><div class="w-full h-1 bg-zinc-900 rounded-full overflow-hidden"><div class="h-full bg-orange-500 w-[80%] rounded-full"></div></div></div>
-                            </div>
-                        </div>
+                    <h3 class="text-[14px] font-bold text-white mb-5 border-b border-white/5 pb-4">实时资源池监控 (基于进行中工单)</h3>
+                    <div class="space-y-6" id="resource-pool-container">
+                        <div class="text-center py-6 text-zinc-500 text-xs">计算中...</div>
                     </div>
                 </div>
             </div>
@@ -255,17 +212,28 @@
         </div>
     </div>
 
-    <div id="custom-dialog-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[999999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this && !dialogIsForce) hideDialog()">
+    <div id="custom-dialog-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[999999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this && !dialogIsForce) hideDialog()">
         <div id="custom-dialog-box" class="bg-[#121217] border border-white/10 rounded-3xl p-8 max-w-sm w-full shadow-2xl transform scale-95 transition-transform duration-300 text-center relative overflow-hidden">
-            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-fuchsia-500 to-purple-600"></div>
-            <div id="dialog-icon-container" class="w-16 h-16 rounded-full bg-fuchsia-500/10 border border-fuchsia-500/20 flex items-center justify-center mx-auto mb-5 text-fuchsia-400 shadow-[0_0_20px_rgba(192,38,211,0.2)]">
-                </div>
+            <div id="dialog-color-bar" class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-fuchsia-500 to-purple-600"></div>
+            <div id="dialog-icon-container" class="w-16 h-16 rounded-full bg-fuchsia-500/10 border border-fuchsia-500/20 flex items-center justify-center mx-auto mb-5 text-fuchsia-400 shadow-[0_0_20px_rgba(192,38,211,0.2)]"></div>
             <h3 id="dialog-title" class="text-[18px] font-bold text-white mb-2">提示</h3>
             <p id="dialog-desc" class="text-[13px] text-zinc-400 leading-relaxed mb-8">内容</p>
             <div class="flex gap-3 justify-center">
                 <button id="dialog-cancel-btn" onclick="hideDialog()" class="flex-1 py-3 bg-transparent border border-zinc-700 hover:border-zinc-500 text-zinc-400 hover:text-white rounded-xl text-sm font-bold transition-colors btn-press hidden">取消</button>
                 <button id="dialog-confirm-btn" onclick="handleDialogConfirm()" class="flex-1 py-3 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded-xl text-sm font-bold shadow-[0_5px_15px_rgba(192,38,211,0.3)] transition-all btn-press">我知道了</button>
             </div>
+        </div>
+    </div>
+
+    <div id="reject-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closeActionModals()">
+        <div id="reject-modal" class="hidden w-full max-w-lg bg-[#121217] border border-rose-500/30 rounded-3xl shadow-[0_20px_50px_-10px_rgba(244,63,94,0.2)] flex flex-col scale-95 transition-transform duration-300 p-6 relative">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-500 to-orange-500 rounded-t-3xl"></div>
+            <div class="flex justify-between items-center mb-4 mt-2">
+                <h2 class="text-[16px] font-bold text-white">打回要求重画框架</h2>
+                <button onclick="closeActionModals()" class="text-zinc-500 hover:text-white bg-zinc-800 rounded-full p-1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            </div>
+            <textarea id="reject-reason" class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-rose-500 h-24 resize-none mb-4 custom-scrollbar" placeholder="请详细指出方向不对的地方，打回原因将作为修改依据永久记录进流水账..."></textarea>
+            <button id="btn-reject-submit" onclick="submitRejectFramework()" class="w-full py-3.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-[13px] font-bold btn-press transition-all">确认打回修改</button>
         </div>
     </div>
 
@@ -276,10 +244,18 @@
         </div>
     </div>
 
+    <script type="module">
+        import { supabase } from './supabase-config.js';
+        window.supabase = supabase;
+        window.DB_TABLE = 'test_tasks'; 
+        window.LIGHT_FIELDS = 'id, title, status, project, due_date, creator, created_at, summary_desc, assignee, history_json';
+        if(window.loadTasksFromCloud) window.loadTasksFromCloud();
+    </script>
+
     <script>
         const PAGE_TYPE = 'admin'; 
 
-        // 💡 弹窗引擎逻辑
+        // ================= 💡 高级弹窗引擎 =================
         let confirmCallback = null;
         let dialogIsForce = false;
 
@@ -293,17 +269,29 @@
             if (type === 'error' || type === 'warning') {
                 iconContainer.className = "w-16 h-16 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mx-auto mb-5 text-rose-400 shadow-[0_0_20px_rgba(244,63,94,0.2)]";
                 iconContainer.innerHTML = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>`;
+                document.getElementById('dialog-confirm-btn').className = "flex-1 py-3 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-sm font-bold shadow-[0_5px_15px_rgba(244,63,94,0.3)] transition-all btn-press";
+                document.getElementById('dialog-color-bar').className = "absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-500 to-orange-500";
             } else if (type === 'success') {
                 iconContainer.className = "w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-5 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.2)]";
                 iconContainer.innerHTML = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`;
+                document.getElementById('dialog-confirm-btn').className = "flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold shadow-[0_5px_15px_rgba(16,185,129,0.3)] transition-all btn-press";
+                document.getElementById('dialog-color-bar').className = "absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-teal-500";
             } else {
                 iconContainer.className = "w-16 h-16 rounded-full bg-fuchsia-500/10 border border-fuchsia-500/20 flex items-center justify-center mx-auto mb-5 text-fuchsia-400 shadow-[0_0_20px_rgba(192,38,211,0.2)]";
                 iconContainer.innerHTML = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>`;
+                document.getElementById('dialog-confirm-btn').className = "flex-1 py-3 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded-xl text-sm font-bold shadow-[0_5px_15px_rgba(192,38,211,0.3)] transition-all btn-press";
+                document.getElementById('dialog-color-bar').className = "absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-fuchsia-500 to-purple-600";
             }
 
             confirmCallback = callback;
             dialogIsForce = isForce;
             showDialog();
+        }
+
+        function showConfirm(title, desc, callback, type = 'info') {
+            customAlert(title, desc, callback, false, type);
+            document.getElementById('dialog-cancel-btn').style.display = 'block';
+            document.getElementById('dialog-confirm-btn').innerText = '确认执行';
         }
 
         function showDialog() {
@@ -325,6 +313,26 @@
             if (confirmCallback) confirmCallback();
         }
 
+        window.showToast = function(title, desc, type = 'success') {
+            const toast = document.getElementById('action-toast');
+            document.getElementById('toast-title').innerText = title;
+            document.getElementById('toast-desc').innerText = desc;
+            const icon = document.getElementById('toast-icon');
+            if(type === 'success') {
+                icon.className = "w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0";
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+            } else if(type === 'info') {
+                icon.className = "w-8 h-8 rounded-full bg-fuchsia-500/20 text-fuchsia-400 flex items-center justify-center shrink-0";
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+            } else {
+                icon.className = "w-8 h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0";
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+            }
+            toast.classList.remove('hidden');
+            setTimeout(() => { toast.classList.add('hidden'); }, 3000);
+        }
+
+        // ================= 基础逻辑 =================
         function logout(e) {
             if(e) e.stopPropagation();
             localStorage.removeItem('activeUserObj'); 
@@ -337,7 +345,6 @@
             const user = JSON.parse(userStr);
 
             if (!user.perms.includes(PAGE_TYPE)) {
-                // 💡 修复：使用高级自定义弹窗拦截越权
                 const mainContent = document.getElementById('main-content-area');
                 if (mainContent) mainContent.style.filter = 'blur(10px)';
                 customAlert('权限拦截', `很抱歉，<span class="text-rose-400 font-bold">${user.displayName}</span> 账号没有进入管理大盘的权限。<br>即将为您退回安全页面。`, () => {
@@ -370,41 +377,6 @@
             return true;
         }
 
-        // 修改密码逻辑
-        const pwdOverlay = document.getElementById('pwd-modal-overlay');
-        const pwdModal = document.getElementById('pwd-modal');
-        function openPwdModal() { 
-            pwdOverlay.classList.remove('hidden'); setTimeout(() => { pwdOverlay.classList.remove('opacity-0'); pwdModal.classList.remove('hidden'); pwdModal.classList.remove('scale-95'); }, 10); 
-            document.getElementById('old-pwd').value = ''; document.getElementById('new-pwd').value = ''; document.getElementById('new-pwd-confirm').value = '';
-        }
-        function closePwdModal() { 
-            pwdOverlay.classList.add('opacity-0'); pwdModal.classList.add('scale-95'); setTimeout(() => { pwdOverlay.classList.add('hidden'); pwdModal.classList.add('hidden'); }, 300); 
-        }
-        function submitPwdChange() {
-            const oldP = document.getElementById('old-pwd').value;
-            const newP = document.getElementById('new-pwd').value;
-            const confirmP = document.getElementById('new-pwd-confirm').value;
-
-            if(!oldP || !newP || !confirmP) return customAlert('提示', '请完整填写所有密码字段！', null, false, 'warning');
-            if(newP !== confirmP) return customAlert('提示', '两次输入的新密码不一致！', null, false, 'error');
-
-            const userStr = localStorage.getItem('activeUserObj');
-            if(!userStr) return;
-            let user = JSON.parse(userStr);
-
-            const usersDb = JSON.parse(localStorage.getItem('system_users_db')) || {};
-            const dbUser = usersDb[user.enName];
-
-            if(dbUser.password !== oldP) return customAlert('错误', '原密码错误！', null, false, 'error');
-
-            dbUser.password = newP;
-            localStorage.setItem('system_users_db', JSON.stringify(usersDb));
-            user.password = newP;
-            localStorage.setItem('activeUserObj', JSON.stringify(user));
-
-            customAlert('成功', '🎉 密码修改成功！为了安全起见，请使用新密码重新登录。', () => { logout(); }, true, 'success');
-        }
-
         document.addEventListener('DOMContentLoaded', () => {
             if(!initRBAC()) return;
             
@@ -421,147 +393,448 @@
                 if(notifMenu && !notifMenu.contains(e.target)) notifMenu.classList.add('hidden'); 
             });
 
-            renderManagerPools();
+            window.loadNotifications();
+            // 💡 部署雷达引擎：每隔 10 秒去云端摸一次新数据
+            setInterval(() => {
+                window.loadTasksFromCloud(true);
+            }, 10000); 
         });
 
-        function renderManagerPools() {
-            const savedData = localStorage.getItem('myNewTask');
-            const pendingSec = document.getElementById('section-pending');
-            const pendingCon = document.getElementById('pending-cards-container');
-            const assignedSec = document.getElementById('section-assigned');
-            const assignedCon = document.getElementById('assigned-cards-container');
-            const approvalCon = document.getElementById('approval-cards-container');
+        // ================= 💡 全局通知引擎 =================
+        window.loadNotifications = function() {
+            const userStr = localStorage.getItem('activeUserObj');
+            if(!userStr) return;
+            const user = JSON.parse(userStr);
+            const enName = user.enName ? user.enName.toLowerCase() : '';
+            const isLeader = enName === 'judyzzhang' || enName === 'davidxxu';
 
-            pendingCon.innerHTML = '';
-            assignedCon.innerHTML = '';
-            pendingSec.classList.add('hidden');
-            assignedSec.classList.add('hidden');
+            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
+            
+            // 管理员可以看所有 admin 的消息
+            let myNotifs = sysNotifs.filter(n => {
+                if (isLeader && n.role === 'admin') return true;
+                return false;
+            });
 
-            if(savedData) {
-                const task = JSON.parse(savedData);
-                
-                if(task.status === 'completed' || task.status === 'archived') return;
+            myNotifs.sort((a, b) => b.id - a.id);
 
-                if (task.status === 'pending') {
-                    pendingSec.classList.remove('hidden');
-                    pendingCon.innerHTML = `
-                        <div class="manager-card rounded-2xl p-5 flex flex-col relative overflow-hidden border border-sky-500/30 bg-[#16161d]">
-                            <div class="absolute left-0 top-0 bottom-0 w-[4px] bg-sky-500"></div>
-                            <div class="flex items-start justify-between mb-3 pl-1">
-                                <div><span class="text-[10px] font-bold text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20 mr-2">${task.id}</span><span class="text-[14px] font-bold text-zinc-100">${task.title}</span></div>
-                                <span class="text-[11px] text-zinc-500">期望交付: ${task.date || '待定'}</span>
+            const unreadCount = myNotifs.filter(n => !n.read).length;
+            const bellDot = document.getElementById('bell-dot');
+            const notifContainer = document.getElementById('notif-list-container');
+
+            if (bellDot) {
+                if (unreadCount > 0) {
+                    bellDot.classList.remove('hidden', 'bg-zinc-600', 'border-transparent');
+                    bellDot.classList.add('bg-rose-500', 'animate-pulse', 'border-[#141417]');
+                } else {
+                    bellDot.classList.add('hidden');
+                }
+            }
+
+            if (notifContainer) {
+                if (myNotifs.length === 0) {
+                    notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无新报警</div>';
+                } else {
+                    let html = '';
+                    myNotifs.forEach(n => {
+                        const dot = n.read ? '' : '<span class="w-2 h-2 rounded-full bg-rose-500 shrink-0 shadow-[0_0_8px_rgba(244,63,94,0.8)]"></span>';
+                        const opacity = n.read ? 'opacity-50' : '';
+                        const dateStr = new Date(n.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                        html += `
+                            <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer ${opacity}" onclick="window.markSingleAsRead(${n.id})">
+                                <div class="flex justify-between items-start mb-1">
+                                    <h4 class="text-[13px] font-bold text-white flex items-center gap-2">${n.title} ${dot}</h4>
+                                    <span class="text-[10px] text-zinc-500">${dateStr}</span>
+                                </div>
+                                <p class="text-[11px] text-zinc-400 leading-relaxed">${n.desc}</p>
                             </div>
-                            <p class="text-[12px] text-zinc-400 mb-4 line-clamp-1 pl-1">${task.desc}</p>
+                        `;
+                    });
+                    notifContainer.innerHTML = html;
+                }
+            }
+
+            const latestUnread = myNotifs.find(n => !n.read);
+            if (latestUnread) {
+                const lastToasted = sessionStorage.getItem('last_toasted_notif_id');
+                if (lastToasted != latestUnread.id) {
+                    showToast('🔔 ' + latestUnread.title, latestUnread.desc, 'info');
+                    sessionStorage.setItem('last_toasted_notif_id', latestUnread.id);
+                }
+            }
+        }
+
+        window.markSingleAsRead = function(id) {
+            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
+            let target = sysNotifs.find(n => n.id === id);
+            if(target) {
+                target.read = true;
+                localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs));
+                window.loadNotifications();
+            }
+        }
+
+        window.markAllAsRead = function(event) {
+            if(event) event.stopPropagation();
+            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
+            sysNotifs.forEach(n => {
+                if (n.role === 'admin') n.read = true;
+            });
+            localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs));
+            window.loadNotifications();
+            showToast('消息已清空', '所有未读报警已标记为已读。', 'success');
+        }
+
+        // ================= 💡 核心：真实数据三池流转 & 资源大盘 =================
+        const PREDEFINED_ASSIGNEES = [
+            { id: 'davidxxu', name: 'Davidxxu (全职)', group: 'design' },
+            { id: 'wang', name: '王助理 (排版)', group: 'admin' },
+            { id: 'skyler', name: 'Skyler', group: 'admin' },
+            { id: 'liuruoyu', name: '刘若愚', group: 'admin' }
+        ];
+
+        window.loadTasksFromCloud = async function(isSilent = false) {
+            if(!window.supabase) return;
+            const userStr = localStorage.getItem('activeUserObj');
+            if(!userStr) return;
+            const currentUser = JSON.parse(userStr);
+
+            try {
+                // 取出所有非完结数据供三池和资源大盘计算
+                const { data, error } = await window.supabase.from(window.DB_TABLE).select('*')
+                    .not('status', 'in', '("completed","archived","terminated")')
+                    .order('created_at', { ascending: false });
+
+                if(error) throw error;
+
+                const pendingSec = document.getElementById('section-pending');
+                const pendingCon = document.getElementById('pending-cards-container');
+                const assignedSec = document.getElementById('section-assigned');
+                const assignedCon = document.getElementById('assigned-cards-container');
+                const approvalSec = document.getElementById('section-approval');
+                const approvalCon = document.getElementById('approval-cards-container');
+
+                if(!isSilent) {
+                    pendingCon.innerHTML = '';
+                    assignedCon.innerHTML = '';
+                    approvalCon.innerHTML = '';
+                    pendingSec.classList.add('hidden');
+                    assignedSec.classList.add('hidden');
+                    approvalSec.classList.add('hidden');
+                }
+
+                let ongoingCount = 0;
+                let pendingCount = 0;
+                let designerWorkloads = {}; // 记录每个人身上压了几单
+
+                // 生成分配下拉框的 HTML 碎片
+                let assignOptionsHtml = `<option value="">-- 请选择设计师 --</option>`;
+                PREDEFINED_ASSIGNEES.forEach(u => { assignOptionsHtml += `<option value="${u.id}">${u.name}</option>`; });
+
+                // 💡 智能消息雷达对比
+                let knownHistories = JSON.parse(localStorage.getItem('known_histories_admin') || '{}');
+                let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
+                let hasNewNotification = false;
+
+                (data || []).forEach(task => {
+                    ongoingCount++;
+                    
+                    // 1. 消息雷达侦测
+                    let historyArr = [];
+                    try { historyArr = JSON.parse(task.history_json || '[]'); } catch(e){}
+                    const knownLen = knownHistories[task.id] || 0;
+                    if (historyArr.length > knownLen) {
+                        for(let i = knownLen; i < historyArr.length; i++) {
+                            const newEvent = historyArr[i];
+                            const opEnName = currentUser.enName || '';
+                            const opDispName = currentUser.displayName || '';
+                            if (newEvent.operator && (newEvent.operator.includes(opEnName) || newEvent.operator.includes(opDispName))) continue;
                             
-                            <div class="bg-[#09090b] rounded-xl p-3 flex items-center justify-between border border-white/5 ml-1">
-                                <span class="text-[12px] font-medium text-zinc-300 flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span> 指定执行人：</span>
-                                <div class="flex gap-2">
-                                    <select id="manager-assignee-select" class="bg-[#1a1a24] border border-white/10 rounded-lg px-3 py-1.5 text-[12px] text-white outline-none focus:border-sky-500 w-48 transition-colors">
-                                        <optgroup label="全职设计师"><option value="davidxxu">Davidxxu (空闲)</option></optgroup>
-                                        <optgroup label="行政支持组 (19人)"><option value="wang">王助理 (擅长排版)</option><option value="skyler">Skyler</option><option value="liuruoyu">刘若愚</option></optgroup>
-                                    </select>
-                                    <button onclick="dispatchTask(this)" class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-1.5 rounded-lg text-[12px] font-bold transition-all btn-press shadow-md">确认下发</button>
+                            sysNotifs.push({
+                                id: new Date().getTime() + Math.random(),
+                                taskId: task.id,
+                                title: `🔔 [${task.id}] 进度异动`,
+                                desc: `${newEvent.operator || '系统'} 操作: ${newEvent.action}. ${newEvent.reply || newEvent.desc || ''}`,
+                                role: 'admin', 
+                                read: false,
+                                time: new Date().toISOString()
+                            });
+                            hasNewNotification = true;
+                        }
+                        knownHistories[task.id] = historyArr.length;
+                    }
+
+                    // 2. 计算资源负载
+                    const taskAssignee = task.assignee || 'none';
+                    if (taskAssignee !== 'none') {
+                        if (!designerWorkloads[taskAssignee]) designerWorkloads[taskAssignee] = 0;
+                        designerWorkloads[taskAssignee] += 1;
+                    }
+
+                    if(isSilent) return; // 后台轮询不重新渲染 DOM，只更新数字和资源池
+
+                    // 3. 渲染三池逻辑
+                    if (task.status === 'pending') {
+                        pendingCount++;
+                        pendingSec.classList.remove('hidden');
+                        pendingCon.insertAdjacentHTML('beforeend', `
+                            <div class="manager-card rounded-2xl p-5 flex flex-col relative overflow-hidden border border-sky-500/30 bg-[#16161d]">
+                                <div class="absolute left-0 top-0 bottom-0 w-[4px] bg-sky-500"></div>
+                                <div class="flex items-start justify-between mb-3 pl-1">
+                                    <div><span class="text-[10px] font-bold text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20 mr-2">${task.id}</span><span class="text-[14px] font-bold text-zinc-100">${task.title}</span></div>
+                                    <span class="text-[11px] text-zinc-500">期望交付: ${task.due_date || '待定'}</span>
                                 </div>
-                            </div>
-                        </div>
-                    `;
-                } 
-                else if (task.status === 'pending_approval') {
-                    approvalCon.insertAdjacentHTML('afterbegin', `
-                        <div class="manager-card rounded-2xl p-5 flex flex-col relative overflow-hidden border border-amber-500/40 bg-[#16161d]">
-                            <div class="absolute left-0 top-0 bottom-0 w-[4px] bg-amber-500"></div>
-                            <div class="flex items-start justify-between mb-3 pl-1">
-                                <div><span class="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 mr-2">${task.id}</span><span class="text-[14px] font-bold text-white">${task.title}</span></div>
-                                <span class="text-[11px] text-zinc-400">刚刚提交</span>
-                            </div>
-                            <div class="flex gap-4 mt-2 pl-1">
-                                <div class="w-32 h-20 bg-[#09090b] rounded-lg border border-white/10 flex items-center justify-center text-zinc-500 text-xs overflow-hidden shrink-0">
-                                    【草图预览】
-                                </div>
-                                <div class="flex-1 flex flex-col justify-between">
-                                    <p class="text-[11px] text-amber-400 leading-relaxed line-clamp-2 font-medium">设计师提交了初期框架方向，任务已挂起，请总监过目并决断是否允许推进正稿。</p>
-                                    <div class="flex gap-2 mt-2">
-                                        <button onclick="approveFramework()" class="bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 px-4 py-1.5 rounded-lg text-[11px] font-bold transition-all btn-press border border-emerald-500/30">审批通过 (推正稿)</button>
-                                        <button onclick="rejectFramework()" class="bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 px-4 py-1.5 rounded-lg text-[11px] font-bold transition-all btn-press border border-rose-500/20">大方向错，驳回</button>
+                                <p class="text-[12px] text-zinc-400 mb-4 line-clamp-1 pl-1">${task.full_desc || task.summary_desc}</p>
+                                
+                                <div class="bg-[#09090b] rounded-xl p-3 flex items-center justify-between border border-white/5 ml-1">
+                                    <span class="text-[12px] font-medium text-zinc-300 flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span> 指定执行人：</span>
+                                    <div class="flex gap-2">
+                                        <select id="assign-sel-${task.id}" class="bg-[#1a1a24] border border-white/10 rounded-lg px-3 py-1.5 text-[12px] text-white outline-none focus:border-sky-500 w-48 transition-colors">
+                                            ${assignOptionsHtml}
+                                        </select>
+                                        <button onclick="dispatchTask('${task.id}')" class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-1.5 rounded-lg text-[12px] font-bold transition-all btn-press shadow-md">确认下发</button>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    `);
-                }
-                else {
-                    assignedSec.classList.remove('hidden');
-                    
-                    let statusLabel = '流转中'; let statusColor = 'text-amber-400'; let borderClass = 'border-amber-500';
-                    if (task.status === 'pending_accept') { statusLabel = '等待接单确认'; statusColor = 'text-sky-400'; borderClass = 'border-sky-500'; }
-                    else if (task.status === 'processing') { statusLabel = '设计师全力制作中'; statusColor = 'text-orange-400'; borderClass = 'border-orange-500'; }
-                    else if (task.status === 'reviewing') { statusLabel = '方案待甲方验收'; statusColor = 'text-emerald-400'; borderClass = 'border-emerald-500'; }
+                        `);
+                    } 
+                    else if (task.status === 'pending_approval') {
+                        pendingCount++;
+                        approvalSec.classList.remove('hidden');
+                        
+                        let fwImg = task.design_img_url || '';
+                        let fwDesc = '无说明';
+                        try {
+                            const hArr = JSON.parse(task.history_json || '[]');
+                            for(let i=hArr.length-1; i>=0; i--) {
+                                if(hArr[i].action === 'submit_framework') {
+                                    if(hArr[i].img_url) fwImg = hArr[i].img_url;
+                                    if(hArr[i].desc) fwDesc = hArr[i].desc;
+                                    break;
+                                }
+                            }
+                        } catch(e){}
 
-                    const assigneeMap = {'davidxxu':'许博文', 'liuruoyu':'刘若愚', 'judyzzhang':'张丹楠', 'skyler':'Skyler'};
-                    const displayAssignee = assigneeMap[task.assignee] || task.assignee;
+                        let approvalActionBtns = '';
+                        if (currentUserEn === 'judyzzhang') {
+                            approvalActionBtns = `
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="openActionModal('approve', '${task.id}')" class="bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 px-4 py-1.5 rounded-lg text-[11px] font-bold transition-all btn-press border border-emerald-500/30">同意推进正稿</button>
+                                    <button onclick="openActionModal('reject', '${task.id}')" class="bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 px-4 py-1.5 rounded-lg text-[11px] font-bold transition-all btn-press border border-rose-500/20">方向偏离，驳回</button>
+                                </div>
+                            `;
+                        } else {
+                            approvalActionBtns = `
+                                <div class="flex gap-2 mt-2 opacity-50">
+                                    <span class="text-[11px] text-zinc-500 border border-zinc-700 px-3 py-1 rounded bg-zinc-800">仅限领导 (丹楠姐) 审批</span>
+                                </div>
+                            `;
+                        }
 
-                    assignedCon.innerHTML = `
-                        <div class="manager-card rounded-2xl p-5 flex flex-col relative overflow-hidden opacity-80 cursor-default border border-white/5">
-                            <div class="absolute left-0 top-0 bottom-0 w-[4px] bg-[#1a1a24] ${borderClass}"></div>
-                            <div class="flex items-start justify-between mb-3 pl-1">
-                                <div><span class="text-[10px] font-bold text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded border border-zinc-700 mr-2">${task.id}</span><span class="text-[14px] font-bold text-zinc-300">${task.title}</span></div>
-                                <span class="text-[11px] font-bold ${statusColor} bg-white/5 px-2 py-1 rounded border border-white/10">${statusLabel}</span>
+                        approvalCon.insertAdjacentHTML('beforeend', `
+                            <div class="manager-card rounded-2xl p-5 flex flex-col relative overflow-hidden border border-amber-500/40 bg-[#16161d]">
+                                <div class="absolute left-0 top-0 bottom-0 w-[4px] bg-amber-500"></div>
+                                <div class="flex items-start justify-between mb-3 pl-1">
+                                    <div><span class="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 mr-2">${task.id}</span><span class="text-[14px] font-bold text-white">${task.title}</span></div>
+                                    <span class="text-[11px] text-zinc-400">执行人: ${task.assignee}</span>
+                                </div>
+                                <div class="flex gap-4 mt-2 pl-1">
+                                    <div class="w-32 h-20 bg-[#09090b] rounded-lg border border-white/10 flex items-center justify-center text-zinc-500 text-xs overflow-hidden shrink-0 cursor-pointer" onclick="window.open('${fwImg}', '_blank')">
+                                        ${fwImg ? `<img src="${fwImg}" class="w-full h-full object-cover opacity-80 hover:opacity-100 transition-opacity">` : '【暂无草图】'}
+                                    </div>
+                                    <div class="flex-1 flex flex-col justify-between">
+                                        <p class="text-[11px] text-amber-400 leading-relaxed line-clamp-2 font-medium">设计提交：${fwDesc}</p>
+                                        ${approvalActionBtns}
+                                    </div>
+                                </div>
                             </div>
-                            <div class="flex items-center justify-between text-[11px] text-zinc-500 mt-2 pt-3 border-t border-white/5 pl-1">
-                                <span class="flex items-center gap-1.5"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> 当前责任人: <span class="text-zinc-300 font-bold">${displayAssignee}</span></span>
-                                <span>期望交付: ${task.date}</span>
+                        `);
+                    }
+                    else {
+                        // 流转中
+                        assignedSec.classList.remove('hidden');
+                        let statusLabel = '流转中'; let statusColor = 'text-amber-400'; let borderClass = 'border-amber-500';
+                        if (task.status === 'pending_accept') { statusLabel = '等待接单确认'; statusColor = 'text-sky-400'; borderClass = 'border-sky-500'; }
+                        else if (task.status === 'processing') { statusLabel = '全力制作中'; statusColor = 'text-orange-400'; borderClass = 'border-orange-500'; }
+                        else if (task.status === 'reviewing') { statusLabel = '方案待甲方验收'; statusColor = 'text-emerald-400'; borderClass = 'border-emerald-500'; }
+                        else if (task.status === 'rejected') { statusLabel = '被打回修改中'; statusColor = 'text-rose-500'; borderClass = 'border-rose-500'; }
+
+                        const displayAssignee = PREDEFINED_ASSIGNEES.find(u => u.id === task.assignee)?.name || task.assignee;
+
+                        assignedCon.insertAdjacentHTML('beforeend', `
+                            <div class="manager-card rounded-2xl p-5 flex flex-col relative overflow-hidden opacity-80 cursor-default border border-white/5" onclick="window.location.href='task-detail-requester.html?id=${task.id}'">
+                                <div class="absolute left-0 top-0 bottom-0 w-[4px] bg-[#1a1a24] ${borderClass}"></div>
+                                <div class="flex items-start justify-between mb-3 pl-1">
+                                    <div><span class="text-[10px] font-bold text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded border border-zinc-700 mr-2">${task.id}</span><span class="text-[14px] font-bold text-zinc-300">${task.title}</span></div>
+                                    <span class="text-[11px] font-bold ${statusColor} bg-white/5 px-2 py-1 rounded border border-white/10">${statusLabel}</span>
+                                </div>
+                                <div class="flex items-center justify-between text-[11px] text-zinc-500 mt-2 pt-3 border-t border-white/5 pl-1">
+                                    <span class="flex items-center gap-1.5"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> 责任人: <span class="text-zinc-300 font-bold">${displayAssignee}</span></span>
+                                    <span>期望交付: ${task.due_date || '--'}</span>
+                                </div>
                             </div>
-                        </div>
-                    `;
+                        `);
+                    }
+                });
+
+                // 处理通知抛送
+                if (hasNewNotification) {
+                    localStorage.setItem('known_histories_admin', JSON.stringify(knownHistories));
+                    localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs));
+                    window.loadNotifications(); 
                 }
-            }
+
+                // 统一更新顶栏数字
+                document.getElementById('top-ongoing-count').innerText = ongoingCount;
+                document.getElementById('top-pending-count').innerText = pendingCount;
+
+                // 💡 动态渲染真实负载监控
+                renderLiveResourcePool(designerWorkloads);
+
+            } catch(e) { console.error(e); }
         }
 
-        function dispatchTask(btn) {
-            const selValue = document.getElementById('manager-assignee-select').value;
-            const task = JSON.parse(localStorage.getItem('myNewTask'));
-            const namesMap = {'davidxxu':'许博文', 'liuruoyu':'刘若愚', 'skyler':'Skyler', 'wang':'王助理'};
-            const actualName = namesMap[selValue] || selValue;
+        function renderLiveResourcePool(workloads) {
+            const container = document.getElementById('resource-pool-container');
+            let html = '';
 
-            task.assignee = selValue;
-            task.status = 'pending_accept'; 
-            task.desc = `已由主管统筹分派给 ${actualName}，等待设计师确认接单。`;
-            localStorage.setItem('myNewTask', JSON.stringify(task));
+            PREDEFINED_ASSIGNEES.forEach(u => {
+                const count = workloads[u.id] || 0;
+                // 1个任务按保守 6 小时估算负载
+                const estHours = count * 6;
+                let statusText = ''; let barCol = ''; let pct = 0;
+                
+                if (estHours === 0) { statusText = '空闲'; barCol = 'bg-zinc-600'; pct = 0; }
+                else if (estHours <= 15) { statusText = '健康'; barCol = 'bg-emerald-500'; pct = (estHours / 40) * 100; }
+                else if (estHours <= 30) { statusText = '饱满'; barCol = 'bg-orange-500'; pct = (estHours / 40) * 100; }
+                else { statusText = '超负荷'; barCol = 'bg-rose-500'; pct = 100; }
+
+                html += `
+                <div class="mb-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-[13px] font-bold text-zinc-200">${u.name}</span>
+                            <span class="bg-zinc-800 text-zinc-500 border border-zinc-700 px-1.5 rounded text-[9px]">${count} 单</span>
+                        </div>
+                        <span class="text-[11px] ${barCol.replace('bg-', 'text-')} font-mono">${statusText} (${estHours}h预估)</span>
+                    </div>
+                    <div class="w-full h-1.5 bg-zinc-900 rounded-full overflow-hidden"><div class="h-full ${barCol} rounded-full transition-all duration-500" style="width: ${pct}%"></div></div>
+                </div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        // ================= 动作执行 =================
+        window.dispatchTask = async function(taskId) {
+            const sel = document.getElementById(`assign-sel-${taskId}`);
+            const assigneeId = sel.value;
+            if(!assigneeId) return customAlert("提示", "请选择要分派的设计师！", null, false, "warning");
+
+            const actualName = PREDEFINED_ASSIGNEES.find(u => u.id === assigneeId)?.name || assigneeId;
             
-            showToast('派发成功', `需求已锁定并指派给 ${actualName}，系统已通知对方。`, 'success');
-            setTimeout(() => { renderManagerPools(); }, 800);
+            showConfirm("确认派发", `确定将此任务派发给 <span class="text-sky-400 font-bold">${actualName}</span> 吗？`, async () => {
+                
+                const { data: curTask } = await window.supabase.from(window.DB_TABLE).select('history_json').eq('id', taskId).single();
+                let hist = [];
+                if(curTask && curTask.history_json) { try { hist = JSON.parse(curTask.history_json); } catch(e){} }
+                
+                hist.push({
+                    action: 'transfer', operator: `系统统筹`, time: new Date().toISOString(),
+                    reply: `主管已将任务指派给：${actualName}，等待接单。`
+                });
+
+                const { error } = await window.supabase.from(window.DB_TABLE).update({
+                    status: 'pending_accept', assignee: assigneeId, summary_desc: `已派发给 ${actualName}，待接单`,
+                    history_json: JSON.stringify(hist)
+                }).eq('id', taskId);
+
+                if (error) return customAlert("错误", error.message, null, false, "error");
+                
+                showToast("派发成功", `需求已指派给 ${actualName}`, "success");
+                window.loadTasksFromCloud(); // 局部刷新
+            }, "primary");
         }
 
-        // 💡 修复：使用美观弹窗替代 alert
-        function approveFramework() {
-            const task = JSON.parse(localStorage.getItem('myNewTask'));
-            task.status = 'processing';
-            task.desc = '主管已审批通过草图，解除挂起，设计师正在推进正稿。';
-            localStorage.setItem('myNewTask', JSON.stringify(task));
-            customAlert('审批通过', '已同意推进。<br>该任务已流转至设计师的【制作中】泳道。', () => { window.location.reload(); }, false, 'success');
-        }
+        // 弹窗管理
+        let targetApprovalTaskId = null;
+        const approveOverlay = document.getElementById('approve-modal-overlay');
+        const approveModal = document.getElementById('approve-modal');
+        const rejectOverlay = document.getElementById('reject-modal-overlay');
+        const rejectModal = document.getElementById('reject-modal');
 
-        // 💡 修复：使用美观弹窗替代 alert
-        function rejectFramework() {
-            const task = JSON.parse(localStorage.getItem('myNewTask'));
-            task.status = 'pending_accept'; 
-            task.desc = '主管驳回了框架方向，请重新评估并上传新的草图。';
-            localStorage.setItem('myNewTask', JSON.stringify(task));
-            customAlert('打回重做', '大方向已驳回。<br>任务已退回给设计师重新修改框架。', () => { window.location.reload(); }, false, 'warning');
-        }
-
-        function showToast(title, desc, type = 'success') {
-            const toast = document.getElementById('action-toast');
-            document.getElementById('toast-title').innerText = title;
-            document.getElementById('toast-desc').innerText = desc;
-            const icon = document.getElementById('toast-icon');
-            if(type === 'success') {
-                icon.className = "w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400";
-                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+        window.openActionModal = function(type, taskId) {
+            targetApprovalTaskId = taskId;
+            if(type === 'approve') {
+                document.getElementById('approve-notes').value = '';
+                approveOverlay.classList.remove('hidden'); setTimeout(() => { approveOverlay.classList.remove('opacity-0'); approveModal.classList.remove('scale-95'); }, 10);
+            } else if (type === 'reject') {
+                document.getElementById('reject-reason').value = '';
+                rejectOverlay.classList.remove('hidden'); setTimeout(() => { rejectOverlay.classList.remove('opacity-0'); rejectModal.classList.remove('scale-95'); }, 10);
             }
-            toast.classList.remove('hidden');
-            setTimeout(() => { toast.classList.add('hidden'); }, 3000);
         }
+
+        window.closeActionModals = function() {
+            approveOverlay.classList.add('opacity-0'); rejectOverlay.classList.add('opacity-0');
+            approveModal.classList.add('scale-95'); rejectModal.classList.add('scale-95');
+            setTimeout(() => { approveOverlay.classList.add('hidden'); rejectOverlay.classList.add('hidden'); targetApprovalTaskId = null; }, 300);
+        }
+
+        window.submitApprove = async function() {
+            if(!targetApprovalTaskId) return;
+            const notes = document.getElementById('approve-notes').value.trim();
+            const btn = document.getElementById('btn-approve-submit');
+            btn.disabled = true; btn.innerText = "数据写入中...";
+
+            const { data: curTask } = await window.supabase.from(window.DB_TABLE).select('history_json').eq('id', targetApprovalTaskId).single();
+            let hist = [];
+            if(curTask && curTask.history_json) { try { hist = JSON.parse(curTask.history_json); } catch(e){} }
+            
+            hist.push({
+                action: 'approve_framework', operator: '丹楠姐 (领导)', time: new Date().toISOString(),
+                reply: notes || '大方向没问题，同意推进正稿。', is_rejected: false, reply_by: '丹楠姐 (领导)'
+            });
+
+            const { error } = await window.supabase.from(window.DB_TABLE).update({
+                status: 'processing', summary_desc: notes ? `领导框架过审：${notes}` : `领导已通过框架，继续制作。`,
+                history_json: JSON.stringify(hist)
+            }).eq('id', targetApprovalTaskId);
+
+            btn.disabled = false; btn.innerText = "确认通过方向";
+            if (error) return customAlert("错误", error.message, null, false, "error");
+            
+            closeActionModals(); showToast("审批通过", "已推送给设计师继续画正稿", "success");
+            window.loadTasksFromCloud();
+        }
+
+        window.submitRejectFramework = async function() {
+            if(!targetApprovalTaskId) return;
+            const reason = document.getElementById('reject-reason').value.trim();
+            if(!reason) return customAlert("提示", "打回原因必须填写，以便设计师修改！", null, false, "warning");
+
+            const btn = document.getElementById('btn-reject-submit');
+            btn.disabled = true; btn.innerText = "数据写入中...";
+
+            const { data: curTask } = await window.supabase.from(window.DB_TABLE).select('history_json').eq('id', targetApprovalTaskId).single();
+            let hist = [];
+            if(curTask && curTask.history_json) { try { hist = JSON.parse(curTask.history_json); } catch(e){} }
+            
+            hist.push({
+                action: 'reject_framework', operator: '丹楠姐 (领导)', time: new Date().toISOString(),
+                reply: reason, is_rejected: true, reply_by: '丹楠姐 (领导)'
+            });
+
+            const { error } = await window.supabase.from(window.DB_TABLE).update({
+                status: 'rejected', summary_desc: `领导将框架打回重审：${reason}`,
+                history_json: JSON.stringify(hist)
+            }).eq('id', targetApprovalTaskId);
+
+            btn.disabled = false; btn.innerText = "确认打回修改";
+            if (error) return customAlert("错误", error.message, null, false, "error");
+            
+            closeActionModals(); showToast("已驳回", "单据已被打回修改池", "info");
+            window.loadTasksFromCloud();
+        }
+
     </script>
 </body>
 </html>
