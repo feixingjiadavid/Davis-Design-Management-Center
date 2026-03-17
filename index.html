@@ -777,13 +777,12 @@
             const currentUserEn = currentUser.enName ? currentUser.enName.toLowerCase() : '';
             const isOwner = creator === currentUser.displayName || creator === currentUser.cnName || creator === currentUser.enName;
             
-            const taskAssignee = task.assignee ? task.assignee.toLowerCase() : 'none';
-            const isMyDesignTask = taskAssignee === currentUserEn;
-
-            let isJudy = currentUserEn === 'judyzzhang';
+            let isJudy = false;
+            if (currentUser.enName) {
+                isJudy = currentUser.enName.toLowerCase() === 'judyzzhang';
+            }
             
-            // 权限过滤
-            if(!isOwner && !isMyDesignTask && !(isJudy && task.status === 'pending_approval')) return null;
+            if(!isOwner && !(isJudy && task.status === 'pending_approval')) return null;
 
             let sColor, sText, targetUrl;
             let isUrgent = false;
@@ -796,23 +795,13 @@
                 if(diffDays <= 2 && diffDays >= -999) isUrgent = true;
             }
 
-            // 💡 智能判断阶段：决定后续如果是 processing/rejected 应该跳转到哪个页面
+            // 💡 智能路由大脑：通过检查摘要中是否包含过审等字眼，决定是否跳入 Draft 正稿页
             let isDraftPhase = false;
-            if (task.history_json) {
-                try {
-                    const history = JSON.parse(task.history_json);
-                    for (let i = history.length - 1; i >= 0; i--) {
-                        if (history[i].reply_by && (history[i].reply_by.includes('主管') || history[i].reply_by.includes('领导')) && !history[i].is_rejected) isDraftPhase = true;
-                        if (history[i].action === 'submit_draft') isDraftPhase = true;
-                    }
-                } catch(e) {}
-            }
             if (task.summary_desc && (task.summary_desc.includes('正式稿') || task.summary_desc.includes('过审') || task.summary_desc.includes('大方向') || task.summary_desc.includes('通过框架'))) {
                 isDraftPhase = true;
             }
 
-            // 💡 路由大脑：为了防“自己给自己派单”的串台，这里通过给 URL 加 `&role=` 传参，让进入的页面强制锁定视角
-            // 只要是从这个大厅（index.html）点进去的，统统带上 role=req（需求方） 烙印！
+            // 💡 核心修复：为所有目标页面带上角色参数，强制指定为需求方 (req)
             const baseQuery = `?id=${task.id}&role=req`;
 
             switch(task.status) {
@@ -823,6 +812,7 @@
                     break;
                 case 'reviewing': 
                     sColor = 'text-rose-500'; sText = '方案待验收'; 
+                    // 强制跳转到验收专属页面！
                     targetUrl = 'task-detail-review.html' + baseQuery; 
                     break;
                 case 'pending_accept': 
@@ -831,7 +821,6 @@
                     break;
                 case 'pending_approval': 
                     sColor = 'text-amber-500'; sText = '框架待审批'; 
-                    // 领导特权：如果是 judy，强行进去审批 (locked页不带 role=req，让它自己判断 isJudy)
                     targetUrl = isJudy ? 'task-detail-locked.html?id=' + task.id : 'task-detail-locked.html' + baseQuery; 
                     break;
                 case 'processing': 
@@ -853,6 +842,7 @@
             const breatheClass = isUrgent ? 'breathe-rose' : '';
             const canCancel = (task.status === 'pending' || task.status === 'pending_accept' || task.status === 'rejected') && isOwner;
             const cancelBtn = canCancel ? `<button onclick="event.stopPropagation(); window.cancelTask('${task.id}')" class="text-[10px] text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded ml-2 hover:bg-rose-500 hover:text-white transition-colors">撤销</button>` : '';
+
             const iconHtml = (task.status === 'reviewing' || task.status === 'rejected' || isCompleted) ? '' : `<svg class="animate-spin h-3 w-3 ${sColor}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
 
             const cardHTML = `
