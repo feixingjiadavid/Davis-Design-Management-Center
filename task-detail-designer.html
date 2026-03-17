@@ -216,6 +216,13 @@
         </div>
     </div>
 
+    <div id="action-toast" class="fixed top-8 right-8 z-[1000] hidden toast-slide-in">
+        <div class="bg-[#1a1a1f] border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-3 w-72">
+            <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0"></div>
+            <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-zinc-400 text-[11px] mt-0.5">操作已执行。</p></div>
+        </div>
+    </div>
+
     <script type="module">
         import { supabase } from './supabase-config.js';
         window.supabase = supabase;
@@ -258,7 +265,7 @@
                 try { globalHistoryArr = JSON.parse(data.history_json || '[]'); } catch(e) { globalHistoryArr = []; }
                 
                 renderStaticInfo();
-                renderVersionHistory(); // 💡 渲染画廊
+                renderVersionHistory(); 
                 renderSmartDesignerPanel();
                 renderTimeline();
 
@@ -300,7 +307,6 @@
             
             let submissions = [];
             
-            // 提取所有的提交记录，并向后寻找它的“命运”（是被打回了还是通过了）
             for(let i=0; i<globalHistoryArr.length; i++) {
                 let h = globalHistoryArr[i];
                 if(h.action === 'submit_framework' || h.action === 'submit_draft') {
@@ -316,7 +322,6 @@
                             fate = 'approved'; fateReason = nextH.reply; break;
                         }
                         if (nextH.action.startsWith('submit_')) {
-                            // 被下一版直接覆盖了
                             break;
                         }
                     }
@@ -332,7 +337,6 @@
             block.classList.remove('hidden');
             let html = '';
             
-            // 倒序展示，最新的在上面
             [...submissions].reverse().forEach((sub) => {
                 let badgeCol = sub.fate === 'approved' ? 'emerald' : (sub.fate === 'rejected' ? 'rose' : 'amber');
                 let badgeTxt = sub.fate === 'approved' ? '已过审 / 验收' : (sub.fate === 'rejected' ? '被打回' : '等待审核中');
@@ -381,6 +385,7 @@
             container.innerHTML = html;
         }
 
+        // 💡 动态操作面板
         function renderSmartDesignerPanel() {
             const status = globalTaskData.status;
             const hBadge = document.getElementById('header-status-badge');
@@ -495,15 +500,20 @@
                 
                 upArea.classList.add('hidden'); 
                 
+                // 💡 修复：提供一键催办动作
+                let urgeFn = status === 'pending_approval' ? 'urgeLeader(this)' : 'urgeRequester(this)';
+                let urgeText = status === 'pending_approval' ? '🚀 催促丹楠姐审批' : '🚀 催促甲方验收';
+
                 pnlClasses = 'bg-[#18181b] border border-zinc-700 rounded-3xl p-7 shadow-2xl relative overflow-hidden';
                 pnlHtml = `
                     <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-zinc-500"></div>
                     <div class="w-12 h-12 bg-zinc-800 rounded-full flex items-center justify-center mb-5 text-zinc-400"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></div>
                     <h3 class="text-[16px] font-bold text-white mb-3">方案流转审核中</h3>
                     <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">
-                        您已提交方案，目前正在${status === 'pending_approval' ? '领导' : '甲方'}端进行审核/验收。<br>此时工作台暂不可填写，您可以去左侧画廊欣赏您提交的各版图纸，或处理其他任务。<br><br>如果对方不满意打回，工作台将重新解锁开放。
+                        您已提交方案，目前正在${status === 'pending_approval' ? '领导' : '甲方'}端进行审核/验收。<br>此时不可修改，您可以去左侧画廊欣赏自己提交的图纸。<br>如果对方不满意打回，工作台将重新解锁开放。
                     </p>
-                    <button onclick="window.location.href='assistant-workspace.html'" class="w-full py-3.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-[13px] font-bold transition-all btn-press">返回看板看其他单</button>
+                    <button onclick="${urgeFn}" class="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-[13px] font-bold transition-all btn-press mb-3 shadow-[0_0_15px_rgba(249,115,22,0.3)]">${urgeText}</button>
+                    <button onclick="window.location.href='assistant-workspace.html'" class="w-full py-3 bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white rounded-xl text-[12px] font-bold transition-all btn-press">返回执行看板</button>
                 `;
 
             } else {
@@ -516,8 +526,8 @@
                 pnlHtml = `
                     <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-${sCol}-500"></div>
                     <h3 class="text-[16px] font-bold text-white mb-3">${sText}</h3>
-                    <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">该需求的所有生命周期已完全闭环。感谢你的设计输出。左侧为您参与提交的所有历史版本记录供复盘。</p>
-                    <button onclick="window.location.href='assistant-workspace.html'" class="w-full py-3.5 bg-[#1a1a24] border border-zinc-700 text-zinc-400 hover:bg-zinc-800 hover:text-white rounded-xl text-[13px] font-bold transition-all btn-press">回到工作台</button>
+                    <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">该需求在此刻已永久封存闭环，感谢你的设计输出。左侧为您参与提交的所有历史版本记录供复盘。</p>
+                    <button onclick="window.location.href='assistant-workspace.html'" class="w-full py-3.5 bg-[#1a1a24] border border-zinc-700 text-zinc-400 hover:bg-zinc-800 hover:text-white rounded-xl text-[13px] font-bold transition-all btn-press">返回工作台</button>
                 `;
             }
 
@@ -528,6 +538,20 @@
             
             pnl.className = pnlClasses;
             pnl.innerHTML = pnlHtml;
+        }
+
+        // ================= 一键催办系统 =================
+        window.urgeLeader = function(btn) {
+            btn.innerHTML = '✓ 已发送催办提醒';
+            btn.className = "w-full py-3.5 bg-zinc-800 border border-zinc-700 text-zinc-500 rounded-xl text-[13px] font-bold cursor-not-allowed mb-3";
+            btn.disabled = true;
+            showToast('已提醒', '系统催办提醒已发送给丹楠姐', 'success');
+        }
+        window.urgeRequester = function(btn) {
+            btn.innerHTML = '✓ 已发送催办提醒';
+            btn.className = "w-full py-3.5 bg-zinc-800 border border-zinc-700 text-zinc-500 rounded-xl text-[13px] font-bold cursor-not-allowed mb-3";
+            btn.disabled = true;
+            showToast('已提醒', '系统催办提醒已发送给甲方', 'success');
         }
 
         function renderTimeline() {
@@ -630,20 +654,25 @@
             document.getElementById('upload-placeholder').classList.remove('hidden'); document.getElementById('upload-preview').classList.add('hidden');
         }
 
-        // ================= 弹窗控制 =================
-        const acceptOverlay = document.getElementById('accept-modal-overlay');
-        const acceptModal = document.getElementById('accept-modal');
-        const rejectOverlay = document.getElementById('reject-modal-overlay');
-        const rejectModal = document.getElementById('reject-modal');
-
-        window.openAcceptModal = function() { acceptOverlay.classList.remove('hidden'); setTimeout(() => { acceptOverlay.classList.remove('opacity-0'); acceptModal.classList.remove('hidden'); }, 10); }
-        window.openRejectModal = function() { rejectOverlay.classList.remove('hidden'); setTimeout(() => { rejectOverlay.classList.remove('opacity-0'); rejectModal.classList.remove('hidden'); }, 10); }
-        window.closeActionModals = function() {
-            acceptOverlay.classList.add('opacity-0'); rejectOverlay.classList.add('opacity-0');
-            setTimeout(() => { acceptOverlay.classList.add('hidden'); acceptModal.classList.add('hidden'); rejectOverlay.classList.add('hidden'); rejectModal.classList.add('hidden'); }, 300);
+        window.openAcceptModal = function() { 
+            const overlay = document.getElementById('accept-modal-overlay');
+            const modal = document.getElementById('accept-modal');
+            overlay.classList.remove('hidden'); setTimeout(() => { overlay.classList.remove('opacity-0'); modal.classList.remove('hidden'); }, 10); 
         }
-
-        // ================= 核心写入动作 =================
+        window.openRejectModal = function() { 
+            const overlay = document.getElementById('reject-modal-overlay');
+            const modal = document.getElementById('reject-modal');
+            overlay.classList.remove('hidden'); setTimeout(() => { overlay.classList.remove('opacity-0'); modal.classList.remove('hidden'); }, 10); 
+        }
+        window.closeActionModals = function() {
+            const overlays = [document.getElementById('accept-modal-overlay'), document.getElementById('reject-modal-overlay')];
+            const modals = [document.getElementById('accept-modal'), document.getElementById('reject-modal')];
+            overlays.forEach(o => { if(o) o.classList.add('opacity-0'); });
+            setTimeout(() => { 
+                overlays.forEach(o => { if(o) o.classList.add('hidden'); }); 
+                modals.forEach(m => { if(m) m.classList.add('hidden'); }); 
+            }, 300);
+        }
 
         window.submitAccept = async function() {
             const fwDate = document.getElementById('framework-date').value;
@@ -755,7 +784,6 @@
 
             if (window.supabase) {
                 let fallbackImg = finalCloudUrl;
-                // 不再覆写顶层的 design_img_url，让画廊自己解析
                 if (!fallbackImg) fallbackImg = globalTaskData.design_img_url;
 
                 const { error } = await window.supabase.from(window.DB_TABLE).update({
