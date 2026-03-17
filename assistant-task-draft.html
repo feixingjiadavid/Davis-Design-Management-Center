@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>提交正式稿 - 戴维斯设计需求管理中心</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
+        body { background-color: #09090b; color: #e4e4e7; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        ::-webkit-scrollbar { width: 0px; } 
+        .custom-scrollbar { overflow-y: auto; padding-right: 8px; scroll-behavior: smooth; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 10px; }
+        .btn-press { transition: all 0.15s ease; cursor: pointer; }
+        .btn-press:active { transform: scale(0.95); }
+        .drag-active { border-color: #10b981 !important; background-color: rgba(16, 185, 129, 0.05) !important; }
+        .ai-tool-cb:checked + div { background-color: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.3); color: #34d399; font-weight: 600; }
+        #image-preview-modal { display: none; position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.9); backdrop-filter: blur(5px); z-index: 999999; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s ease; }
+        #image-preview-modal.visible { display: flex; opacity: 1; }
+        .timeline-line { position: absolute; left: 11px; top: 24px; bottom: -8px; width: 2px; background-color: rgba(255,255,255,0.05); z-index: 0; }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden relative selection:bg-emerald-500/30 text-zinc-300">
+
+    <div class="absolute inset-0 bg-[#09090b] z-0 pointer-events-none"></div>
+    <div class="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-emerald-900/10 rounded-full blur-[150px] pointer-events-none z-0"></div>
+
+    <aside class="w-[240px] border-r border-white/5 flex flex-col z-10 bg-[#09090b] shrink-0 h-full">
+        <div class="p-7 border-b border-white/5 shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-orange-600 flex items-center justify-center shadow-[0_0_15px_rgba(249,115,22,0.3)] shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+                </div>
+                <h1 class="text-[15px] font-bold text-white tracking-wide">戴维斯需求大厅</h1>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-5 space-y-2">
+            <button onclick="window.location.href='assistant-workspace.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl bg-orange-500/10 text-orange-400 border border-orange-500/20 transition-all btn-press">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+                <span class="font-bold text-[14px]">执行看板 (Kanban)</span>
+            </button>
+            <button onclick="window.location.href='assistant-assets.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                <span class="font-medium text-[14px]">我的过稿资产库</span>
+            </button>
+        </div>
+
+        <div class="px-5 py-5 mt-auto border-t border-white/5 bg-[#09090b] shrink-0 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div id="sidebar-avatar" class="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg">?</div>
+                <div><p id="sidebar-name" class="text-xs font-bold text-white mb-0.5">加载中...</p><p class="text-[10px] text-zinc-500">设计方视角</p></div>
+            </div>
+            <button onclick="logout(event)" class="p-2 text-zinc-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors btn-press" title="退出登录">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            </button>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative z-10 bg-[#0c0c0e]">
+        <header class="px-10 py-6 border-b border-white/5 bg-[#09090b]/80 backdrop-blur-xl shrink-0 flex items-center justify-between">
+            <div>
+                <button onclick="window.location.href='assistant-workspace.html'" class="text-zinc-500 hover:text-white text-[12px] font-bold mb-3 flex items-center gap-1.5 transition-colors btn-press">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    返回执行看板
+                </button>
+                <div class="flex items-center gap-4">
+                    <div class="bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg flex items-center gap-2">
+                        <span class="text-emerald-500 font-mono text-sm font-bold" id="req-id">读取中...</span>
+                    </div>
+                    <h2 class="text-[22px] font-bold text-white tracking-tight" id="req-title-display">正在拉取云端需求...</h2>
+                    <span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded text-[11px] font-bold flex items-center gap-1.5 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+                        正式稿推进阶段
+                    </span>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-5 relative z-[110]">
+                <span class="text-emerald-500 font-black flex items-center gap-1.5 text-[13px]"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> 身份: 设计方 (当前)</span>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto custom-scrollbar p-10 flex justify-center">
+            <div class="w-full max-w-[1400px] flex gap-10 items-start">
+                
+                <div class="flex-1 flex flex-col gap-8 min-w-0">
+                    
+                    <div class="bg-[#121217] border border-white/5 rounded-2xl p-8 relative overflow-hidden">
+                        <div class="absolute right-0 top-0 bg-emerald-500/10 text-emerald-500 text-[10px] font-bold px-3 py-1 rounded-bl-xl border-b border-l border-emerald-500/20">领导已审批过关的框架基底</div>
+                        <h3 class="text-[15px] font-bold text-white mb-4 flex items-center gap-2">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-emerald-500"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> 
+                            以此框架为准进行正稿细化
+                        </h3>
+                        <div class="w-full aspect-[16/9] bg-[#09090b] rounded-xl border border-white/10 overflow-hidden relative shadow-inner p-1">
+                            <img id="approved-framework-img" src="" class="w-full h-full object-contain cursor-pointer transition-transform hover:scale-[1.02]" onclick="openPreview(this.src)" title="点击全屏放大参考">
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="text-[15px] font-bold text-emerald-400 mb-3 flex items-center gap-2">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                            交付正式稿产出物
+                        </h3>
+                        <div class="bg-[#121217] border border-emerald-500/20 p-6 rounded-2xl shadow-xl space-y-6">
+                            
+                            <div>
+                                <label class="block text-[12px] font-bold text-zinc-300 mb-2">1. 正式稿预览图 (供甲方在线快速查收) <span class="text-rose-500">*</span></label>
+                                <div id="dropzone" class="w-full h-32 border-2 border-dashed border-zinc-700 rounded-xl bg-[#09090b] flex flex-col items-center justify-center text-zinc-500 transition-colors hover:border-emerald-500/50 cursor-pointer relative overflow-hidden">
+                                    <input type="file" id="design-upload" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="handleDesignUpload(event)" accept="image/jpeg,image/png,image/webp">
+                                    
+                                    <div id="upload-placeholder" class="flex flex-col items-center pointer-events-none relative z-0">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mb-2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                                        <p class="text-[12px] font-bold text-zinc-400 mb-1">点击或拖拽上传新版 JPG/PNG</p>
+                                    </div>
+
+                                    <div id="upload-preview" class="hidden absolute inset-0 z-20 w-full h-full p-4 flex flex-col items-center justify-center bg-emerald-500/5 border border-emerald-500/20">
+                                        <div class="cursor-pointer flex flex-col items-center justify-center w-full h-full pointer-events-auto" onclick="openPreview(null)">
+                                            <p class="text-sm font-bold text-emerald-400" id="filename-display">已选中文件</p>
+                                            <p class="text-[10px] text-emerald-500/60 mt-1">正式稿文件已就位</p>
+                                        </div>
+                                        <button onclick="resetUpload(event)" class="absolute top-2 right-2 p-1.5 bg-black/60 text-zinc-400 rounded-lg hover:bg-rose-500 hover:text-white transition-colors pointer-events-auto z-30" title="重新选择"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-[12px] font-bold text-zinc-300 mb-2">2. 源文件/高清包网盘链接 <span class="text-zinc-500 font-normal">(极度建议填写，方便甲方提取源文件)</span></label>
+                                <input type="url" id="source-link" class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3 text-[13px] text-white outline-none focus:border-emerald-500 transition-colors" placeholder="请将最终定稿的 PSD/ZIP 传至网盘后粘贴分享链接">
+                            </div>
+
+                            <div>
+                                <label class="block text-[12px] font-bold text-zinc-300 mb-2">3. 给甲方的交付说明</label>
+                                <textarea id="delivery-desc" class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3 text-[13px] text-white outline-none focus:border-emerald-500 transition-colors h-20 resize-none custom-scrollbar" placeholder="例如：这是根据咱们确认的框架细化的正式稿，已增加质感，请验收..."></textarea>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <div class="bg-[#121217] border border-white/5 rounded-2xl p-8 relative overflow-hidden mt-4 opacity-50 hover:opacity-100 transition-opacity">
+                        <div class="absolute right-0 top-0 bg-white/5 text-zinc-500 text-[10px] font-bold px-3 py-1 rounded-bl-xl">最原始需求</div>
+                        <h3 class="text-sm font-bold text-white mb-3">📋 甲方初次提单时的原始描述 (留底防扯皮)</h3>
+                        <div class="text-sm text-zinc-400 leading-relaxed bg-[#09090b] border border-white/5 p-5 rounded-xl min-h-[60px] custom-scrollbar" id="req-desc-display">数据读取中...</div>
+                        <div class="mt-4 text-xs text-zinc-500 flex gap-4">
+                            <span id="dt-project">归属项目: --</span>
+                            <span id="dt-creator">发起人: --</span>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="w-[380px] shrink-0 flex flex-col gap-6">
+                    
+                    <div class="bg-gradient-to-b from-[#061e13] to-[#121217] border border-emerald-500/30 rounded-3xl p-7 shadow-2xl relative overflow-hidden">
+                        <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-emerald-500"></div>
+                        <h3 class="text-[15px] font-bold text-white mb-6 border-b border-white/5 pb-4">效能填报与正式稿交付</h3>
+                        
+                        <div class="space-y-6">
+                            <div>
+                                <label class="block text-[12px] font-bold text-zinc-300 mb-2 flex items-center justify-between">
+                                    <span>推正稿耗时 (h) <span class="text-rose-500">*</span></span>
+                                    <span class="text-[10px] text-emerald-400 font-normal">计入正稿负荷</span>
+                                </label>
+                                <input type="number" id="work-hours" step="0.5" placeholder="例: 6.5" class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3.5 text-[14px] text-white font-mono font-bold outline-none focus:border-emerald-500 transition-colors">
+                            </div>
+
+                            <div>
+                                <label class="block text-[12px] font-bold text-zinc-300 mb-2">借助的 AI 工具 (多选)</label>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <label class="cursor-pointer"><input type="checkbox" class="hidden ai-tool-cb" value="豆包"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-3 py-2 rounded-lg transition-colors text-center font-medium">豆包</div></label>
+                                    <label class="cursor-pointer"><input type="checkbox" class="hidden ai-tool-cb" value="Gemini"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-3 py-2 rounded-lg transition-colors text-center font-medium">Gemini</div></label>
+                                    <label class="cursor-pointer"><input type="checkbox" class="hidden ai-tool-cb" value="Gpt"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-3 py-2 rounded-lg transition-colors text-center font-medium">Gpt</div></label>
+                                    <label class="cursor-pointer"><input type="checkbox" class="hidden ai-tool-cb" value="DeepSeek"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-3 py-2 rounded-lg transition-colors text-center font-medium">DeepSeek</div></label>
+                                    <label class="cursor-pointer"><input type="checkbox" class="hidden ai-tool-cb" value="ClaudeClaw"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-3 py-2 rounded-lg transition-colors text-center font-medium">ClaudeClaw</div></label>
+                                    <label class="cursor-pointer"><input type="checkbox" class="hidden ai-tool-cb" value="PS生成式填充"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-3 py-2 rounded-lg transition-colors text-center font-medium">PS生成式填充</div></label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-8 pt-5 border-t border-white/5">
+                            <button id="btn-submit-design" onclick="submitDraftDesign()" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[14px] font-bold shadow-[0_10px_20px_-10px_rgba(16,185,129,0.6)] btn-press transition-all flex items-center justify-center gap-2">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                                <span id="submit-btn-text">提交正式稿发送甲方验收</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-[#121217] border border-white/5 rounded-3xl p-7 flex flex-col shadow-xl">
+                        <h3 class="text-[14px] font-bold text-white mb-6 border-b border-white/5 pb-4">从立项到正稿的完整追踪</h3>
+                        <div class="relative space-y-6 flex-1" id="task-timeline-container">
+                            </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <div id="image-preview-modal" onclick="closePreview()">
+        <div class="w-full h-full flex items-center justify-center relative p-8">
+            <button onclick="closePreview()" class="absolute top-8 right-8 text-white/50 hover:text-white bg-white/10 hover:bg-rose-500 rounded-full p-2 transition-all btn-press z-50">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+            <img id="modal-image" src="" alt="预览图" class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl" onclick="event.stopPropagation()">
+        </div>
+    </div>
+
+    <script type="module">
+        import { supabase } from './supabase-config.js';
+        window.supabase = supabase;
+        window.DB_TABLE = 'test_tasks';
+        if(window.loadTaskDetail) window.loadTaskDetail();
+    </script>
+
+    <script>
+        function logout() { localStorage.removeItem('activeUserObj'); window.location.href = 'login.html'; }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentTaskId = urlParams.get('id');
+        let windowHistoryArr = [];  
+        let localPreviewUrl = null;
+        let tempFileBlob = null; 
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const userStr = localStorage.getItem('activeUserObj');
+            if (!userStr) { window.location.href = 'login.html'; return; }
+            const user = JSON.parse(userStr);
+            document.getElementById('sidebar-avatar').innerText = user.avatar || '?';
+            
+            if(!currentTaskId) {
+                alert("未找到需求编号！"); window.location.href='assistant-workspace.html'; 
+            }
+        });
+
+        // 渲染完整时间轴
+        function renderTimeline(data, history) {
+            let html = '';
+            let currentStatusText = '正在细化设计正稿';
+            let currentStatusColor = 'emerald-500';
+            
+            if(data.status === 'rejected') {
+                currentStatusText = '正式稿被打回，需重新修改';
+                currentStatusColor = 'rose-500';
+            }
+
+            html += `<div class="relative flex gap-4 z-10"><div class="w-6 h-6 rounded-full bg-[#121217] border-2 border-${currentStatusColor} flex items-center justify-center shrink-0 shadow-[0_0_10px_currentColor] text-${currentStatusColor}"><div class="w-1.5 h-1.5 bg-current rounded-full animate-pulse"></div></div><div class="pt-0.5 pb-4"><p class="text-[13px] font-bold text-${currentStatusColor} mb-0.5">${currentStatusText}</p></div></div>`;
+
+            if (history && history.length > 0) {
+                [...history].reverse().forEach(h => {
+                    if (h.reply) {
+                        let replyCol = h.is_rejected ? 'rose' : 'emerald';
+                        html += `<div class="relative flex gap-4 z-10 pb-4"><div class="timeline-line"></div><div class="w-6 h-6 rounded-full bg-[#121217] border-2 border-${replyCol}-500 flex items-center justify-center shrink-0 text-${replyCol}-500 z-10"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg></div><div class="pt-0.5 w-full pr-2 z-10"><p class="text-[12px] font-bold text-${replyCol}-400 mb-0.5">${h.reply_by} ${h.is_rejected ? '打回了方案' : '审批通过了方案'}</p><div class="bg-${replyCol}-500/10 border border-${replyCol}-500/20 p-2.5 rounded-lg mt-1.5"><p class="text-[11px] text-${replyCol}-300 leading-relaxed whitespace-pre-wrap">🗣️ 意见：${h.reply}</p></div></div></div>`;
+                    }
+                    let actText = h.action === 'submit_draft' ? '提交正式设计稿' : '提交框架方案';
+                    html += `<div class="relative flex gap-4 z-10 pb-4 opacity-70"><div class="timeline-line"></div><div class="w-6 h-6 rounded-full bg-[#121217] border-2 border-zinc-500 flex items-center justify-center shrink-0 z-10"><div class="w-1.5 h-1.5 bg-zinc-500 rounded-full"></div></div><div class="pt-0.5 w-full pr-2 z-10"><div class="flex items-center justify-between"><p class="text-[12px] font-bold text-white mb-0.5">设计师 ${actText} <span class="bg-white/10 text-zinc-300 px-1.5 py-0.5 rounded text-[9px] ml-1">${h.version || ''}</span></p></div><p class="text-[10px] text-zinc-500 mb-1.5">${new Date(h.created_at).toLocaleString()}</p><div class="bg-white/5 border border-white/10 p-2.5 rounded-lg"><p class="text-[11px] text-zinc-300 whitespace-pre-wrap">📝 说明：${h.desc || '未填写'}</p></div></div></div>`;
+                });
+            }
+            html += `<div class="relative flex gap-4 z-10 opacity-40 grayscale pb-4"><div class="w-6 h-6 rounded-full bg-[#121217] border-2 border-zinc-500 flex items-center justify-center shrink-0 z-10"><div class="w-1.5 h-1.5 bg-zinc-500 rounded-full"></div></div><div class="pt-0.5 z-10"><p class="text-[12px] font-bold text-white mb-0.5">需求发单并接单</p></div></div>`;
+            document.getElementById('task-timeline-container').innerHTML = html;
+        }
+
+        window.loadTaskDetail = async function() {
+            if(!window.supabase || !currentTaskId) return;
+
+            const { data, error } = await window.supabase.from(window.DB_TABLE).select('*').eq('id', currentTaskId).single();
+            if(error || !data) return alert("未找到该需求！");
+
+            document.getElementById('req-id').innerText = data.id || '--';
+            document.getElementById('req-title-display').innerText = data.title || '无标题';
+            document.getElementById('dt-project').innerText = data.project || '--';
+            document.getElementById('dt-creator').innerText = data.creator || '--';
+            document.getElementById('req-desc-display').innerHTML = (data.full_desc || '暂无描述').replace(/\n/g, '<br>');
+
+            // 解析历史，必定提取过审的那一张框架图
+            try { windowHistoryArr = JSON.parse(data.history_json || '[]'); } catch(e) { windowHistoryArr = []; }
+            const newVerNum = windowHistoryArr.length + 1;
+            document.getElementById('submit-btn-text').innerText = `提交正式稿发送甲方验收 (本次记录为 v-${newVerNum})`;
+
+            let approvedImgUrl = data.design_img_url; // 先用旧字段兜底
+            for(let i = windowHistoryArr.length - 1; i >= 0; i--) {
+                const h = windowHistoryArr[i];
+                if(h.action === 'submit_framework' && h.img_url) {
+                    approvedImgUrl = h.img_url; break; 
+                }
+            }
+
+            if (approvedImgUrl) {
+                document.getElementById('approved-framework-section').classList.remove('hidden');
+                document.getElementById('approved-framework-img').src = approvedImgUrl;
+            }
+
+            renderTimeline(data, windowHistoryArr);
+        }
+
+        // ================= 拖拽与上传逻辑 (纯无痛版) =================
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('design-upload');
+
+        dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('drag-active'); });
+        dropzone.addEventListener('dragleave', () => { dropzone.classList.remove('drag-active'); });
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault(); dropzone.classList.remove('drag-active');
+            if (e.dataTransfer.files.length) { fileInput.files = e.dataTransfer.files; window.handleDesignUpload({ target: fileInput }); }
+        });
+
+        window.handleDesignUpload = function(event) {
+            const files = event.target.files;
+            if(files.length > 0) {
+                const file = files[0];
+                tempFileBlob = file; // 强行把文件锁入全局，避免异步失效
+                
+                document.getElementById('upload-placeholder').classList.add('hidden');
+                document.getElementById('upload-preview').classList.remove('hidden');
+                document.getElementById('filename-display').innerText = file.name;
+                
+                if(localPreviewUrl) URL.revokeObjectURL(localPreviewUrl);
+                localPreviewUrl = URL.createObjectURL(file); 
+            }
+        }
+
+        window.openPreview = function(srcUrl = null) {
+            const finalSrc = srcUrl ? srcUrl : localPreviewUrl;
+            if(!finalSrc) return; 
+            document.getElementById('modal-image').src = finalSrc;
+            const modal = document.getElementById('image-preview-modal');
+            modal.classList.remove('hidden'); void modal.offsetWidth; 
+            modal.style.display = 'flex'; setTimeout(() => modal.classList.add('visible'), 10);
+        }
+
+        window.closePreview = function() {
+            const modal = document.getElementById('image-preview-modal');
+            modal.classList.remove('visible'); setTimeout(() => { modal.style.display = 'none'; }, 300);
+        }
+
+        window.resetUpload = function(e) {
+            e.stopPropagation(); document.getElementById('design-upload').value = '';
+            tempFileBlob = null; 
+            if(localPreviewUrl) { URL.revokeObjectURL(localPreviewUrl); localPreviewUrl = null; }
+            document.getElementById('upload-placeholder').classList.remove('hidden');
+            document.getElementById('upload-preview').classList.add('hidden');
+        }
+
+        // ================= 提交正式稿 =================
+        window.submitDraftDesign = async function() {
+            const fileInputEl = document.getElementById('design-upload');
+            let rawFile = tempFileBlob || (fileInputEl.files.length > 0 ? fileInputEl.files[0] : null);
+            const sourceLink = document.getElementById('source-link').value.trim();
+
+            if(!rawFile && !sourceLink) {
+                return alert("【提交被驳回】您必须上传一张 JPG/PNG 预览图，或者提供一个有效的网盘链接，两者至少填一项！");
+            }
+
+            const hours = document.getElementById('work-hours').value;
+            if(!hours || hours <= 0) return alert("请准确填报您本次推正稿消耗的工时！");
+
+            const deliveryDesc = document.getElementById('delivery-desc').value.trim();
+            const btn = document.getElementById('btn-submit-design');
+            const originalBtnText = btn.innerHTML;
+            btn.disabled = true; btn.innerText = "🚀 正在向甲方提交...";
+
+            let finalCloudUrl = '';
+
+            try {
+                if (rawFile) {
+                    let fileExt = 'jpg';
+                    if(rawFile.name) fileExt = rawFile.name.split('.').pop().toLowerCase();
+                    const safeName = `draft_${currentTaskId}_${Date.now()}.${fileExt}`;
+                    
+                    const { error: uploadError } = await window.supabase.storage
+                        .from('designs')
+                        .upload(safeName, rawFile, { contentType: `image/${fileExt === 'png' ? 'png' : 'jpeg'}` });
+
+                    if (uploadError) throw uploadError;
+
+                    const { data: urlData } = window.supabase.storage.from('designs').getPublicUrl(safeName);
+                    finalCloudUrl = urlData.publicUrl;
+                }
+            } catch (err) {
+                btn.disabled = false; btn.innerHTML = originalBtnText;
+                return alert("云端上传失败，请重试！\n" + err.message);
+            }
+
+            const newVersionNum = windowHistoryArr.length + 1;
+            const newHistoryRecord = { 
+                version: `v-${newVersionNum}`, 
+                desc: deliveryDesc, 
+                img_url: finalCloudUrl, 
+                source_link: sourceLink, 
+                created_at: new Date().toISOString(), 
+                action: 'submit_draft' // 明确记录为提交正式稿
+            };
+            windowHistoryArr.push(newHistoryRecord);
+
+            if (window.supabase) {
+                const summary = `正式稿已上传等待甲方验收 (版本: v-${newVersionNum}) | 说明: ${deliveryDesc || '无'}`;
+                
+                const { error } = await window.supabase.from(window.DB_TABLE).update({
+                    status: 'reviewing', // 状态直接变更为：给甲方验收
+                    design_img_url: finalCloudUrl || document.getElementById('approved-framework-img').src, // 如果正稿没传图，兜底用回上一版
+                    source_file_link: sourceLink,
+                    history_json: JSON.stringify(windowHistoryArr),
+                    summary_desc: summary
+                }).eq('id', currentTaskId);
+
+                if (error) {
+                    btn.disabled = false; btn.innerHTML = originalBtnText;
+                    return alert("云端数据更新失败：" + error.message);
+                }
+            }
+
+            alert(`正式稿已成功提交！系统版本号标记为 v-${newVersionNum}。`);
+            window.location.href = 'assistant-workspace.html';
+        }
+    </script>
+</body>
+</html>
