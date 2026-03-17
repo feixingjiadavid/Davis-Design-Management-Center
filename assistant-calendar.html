@@ -56,7 +56,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
                 <span class="font-medium text-[14px]">执行看板 (Kanban)</span>
             </button>
-            <button class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+            <button onclick="window.location.href='assistant-assets.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
                 <span class="font-medium text-[14px]">我的过稿资产库</span>
             </button>
@@ -66,11 +66,14 @@
             </button>
         </div>
 
-        <div class="px-7 py-7 mt-auto border-t border-white/5 bg-[#09090b] shrink-0">
+        <div class="px-5 py-5 mt-auto border-t border-white/5 bg-[#09090b] shrink-0 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-full bg-orange-900 border border-orange-700 flex items-center justify-center text-white font-bold text-sm shadow-[0_0_10px_rgba(249,115,22,0.4)]">SK</div>
-                <div><p class="text-xs font-bold text-white mb-0.5">Skyler</p><p class="text-[10px] text-orange-400">资深视觉设计</p></div>
+                <div id="sidebar-avatar" class="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg">?</div>
+                <div><p id="sidebar-name" class="text-xs font-bold text-white mb-0.5">加载中...</p><p id="sidebar-role" class="text-[10px] text-zinc-500">读取中</p></div>
             </div>
+            <button onclick="logout(event)" class="p-2 text-zinc-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors btn-press" title="退出登录">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            </button>
         </div>
     </aside>
 
@@ -91,7 +94,7 @@
                             </div>
                             <div>
                                 <p class="text-[11px] text-zinc-500 font-medium mb-0.5 uppercase tracking-wider">本月已确认工时</p>
-                                <p class="text-xl font-black text-white font-mono leading-none">128.5 <span class="text-xs text-zinc-600 font-normal">h</span></p>
+                                <p class="text-xl font-black text-white font-mono leading-none" id="stat-hours">0.0 <span class="text-xs text-zinc-600 font-normal">h</span></p>
                             </div>
                         </div>
                         
@@ -102,8 +105,8 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
                             </div>
                             <div>
-                                <p class="text-[11px] text-zinc-500 font-medium mb-0.5 uppercase tracking-wider">本月交付需求</p>
-                                <p class="text-xl font-black text-white font-mono leading-none">18 <span class="text-xs text-zinc-600 font-normal">单</span></p>
+                                <p class="text-[11px] text-zinc-500 font-medium mb-0.5 uppercase tracking-wider">本月承接需求</p>
+                                <p class="text-xl font-black text-white font-mono leading-none" id="stat-tasks">0 <span class="text-xs text-zinc-600 font-normal">单</span></p>
                             </div>
                         </div>
 
@@ -115,7 +118,7 @@
                             </div>
                             <div>
                                 <p class="text-[11px] text-zinc-500 font-medium mb-0.5 uppercase tracking-wider">参与项目矩阵</p>
-                                <p class="text-xl font-black text-white font-mono leading-none">4 <span class="text-xs text-zinc-600 font-normal">个项目组</span></p>
+                                <p class="text-xl font-black text-white font-mono leading-none" id="stat-projects">0 <span class="text-xs text-zinc-600 font-normal">个项目组</span></p>
                             </div>
                         </div>
                     </div>
@@ -125,25 +128,18 @@
                     <div class="relative" id="notif-wrapper">
                         <button id="notifBtn" class="w-10 h-10 rounded-xl bg-[#141417] border border-white/5 flex items-center justify-center text-zinc-400 hover:text-white transition-colors btn-press relative">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-                            <span id="bell-dot" class="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-[#141417] animate-pulse"></span>
+                            <span id="bell-dot" class="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-[#141417] animate-pulse hidden"></span>
                         </button>
                         <div id="notifMenu" class="hidden absolute right-0 top-[120%] w-[340px] bg-[#121217] border border-white/10 rounded-2xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.8)] py-3 dropdown-enter z-[9999]">
                             <div class="px-5 pb-3 border-b border-white/5 flex justify-between items-center">
                                 <h3 class="text-[14px] font-bold text-white">消息通知</h3>
-                                <button onclick="document.getElementById('notifMenu').classList.add('hidden'); document.getElementById('bell-dot').classList.add('hidden');" class="text-[11px] text-indigo-400 hover:text-indigo-300 btn-press transition-colors">全部已读</button>
+                                <button onclick="window.markAllAsRead(event)" class="text-[11px] text-indigo-400 hover:text-indigo-300 btn-press transition-colors">全部已读</button>
                             </div>
-                            <div class="max-h-[300px] overflow-y-auto custom-scrollbar">
-                                <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors relative btn-press">
-                                    <div class="absolute left-2 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-rose-500 rounded-full"></div>
-                                    <p class="text-[12px] font-bold text-white mb-1 leading-tight"><span class="text-rose-400 mr-1">[被打回]</span>TK-0810 画册排版被退回</p>
-                                    <p class="text-[11px] text-zinc-400 leading-relaxed mb-1.5">需求方 Debbie 提出了修改意见，请及时查看并更新方案。</p>
-                                    <p class="text-[10px] text-zinc-500">10 分钟前</p>
-                                </div>
-                                <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors relative btn-press opacity-60">
-                                    <p class="text-[12px] font-bold text-white mb-1 leading-tight"><span class="text-emerald-400 mr-1">[派单提醒]</span>TK-0825 新单指派</p>
-                                    <p class="text-[11px] text-zinc-400 leading-relaxed mb-1.5">文哥指派了一个新任务给你：宣传片脚本分镜梳理。</p>
-                                    <p class="text-[10px] text-zinc-500">1 小时前</p>
-                                </div>
+                            <div class="max-h-[300px] overflow-y-auto custom-scrollbar" id="notif-list-container">
+                                <div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无新消息</div>
+                            </div>
+                            <div class="pt-3 px-5 border-t border-white/5 text-center">
+                                <button onclick="window.location.href='message-center.html?role=design'" class="text-[11px] text-zinc-500 hover:text-white transition-colors btn-press">查看全部历史消息 ↗</button>
                             </div>
                         </div>
                     </div>
@@ -153,7 +149,7 @@
                             <span class="text-orange-500 font-black flex items-center gap-1.5">
                                 <span class="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span>
                             </span>
-                            设计方 (接单)
+                            设计方 (绩效)
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 ml-1"><polyline points="6 9 12 15 18 9"></polyline></svg>
                         </button>
                         <div id="identityMenu" class="hidden absolute right-0 top-[120%] w-[240px] bg-[#1a1a1f] border border-white/10 rounded-2xl shadow-2xl py-2 dropdown-enter z-[9999]">
@@ -177,231 +173,517 @@
             </div>
         </header>
 
-        <div class="flex-1 overflow-hidden flex">
+        <div class="flex-1 overflow-hidden flex relative">
+            
+            <div id="calendar-loading" class="absolute inset-0 bg-[#0c0c0e]/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
+                <svg class="animate-spin h-8 w-8 text-orange-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                <p class="text-xs text-zinc-500 font-bold tracking-widest uppercase">SYNCING CALENDAR...</p>
+            </div>
+
             <div class="flex-1 flex flex-col p-8 border-r border-white/5 bg-[#09090b]/30">
                 <div class="flex items-center justify-between mb-6">
                     <div class="flex items-center gap-4">
-                        <button class="p-2 bg-zinc-800/50 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-lg transition-colors btn-press"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
-                        <h3 class="text-xl font-bold text-white tracking-tight">2026年 3月</h3>
-                        <button class="p-2 bg-zinc-800/50 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-lg transition-colors btn-press"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
-                        <button class="ml-4 px-4 py-1.5 text-xs font-bold text-orange-400 bg-orange-500/10 border border-orange-500/20 rounded-lg btn-press">回到今天</button>
-                    </div>
-                    
-                    <div class="bg-[#121217] border border-white/10 p-1 rounded-xl flex items-center" id="view-toggles">
-                        <button onclick="switchView('week', this)" class="view-btn px-5 py-1.5 rounded-lg text-[13px] font-medium text-zinc-400 hover:text-white transition-colors">周视图</button>
-                        <button onclick="switchView('month', this)" class="view-btn px-5 py-1.5 rounded-lg text-[13px] font-bold text-white bg-zinc-800 shadow-md transition-colors">月视图</button>
-                        <button onclick="switchView('year', this)" class="view-btn px-5 py-1.5 rounded-lg text-[13px] font-medium text-zinc-400 hover:text-white transition-colors">年度复盘</button>
+                        <button onclick="changeMonth(-1)" class="p-2 bg-zinc-800/50 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-lg transition-colors btn-press"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+                        <h3 class="text-xl font-bold text-white tracking-tight w-32 text-center" id="current-month-display">----年 --月</h3>
+                        <button onclick="changeMonth(1)" class="p-2 bg-zinc-800/50 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-lg transition-colors btn-press"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+                        <button onclick="goToToday()" class="ml-4 px-4 py-1.5 text-xs font-bold text-orange-400 bg-orange-500/10 border border-orange-500/20 rounded-lg btn-press hover:bg-orange-500/20 transition-colors">回到今天</button>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-7 mb-2">
+                    <div class="text-center text-[11px] font-bold text-zinc-500 py-2">周日</div>
                     <div class="text-center text-[11px] font-bold text-zinc-500 py-2">周一</div>
                     <div class="text-center text-[11px] font-bold text-zinc-500 py-2">周二</div>
                     <div class="text-center text-[11px] font-bold text-zinc-500 py-2">周三</div>
                     <div class="text-center text-[11px] font-bold text-zinc-500 py-2">周四</div>
                     <div class="text-center text-[11px] font-bold text-zinc-500 py-2">周五</div>
                     <div class="text-center text-[11px] font-bold text-zinc-600 py-2">周六</div>
-                    <div class="text-center text-[11px] font-bold text-zinc-600 py-2">周日</div>
                 </div>
 
-                <div class="calendar-grid flex-1 min-h-0">
-                    <div class="calendar-cell muted">
-                        <span class="text-xs font-bold text-zinc-600 self-end">23</span>
+                <div class="calendar-grid flex-1 min-h-0 overflow-y-auto custom-scrollbar" id="calendar-grid">
                     </div>
-                    <div class="calendar-cell muted">
-                        <span class="text-xs font-bold text-zinc-600 self-end">24</span>
-                    </div>
-                    <div class="calendar-cell muted">
-                        <span class="text-xs font-bold text-zinc-600 self-end">25</span>
-                    </div>
-                    <div class="calendar-cell muted">
-                        <span class="text-xs font-bold text-zinc-600 self-end">26</span>
-                    </div>
-                    <div class="calendar-cell muted">
-                        <span class="text-xs font-bold text-zinc-600 self-end">27</span>
-                    </div>
-                    <div class="calendar-cell muted">
-                        <span class="text-xs font-bold text-zinc-600 self-end">28</span>
-                    </div>
-                    <div class="calendar-cell muted">
-                        <span class="text-xs font-bold text-zinc-600 self-end">1</span>
-                    </div>
-
-                    <div class="calendar-cell">
-                        <div class="flex justify-between items-start mb-2">
-                            <span class="text-[10px] workload-safe px-1.5 rounded font-mono font-bold">2.5h</span>
-                            <span class="text-xs font-bold text-zinc-300">2</span>
-                        </div>
-                        <div class="text-[10px] text-zinc-400 truncate bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded mb-1 border-l-2 border-l-indigo-500">妇女节物料</div>
-                    </div>
-                    <div class="calendar-cell">
-                        <div class="flex justify-between items-start mb-2">
-                            <span class="text-[10px] workload-heavy px-1.5 rounded font-mono font-bold">6.0h</span>
-                            <span class="text-xs font-bold text-zinc-300">3</span>
-                        </div>
-                        <div class="text-[10px] text-zinc-400 truncate bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded mb-1 border-l-2 border-l-indigo-500">妇女节物料</div>
-                        <div class="text-[10px] text-zinc-400 truncate bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded border-l-2 border-l-emerald-500">行政宣发折页</div>
-                    </div>
-                    <div class="calendar-cell relative">
-                        <div class="absolute top-0 left-0 right-0 h-0.5 bg-orange-500"></div>
-                        <div class="flex justify-between items-start mb-2">
-                            <span class="text-[10px] workload-overload px-1.5 rounded font-mono font-bold animate-pulse">8.5h</span>
-                            <span class="text-xs font-bold text-orange-400 bg-orange-500/20 w-5 h-5 flex items-center justify-center rounded-full">4</span>
-                        </div>
-                        <div class="text-[10px] text-zinc-400 truncate bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded mb-1 border-l-2 border-l-rose-500 text-rose-300">双十一主视觉 (加急)</div>
-                        <div class="text-[10px] text-zinc-400 truncate bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded mb-1 border-l-2 border-l-indigo-500">画册排版 V1</div>
-                    </div>
-                    <div class="calendar-cell">
-                        <div class="flex justify-between items-start mb-2">
-                            <span class="text-[10px] bg-zinc-800 text-zinc-500 px-1.5 rounded font-mono font-bold">预排</span>
-                            <span class="text-xs font-bold text-zinc-300">5</span>
-                        </div>
-                        <div class="text-[10px] text-zinc-500 truncate border border-zinc-800 border-dashed px-1.5 py-0.5 rounded mb-1 border-l-2 border-l-zinc-600">端午插图草图</div>
-                        <div class="text-[10px] text-zinc-500 truncate border border-zinc-800 border-dashed px-1.5 py-0.5 rounded mb-1 border-l-2 border-l-zinc-600">新品发布会主KV</div>
-                    </div>
-                    <div class="calendar-cell">
-                        <div class="flex justify-between items-start mb-2">
-                            <span class="text-[10px] bg-zinc-800 text-zinc-500 px-1.5 rounded font-mono font-bold">预排</span>
-                            <span class="text-xs font-bold text-zinc-300">6</span>
-                        </div>
-                    </div>
-                    <div class="calendar-cell">
-                        <span class="text-xs font-bold text-zinc-600 self-end">7</span>
-                    </div>
-                    <div class="calendar-cell">
-                        <span class="text-xs font-bold text-zinc-600 self-end">8</span>
-                    </div>
-
-                    <script>
-                        for(let i=9; i<=31; i++) {
-                            const isWeekend = (i%7===0 || i%7===6);
-                            document.write(`
-                                <div class="calendar-cell ${isWeekend ? 'muted' : ''}">
-                                    <span class="text-xs font-bold ${isWeekend ? 'text-zinc-600' : 'text-zinc-400'} self-end">${i}</span>
-                                </div>
-                            `);
-                        }
-                    </script>
-                </div>
             </div>
 
             <div class="w-[380px] shrink-0 p-8 flex flex-col bg-[#0c0c0e]">
                 <div class="mb-8">
                     <h3 class="text-[15px] font-bold text-white flex items-center gap-2 mb-1">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-orange-500"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
-                        3 月工时去向透视
+                        <span id="dist-title-month">--</span> 月工时去向透视
                     </h3>
-                    <p class="text-[11px] text-zinc-500">基于系统各节点完结时填写的工时统计</p>
+                    <p class="text-[11px] text-zinc-500">基于您系统各节点完结时填报的真实工时统计</p>
                 </div>
 
-                <div class="space-y-6 flex-1 overflow-y-auto custom-scrollbar pr-2">
-                    
-                    <div>
-                        <div class="flex justify-between items-end mb-2">
-                            <div>
-                                <h4 class="text-[13px] font-bold text-zinc-200">2026战略宣发矩阵</h4>
-                                <p class="text-[10px] text-zinc-500 mt-0.5">共完成 8 个需求单</p>
-                            </div>
-                            <div class="text-right">
-                                <span class="text-[14px] font-mono font-bold text-orange-400">68.0 <span class="text-[10px] text-orange-500/60">h</span></span>
-                                <p class="text-[10px] font-bold text-zinc-400 mt-0.5">占比 53%</p>
-                            </div>
-                        </div>
-                        <div class="w-full h-2 bg-zinc-900 rounded-full overflow-hidden">
-                            <div class="h-full bg-orange-500 w-[53%] rounded-full shadow-[0_0_10px_rgba(249,115,22,0.5)]"></div>
-                        </div>
-                    </div>
-
-                    <div>
-                        <div class="flex justify-between items-end mb-2">
-                            <div>
-                                <h4 class="text-[13px] font-bold text-zinc-200">日常行政支撑</h4>
-                                <p class="text-[10px] text-zinc-500 mt-0.5">共完成 7 个需求单</p>
-                            </div>
-                            <div class="text-right">
-                                <span class="text-[14px] font-mono font-bold text-emerald-400">40.5 <span class="text-[10px] text-emerald-500/60">h</span></span>
-                                <p class="text-[10px] font-bold text-zinc-400 mt-0.5">占比 31%</p>
-                            </div>
-                        </div>
-                        <div class="w-full h-2 bg-zinc-900 rounded-full overflow-hidden">
-                            <div class="h-full bg-emerald-500 w-[31%] rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
-                        </div>
-                    </div>
-
-                    <div>
-                        <div class="flex justify-between items-end mb-2">
-                            <div>
-                                <h4 class="text-[13px] font-bold text-zinc-200">临时指派 / 救火</h4>
-                                <p class="text-[10px] text-zinc-500 mt-0.5">共完成 3 个需求单</p>
-                            </div>
-                            <div class="text-right">
-                                <span class="text-[14px] font-mono font-bold text-sky-400">20.0 <span class="text-[10px] text-sky-500/60">h</span></span>
-                                <p class="text-[10px] font-bold text-zinc-400 mt-0.5">占比 16%</p>
-                            </div>
-                        </div>
-                        <div class="w-full h-2 bg-zinc-900 rounded-full overflow-hidden">
-                            <div class="h-full bg-sky-400 w-[16%] rounded-full shadow-[0_0_10px_rgba(56,189,248,0.5)]"></div>
-                        </div>
-                    </div>
+                <div class="space-y-6 flex-1 overflow-y-auto custom-scrollbar pr-2" id="project-dist-container">
+                    <div class="text-center text-zinc-500 py-10 text-sm">暂无本月数据</div>
                 </div>
                 
                 <div class="pt-6 border-t border-white/5 mt-4">
-                    <button class="w-full bg-[#1a1a24] hover:bg-[#252532] border border-white/10 text-white rounded-xl py-3 text-[13px] font-bold transition-all btn-press flex justify-center items-center gap-2">
+                    <button onclick="exportMyExcel()" class="w-full bg-[#1a1a24] hover:bg-[#252532] border border-white/10 text-white rounded-xl py-3 text-[13px] font-bold transition-all btn-press flex justify-center items-center gap-2">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                        导出本月工时及项目清单 (Excel)
+                        <span id="export-btn-text">导出本月工时报表 (CSV)</span>
                     </button>
                 </div>
             </div>
-        </div>
 
+        </div>
     </main>
 
     <div id="action-toast" class="fixed top-8 right-8 z-[100000] hidden toast-slide-in">
         <div class="bg-[#1a1a1f] border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-3 w-72">
-            <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0"></div>
+            <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </div>
             <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-zinc-400 text-[11px] mt-0.5">操作已执行。</p></div>
         </div>
     </div>
 
+    <script type="module">
+        import { supabase } from './supabase-config.js';
+        window.supabase = supabase;
+        window.DB_TABLE = 'test_tasks'; 
+        if(window.initCalendarApp) window.initCalendarApp();
+    </script>
+
     <script>
-        // 💡 修复4：完全补齐右上方各种弹窗和菜单的 JS 逻辑
-        document.addEventListener('DOMContentLoaded', () => {
-            const idBtn = document.getElementById('identityBtn');
-            const idMenu = document.getElementById('identityMenu');
-            if(idBtn && idMenu) { idBtn.addEventListener('click', (e) => { e.stopPropagation(); idMenu.classList.toggle('hidden'); }); }
-            
-            const notifBtn = document.getElementById('notifBtn');
-            const notifMenu = document.getElementById('notifMenu');
-            if(notifBtn && notifMenu) { notifBtn.addEventListener('click', (e) => { e.stopPropagation(); notifMenu.classList.toggle('hidden'); }); }
+        const PAGE_TYPE = 'design';
+        
+        let currentDate = new Date(); // 跟踪日历当前显示的年月
+        let myAllTasks = []; // 存储该用户的所有云端任务
 
-            document.addEventListener('click', (e) => { 
-                if(idMenu && !idMenu.contains(e.target)) idMenu.classList.add('hidden'); 
-                if(notifMenu && !notifMenu.contains(e.target)) notifMenu.classList.add('hidden'); 
-            });
-        });
+        function initRBAC() {
+            const userStr = localStorage.getItem('activeUserObj');
+            if (!userStr) { window.location.href = 'login.html'; return false; }
+            const user = JSON.parse(userStr);
 
-        function switchView(type, btn) {
-            const btns = document.querySelectorAll('.view-btn');
-            btns.forEach(b => {
-                b.className = "view-btn px-5 py-1.5 rounded-lg text-[13px] font-medium text-zinc-400 hover:text-white transition-colors";
-            });
-            btn.className = "view-btn px-5 py-1.5 rounded-lg text-[13px] font-bold text-white bg-zinc-800 shadow-md transition-colors";
+            if (!(user.perms || []).includes(PAGE_TYPE)) {
+                alert(`【权限拦截】您没有执行层做图权限，为您退回大厅。`);
+                window.location.href = 'index.html';
+                return false;
+            }
+
+            const avatarEl = document.getElementById('sidebar-avatar');
+            if(avatarEl) { avatarEl.innerText = user.avatar || '?'; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-orange-600'} border border-white/20 flex items-center justify-center text-white font-bold text-sm shadow-lg`; }
+            if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.cnName || user.enName;
             
-            showToast('视图已切换', `日历已成功切换至【${type === 'week' ? '周' : type === 'month' ? '月' : '年'}】维度`, 'info');
+            return user;
         }
 
         function showToast(title, desc, type = 'success') {
             const toast = document.getElementById('action-toast');
             document.getElementById('toast-title').innerText = title;
             document.getElementById('toast-desc').innerText = desc;
-            const icon = document.getElementById('toast-icon');
-            if(type === 'info') {
-                icon.className = "w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0";
-                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
-            }
             toast.classList.remove('hidden');
             setTimeout(() => { toast.classList.add('hidden'); }, 3000);
         }
+
+        function logout(e) {
+            if(e) e.stopPropagation();
+            localStorage.removeItem('activeUserObj'); 
+            window.location.href = 'login.html'; 
+        }
+
+        // ================= 💡 核心引擎：拉取云端数据 & 自动定位到有数据的月份 =================
+        window.initCalendarApp = async function() {
+            const currentUser = initRBAC();
+            if(!currentUser) return;
+            if(!window.supabase) return;
+
+            const currentUserEn = currentUser.enName ? currentUser.enName.toLowerCase() : '';
+            const isSuperAdmin = currentUserEn === 'davidxxu' || currentUserEn === 'judyzzhang';
+
+            try {
+                // 1. 拉取所有分配给我的任务（包含完成和未完成），如果是超管则拉取所有人以便看全盘
+                let query = window.supabase.from(window.DB_TABLE).select('*');
+                if (!isSuperAdmin) {
+                    query = query.ilike('assignee', `%${currentUserEn}%`);
+                }
+                const { data, error } = await query;
+                if (error) throw error;
+                
+                myAllTasks = data || [];
+
+                // 2. 智能月份防呆：如果这个月是空的，自动跳转到“最近有期望交付日”的那一月
+                if (myAllTasks.length > 0) {
+                    let latestDateStr = '';
+                    myAllTasks.forEach(t => {
+                        if (t.due_date && t.due_date > latestDateStr) {
+                            latestDateStr = t.due_date;
+                        }
+                    });
+                    if (latestDateStr) {
+                        const latestDateObj = new Date(latestDateStr);
+                        // 如果最新数据距离现在的跨度不在当月，我们自动把日历拨过去
+                        if (latestDateObj.getMonth() !== currentDate.getMonth() || latestDateObj.getFullYear() !== currentDate.getFullYear()) {
+                            currentDate = new Date(latestDateObj.getFullYear(), latestDateObj.getMonth(), 1);
+                        }
+                    }
+                }
+
+                // 3. 渲染
+                renderCalendarView();
+
+                // 4. 关闭 Loading
+                document.getElementById('calendar-loading').classList.add('hidden');
+
+            } catch (err) {
+                console.error(err);
+                document.getElementById('calendar-loading').innerHTML = `<p class="text-rose-500 font-bold">数据拉取失败</p><p class="text-xs text-zinc-500">${err.message}</p>`;
+            }
+        }
+
+        // ================= 💡 日历与大盘计算核心逻辑 =================
+        function renderCalendarView() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth(); // 0-11
+            
+            // 顶部年月更新
+            document.getElementById('current-month-display').innerText = `${year}年 ${month + 1}月`;
+            document.getElementById('dist-title-month').innerText = `${month + 1}`;
+
+            // 计算日历网格所需参数 (以周日为一星期的第一天)
+            const firstDay = new Date(year, month, 1);
+            const startingDay = firstDay.getDay(); // 0 is Sunday
+            const monthLength = new Date(year, month + 1, 0).getDate(); // 当月天数
+            
+            // 数据梳理池
+            // dayData[day] = { totalHours: 0, tasks: [] }
+            let dayData = {};
+            for(let i=1; i<=monthLength; i++) {
+                dayData[i] = { totalHours: 0, tasks: [] };
+            }
+
+            let monthTotalHours = 0;
+            let monthTasksSet = new Set();
+            let monthProjectsSet = new Set();
+            let projectHoursMap = {};
+
+            const currentUser = JSON.parse(localStorage.getItem('activeUserObj'));
+
+            // 遍历所有我的任务，看它们是否“期望”在这个月交付，或者“确认”在这个月填写了工时
+            myAllTasks.forEach(task => {
+                let isTaskInThisMonth = false;
+
+                // 1. 根据 Due Date 塞入对应的格子
+                if (task.due_date) {
+                    const d = new Date(task.due_date);
+                    if (d.getFullYear() === year && d.getMonth() === month) {
+                        const day = d.getDate();
+                        dayData[day].tasks.push(task);
+                        isTaskInThisMonth = true;
+                        monthTasksSet.add(task.id);
+                        if(task.project) monthProjectsSet.add(task.project);
+                    }
+                }
+
+                // 2. 解析 history_json，提取并累加属于我的真实工时
+                let taskHoursByMeThisMonth = 0;
+                try {
+                    const hist = JSON.parse(task.history_json || '[]');
+                    hist.forEach(h => {
+                        // 确保是我填的工时
+                        if (h.operator && (h.operator.includes(currentUser.enName) || h.operator.includes(currentUser.displayName))) {
+                            const hDate = new Date(h.created_at || h.time);
+                            // 如果工时填报时间在当前显示月份
+                            if (hDate.getFullYear() === year && hDate.getMonth() === month) {
+                                const hVal = parseFloat(h.work_hours) || 0;
+                                taskHoursByMeThisMonth += hVal;
+                                monthTotalHours += hVal;
+                                
+                                // 计入项目大盘
+                                const pName = task.project || '其他支持';
+                                if (!projectHoursMap[pName]) projectHoursMap[pName] = 0;
+                                projectHoursMap[pName] += hVal;
+
+                                // 如果没把任务算进本月，补充算入（就算 Due Date 不在本月，但在本月干了活）
+                                if (!isTaskInThisMonth) {
+                                    monthTasksSet.add(task.id);
+                                    if(task.project) monthProjectsSet.add(task.project);
+                                    // 我们把耗时显示在今天或填报那天
+                                    const hDay = hDate.getDate();
+                                    if(!dayData[hDay].tasks.find(t => t.id === task.id)) {
+                                        dayData[hDay].tasks.push(task);
+                                    }
+                                }
+                            }
+                        }
+                    });
+                } catch(e){}
+
+                // 把任务当月耗时挂在 Due Date 的格子上用于热力计算
+                if (isTaskInThisMonth && task.due_date) {
+                    const d = new Date(task.due_date);
+                    dayData[d.getDate()].totalHours += taskHoursByMeThisMonth;
+                }
+            });
+
+            // 💡 渲染三大指标
+            document.getElementById('stat-hours').innerHTML = `${monthTotalHours.toFixed(1)} <span class="text-xs text-zinc-600 font-normal">h</span>`;
+            document.getElementById('stat-tasks').innerHTML = `${monthTasksSet.size} <span class="text-xs text-zinc-600 font-normal">单</span>`;
+            document.getElementById('stat-projects').innerHTML = `${monthProjectsSet.size} <span class="text-xs text-zinc-600 font-normal">个项目组</span>`;
+
+            // 💡 渲染日历网格
+            const gridEl = document.getElementById('calendar-grid');
+            let gridHtml = '';
+            
+            const today = new Date();
+            const isCurrentMonthReal = (year === today.getFullYear() && month === today.getMonth());
+
+            // 填充月初空白
+            for (let i = 0; i < startingDay; i++) {
+                gridHtml += `<div class="calendar-cell muted"><span class="text-xs font-bold text-zinc-700 self-end"></span></div>`;
+            }
+
+            // 填充真实日期
+            for (let i = 1; i <= monthLength; i++) {
+                const isToday = isCurrentMonthReal && i === today.getDate();
+                const dayInfo = dayData[i];
+                
+                let loadHtml = '';
+                let cellOutline = isToday ? 'border border-orange-500/50 shadow-[inset_0_0_15px_rgba(249,115,22,0.15)] relative z-10' : '';
+                let dayNumClass = isToday ? 'text-orange-400 bg-orange-500/20 w-5 h-5 flex items-center justify-center rounded-full ml-auto' : 'text-zinc-400';
+                
+                if (dayInfo.totalHours > 0) {
+                    let loadClass = 'workload-safe';
+                    let loadPulse = '';
+                    if (dayInfo.totalHours >= 4 && dayInfo.totalHours <= 8) { loadClass = 'workload-heavy'; }
+                    else if (dayInfo.totalHours > 8) { loadClass = 'workload-overload'; loadPulse = 'animate-pulse'; }
+                    
+                    loadHtml = `<span class="text-[10px] ${loadClass} px-1.5 rounded font-mono font-bold ${loadPulse}">${dayInfo.totalHours.toFixed(1)}h</span>`;
+                } else if (dayInfo.tasks.length > 0) {
+                    loadHtml = `<span class="text-[10px] bg-zinc-800 text-zinc-500 px-1.5 rounded font-mono font-bold">预排</span>`;
+                }
+
+                let tasksHtml = '';
+                dayInfo.tasks.forEach(t => {
+                    const isCompleted = ['completed', 'archived', 'terminated'].includes(t.status);
+                    const colorMap = { 'routine': 'indigo', 'promo': 'emerald', 'other': 'sky' };
+                    let tCol = 'zinc';
+                    if(!isCompleted) {
+                        tCol = t.status === 'rejected' ? 'rose' : (t.status === 'reviewing' ? 'emerald' : 'indigo');
+                    }
+                    
+                    const borderStyle = isCompleted ? 'border border-zinc-800 border-dashed border-l-2 border-l-zinc-600 opacity-60' : `bg-${tCol}-500/10 border border-${tCol}-500/20 border-l-2 border-l-${tCol}-500`;
+                    const textStyle = isCompleted ? 'text-zinc-500' : `text-${tCol}-400`;
+
+                    tasksHtml += `<div onclick="event.stopPropagation(); window.location.href='task-detail-designer.html?id=${t.id}'" class="text-[10px] ${textStyle} truncate ${borderStyle} px-1.5 py-0.5 rounded mb-1 hover:brightness-125 transition-all" title="${t.title}">${t.title}</div>`;
+                });
+
+                gridHtml += `
+                    <div class="calendar-cell ${cellOutline}">
+                        ${isToday ? '<div class="absolute top-0 left-0 right-0 h-0.5 bg-orange-500"></div>' : ''}
+                        <div class="flex justify-between items-start mb-2">
+                            ${loadHtml}
+                            <span class="text-xs font-bold ${dayNumClass} ${!isToday ? 'self-end' : ''}">${i}</span>
+                        </div>
+                        <div class="flex-1 overflow-y-auto custom-scrollbar pr-1">
+                            ${tasksHtml}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 填充月末空白
+            const remainingCells = 42 - (startingDay + monthLength); // 固定 6 行 7 列
+            for (let i = 0; i < remainingCells; i++) {
+                gridHtml += `<div class="calendar-cell muted"></div>`;
+            }
+
+            gridEl.innerHTML = gridHtml;
+
+            // 💡 渲染右侧项目大盘透视
+            const distContainer = document.getElementById('project-dist-container');
+            if (monthTotalHours === 0) {
+                distContainer.innerHTML = `<div class="text-center text-zinc-500 py-10 text-sm">本月尚未记录有效工时</div>`;
+            } else {
+                let distHtml = '';
+                // 排序项目
+                const sortedProjects = Object.keys(projectHoursMap).map(p => {
+                    return { name: p, hours: projectHoursMap[p] };
+                }).sort((a, b) => b.hours - a.hours);
+
+                const colors = ['orange', 'emerald', 'sky', 'indigo', 'fuchsia'];
+
+                sortedProjects.forEach((p, idx) => {
+                    const pct = ((p.hours / monthTotalHours) * 100).toFixed(0);
+                    const col = colors[idx % colors.length];
+
+                    distHtml += `
+                        <div>
+                            <div class="flex justify-between items-end mb-2">
+                                <div>
+                                    <h4 class="text-[13px] font-bold text-zinc-200">${p.name}</h4>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-[14px] font-mono font-bold text-${col}-400">${p.hours.toFixed(1)} <span class="text-[10px] text-${col}-500/60">h</span></span>
+                                    <p class="text-[10px] font-bold text-zinc-400 mt-0.5">占比 ${pct}%</p>
+                                </div>
+                            </div>
+                            <div class="w-full h-2 bg-zinc-900 rounded-full overflow-hidden">
+                                <div class="h-full bg-${col}-500 rounded-full shadow-[0_0_10px_var(--tw-colors-${col}-500)] opacity-80" style="width: ${pct}%"></div>
+                            </div>
+                        </div>
+                    `;
+                });
+                distContainer.innerHTML = distHtml;
+            }
+        }
+
+        // ================= 月份切换控制 =================
+        window.changeMonth = function(delta) {
+            currentDate.setMonth(currentDate.getMonth() + delta);
+            renderCalendarView();
+        }
+        
+        window.goToToday = function() {
+            currentDate = new Date();
+            renderCalendarView();
+        }
+
+        // ================= 💡 真实数据导出 CSV =================
+        window.exportMyExcel = function() {
+            const btn = document.querySelector('button[onclick="exportMyExcel()"]');
+            const txt = document.getElementById('export-btn-text');
+            btn.disabled = true; txt.innerText = "数据打包中...";
+            
+            showToast('开始生成', '正在生成本月工时报表...');
+
+            setTimeout(() => {
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth();
+                
+                let csvContent = "工单编号,需求标题,归属项目,状态,期望交付日,填报工时总计\n";
+                let hasData = false;
+                const currentUser = JSON.parse(localStorage.getItem('activeUserObj'));
+
+                myAllTasks.forEach(task => {
+                    let taskHours = 0;
+                    let isTaskInThisMonth = false;
+
+                    if (task.due_date) {
+                        const d = new Date(task.due_date);
+                        if (d.getFullYear() === year && d.getMonth() === month) isTaskInThisMonth = true;
+                    }
+
+                    try {
+                        const hist = JSON.parse(task.history_json || '[]');
+                        hist.forEach(h => {
+                            if (h.operator && (h.operator.includes(currentUser.enName) || h.operator.includes(currentUser.displayName))) {
+                                const hDate = new Date(h.created_at || h.time);
+                                if (hDate.getFullYear() === year && hDate.getMonth() === month) {
+                                    taskHours += parseFloat(h.work_hours) || 0;
+                                    isTaskInThisMonth = true;
+                                }
+                            }
+                        });
+                    } catch(e){}
+
+                    if (isTaskInThisMonth) {
+                        const title = `"${(task.title || '').replace(/"/g, '""')}"`;
+                        csvContent += `${task.id},${title},${task.project},${task.status},${task.due_date || '未定'},${taskHours}\n`;
+                        hasData = true;
+                    }
+                });
+
+                btn.disabled = false; txt.innerText = "导出本月工时报表 (CSV)";
+
+                if(!hasData) return showToast('导出失败', '当前月份没有工单或填报工时记录！', 'error');
+
+                const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' }); 
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.setAttribute('href', url);
+                link.setAttribute('download', `我的月度工时台账_${year}年${month+1}月.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                showToast('导出成功', 'Excel 报表已下载至本地。', 'success');
+            }, 1000);
+        }
+
+        // ================= 🔔 全局消息通知 =================
+        window.loadNotifications = function() {
+            const userStr = localStorage.getItem('activeUserObj');
+            if(!userStr) return;
+            const user = JSON.parse(userStr);
+            const enName = user.enName ? user.enName.toLowerCase() : '';
+            const isLeader = enName === 'judyzzhang' || enName === 'davidxxu';
+
+            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
+            let myNotifs = sysNotifs.filter(n => {
+                if (n.role === 'design') return true;
+                if (isLeader && n.role === 'admin') return true;
+                return false;
+            });
+            myNotifs.sort((a, b) => b.id - a.id);
+
+            const unreadCount = myNotifs.filter(n => !n.read).length;
+            const bellDot = document.getElementById('bell-dot');
+            const notifContainer = document.getElementById('notif-list-container');
+
+            if (bellDot) {
+                if (unreadCount > 0) {
+                    bellDot.classList.remove('hidden', 'bg-zinc-600', 'border-transparent');
+                    bellDot.classList.add('bg-rose-500', 'animate-pulse', 'border-[#141417]');
+                } else {
+                    bellDot.classList.add('hidden');
+                }
+            }
+
+            if (notifContainer) {
+                if (myNotifs.length === 0) {
+                    notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无新消息</div>';
+                } else {
+                    let html = '';
+                    myNotifs.forEach(n => {
+                        const dot = n.read ? '' : '<span class="w-2 h-2 rounded-full bg-rose-500 shrink-0 shadow-[0_0_8px_rgba(244,63,94,0.8)]"></span>';
+                        const opacity = n.read ? 'opacity-50' : '';
+                        const dateStr = new Date(n.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                        html += `
+                            <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer ${opacity}" onclick="window.markSingleAsRead(${n.id})">
+                                <div class="flex justify-between items-start mb-1">
+                                    <h4 class="text-[13px] font-bold text-white flex items-center gap-2">${n.title} ${dot}</h4>
+                                    <span class="text-[10px] text-zinc-500">${dateStr}</span>
+                                </div>
+                                <p class="text-[11px] text-zinc-400 leading-relaxed">${n.desc}</p>
+                            </div>
+                        `;
+                    });
+                    notifContainer.innerHTML = html;
+                }
+            }
+        }
+
+        window.markSingleAsRead = function(id) {
+            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
+            let target = sysNotifs.find(n => n.id === id);
+            if(target) { target.read = true; localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs)); window.loadNotifications(); }
+        }
+
+        window.markAllAsRead = function(event) {
+            if(event) event.stopPropagation();
+            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
+            sysNotifs.forEach(n => { if (n.role === 'design' || n.role === 'admin') n.read = true; });
+            localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs));
+            window.loadNotifications();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const idBtn = document.getElementById('identityBtn');
+            const idMenu = document.getElementById('identityMenu');
+            if(idBtn && idMenu) idBtn.addEventListener('click', (e) => { e.stopPropagation(); idMenu.classList.toggle('hidden'); });
+            
+            const notifBtn = document.getElementById('notifBtn');
+            const notifMenu = document.getElementById('notifMenu');
+            if(notifBtn && notifMenu) notifBtn.addEventListener('click', (e) => { e.stopPropagation(); notifMenu.classList.toggle('hidden'); });
+
+            document.addEventListener('click', (e) => { 
+                if(idMenu && !idMenu.contains(e.target)) idMenu.classList.add('hidden'); 
+                if(notifMenu && !notifMenu.contains(e.target)) notifMenu.classList.add('hidden'); 
+            });
+
+            window.loadNotifications();
+        });
     </script>
 </body>
 </html>
