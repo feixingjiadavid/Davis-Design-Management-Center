@@ -308,24 +308,16 @@
         import { supabase } from './supabase-config.js';
         window.supabase = supabase;
         window.DB_TABLE = 'test_tasks'; 
-        if(window.loadTasksFromCloud) window.loadTasksFromCloud();
+        if(window.initApp) window.initApp();
     </script>
 
     <script>
-        const PAGE_TYPE = 'design'; 
-        let currentView = 'month'; 
-        let currentDate = new Date();
-        let myAllTasks = []; 
-        let dropdownData = []; 
-        const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-        let currentUserData = null;
+        const PAGE_TYPE = 'design';
 
-        // ================= 高级弹窗引擎 =================
         window.closeCustomDialog = function() {
             const overlay = document.getElementById('custom-dialog-overlay');
             const dialog = document.getElementById('custom-dialog');
-            overlay.classList.add('opacity-0');
-            dialog.classList.add('scale-95');
+            overlay.classList.add('opacity-0'); dialog.classList.add('scale-95');
             setTimeout(() => { overlay.classList.add('hidden'); }, 300);
         }
 
@@ -421,7 +413,6 @@
             const triggerBtn = document.getElementById('identityBtn');
             if (triggerBtn) { triggerBtn.innerHTML = `<span class="text-orange-500 font-black flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span></span> 身份: 设计方 (当前) <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 ml-1"><polyline points="6 9 12 15 18 9"></polyline></svg>`; }
 
-            currentUserData = user;
             return user;
         }
 
@@ -490,7 +481,6 @@
             }
         }
 
-        // ================= 💡 解析状态与卡片 =================
         function parseTaskStatus(task) {
             let sColor, sText, iconHtml;
             const isFinished = ['completed','archived','terminated'].includes(task.status);
@@ -514,7 +504,6 @@
             return { sColor, sText, iconHtml, borderStyle, textStyle, tagClass, isFinished };
         }
 
-        // ================= 💡 全局悬浮气泡引擎 (Hover Detail) =================
         window.showHoverCard = function(e, taskId) {
             const task = myAllTasks.find(t => t.id === taskId);
             if (!task) return;
@@ -587,7 +576,6 @@
             setTimeout(() => { if(card.style.opacity === '0') card.classList.add('hidden'); }, 200); 
         };
 
-        // ================= 💡 视图控制 =================
         window.switchView = function(view) {
             currentView = view;
             
@@ -641,7 +629,6 @@
             updateDataAndRender();
         }
 
-        // ================= 💡 数据计算与大盘更新 =================
         function updateDataAndRender() {
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
@@ -944,7 +931,6 @@
             return tasksInView;
         }
 
-        // --- 周视图 ---
         function renderWeekGrid() {
             const startWeek = getStartOfWeek(currentDate);
             const grid = document.getElementById('week-grid');
@@ -1017,7 +1003,6 @@
             return tasksInView;
         }
 
-        // --- 年视图 ---
         function renderYearGrid() {
             const year = currentDate.getFullYear();
             const grid = document.getElementById('year-grid');
@@ -1077,7 +1062,6 @@
             return tasksInView;
         }
 
-        // ================= 💡 下拉框与交互 =================
         window.toggleDropdown = function(id) {
             const dropdown = document.getElementById(id);
             let html = '<div class="py-2">';
@@ -1121,7 +1105,7 @@
             list.innerHTML = '';
             
             if(tasks.length === 0) {
-                list.innerHTML = `<div class="text-center py-12 flex flex-col items-center opacity-50"><p class="text-zinc-400 text-[13px]">该时段无任何相关任务。</p></div>`;
+                list.innerHTML = `<div class="text-center py-12 flex flex-col items-center opacity-50"><p class="text-zinc-400 text-[13px]">该时段无任何交付任务。</p></div>`;
             } else {
                 tasks.forEach(t => {
                     const st = parseTaskStatus(t);
@@ -1382,7 +1366,6 @@
 
                 window.loadNotifications();
                 
-                // 💡 部署后台静默雷达
                 setInterval(() => { window.loadTasksFromCloud(true); }, 8000); 
             }
         });
