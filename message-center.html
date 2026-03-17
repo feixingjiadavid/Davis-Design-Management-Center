@@ -51,11 +51,11 @@
                 </button>
                 <div class="flex items-center gap-3">
                     <h2 class="text-2xl font-bold text-white tracking-tight">全局消息中心</h2>
-                    <span class="bg-rose-500/20 text-rose-500 border border-rose-500/30 px-2 py-0.5 rounded-full text-[10px] font-bold" id="unread-badge">2 未读</span>
+                    <span class="bg-rose-500/20 text-rose-500 border border-rose-500/30 px-2 py-0.5 rounded-full text-[10px] font-bold hidden" id="unread-badge">0 未读</span>
                 </div>
             </div>
             
-            <button onclick="markAll()" class="text-zinc-400 hover:text-white text-[13px] font-bold transition-colors btn-press flex items-center gap-2">
+            <button onclick="markAllAsRead()" class="text-zinc-400 hover:text-white text-[13px] font-bold transition-colors btn-press flex items-center gap-2">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
                 全部标记为已读
             </button>
@@ -66,74 +66,11 @@
                 
                 <div class="flex items-center gap-6 border-b border-white/10 mb-6">
                     <button class="pb-3 text-[14px] font-bold text-indigo-400 border-b-2 border-indigo-500">全部通知</button>
-                    <button class="pb-3 text-[14px] font-medium text-zinc-500 hover:text-zinc-300 transition-colors">工作流转</button>
-                    <button class="pb-3 text-[14px] font-medium text-zinc-500 hover:text-zinc-300 transition-colors">系统播报</button>
                 </div>
 
                 <div class="bg-[#121217] border border-white/5 rounded-2xl p-4 shadow-xl flex-1">
-                    
                     <div class="space-y-3" id="msg-list">
-                        
-                        <div class="msg-item bg-[#18181b] border border-rose-500/30 rounded-xl p-5 flex gap-4 relative cursor-pointer hover:bg-[#1f1f24] transition-colors btn-press">
-                            <div class="w-8 h-8 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0 border border-rose-500/20">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-                            </div>
-                            <div class="flex-1">
-                                <div class="flex items-start justify-between mb-1.5">
-                                    <h4 class="text-[14px] font-bold text-white"><span class="text-rose-400 mr-1">[待您处理]</span> TK-0810 企业文化画册 排版已交付</h4>
-                                    <span class="text-[11px] text-rose-500 font-bold flex items-center gap-1.5"><span class="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse msg-dot"></span> 10 分钟前</span>
-                                </div>
-                                <p class="text-[12px] text-zinc-400 leading-relaxed mb-3">设计师 王助理 已提交了 V-1 版本的视觉稿。由于该任务为高优级别，请您尽快点击前往详情页查阅，并给出确认或修改意见。</p>
-                                <span class="bg-zinc-800 text-zinc-500 px-2 py-1 rounded text-[10px]">来源: 系统流转触发</span>
-                            </div>
-                        </div>
-
-                        <div class="msg-item bg-[#18181b] border border-emerald-500/30 rounded-xl p-5 flex gap-4 relative cursor-pointer hover:bg-[#1f1f24] transition-colors btn-press">
-                            <div class="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0 border border-emerald-500/20">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                            </div>
-                            <div class="flex-1">
-                                <div class="flex items-start justify-between mb-1.5">
-                                    <h4 class="text-[14px] font-bold text-white"><span class="text-emerald-400 mr-1">[待您验收]</span> TK-0701 双十一主视觉 终稿已更新</h4>
-                                    <span class="text-[11px] text-rose-500 font-bold flex items-center gap-1.5"><span class="w-1.5 h-1.5 bg-rose-500 rounded-full msg-dot"></span> 1 小时前</span>
-                                </div>
-                                <p class="text-[12px] text-zinc-400 leading-relaxed mb-3">经过 2 轮修改，设计师 David 已经将最新的 V-3 终稿上传至系统。请查阅确认，若无误可直接点击“验收通过”进行归档结算。</p>
-                                <span class="bg-zinc-800 text-zinc-500 px-2 py-1 rounded text-[10px]">来源: 任务节点流转</span>
-                            </div>
-                        </div>
-
-                        <div class="py-6 flex items-center gap-4 opacity-50">
-                            <div class="h-px bg-zinc-800 flex-1"></div>
-                            <span class="text-[11px] text-zinc-500 uppercase tracking-widest font-bold">以下为已读历史记录</span>
-                            <div class="h-px bg-zinc-800 flex-1"></div>
-                        </div>
-
-                        <div class="msg-item bg-transparent border border-transparent rounded-xl p-5 flex gap-4 relative opacity-60 cursor-default">
-                            <div class="w-8 h-8 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-                            </div>
-                            <div class="flex-1">
-                                <div class="flex items-start justify-between mb-1.5">
-                                    <h4 class="text-[14px] font-bold text-white"><span class="text-amber-500 mr-1">[流转通知]</span> TK-0817 端午节礼盒草图已提交</h4>
-                                    <span class="text-[11px] text-zinc-500">昨天 16:30</span>
-                                </div>
-                                <p class="text-[12px] text-zinc-400 leading-relaxed">设计师 Designer B 已提交大方向草图。为防止后期无效返工，系统已自动挂起该任务，并推送给领导文哥进行防偏离审核，请耐心等待。</p>
-                            </div>
-                        </div>
-
-                        <div class="msg-item bg-transparent border border-transparent rounded-xl p-5 flex gap-4 relative opacity-60 cursor-default">
-                            <div class="w-8 h-8 rounded-full bg-zinc-800 text-zinc-400 flex items-center justify-center shrink-0 border border-zinc-700">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                            </div>
-                            <div class="flex-1">
-                                <div class="flex items-start justify-between mb-1.5">
-                                    <h4 class="text-[14px] font-bold text-white"><span class="text-zinc-400 mr-1">[系统归档]</span> TK-0650 妇女节活动物料 结案完成</h4>
-                                    <span class="text-[11px] text-zinc-500">2026-03-04</span>
-                                </div>
-                                <p class="text-[12px] text-zinc-400 leading-relaxed">该任务已由您验收通过。源文件 (142MB) 已由系统自动打包存入云端数字资产库，您可以随时前往归档页下载追溯。</p>
-                            </div>
-                        </div>
-
+                        <div class="text-center py-20 text-zinc-500 text-sm">加载中...</div>
                     </div>
                 </div>
 
@@ -142,29 +79,154 @@
     </main>
 
     <script>
+        const params = new URLSearchParams(window.location.search);
+        const currentRole = params.get('role') || 'req'; // req, design, admin
+
         function goBack() {
-            const params = new URLSearchParams(window.location.search);
-            const role = params.get('role');
-            if (role === 'design') window.location.href = 'assistant-workspace.html';
-            else if (role === 'admin') window.location.href = 'manager-workspace.html';
+            if (currentRole === 'design') window.location.href = 'assistant-workspace.html';
+            else if (currentRole === 'admin') window.location.href = 'manager-workspace.html';
             else window.location.href = 'index.html';
         }
 
-        function markAll() {
-            document.getElementById('unread-badge').classList.add('hidden');
-            const msgs = document.querySelectorAll('.msg-item');
-            msgs.forEach(msg => {
-                const dot = msg.querySelector('.msg-dot');
-                if(dot) dot.classList.add('hidden');
-                msg.classList.remove('bg-[#18181b]', 'border-rose-500/30', 'border-emerald-500/30', 'hover:bg-[#1f1f24]', 'btn-press');
-                msg.classList.add('bg-transparent', 'border-transparent', 'opacity-60', 'cursor-default');
-                
-                const timeText = msg.querySelector('.text-rose-500');
-                if(timeText) {
-                    timeText.classList.remove('text-rose-500', 'font-bold');
-                    timeText.classList.add('text-zinc-500');
-                }
+        // ================= 💡 核心：动态加载并渲染通知 =================
+        function loadMessages() {
+            const userStr = localStorage.getItem('activeUserObj');
+            if (!userStr) { window.location.href = 'login.html'; return; }
+            const user = JSON.parse(userStr);
+            const enName = user.enName ? user.enName.toLowerCase() : '';
+            const isLeader = enName === 'judyzzhang' || enName === 'davidxxu';
+
+            // 从本地系统账本中读取全局消息
+            let allNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
+
+            // 根据当前身份进行精确过滤
+            let myNotifs = allNotifs.filter(n => {
+                if (currentRole === 'design' && n.role === 'design') return true;
+                if (currentRole === 'req' && n.role === 'req') return true;
+                if (currentRole === 'admin' && isLeader && n.role === 'admin') return true;
+                // 如果是管理方大盘进来的，领导可以看所有的 design 相关的消息 (兼管)
+                if (currentRole === 'admin' && isLeader && n.role === 'design') return true;
+                return false;
             });
+
+            // 倒序排列，最新的在上面
+            myNotifs.sort((a, b) => b.id - a.id);
+
+            const msgContainer = document.getElementById('msg-list');
+            const unreadBadge = document.getElementById('unread-badge');
+            
+            let unreadCount = 0;
+            let html = '';
+
+            if (myNotifs.length === 0) {
+                html = `
+                    <div class="text-center py-20 flex flex-col items-center">
+                        <div class="w-16 h-16 bg-zinc-800/50 rounded-full flex items-center justify-center text-zinc-500 mb-4">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                        </div>
+                        <p class="text-zinc-500 text-sm">暂无任何消息通知</p>
+                    </div>`;
+            } else {
+                myNotifs.forEach(n => {
+                    const isUnread = !n.read;
+                    if (isUnread) unreadCount++;
+
+                    // 不同的消息类型，给予不同的图标和颜色
+                    let iconSvg = '';
+                    let iconClass = '';
+                    let titleColor = '';
+                    
+                    if (n.title.includes('催办') || n.title.includes('打回') || n.title.includes('驳回')) {
+                        iconClass = 'bg-rose-500/10 text-rose-500 border border-rose-500/20';
+                        titleColor = 'text-rose-400';
+                        iconSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg>`;
+                    } else if (n.title.includes('已交付') || n.title.includes('验收') || n.title.includes('完结') || n.title.includes('通过')) {
+                        iconClass = 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20';
+                        titleColor = 'text-emerald-400';
+                        iconSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+                    } else {
+                        iconClass = 'bg-amber-500/10 text-amber-500 border border-amber-500/20';
+                        titleColor = 'text-amber-500';
+                        iconSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`;
+                    }
+
+                    const bgClass = isUnread ? 'bg-[#18181b] hover:bg-[#1f1f24] border-white/10 btn-press' : 'bg-transparent border-transparent opacity-60';
+                    const cursorClass = 'cursor-pointer'; // 不管已读未读，都可以点击跳详情
+                    const dotHtml = isUnread ? `<span class="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse mr-1 shadow-[0_0_5px_#f43f5e]"></span>` : '';
+                    
+                    const timeStr = new Date(n.time).toLocaleString();
+
+                    html += `
+                        <div class="msg-item ${bgClass} ${cursorClass} border rounded-xl p-5 flex gap-4 relative transition-colors" onclick="readAndNavigate(${n.id}, '${n.taskId}')">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${iconClass}">
+                                ${iconSvg}
+                            </div>
+                            <div class="flex-1">
+                                <div class="flex items-start justify-between mb-1.5">
+                                    <h4 class="text-[14px] font-bold text-white flex items-center gap-2">
+                                        <span class="${titleColor} font-mono text-[11px] bg-white/5 px-2 py-0.5 rounded border border-white/5 mr-1">${n.taskId}</span> 
+                                        ${n.title}
+                                    </h4>
+                                    <span class="text-[11px] ${isUnread ? 'text-rose-500 font-bold' : 'text-zinc-500'} flex items-center">
+                                        ${dotHtml} ${timeStr}
+                                    </span>
+                                </div>
+                                <p class="text-[12px] text-zinc-400 leading-relaxed mb-3">${n.desc}</p>
+                                <span class="bg-zinc-800 text-zinc-400 px-2 py-1 rounded text-[10px] font-medium">点击穿梭至详情页查阅</span>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            msgContainer.innerHTML = html;
+
+            if (unreadCount > 0) {
+                unreadBadge.innerText = `${unreadCount} 未读`;
+                unreadBadge.classList.remove('hidden');
+            } else {
+                unreadBadge.classList.add('hidden');
+            }
+        }
+
+        // 💡 核心：点击消息后标记已读，并带参数跳往目标详情页
+        window.readAndNavigate = function(msgId, taskId) {
+            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
+            let target = sysNotifs.find(n => n.id === msgId);
+            if(target) {
+                target.read = true;
+                localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs));
+            }
+            
+            // 如果单号是 KANBAN，说明是大盘层面的通知，不跳详情
+            if (taskId === 'KANBAN') {
+                loadMessages();
+                return;
+            }
+
+            // 根据当前身份决定跳到哪个详情页
+            let destUrl = '';
+            if (currentRole === 'design') destUrl = `task-detail-designer.html?id=${taskId}`;
+            else destUrl = `task-detail-requester.html?id=${taskId}`;
+            
+            window.location.href = destUrl;
+        }
+
+        // 💡 标记全部已读
+        window.markAllAsRead = function() {
+            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
+            const user = JSON.parse(localStorage.getItem('activeUserObj'));
+            const enName = user.enName ? user.enName.toLowerCase() : '';
+            const isLeader = enName === 'judyzzhang' || enName === 'davidxxu';
+
+            sysNotifs.forEach(n => {
+                if (currentRole === 'design' && n.role === 'design') n.read = true;
+                if (currentRole === 'req' && n.role === 'req') n.read = true;
+                if (currentRole === 'admin' && isLeader && (n.role === 'admin' || n.role === 'design')) n.read = true;
+            });
+
+            localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs));
+            loadMessages();
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -172,13 +234,13 @@
             if (!userStr) { window.location.href = 'login.html'; return; }
             const user = JSON.parse(userStr);
 
+            // 渲染侧边栏头像和名字
             const avatarEl = document.getElementById('sidebar-avatar');
             if(avatarEl) { avatarEl.innerText = user.avatar; avatarEl.className = `w-9 h-9 rounded-full ${user.color} border border-white/20 flex items-center justify-center text-white font-bold text-sm shadow-lg`; }
             document.getElementById('sidebar-name').innerText = user.displayName;
             document.getElementById('sidebar-role').innerText = user.role;
 
-            const params = new URLSearchParams(window.location.search);
-            const currentRole = params.get('role') || 'req'; 
+            // 渲染左侧导航菜单
             const menuBox = document.getElementById('dynamic-sidebar-menu');
             const logoBlock = document.getElementById('logo-block');
 
@@ -187,34 +249,26 @@
                 menuBox.innerHTML = `
                     <button onclick="window.location.href='index.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg><span class="font-medium text-[14px]">需求排号大厅</span></button>
                     <button onclick="window.location.href='record-list.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg><span class="font-medium text-[14px]">我的提单记录</span></button>
-                    <button onclick="window.location.href='calendar.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg><span class="font-medium text-[14px]">我的需求日历</span></button>
+                    <button class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 transition-all btn-press cursor-default"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg><span class="font-bold text-[14px]">全局消息中心</span></button>
                 `;
             } 
             else if (currentRole === 'design') {
                 logoBlock.className = 'w-8 h-8 rounded-lg bg-orange-600 flex items-center justify-center shadow-[0_0_15px_rgba(249,115,22,0.3)] shrink-0';
                 menuBox.innerHTML = `
                     <button onclick="window.location.href='assistant-workspace.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg><span class="font-medium text-[14px]">执行看板 (Kanban)</span></button>
-                    <button onclick="window.location.href='assistant-assets.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg><span class="font-medium text-[14px]">我的过稿资产库</span></button>
-                    <button onclick="window.location.href='assistant-calendar.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg><span class="font-medium text-[14px]">工时与 AI 绩效</span></button>
                     <button class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl bg-orange-500/10 text-orange-400 border border-orange-500/20 transition-all btn-press cursor-default"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg><span class="font-bold text-[14px]">全局消息中心</span></button>
                 `;
             }
             else if (currentRole === 'admin') {
                 logoBlock.className = 'w-8 h-8 rounded-lg bg-fuchsia-600 flex items-center justify-center shadow-[0_0_15px_rgba(192,38,211,0.3)] shrink-0';
-                
-                // 💡 动态插入组织架构权限
-                let membersBtn = '';
-                if (user.enName === 'davidxxu') {
-                    membersBtn = `<button onclick="window.location.href='manager-members.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v2a4 4 0 0 1-4 4H5a4 4 0 0 1-4-4v-2"></path><polyline points="9 11 12 14 22 4"></polyline></svg><span class="font-medium text-[14px]">组织架构与账号</span></button>`;
-                }
-
                 menuBox.innerHTML = `
                     <button onclick="window.location.href='manager-workspace.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg><span class="font-medium text-[14px]">总监控制台</span></button>
-                    <button onclick="window.location.href='manager-dashboard.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg><span class="font-medium text-[14px]">团队效能大盘</span></button>
-                    ${membersBtn}
                     <button class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl bg-fuchsia-500/10 text-fuchsia-400 border border-fuchsia-500/20 transition-all btn-press cursor-default"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg><span class="font-bold text-[14px]">全局消息中心</span></button>
                 `;
             }
+
+            // 初始化加载数据
+            loadMessages();
         });
     </script>
 </body>
