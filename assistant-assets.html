@@ -77,7 +77,7 @@
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <svg class="h-4 w-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                     </div>
-                    <input type="text" id="asset-search" onkeyup="filterAssets()" class="w-full bg-[#121217] border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm text-white placeholder-zinc-500 outline-none focus:border-orange-500 transition-colors" placeholder="搜索项目、标签...">
+                    <input type="text" id="asset-search" onkeyup="filterAssets()" class="w-full bg-[#121217] border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm text-white placeholder-zinc-500 outline-none focus:border-orange-500 transition-colors" placeholder="搜索月份、项目、标签...">
                 </div>
 
                 <div class="w-px h-8 bg-white/10"></div>
@@ -114,7 +114,7 @@
             </div>
         </header>
 
-        <div class="flex-1 p-10 overflow-y-auto custom-scrollbar flex justify-center relative">
+        <div class="flex-1 p-8 md:p-10 overflow-y-auto custom-scrollbar flex flex-col items-center relative">
             
             <div id="assets-loading" class="absolute inset-0 bg-[#0c0c0e]/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center">
                 <svg class="animate-spin h-8 w-8 text-orange-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
@@ -123,14 +123,32 @@
 
             <div id="emptyState" class="hidden flex-col items-center justify-center py-24 opacity-50 w-full h-full">
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-zinc-500 mb-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                <p class="text-[14px] font-medium text-zinc-400">尚未发现任何完结的设计资产</p>
+                <p class="text-[14px] font-medium text-zinc-400">尚未发现任何匹配的完结资产</p>
                 <p class="text-[11px] text-zinc-500 mt-2">当需求被验收完结后，作品会自动收录在此处</p>
             </div>
 
-            <div class="w-full max-w-[1400px] columns-1 md:columns-2 lg:columns-3 xl:columns-4 gap-6 space-y-6" id="assets-container">
-            </div>
+            <div class="w-full max-w-[1400px] flex flex-col gap-10 pb-10" id="assets-container">
+                </div>
         </div>
     </main>
+
+    <div id="image-preview-modal" onclick="closePreview()">
+        <div class="w-full h-full flex items-center justify-center relative p-8">
+            <button onclick="closePreview()" class="absolute top-8 right-8 text-white/50 hover:text-white bg-white/10 hover:bg-rose-500 rounded-full p-2 transition-all btn-press z-50">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+            <img id="modal-image" src="" alt="全屏预览图" class="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-[0_0_50px_rgba(0,0,0,0.8)]" onclick="event.stopPropagation()">
+        </div>
+    </div>
+
+    <div id="action-toast" class="fixed top-8 right-8 z-[100000] hidden toast-slide-in">
+        <div class="bg-[#1a1a1f] border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-3 w-72">
+            <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </div>
+            <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-zinc-400 text-[11px] mt-0.5">操作已执行。</p></div>
+        </div>
+    </div>
 
     <script type="module">
         import { supabase } from './supabase-config.js';
@@ -157,7 +175,6 @@
             if(avatarEl) { avatarEl.innerText = user.avatar || '?'; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-orange-600'} border border-white/20 flex items-center justify-center text-white font-bold text-sm shadow-lg`; }
             if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.cnName || user.enName;
             
-            // 💡 修复：动态渲染菜单
             const menuContainer = document.getElementById('dynamic-identity-list');
             if (menuContainer) {
                 let html = '';
@@ -179,6 +196,13 @@
             return user;
         }
 
+        function formatDateToDisplay(dateStr) {
+            if (!dateStr) return '--';
+            const d = new Date(dateStr);
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }
+
+        // ================= 💡 核心：全量按月分组剥离过稿资产 =================
         window.loadAssetsFromCloud = async function() {
             if(!window.supabase) return;
             const currentUser = initRBAC();
@@ -188,7 +212,7 @@
 
             try {
                 const { data, error } = await window.supabase.from(window.DB_TABLE)
-                    .select('id, title, project, created_at, assignee, channels, history_json, source_file_link')
+                    .select('id, title, project, created_at, creator, assignee, channels, history_json, source_file_link')
                     .in('status', ['completed', 'archived'])
                     .order('created_at', { ascending: false });
 
@@ -197,6 +221,9 @@
                 const container = document.getElementById('assets-container');
                 container.innerHTML = '';
                 let renderCount = 0;
+                
+                // 用于按月分组的字典 { '202603': { label: '2026年 3月', tasks: [] }, ... }
+                let groupedAssets = {};
 
                 (data || []).forEach(task => {
                     const taskAssignee = task.assignee ? task.assignee.toLowerCase() : 'none';
@@ -206,6 +233,7 @@
 
                     let finalImg = '';
                     let finalSourceLink = task.source_file_link || '';
+                    let endDate = task.created_at; // 默认 fallback
                     
                     try {
                         const historyArr = JSON.parse(task.history_json || '[]');
@@ -213,57 +241,121 @@
                             if(historyArr[i].action === 'submit_draft') {
                                 if(!finalImg && historyArr[i].img_url) finalImg = historyArr[i].img_url;
                                 if(!finalSourceLink && historyArr[i].source_link) finalSourceLink = historyArr[i].source_link;
-                                break;
                             }
+                            if(historyArr[i].action === 'complete' || historyArr[i].action === 'approve_draft') {
+                                endDate = historyArr[i].created_at || historyArr[i].time || endDate;
+                            }
+                        }
+                        // 兜底时间
+                        if (endDate === task.created_at && historyArr.length > 0) {
+                            endDate = historyArr[historyArr.length - 1].created_at || historyArr[historyArr.length - 1].time || endDate;
                         }
                     } catch(e){}
 
-                    if (!finalImg) return;
+                    if (!finalImg) return; // 没图跳过
 
-                    let tagsHtml = '';
-                    let tagsArr = [];
-                    if(task.channels && task.channels.length > 0) {
-                        try {
-                            const arr = typeof task.channels === 'string' ? JSON.parse(task.channels) : task.channels;
-                            tagsArr = arr;
-                        }catch(e){}
+                    // 计算分组 Key
+                    const d = new Date(endDate);
+                    const label = `${d.getFullYear()}年 ${d.getMonth() + 1}月`;
+                    const sortKey = d.getFullYear() * 100 + d.getMonth(); 
+
+                    if(!groupedAssets[sortKey]) {
+                        groupedAssets[sortKey] = { label: label, tasks: [] };
                     }
-                    tagsArr.forEach(t => {
-                        tagsHtml += `<span class="text-[10px] bg-white/5 border border-white/10 px-2 py-0.5 rounded text-zinc-400 truncate max-w-[100px]">${t}</span>`;
-                    });
+
+                    // 附加额外处理过的数据
+                    task._finalImg = finalImg;
+                    task._finalSourceLink = finalSourceLink;
+                    task._startDateStr = formatDateToDisplay(task.created_at);
+                    task._endDateStr = formatDateToDisplay(endDate);
+
+                    groupedAssets[sortKey].tasks.push(task);
+                    renderCount++;
+                });
+
+                // 按月份倒序渲染
+                const sortedKeys = Object.keys(groupedAssets).sort((a, b) => b - a);
+
+                sortedKeys.forEach(key => {
+                    const group = groupedAssets[key];
                     
-                    if(!tagsHtml) tagsHtml = `<span class="text-[10px] bg-white/5 border border-white/10 px-2 py-0.5 rounded text-zinc-500">通用资产</span>`;
-
-                    let downloadBtnHtml = '';
-                    if (finalSourceLink) {
-                        let href = finalSourceLink.trim();
-                        if(!href.match(/^https?:\/\//i) && !href.startsWith('//')) href = 'http://' + href;
-                        downloadBtnHtml = `<button onclick="event.stopPropagation(); window.open('${href}', '_blank')" class="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-orange-500 transition-colors btn-press" title="提取归档源文件"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg></button>`;
-                    }
-
-                    const yyyyMM = task.created_at ? task.created_at.substring(0, 7) : '2026-03';
-                    const targetUrl = `task-detail-designer.html?id=${task.id}`;
-
-                    const cardHtml = `
-                        <div class="asset-card bg-[#121217] rounded-2xl border border-white/5 overflow-hidden group cursor-pointer shadow-lg" data-search="${task.title} ${task.project} ${tagsArr.join(' ')}" onclick="window.location.href='${targetUrl}'">
-                            <div class="bg-zinc-900 relative overflow-hidden min-h-[150px]">
-                                <img src="${finalImg}" class="w-full object-cover group-hover:scale-105 transition-transform duration-500">
-                                <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
-                                    ${downloadBtnHtml}
-                                </div>
-                            </div>
-                            <div class="p-5">
-                                <h3 class="text-[14px] font-bold text-zinc-100 mb-1 leading-snug">${task.title}</h3>
-                                <p class="text-[11px] text-zinc-500 mb-3">${task.id} · ${yyyyMM}</p>
-                                <div class="flex gap-1.5 flex-wrap">
-                                    ${tagsHtml}
-                                </div>
-                            </div>
+                    // 渲染月份的标题
+                    let sectionHtml = `
+                    <div class="w-full flex flex-col month-section">
+                        <div class="flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
+                            <h3 class="text-xl font-bold text-white">${group.label}</h3>
+                            <span class="text-xs font-mono text-zinc-500 bg-white/5 px-2 py-0.5 rounded border border-white/10">${group.tasks.length} 个资产</span>
                         </div>
+                        <div class="w-full columns-1 md:columns-2 lg:columns-3 xl:columns-4 gap-6 space-y-6">
                     `;
 
-                    container.insertAdjacentHTML('beforeend', cardHtml);
-                    renderCount++;
+                    // 渲染该月份下的资产卡片
+                    group.tasks.forEach(task => {
+                        let tagsHtml = '';
+                        let tagsArr = [];
+                        if(task.channels && task.channels.length > 0) {
+                            try {
+                                const arr = typeof task.channels === 'string' ? JSON.parse(task.channels) : task.channels;
+                                tagsArr = arr;
+                            }catch(e){}
+                        }
+                        tagsArr.forEach(t => {
+                            tagsHtml += `<span class="text-[10px] bg-sky-500/10 text-sky-400 border border-sky-500/20 px-2 py-0.5 rounded truncate max-w-[120px]">${t}</span>`;
+                        });
+                        if(!tagsHtml) tagsHtml = `<span class="text-[10px] bg-zinc-800 border border-zinc-700 px-2 py-0.5 rounded text-zinc-400">通用物料</span>`;
+
+                        let downloadBtnHtml = '';
+                        if (task._finalSourceLink) {
+                            let href = task._finalSourceLink.trim();
+                            if(!href.match(/^https?:\/\//i) && !href.startsWith('//')) href = 'http://' + href;
+                            downloadBtnHtml = `<button onclick="event.stopPropagation(); window.open('${href}', '_blank')" class="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-orange-500 transition-colors btn-press" title="提取归档源文件"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg></button>`;
+                        }
+
+                        const targetUrl = `task-detail-designer.html?id=${task.id}`;
+                        const searchStr = `${group.label} ${task.title} ${task.project} ${task.creator} ${tagsArr.join(' ')}`;
+
+                        sectionHtml += `
+                            <div class="asset-card bg-[#121217] rounded-2xl border border-white/5 overflow-hidden group cursor-pointer shadow-lg" data-search="${searchStr}" onclick="window.location.href='${targetUrl}'">
+                                <div class="bg-zinc-900 relative overflow-hidden min-h-[150px]">
+                                    <img src="${task._finalImg}" class="w-full object-cover group-hover:scale-105 transition-transform duration-500" onclick="event.stopPropagation(); window.openPreview('${task._finalImg}')">
+                                    <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 pointer-events-none">
+                                        <div class="pointer-events-auto flex items-center justify-center gap-3">
+                                            <button onclick="event.stopPropagation(); window.openPreview('${task._finalImg}')" class="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-sky-500 transition-colors btn-press" title="全屏看大图"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6"></path><path d="M9 21H3v-6"></path><path d="M21 3l-7 7"></path><path d="M3 21l7-7"></path></svg></button>
+                                            ${downloadBtnHtml}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="p-5 flex flex-col gap-3">
+                                    <div>
+                                        <h3 class="text-[14px] font-bold text-zinc-100 mb-1 leading-snug group-hover:text-orange-400 transition-colors">${task.title}</h3>
+                                        <p class="text-[10px] text-zinc-500 font-mono">${task.id}</p>
+                                    </div>
+                                    
+                                    <div class="bg-[#09090b] rounded-xl p-3 border border-white/5 space-y-2">
+                                        <div class="flex justify-between items-center text-[11px]">
+                                            <span class="text-zinc-500 flex items-center gap-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> 归属项目</span>
+                                            <span class="text-zinc-300 font-medium truncate max-w-[120px]" title="${task.project}">${task.project || '--'}</span>
+                                        </div>
+                                        <div class="flex justify-between items-center text-[11px]">
+                                            <span class="text-zinc-500 flex items-center gap-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> 需求方</span>
+                                            <span class="text-orange-400 font-bold truncate max-w-[120px]" title="${task.creator}">${task.creator || '未知'}</span>
+                                        </div>
+                                        <div class="flex justify-between items-center text-[11px] pt-1.5 border-t border-white/5">
+                                            <span class="text-zinc-500 flex items-center gap-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> 流转周期</span>
+                                            <span class="text-emerald-500/80 font-mono tracking-tight">${task._startDateStr.slice(5)} ~ ${task._endDateStr.slice(5)}</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex gap-1.5 flex-wrap pt-1">
+                                        ${tagsHtml}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    sectionHtml += `</div></div>`; // Close grid and section
+                    container.insertAdjacentHTML('beforeend', sectionHtml);
                 });
 
                 document.getElementById('assets-loading').classList.add('hidden');
@@ -278,22 +370,36 @@
             }
         }
 
+        // ================= 💡 轻量级实时联合检索 =================
         window.filterAssets = function() {
-            const input = document.getElementById("asset-search").value.toLowerCase();
-            const cards = document.querySelectorAll(".asset-card");
-            let visibleCount = 0;
+            const input = document.getElementById("asset-search").value.toLowerCase().trim();
+            const sections = document.querySelectorAll('.month-section');
+            let globalVisibleCount = 0;
 
-            cards.forEach(card => {
-                const searchStr = card.getAttribute('data-search').toLowerCase();
-                if (searchStr.includes(input)) {
-                    card.style.display = "";
-                    visibleCount++;
+            sections.forEach(sec => {
+                const cards = sec.querySelectorAll('.asset-card');
+                let secVisibleCount = 0;
+
+                cards.forEach(card => {
+                    const searchStr = card.getAttribute('data-search').toLowerCase();
+                    if (searchStr.includes(input)) {
+                        card.style.display = "";
+                        secVisibleCount++;
+                        globalVisibleCount++;
+                    } else {
+                        card.style.display = "none";
+                    }
+                });
+
+                // 如果这个月份下没有任何符合条件的卡片，整个月份标题区块隐藏
+                if (secVisibleCount === 0) {
+                    sec.style.display = "none";
                 } else {
-                    card.style.display = "none";
+                    sec.style.display = "flex";
                 }
             });
 
-            if(visibleCount === 0) {
+            if(globalVisibleCount === 0) {
                 document.getElementById('emptyState').style.display = 'flex';
                 document.querySelector('#emptyState p:first-of-type').innerText = '没有找到匹配的资产';
             } else {
@@ -301,6 +407,20 @@
             }
         }
 
+        // ================= 预览引擎 =================
+        window.openPreview = function(srcUrl) {
+            if(!srcUrl) return; 
+            document.getElementById('modal-image').src = srcUrl;
+            const modal = document.getElementById('image-preview-modal');
+            modal.classList.remove('hidden'); void modal.offsetWidth; modal.style.display = 'flex'; setTimeout(() => modal.classList.add('visible'), 10);
+        }
+
+        window.closePreview = function() {
+            const modal = document.getElementById('image-preview-modal');
+            modal.classList.remove('visible'); setTimeout(() => { modal.style.display = 'none'; modal.classList.add('hidden'); }, 300);
+        }
+
+        // ================= 🔔 全局消息通知 =================
         window.loadNotifications = function() {
             const userStr = localStorage.getItem('activeUserObj');
             if(!userStr) return;
