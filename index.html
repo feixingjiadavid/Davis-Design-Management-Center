@@ -811,43 +811,41 @@
                 isDraftPhase = true;
             }
 
-            // 💡 路由大脑：优先依据操作人身份派发专属工作台
-            // 设计师去工作台 (processing 或 draft)；需求方去只读验收台 (locked 或 review)
-            const baseProcessingUrl = isMyDesignTask ? 'assistant-task-processing.html' : 'task-detail-locked.html';
-            const baseDraftUrl = isMyDesignTask ? 'assistant-task-draft.html' : 'task-detail-review.html';
+            // 💡 路由大脑：为了防“自己给自己派单”的串台，这里通过给 URL 加 `&role=` 传参，让进入的页面强制锁定视角
+            // 只要是从这个大厅（index.html）点进去的，统统带上 role=req（需求方） 烙印！
+            const baseQuery = `?id=${task.id}&role=req`;
 
             switch(task.status) {
                 case 'rejected': 
                     sColor = 'text-rose-500'; sText = '需求被打回修改'; 
-                    targetUrl = isDraftPhase ? baseDraftUrl + '?id=' + task.id : baseProcessingUrl + '?id=' + task.id; 
+                    targetUrl = isDraftPhase ? 'assistant-task-draft.html' + baseQuery : 'assistant-task-processing.html' + baseQuery; 
                     isUrgent = true; 
                     break;
                 case 'reviewing': 
                     sColor = 'text-rose-500'; sText = '方案待验收'; 
-                    targetUrl = isMyDesignTask ? 'assistant-task-draft.html?id=' + task.id : 'task-detail-review.html?id=' + task.id; 
+                    targetUrl = 'task-detail-review.html' + baseQuery; 
                     break;
                 case 'pending_accept': 
                     sColor = 'text-amber-400'; sText = '待接单'; 
-                    targetUrl = 'task-detail-new.html?id=' + task.id; 
+                    targetUrl = 'task-detail-new.html' + baseQuery; 
                     break;
                 case 'pending_approval': 
                     sColor = 'text-amber-500'; sText = '框架待审批'; 
-                    // 领导特权：如果是 judy 并且是待审批状态，强行送进 locked 页去批复
-                    const lockedUrl = (isJudy) ? 'task-detail-locked.html' : baseProcessingUrl;
-                    targetUrl = lockedUrl + '?id=' + task.id; 
+                    // 领导特权：如果是 judy，强行进去审批 (locked页不带 role=req，让它自己判断 isJudy)
+                    targetUrl = isJudy ? 'task-detail-locked.html?id=' + task.id : 'task-detail-locked.html' + baseQuery; 
                     break;
                 case 'processing': 
                     sColor = 'text-emerald-500'; sText = '设计制作中'; 
-                    targetUrl = isDraftPhase ? baseDraftUrl + '?id=' + task.id : baseProcessingUrl + '?id=' + task.id; 
+                    targetUrl = isDraftPhase ? 'assistant-task-draft.html' + baseQuery : 'assistant-task-processing.html' + baseQuery; 
                     break;
                 case 'completed': 
                 case 'archived': 
                     sColor = 'text-zinc-400'; sText = '已完结'; 
-                    targetUrl = 'task-detail-archived.html?id=' + task.id; 
+                    targetUrl = 'task-detail-archived.html' + baseQuery; 
                     break;
                 default: 
                     sColor = 'text-sky-400'; sText = '待排期/待分配'; 
-                    targetUrl = 'task-detail-new.html?id=' + task.id;
+                    targetUrl = 'task-detail-new.html' + baseQuery;
             }
 
             const isCompleted = task.status === 'completed' || task.status === 'archived';
