@@ -27,6 +27,10 @@
         @keyframes dropIn { 0% { opacity: 0; transform: scale(0.95) translateY(-10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
         .toast-slide-in { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* 💡 强制红色预警呼吸灯 */
+        @keyframes pulse-rose { 50% { box-shadow: inset 0 0 0 1px rgba(244,63,94,0.6), 0 0 20px rgba(244,63,94,0.3); } }
+        .breathe-rose { animation: pulse-rose 2s infinite ease-in-out; border-color: rgba(244,63,94,0.8) !important; }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-orange-500/30 text-zinc-300">
@@ -362,6 +366,9 @@
             } else if(type === 'info') {
                 icon.className = "w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0";
                 icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+            } else {
+                icon.className = "w-8 h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0";
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
             }
             toast.classList.remove('hidden');
             setTimeout(() => { toast.classList.add('hidden'); }, 3000);
@@ -378,6 +385,28 @@
             pwdOverlay.classList.add('opacity-0'); pwdModal.classList.add('scale-95'); setTimeout(() => { pwdOverlay.classList.add('hidden'); pwdModal.classList.add('hidden'); }, 300);
         }
         window.submitPwdChange = function() { alert('请联系管理员修改密码。'); closePwdModal(); }
+
+        // ================= 💡 核心：免跳转直接催办逻辑 =================
+        window.kanbanUrge = function(e, btn, assignee) {
+            e.stopPropagation();
+            btn.innerHTML = '✓ 已提醒';
+            btn.classList.remove('hover:bg-zinc-700', 'bg-zinc-800', 'text-zinc-300', 'border-zinc-600', 'hover:text-white');
+            btn.classList.add('opacity-50', 'cursor-not-allowed', 'bg-zinc-900', 'text-zinc-500', 'border-zinc-800');
+            btn.disabled = true;
+            showToast('催办已发送', `已向 ${assignee} 发送系统提醒。`, 'success');
+            
+            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
+            sysNotifs.push({
+                id: new Date().getTime(),
+                taskId: 'KANBAN',
+                title: '进度催办提醒',
+                desc: `超管/统筹人正在催促您的进度，请尽快处理您的工单。`,
+                role: 'design',
+                read: false,
+                time: new Date().toISOString()
+            });
+            localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs));
+        }
 
         // ================= 💡 核心：看板智能路由与经典卡片引擎 =================
         function createKanbanCard(task, currentUser) {
@@ -440,36 +469,68 @@
             const breatheClass = isUrgent ? 'breathe-rose' : '';
             const iconHtml = (task.status === 'reviewing' || task.status === 'rejected') ? '' : `<svg class="animate-spin h-3.5 w-3.5 ${sColor}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
 
-            // 💡 还原底部大按钮交互逻辑
+            // 💡 精准区分按钮文案与动作
             let primaryBtnText = '查看进度详情';
-            let primaryBtnClass = 'bg-[#0284c7] hover:bg-sky-500 text-white'; // 天蓝色大按钮
+            let primaryBtnClass = 'bg-[#0284c7] hover:bg-sky-500 text-white border border-transparent';
+            let primaryBtnAction = `event.stopPropagation(); window.location.href='${targetUrl}'`;
 
-            if (task.status === 'pending' || task.status === 'pending_accept') {
-                primaryBtnText = '去接单并响应';
-            } else if (task.status === 'processing' || task.status === 'rejected') {
-                primaryBtnText = '去处理并传稿';
-            } else if (task.status === 'pending_approval') {
-                primaryBtnText = isJudy ? '去审批' : '查看被锁进度';
-                primaryBtnClass = 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300'; // 灰色按钮
-            } else if (task.status === 'reviewing') {
-                primaryBtnText = '查看验收进度';
-                primaryBtnClass = 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300'; // 灰色按钮
+            if (isMyDesignTask || (isUnassignedPool && task.status === 'pending')) {
+                // 如果是自己的单子，或者是公海待认领单
+                if (task.status === 'pending' || task.status === 'pending_accept') {
+                    primaryBtnText = '去接单并响应';
+                } else if (task.status === 'processing' || task.status === 'rejected') {
+                    primaryBtnText = '去处理并传稿';
+                } else if (task.status === 'pending_approval') {
+                    primaryBtnText = '查看被锁进度';
+                    primaryBtnClass = 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700';
+                } else if (task.status === 'reviewing') {
+                    primaryBtnText = '查看验收进度';
+                    primaryBtnClass = 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700';
+                }
+            } else {
+                // 💡 如果我是超管或者领导，看的是别人的单子，直接变成一键提醒按钮！
+                if (task.status === 'pending_accept') {
+                    primaryBtnText = `提醒 ${task.assignee} 接单`;
+                    primaryBtnClass = 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-600 hover:text-white';
+                    primaryBtnAction = `window.kanbanUrge(event, this, '${task.assignee}')`;
+                } else if (task.status === 'processing' || task.status === 'rejected') {
+                    primaryBtnText = `提醒 ${task.assignee} 交方案`;
+                    primaryBtnClass = 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-600 hover:text-white';
+                    primaryBtnAction = `window.kanbanUrge(event, this, '${task.assignee}')`;
+                } else if (task.status === 'pending_approval') {
+                    if (isJudy) {
+                        primaryBtnText = '去审批框架方案';
+                        primaryBtnClass = 'bg-amber-600 hover:bg-amber-500 text-white border-amber-500';
+                        // 领导点审批，跳转到专门的被锁/审批页
+                        primaryBtnAction = `event.stopPropagation(); window.location.href='task-detail-locked.html?id=${task.id}'`;
+                    } else {
+                        primaryBtnText = '等待领导审批';
+                        primaryBtnClass = 'bg-zinc-800 text-zinc-500 border-zinc-700 cursor-not-allowed';
+                        primaryBtnAction = `event.stopPropagation();`;
+                    }
+                } else if (task.status === 'reviewing') {
+                    primaryBtnText = '等待甲方验收';
+                    primaryBtnClass = 'bg-zinc-800 text-zinc-500 border-zinc-700 cursor-not-allowed';
+                    primaryBtnAction = `event.stopPropagation();`;
+                }
             }
 
             const canTransfer = (task.status === 'pending_accept' || task.status === 'processing' || task.status === 'rejected') && (isMyDesignTask || isSuperAdmin);
             
             let btnHtml = `
                 <div class="flex items-center gap-2 mt-4 relative z-10 pl-2">
-                    <button onclick="event.stopPropagation(); window.location.href='${targetUrl}'" class="flex-1 py-2.5 rounded-lg text-[13px] font-bold transition-all btn-press ${primaryBtnClass}">${primaryBtnText}</button>
+                    <button onclick="${primaryBtnAction}" class="flex-1 py-2.5 rounded-lg text-[13px] font-bold transition-all btn-press border ${primaryBtnClass}">${primaryBtnText}</button>
                     ${canTransfer ? `<button onclick="event.stopPropagation(); window.openTransferModal('${task.id}', '${task.title}')" class="px-5 py-2.5 rounded-lg text-[13px] font-bold text-zinc-300 bg-transparent border border-zinc-600 hover:text-white hover:bg-zinc-700 transition-all btn-press">转单</button>` : ''}
                 </div>
             `;
 
-            // 💡 还原图2的卡片样式 (左侧彩色侧带 + 内部灰底模块)
+            let strokeColor = sColor.split('-')[1] || 'sky';
+            if(strokeColor === 'zinc') strokeColor = 'gray';
+
             const html = `
                 <div class="rounded-xl p-4 kanban-card flex flex-col relative overflow-hidden bg-[#18181b] border border-zinc-800 group ${breatheClass}" onclick="window.location.href='${targetUrl}'" style="border-color: ${borderColBase}">
-                    <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-${strokeColor}-500 z-10"></div>
-                    ${isUrgent ? '<div class="absolute top-0 right-0 bg-[#e11d48] text-white text-[11px] font-bold px-3 py-1 rounded-bl-xl z-20 shadow-md">临期预警</div>' : ''}
+                    <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-${strokeColor}-500 z-10 shadow-[0_0_8px_rgba(var(--tw-colors-${strokeColor}-500),0.5)]"></div>
+                    ${isUrgent ? '<div class="absolute top-0 right-0 bg-[#e11d48] text-white text-[11px] font-bold px-3 py-1 rounded-bl-xl z-20 shadow-md animate-pulse">临期预警</div>' : ''}
                     
                     <div class="flex items-center justify-between mb-3 mt-1 relative z-10 pl-2">
                         <div class="flex gap-2 items-center">
@@ -680,7 +741,7 @@
             let hist = [];
             if(curTask && curTask.history_json) { try { hist = JSON.parse(curTask.history_json); } catch(e){} }
             hist.push({
-                action: 'transfer', operator: `${dispName} (设计师)`, time: new Date().toISOString(),
+                action: 'transfer', operator: `${dispName} (操作人)`, time: new Date().toISOString(),
                 reply: `因排期或其他原因转出，备注：${reason}`
             });
 
@@ -688,7 +749,7 @@
                 .update({ 
                     status: 'pending', 
                     assignee: 'none', 
-                    summary_desc: `设计方已将单据退回公海：${reason}`,
+                    summary_desc: `操作人已将单据退回公海：${reason}`,
                     history_json: JSON.stringify(hist)
                 })
                 .eq('id', currentTransferTaskId);
