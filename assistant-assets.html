@@ -104,27 +104,10 @@
 
                     <div class="relative" id="identity-wrapper">
                         <button id="identityBtn" class="bg-[#141417] border border-white/10 text-zinc-300 px-4 py-2.5 rounded-xl flex items-center gap-2.5 text-[12px] font-medium hover:bg-white/5 transition-colors btn-press">
-                            <span class="text-orange-500 font-black flex items-center gap-1.5">
-                                <span class="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span>
-                            </span>
-                            设计方 (资产库)
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 ml-1"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            加载中...
                         </button>
                         <div id="identityMenu" class="hidden absolute right-0 top-[120%] w-[240px] bg-[#1a1a1f] border border-white/10 rounded-2xl shadow-2xl py-2 dropdown-enter z-[9999]">
-                            <div class="px-2 space-y-1">
-                                <div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='index.html'">
-                                    <div class="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                                    </div>
-                                    <span class="text-[13px] font-medium">需求方 (去发单/验收)</span>
-                                </div>
-                                <div class="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#362013] text-orange-400 cursor-default border border-orange-900/50">
-                                    <div class="w-7 h-7 rounded-lg bg-orange-500/20 flex items-center justify-center text-orange-500">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-                                    </div>
-                                    <span class="text-[13px] font-bold">设计方 (当前)</span>
-                                </div>
-                            </div>
+                            <div class="px-2 space-y-1" id="dynamic-identity-list"></div>
                         </div>
                     </div>
                 </div>
@@ -145,7 +128,7 @@
             </div>
 
             <div class="w-full max-w-[1400px] columns-1 md:columns-2 lg:columns-3 xl:columns-4 gap-6 space-y-6" id="assets-container">
-                </div>
+            </div>
         </div>
     </main>
 
@@ -174,10 +157,28 @@
             if(avatarEl) { avatarEl.innerText = user.avatar || '?'; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-orange-600'} border border-white/20 flex items-center justify-center text-white font-bold text-sm shadow-lg`; }
             if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.cnName || user.enName;
             
+            // 💡 修复：动态渲染菜单
+            const menuContainer = document.getElementById('dynamic-identity-list');
+            if (menuContainer) {
+                let html = '';
+                if ((user.perms || []).includes('req')) { 
+                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='index.html'"><div class="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div><span class="text-[13px] font-medium">需求方 (去发单/验收)</span></div>`; 
+                }
+                if ((user.perms || []).includes('design')) { 
+                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#362013] text-orange-400 cursor-default border border-orange-900/50"><div class="w-7 h-7 rounded-lg bg-orange-500/20 flex items-center justify-center text-orange-500"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div><span class="text-[13px] font-bold">设计方 (当前)</span></div>`; 
+                }
+                if ((user.perms || []).includes('admin')) { 
+                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='manager-workspace.html'"><div class="w-7 h-7 rounded-lg bg-fuchsia-500/10 flex items-center justify-center text-fuchsia-400"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg></div><span class="text-[13px] font-medium">管理方 (统筹/大盘)</span></div>`; 
+                }
+                menuContainer.innerHTML = html;
+            }
+
+            const triggerBtn = document.getElementById('identityBtn');
+            if (triggerBtn) { triggerBtn.innerHTML = `<span class="text-orange-500 font-black flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span></span> 设计方 (资产库) <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 ml-1"><polyline points="6 9 12 15 18 9"></polyline></svg>`; }
+
             return user;
         }
 
-        // ================= 💡 核心：全量剥离过稿数字资产 =================
         window.loadAssetsFromCloud = async function() {
             if(!window.supabase) return;
             const currentUser = initRBAC();
@@ -186,7 +187,6 @@
             const isSuperAdmin = currentUserEn === 'davidxxu' || currentUserEn === 'judyzzhang';
 
             try {
-                // 仅拉取已完结和已归档的数据
                 const { data, error } = await window.supabase.from(window.DB_TABLE)
                     .select('id, title, project, created_at, assignee, channels, history_json, source_file_link')
                     .in('status', ['completed', 'archived'])
@@ -202,13 +202,11 @@
                     const taskAssignee = task.assignee ? task.assignee.toLowerCase() : 'none';
                     const isMyDesignTask = taskAssignee === currentUserEn;
 
-                    // 只能看自己画的单子，或者超管可以看全盘
                     if (!isSuperAdmin && !isMyDesignTask) return;
 
                     let finalImg = '';
                     let finalSourceLink = task.source_file_link || '';
                     
-                    // 探入历史账本，抓取“最后一次交稿”时的图片和源文件
                     try {
                         const historyArr = JSON.parse(task.history_json || '[]');
                         for(let i = historyArr.length - 1; i >= 0; i--) {
@@ -220,10 +218,8 @@
                         }
                     } catch(e){}
 
-                    // 如果没图，跳过不渲染
                     if (!finalImg) return;
 
-                    // 解析标签
                     let tagsHtml = '';
                     let tagsArr = [];
                     if(task.channels && task.channels.length > 0) {
@@ -238,7 +234,6 @@
                     
                     if(!tagsHtml) tagsHtml = `<span class="text-[10px] bg-white/5 border border-white/10 px-2 py-0.5 rounded text-zinc-500">通用资产</span>`;
 
-                    // 格式化源文件下载动作
                     let downloadBtnHtml = '';
                     if (finalSourceLink) {
                         let href = finalSourceLink.trim();
@@ -283,7 +278,6 @@
             }
         }
 
-        // ================= 前端轻量级实时搜索 =================
         window.filterAssets = function() {
             const input = document.getElementById("asset-search").value.toLowerCase();
             const cards = document.querySelectorAll(".asset-card");
@@ -307,7 +301,6 @@
             }
         }
 
-        // ================= 🔔 全局消息通知 =================
         window.loadNotifications = function() {
             const userStr = localStorage.getItem('activeUserObj');
             if(!userStr) return;
