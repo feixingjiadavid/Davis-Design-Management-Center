@@ -110,9 +110,10 @@
                     </select>
                     
                     <div class="w-px h-6 bg-white/10 mx-2"></div>
+                    
                     <button onclick="exportExcel(this)" class="bg-[#1a1a24] border border-white/10 hover:border-indigo-500/50 text-zinc-300 px-4 py-2.5 rounded-xl text-[13px] font-medium transition-all flex items-center gap-2 btn-press">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="export-icon"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                        <span class="export-text">导出记录</span>
+                        <span class="export-text">导出记录报表</span>
                     </button>
                 </div>
             </div>
@@ -149,10 +150,10 @@
 
                 <div class="p-5 border-t border-white/5 flex items-center justify-between bg-[#16161d] mt-auto">
                     <span class="text-[12px] text-zinc-500" id="table-stats">数据加载中...</span>
-                    <div class="flex items-center gap-1.5">
-                        <button class="px-3 py-1.5 flex items-center justify-center rounded-lg bg-zinc-800/50 text-zinc-600 cursor-not-allowed text-[12px]">上一页</button>
+                    <div class="flex items-center gap-1.5 opacity-30 pointer-events-none">
+                        <button class="px-3 py-1.5 flex items-center justify-center rounded-lg bg-zinc-800/50 text-zinc-600 text-[12px]">上一页</button>
                         <button class="w-8 h-8 flex items-center justify-center rounded-lg bg-indigo-600 text-white font-bold text-[12px]">1</button>
-                        <button class="px-3 py-1.5 flex items-center justify-center rounded-lg bg-zinc-800/50 text-zinc-600 cursor-not-allowed text-[12px]">下一页</button>
+                        <button class="px-3 py-1.5 flex items-center justify-center rounded-lg bg-zinc-800/50 text-zinc-600 text-[12px]">下一页</button>
                     </div>
                 </div>
             </div>
@@ -197,7 +198,7 @@
             if (!(user.perms || []).includes(PAGE_TYPE)) { alert(`无权限访问`); logout(); return false; }
 
             const avatarEl = document.getElementById('sidebar-avatar');
-            if(avatarEl) { avatarEl.innerText = user.avatar; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-indigo-600'} border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg`; }
+            if(avatarEl) { avatarEl.innerText = user.avatar || '?'; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-indigo-600'} border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg`; }
             if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.cnName || user.enName;
             if(document.getElementById('sidebar-role')) document.getElementById('sidebar-role').innerText = user.role;
 
@@ -233,7 +234,7 @@
                 tbody.innerHTML = '';
                 
                 let renderCount = 0;
-                let projectSet = new Set(); // 用于收集动态项目
+                let projectSet = new Set(); 
 
                 (data || []).forEach(task => {
                     const creator = task.creator || '';
@@ -246,7 +247,6 @@
                     // 收集用到的项目名称
                     if(task.project) projectSet.add(task.project);
 
-                    // 1. 智能状态解析系统
                     let sColor, sText, sIcon, doingFlag;
                     const isFinished = ['completed','archived','terminated'].includes(task.status);
                     
@@ -278,7 +278,6 @@
                             sIcon = `<span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span>`; 
                     }
 
-                    // 2. 日期判定
                     let isUrgent = false;
                     let dateText = task.due_date || '未定';
                     if(task.due_date && !isFinished) {
@@ -290,22 +289,18 @@
                     }
                     const dateCol = isFinished ? 'text-zinc-500' : (isUrgent ? 'text-rose-500 font-bold' : 'text-sky-400 font-bold');
 
-                    // 3. 执行人头像生成
                     const displayAssignee = (task.assignee && task.assignee !== 'none') ? task.assignee : '暂未分配';
                     const avatText = displayAssignee !== '暂未分配' ? displayAssignee.substring(0,2).toUpperCase() : '?';
                     const avatCol = displayAssignee !== '暂未分配' ? 'bg-indigo-900 text-indigo-200' : 'bg-zinc-800 text-zinc-400';
 
-                    // 4. 状态徽章渲染
                     const badgeHtml = `<span class="bg-${sColor}-500/10 text-${sColor}-400 border border-${sColor}-500/20 px-2.5 py-1 rounded text-[11px] font-bold flex items-center w-max gap-1.5">${sIcon}${sText}</span>`;
 
-                    // 5. 操作栏渲染
                     let btnHtml = '';
                     if(task.status === 'reviewing' && isOwner) {
                         btnHtml = `<button class="text-[12px] text-indigo-400 font-bold hover:text-indigo-300 transition-colors btn-press">去验收</button>`;
                     } else if (isFinished) {
                         btnHtml = `<button class="text-[12px] text-indigo-400/80 font-bold hover:text-indigo-300 transition-colors flex items-center justify-end gap-1 ml-auto btn-press">去查看 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>`;
                     } else {
-                        // 如果单子还没完结，超管可以一键催办
                         if (isSuperAdmin) {
                             const urgeTarget = ['pending_approval'].includes(task.status) ? '文哥' : task.assignee;
                             btnHtml = `<button onclick="urgeTask(event, this, '${urgeTarget}')" class="text-[12px] text-indigo-400 bg-indigo-500/10 px-3 py-1.5 rounded-lg hover:bg-indigo-500/20 transition-colors btn-press ml-auto">督导催办</button>`;
@@ -334,11 +329,9 @@
                     renderCount++;
                 });
 
-                // 移除 Loading，更新统计
                 document.getElementById('table-loading').classList.add('hidden');
                 document.getElementById('table-stats').innerText = `找到 ${renderCount} 条匹配记录`;
 
-                // 动态更新项目下拉框的选项
                 if(projectSet.size > 0) {
                     const sel = document.getElementById('projectFilter');
                     let selHtml = `<option value="all">所有归属项目</option>`;
@@ -417,7 +410,7 @@
             showToast('催办通知已发送', `已向 ${target} 发送加急提醒。`, 'success');
         }
 
-        // ================= 💡 真实的 Excel CSV 导出流 =================
+        // ================= 💡 真实的 Excel CSV 导出引擎 =================
         function exportExcel(btn) {
             const icon = btn.querySelector('.export-icon');
             const text = btn.querySelector('.export-text');
@@ -433,33 +426,42 @@
                 btn.disabled = false;
                 icon.classList.remove('animate-spin', 'text-indigo-400');
                 icon.innerHTML = `<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line>`;
-                text.innerText = "导出记录";
+                text.innerText = "导出记录报表";
 
-                // 提取表格中当前 [可见] 的行数据
                 const tbody = document.getElementById("recordTableBody");
                 const trs = tbody.getElementsByTagName("tr");
-                let csvContent = "工单编号,需求描述,归属项目,期望交付日,执行人,状态\n";
+                
+                if (trs.length === 0) {
+                    return showToast('导出失败', '当前没有任何数据可导出！', 'error');
+                }
 
+                let csvContent = "工单编号,需求标题,归属项目,期望交付日,执行人,当前状态\n";
                 let hasData = false;
+
                 for (let i = 0; i < trs.length; i++) {
                     const tr = trs[i];
+                    // 💡 核心：仅抓取筛选后可见的行
                     if(tr.style.display !== "none") {
                         const tds = tr.getElementsByTagName("td");
-                        const id = tds[0].textContent;
-                        const title = `"${tds[1].textContent.replace(/"/g, '""')}"`; // 转义双引号
-                        const project = tds[2].textContent;
-                        const date = tds[3].textContent;
-                        const assignee = tds[4].innerText.replace(/\n/g, ' ').trim(); // 提取纯文本执行人
-                        const status = tds[5].innerText.replace(/\n/g, ' ').trim();
+                        if (tds.length >= 6) {
+                            const id = tds[0].textContent.trim();
+                            // 处理带有逗号和回车的复杂文本
+                            const title = `"${tds[1].textContent.trim().replace(/"/g, '""')}"`; 
+                            const project = tds[2].textContent.trim();
+                            const date = tds[3].textContent.trim();
+                            // 处理带有头像字符的执行人单元格
+                            const assignee = `"${tds[4].innerText.replace(/\n/g, ' ').trim()}"`;
+                            const status = `"${tds[5].innerText.replace(/\n/g, ' ').trim()}"`;
 
-                        csvContent += `${id},${title},${project},${date},${assignee},${status}\n`;
-                        hasData = true;
+                            csvContent += `${id},${title},${project},${date},${assignee},${status}\n`;
+                            hasData = true;
+                        }
                     }
                 }
 
-                if(!hasData) return showToast('导出失败', '当前没有可导出的数据！', 'error');
+                if(!hasData) return showToast('导出失败', '当前筛选条件下没有可导出的数据！', 'error');
 
-                // 添加 BOM 头防止中文乱码
+                // 加入 BOM 头，防止 Excel 打开中文乱码
                 const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' }); 
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
@@ -470,7 +472,27 @@
                 document.body.removeChild(link);
 
                 showToast('导出成功', 'Excel 报表已下载至本地。', 'success');
-            }, 1500);
+            }, 1000);
+        }
+        
+        function showToast(title, desc, type = 'success') {
+            const toast = document.getElementById('action-toast');
+            document.getElementById('toast-title').innerText = title;
+            document.getElementById('toast-desc').innerText = desc;
+            const icon = document.getElementById('toast-icon');
+            
+            if(type === 'info') {
+                icon.className = "w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0";
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+            } else if(type === 'error') {
+                icon.className = "w-8 h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0";
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+            } else {
+                icon.className = "w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0";
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+            }
+            toast.classList.remove('hidden');
+            setTimeout(() => { toast.classList.add('hidden'); }, 3000);
         }
     </script>
 </body>
