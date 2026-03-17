@@ -24,6 +24,10 @@
         
         .toast-slide-in { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* 隐藏滚动条但允许水平滚动 */
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-orange-500/30 text-zinc-300">
@@ -56,10 +60,21 @@
             </button>
         </div>
 
-        <div class="px-7 py-7 mt-auto border-t border-white/5 bg-[#09090b] shrink-0">
-            <div class="flex items-center gap-3">
-                <div id="sidebar-avatar" class="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg">?</div>
-                <div><p id="sidebar-name" class="text-xs font-bold text-white mb-0.5">加载中...</p><p id="sidebar-role" class="text-[10px] text-zinc-500">读取中</p></div>
+        <div class="px-5 py-6 mt-auto border-t border-white/5 bg-[#0c0c0e] shrink-0 flex items-center justify-between relative z-[9999]">
+            <div class="flex items-center gap-3 min-w-0">
+                <div id="sidebar-avatar" class="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-lg">?</div>
+                <div class="min-w-0 flex-1">
+                    <p id="sidebar-name" class="text-[13px] font-bold text-white mb-0.5 truncate">加载中...</p>
+                    <p id="sidebar-role" class="text-[10px] text-zinc-500 truncate">读取中</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-1 shrink-0 ml-2">
+                <button onclick="window.openPwdModal()" class="p-1.5 text-zinc-500 hover:text-orange-400 hover:bg-orange-500/10 rounded-lg transition-colors btn-press cursor-pointer pointer-events-auto relative z-50" title="修改登录密码">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+                </button>
+                <button onclick="window.logout(event)" class="p-1.5 text-zinc-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors btn-press cursor-pointer pointer-events-auto relative z-50" title="退出登录">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                </button>
             </div>
         </div>
     </aside>
@@ -77,7 +92,7 @@
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <svg class="h-4 w-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                     </div>
-                    <input type="text" id="asset-search" onkeyup="filterAssets()" class="w-full bg-[#121217] border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm text-white placeholder-zinc-500 outline-none focus:border-orange-500 transition-colors" placeholder="搜索月份、项目、标签...">
+                    <input type="text" id="asset-search" onkeyup="filterAssets()" class="w-full bg-[#121217] border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm text-white placeholder-zinc-500 outline-none focus:border-orange-500 transition-colors" placeholder="支持搜：202603、项目、标签...">
                 </div>
 
                 <div class="w-px h-8 bg-white/10"></div>
@@ -114,7 +129,7 @@
             </div>
         </header>
 
-        <div class="flex-1 p-8 md:p-10 overflow-y-auto custom-scrollbar flex flex-col items-center relative">
+        <div class="flex-1 overflow-hidden flex flex-col relative">
             
             <div id="assets-loading" class="absolute inset-0 bg-[#0c0c0e]/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center">
                 <svg class="animate-spin h-8 w-8 text-orange-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
@@ -127,17 +142,45 @@
                 <p class="text-[11px] text-zinc-500 mt-2">当需求被验收完结后，作品会自动收录在此处</p>
             </div>
 
-            <div class="w-full max-w-[1400px] flex flex-col gap-10 pb-10" id="assets-container">
+            <div class="flex-1 overflow-y-auto custom-scrollbar p-10 flex justify-center">
+                <div class="w-full max-w-[1400px] flex flex-col">
+                    
+                    <div class="w-full mb-8 flex items-center gap-3 overflow-x-auto hide-scroll pb-2" id="month-filter-container">
+                        </div>
+
+                    <div class="w-full flex flex-col gap-12 pb-10" id="assets-container">
+                        </div>
                 </div>
+            </div>
+
         </div>
     </main>
 
-    <div id="image-preview-modal" onclick="closePreview()">
-        <div class="w-full h-full flex items-center justify-center relative p-8">
-            <button onclick="closePreview()" class="absolute top-8 right-8 text-white/50 hover:text-white bg-white/10 hover:bg-rose-500 rounded-full p-2 transition-all btn-press z-50">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-            </button>
-            <img id="modal-image" src="" alt="全屏预览图" class="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-[0_0_50px_rgba(0,0,0,0.8)]" onclick="event.stopPropagation()">
+    <div id="pwd-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closePwdModal()">
+        <div id="pwd-modal" class="hidden w-full max-w-sm bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 p-6 relative">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 to-amber-500 rounded-t-3xl"></div>
+            <div class="flex justify-between items-center mb-6 mt-2">
+                <h2 class="text-[16px] font-bold text-white flex items-center gap-2"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-orange-500"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg> 修改登录密码</h2>
+                <button onclick="window.closePwdModal()" class="text-zinc-500 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-full p-1 transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            </div>
+            <div class="space-y-4">
+                <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">当前密码</label><input type="password" id="old-pwd" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-orange-500 transition-colors"></div>
+                <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">新密码</label><input type="password" id="new-pwd" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-orange-500 transition-colors"></div>
+                <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">确认新密码</label><input type="password" id="new-pwd-confirm" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-orange-500 transition-colors"></div>
+            </div>
+            <button onclick="window.submitPwdChange()" class="w-full mt-6 py-3.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-sm font-bold shadow-[0_5px_15px_rgba(249,115,22,0.3)] transition-all btn-press">确认修改并重新登录</button>
+        </div>
+    </div>
+
+    <div id="custom-dialog-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[999999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center">
+        <div id="custom-dialog" class="w-full max-w-sm bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 p-6 relative overflow-hidden">
+            <div id="dialog-color-bar" class="absolute top-0 left-0 right-0 h-1 bg-orange-500"></div>
+            <div class="flex items-center gap-3 mb-3 mt-2">
+                <div id="dialog-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0"></div>
+                <h2 id="dialog-title" class="text-[16px] font-bold text-white">提示</h2>
+            </div>
+            <p id="dialog-message" class="text-[13px] text-zinc-400 leading-relaxed mb-6">内容</p>
+            <div class="flex gap-3 justify-end w-full mt-auto" id="dialog-buttons"></div>
         </div>
     </div>
 
@@ -160,19 +203,85 @@
     <script>
         const PAGE_TYPE = 'design';
 
+        // ================= 高定弹窗引擎 =================
+        window.closeCustomDialog = function() {
+            const overlay = document.getElementById('custom-dialog-overlay');
+            const dialog = document.getElementById('custom-dialog');
+            overlay.classList.add('opacity-0'); dialog.classList.add('scale-95');
+            setTimeout(() => { overlay.classList.add('hidden'); }, 300);
+        }
+
+        function setupDialog(title, message, type) {
+            document.getElementById('dialog-title').innerText = title;
+            document.getElementById('dialog-message').innerHTML = message;
+            const colorBar = document.getElementById('dialog-color-bar');
+            const icon = document.getElementById('dialog-icon');
+            
+            if(type === 'danger') {
+                colorBar.className = 'absolute top-0 left-0 right-0 h-1 bg-rose-500';
+                icon.className = 'w-8 h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0';
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+            } else if(type === 'success') {
+                colorBar.className = 'absolute top-0 left-0 right-0 h-1 bg-emerald-500';
+                icon.className = 'w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0';
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+            } else {
+                colorBar.className = 'absolute top-0 left-0 right-0 h-1 bg-orange-500';
+                icon.className = 'w-8 h-8 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center shrink-0';
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+            }
+        }
+
+        function showDialogUI() {
+            const overlay = document.getElementById('custom-dialog-overlay');
+            const dialog = document.getElementById('custom-dialog');
+            overlay.classList.remove('hidden');
+            setTimeout(() => { overlay.classList.remove('opacity-0'); dialog.classList.remove('scale-95'); }, 10);
+        }
+
+        window.showAlert = function(title, message, type="primary") {
+            setupDialog(title, message, type);
+            const btnContainer = document.getElementById('dialog-buttons');
+            let btnColor = type === 'danger' ? 'bg-rose-600 hover:bg-rose-500' : (type === 'success' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-orange-600 hover:bg-orange-500');
+            btnContainer.innerHTML = `<button onclick="closeCustomDialog()" class="w-full py-2.5 ${btnColor} text-white rounded-xl text-[13px] font-bold shadow-lg transition-all btn-press">我知道了</button>`;
+            showDialogUI();
+        }
+
+        // ================= 基础交互 =================
+        window.logout = function(e) {
+            if(e) e.stopPropagation();
+            localStorage.removeItem('activeUserObj'); 
+            window.location.href = 'login.html'; 
+        }
+
+        window.openPwdModal = function() {
+            const pwdOverlay = document.getElementById('pwd-modal-overlay');
+            const pwdModal = document.getElementById('pwd-modal');
+            pwdOverlay.classList.remove('hidden'); setTimeout(() => { pwdOverlay.classList.remove('opacity-0'); pwdModal.classList.remove('hidden'); pwdModal.classList.remove('scale-95'); }, 10);
+            document.getElementById('old-pwd').value = ''; document.getElementById('new-pwd').value = ''; document.getElementById('new-pwd-confirm').value = '';
+        }
+        
+        window.closePwdModal = function() {
+            const pwdOverlay = document.getElementById('pwd-modal-overlay');
+            const pwdModal = document.getElementById('pwd-modal');
+            pwdOverlay.classList.add('opacity-0'); pwdModal.classList.add('scale-95'); setTimeout(() => { pwdOverlay.classList.add('hidden'); pwdModal.classList.add('hidden'); }, 300);
+        }
+        
+        window.submitPwdChange = function() { window.showAlert('提示', '系统演示环境暂不可自助修改密码，请联系管理员。', 'info'); window.closePwdModal(); }
+
         function initRBAC() {
             const userStr = localStorage.getItem('activeUserObj');
             if (!userStr) { window.location.href = 'login.html'; return false; }
             const user = JSON.parse(userStr);
 
             if (!(user.perms || []).includes(PAGE_TYPE)) {
-                alert(`【权限拦截】您没有执行层做图权限，为您退回大厅。`);
-                window.location.href = 'index.html';
+                window.showAlert("权限拦截", "您没有执行层做图权限，为您退回大厅。", "danger");
+                setTimeout(()=> window.location.href = 'index.html', 1500);
                 return false;
             }
 
             const avatarEl = document.getElementById('sidebar-avatar');
-            if(avatarEl) { avatarEl.innerText = user.avatar || '?'; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-orange-600'} border border-white/20 flex items-center justify-center text-white font-bold text-sm shadow-lg`; }
+            if(avatarEl) { avatarEl.innerText = user.avatar || '?'; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-orange-600'} border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg shrink-0`; }
             if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.cnName || user.enName;
             
             const menuContainer = document.getElementById('dynamic-identity-list');
@@ -202,6 +311,9 @@
             return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
         }
 
+        // 全局状态记录
+        window.activeMonthFilter = 'all';
+
         // ================= 💡 核心：全量按月分组剥离过稿资产 =================
         window.loadAssetsFromCloud = async function() {
             if(!window.supabase) return;
@@ -222,7 +334,6 @@
                 container.innerHTML = '';
                 let renderCount = 0;
                 
-                // 用于按月分组的字典 { '202603': { label: '2026年 3月', tasks: [] }, ... }
                 let groupedAssets = {};
 
                 (data || []).forEach(task => {
@@ -233,7 +344,7 @@
 
                     let finalImg = '';
                     let finalSourceLink = task.source_file_link || '';
-                    let endDate = task.created_at; // 默认 fallback
+                    let endDate = task.created_at; 
                     
                     try {
                         const historyArr = JSON.parse(task.history_json || '[]');
@@ -246,24 +357,22 @@
                                 endDate = historyArr[i].created_at || historyArr[i].time || endDate;
                             }
                         }
-                        // 兜底时间
                         if (endDate === task.created_at && historyArr.length > 0) {
                             endDate = historyArr[historyArr.length - 1].created_at || historyArr[historyArr.length - 1].time || endDate;
                         }
                     } catch(e){}
 
-                    if (!finalImg) return; // 没图跳过
+                    if (!finalImg) return; 
 
-                    // 计算分组 Key
                     const d = new Date(endDate);
                     const label = `${d.getFullYear()}年 ${d.getMonth() + 1}月`;
                     const sortKey = d.getFullYear() * 100 + d.getMonth(); 
+                    const searchKey = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}`;
 
                     if(!groupedAssets[sortKey]) {
-                        groupedAssets[sortKey] = { label: label, tasks: [] };
+                        groupedAssets[sortKey] = { label: label, searchKey: searchKey, tasks: [] };
                     }
 
-                    // 附加额外处理过的数据
                     task._finalImg = finalImg;
                     task._finalSourceLink = finalSourceLink;
                     task._startDateStr = formatDateToDisplay(task.created_at);
@@ -273,23 +382,29 @@
                     renderCount++;
                 });
 
-                // 按月份倒序渲染
                 const sortedKeys = Object.keys(groupedAssets).sort((a, b) => b - a);
 
+                // 💡 渲染月份过滤器
+                let filterHtml = `<button onclick="window.setMonthFilter('all')" class="month-filter-btn bg-orange-600 text-white border border-orange-500 px-5 py-2 rounded-full text-[13px] font-bold shadow-[0_4px_10px_rgba(249,115,22,0.3)] transition-all shrink-0 btn-press" data-key="all">全部月份</button>`;
+                sortedKeys.forEach(key => {
+                    const group = groupedAssets[key];
+                    filterHtml += `<button onclick="window.setMonthFilter('${key}')" class="month-filter-btn bg-[#121217] text-zinc-400 border border-white/10 hover:bg-white/5 hover:text-white px-5 py-2 rounded-full text-[13px] font-medium transition-all shrink-0 btn-press" data-key="${key}">${group.label}</button>`;
+                });
+                document.getElementById('month-filter-container').innerHTML = filterHtml;
+
+                // 💡 渲染卡片区块
                 sortedKeys.forEach(key => {
                     const group = groupedAssets[key];
                     
-                    // 渲染月份的标题
                     let sectionHtml = `
-                    <div class="w-full flex flex-col month-section">
-                        <div class="flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
+                    <div class="w-full flex flex-col month-section" data-month-key="${key}">
+                        <div class="flex items-center gap-3 mb-6 border-b border-white/10 pb-4 pl-1">
                             <h3 class="text-xl font-bold text-white">${group.label}</h3>
                             <span class="text-xs font-mono text-zinc-500 bg-white/5 px-2 py-0.5 rounded border border-white/10">${group.tasks.length} 个资产</span>
                         </div>
                         <div class="w-full columns-1 md:columns-2 lg:columns-3 xl:columns-4 gap-6 space-y-6">
                     `;
 
-                    // 渲染该月份下的资产卡片
                     group.tasks.forEach(task => {
                         let tagsHtml = '';
                         let tagsArr = [];
@@ -308,22 +423,17 @@
                         if (task._finalSourceLink) {
                             let href = task._finalSourceLink.trim();
                             if(!href.match(/^https?:\/\//i) && !href.startsWith('//')) href = 'http://' + href;
-                            downloadBtnHtml = `<button onclick="event.stopPropagation(); window.open('${href}', '_blank')" class="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-orange-500 transition-colors btn-press" title="提取归档源文件"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg></button>`;
+                            downloadBtnHtml = `<button onclick="event.stopPropagation(); window.open('${href}', '_blank')" class="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-orange-500 hover:scale-110 transition-all btn-press opacity-0 group-hover:opacity-100 z-20 backdrop-blur-md border border-white/10" title="提取源文件"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg></button>`;
                         }
 
                         const targetUrl = `task-detail-designer.html?id=${task.id}`;
-                        const searchStr = `${group.label} ${task.title} ${task.project} ${task.creator} ${tagsArr.join(' ')}`;
+                        const searchStr = `${group.label} ${group.searchKey} ${task.title} ${task.project} ${task.creator} ${tagsArr.join(' ')}`;
 
                         sectionHtml += `
-                            <div class="asset-card bg-[#121217] rounded-2xl border border-white/5 overflow-hidden group cursor-pointer shadow-lg" data-search="${searchStr}" onclick="window.location.href='${targetUrl}'">
+                            <div class="asset-card bg-[#121217] rounded-2xl border border-white/5 overflow-hidden group cursor-pointer shadow-lg relative" data-search="${searchStr}" onclick="window.location.href='${targetUrl}'">
+                                ${downloadBtnHtml}
                                 <div class="bg-zinc-900 relative overflow-hidden min-h-[150px]">
-                                    <img src="${task._finalImg}" class="w-full object-cover group-hover:scale-105 transition-transform duration-500" onclick="event.stopPropagation(); window.openPreview('${task._finalImg}')">
-                                    <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 pointer-events-none">
-                                        <div class="pointer-events-auto flex items-center justify-center gap-3">
-                                            <button onclick="event.stopPropagation(); window.openPreview('${task._finalImg}')" class="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center hover:bg-sky-500 transition-colors btn-press" title="全屏看大图"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6"></path><path d="M9 21H3v-6"></path><path d="M21 3l-7 7"></path><path d="M3 21l7-7"></path></svg></button>
-                                            ${downloadBtnHtml}
-                                        </div>
-                                    </div>
+                                    <img src="${task._finalImg}" class="w-full object-cover group-hover:scale-105 transition-transform duration-500">
                                 </div>
                                 <div class="p-5 flex flex-col gap-3">
                                     <div>
@@ -354,7 +464,7 @@
                         `;
                     });
 
-                    sectionHtml += `</div></div>`; // Close grid and section
+                    sectionHtml += `</div></div>`; 
                     container.insertAdjacentHTML('beforeend', sectionHtml);
                 });
 
@@ -370,13 +480,34 @@
             }
         }
 
-        // ================= 💡 轻量级实时联合检索 =================
+        // ================= 💡 月份切换与超级检索 =================
+        window.setMonthFilter = function(monthKey) {
+            window.activeMonthFilter = monthKey;
+            
+            document.querySelectorAll('.month-filter-btn').forEach(btn => {
+                if(btn.dataset.key === monthKey) {
+                    btn.className = "month-filter-btn bg-orange-600 text-white border border-orange-500 px-5 py-2 rounded-full text-[13px] font-bold shadow-[0_4px_10px_rgba(249,115,22,0.3)] transition-all shrink-0 btn-press";
+                } else {
+                    btn.className = "month-filter-btn bg-[#121217] text-zinc-400 border border-white/10 hover:bg-white/5 hover:text-white px-5 py-2 rounded-full text-[13px] font-medium transition-all shrink-0 btn-press";
+                }
+            });
+            window.filterAssets();
+        }
+
         window.filterAssets = function() {
             const input = document.getElementById("asset-search").value.toLowerCase().trim();
             const sections = document.querySelectorAll('.month-section');
             let globalVisibleCount = 0;
 
             sections.forEach(sec => {
+                const secMonthKey = sec.dataset.monthKey;
+                
+                // 检查月份过滤
+                if (window.activeMonthFilter !== 'all' && window.activeMonthFilter !== secMonthKey) {
+                    sec.style.display = "none";
+                    return;
+                }
+
                 const cards = sec.querySelectorAll('.asset-card');
                 let secVisibleCount = 0;
 
@@ -391,7 +522,6 @@
                     }
                 });
 
-                // 如果这个月份下没有任何符合条件的卡片，整个月份标题区块隐藏
                 if (secVisibleCount === 0) {
                     sec.style.display = "none";
                 } else {
@@ -405,19 +535,6 @@
             } else {
                 document.getElementById('emptyState').style.display = 'none';
             }
-        }
-
-        // ================= 预览引擎 =================
-        window.openPreview = function(srcUrl) {
-            if(!srcUrl) return; 
-            document.getElementById('modal-image').src = srcUrl;
-            const modal = document.getElementById('image-preview-modal');
-            modal.classList.remove('hidden'); void modal.offsetWidth; modal.style.display = 'flex'; setTimeout(() => modal.classList.add('visible'), 10);
-        }
-
-        window.closePreview = function() {
-            const modal = document.getElementById('image-preview-modal');
-            modal.classList.remove('visible'); setTimeout(() => { modal.style.display = 'none'; modal.classList.add('hidden'); }, 300);
         }
 
         // ================= 🔔 全局消息通知 =================
@@ -459,7 +576,7 @@
                         const opacity = n.read ? 'opacity-50' : '';
                         const dateStr = new Date(n.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                         html += `
-                            <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer ${opacity}" onclick="window.markSingleAsRead(${n.id})">
+                            <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer ${opacity}" onclick="window.markSingleAsRead(${n.id}, '${n.taskId}')">
                                 <div class="flex justify-between items-start mb-1">
                                     <h4 class="text-[13px] font-bold text-white flex items-center gap-2">${n.title} ${dot}</h4>
                                     <span class="text-[10px] text-zinc-500">${dateStr}</span>
@@ -473,10 +590,12 @@
             }
         }
 
-        window.markSingleAsRead = function(id) {
+        window.markSingleAsRead = function(id, taskId) {
             let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
             let target = sysNotifs.find(n => n.id === id);
-            if(target) { target.read = true; localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs)); window.loadNotifications(); }
+            if(target) { target.read = true; localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs)); }
+            if (taskId && taskId !== 'KANBAN') window.location.href = `task-detail-designer.html?id=${taskId}`;
+            else window.loadNotifications();
         }
 
         window.markAllAsRead = function(event) {
