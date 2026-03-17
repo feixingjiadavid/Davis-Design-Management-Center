@@ -770,20 +770,20 @@
             }
         }
 
-        // ================= 💡 核心：带有路由大脑的状态UI工厂引擎 =================
+        // ================= 💡 核心：带有路由大脑的状态UI工厂引擎 (已重构) =================
         function createTaskHTML(task, currentUser) {
             const creator = task.creator || '';
             const currentUserEn = currentUser.enName ? currentUser.enName.toLowerCase() : '';
             const isOwner = creator === currentUser.displayName || creator === currentUser.cnName || creator === currentUser.enName;
             
-            let isJudy = false;
-            if (currentUser.enName) {
-                isJudy = currentUser.enName.toLowerCase() === 'judyzzhang';
-            }
+            let isJudy = currentUserEn === 'judyzzhang';
+            let isSuperAdmin = currentUserEn === 'davidxxu'; // 💡 修复：添加超管校验
             
-            if(!isOwner && !(isJudy && task.status === 'pending_approval')) return null;
+            // 💡 修复：前端数据过滤允许超管放行
+            if(!isOwner && !(isJudy && task.status === 'pending_approval') && !isSuperAdmin) return null;
 
-            let sColor, sText, targetUrl;
+            let sColor, sText;
+            let targetUrl = `task-detail-requester.html?id=${task.id}`; // 💡 修复：统一路由入口
             let isUrgent = false;
 
             if(task.due_date && !['completed','archived','terminated'].includes(task.status)) {
@@ -794,57 +794,32 @@
                 if(diffDays <= 2 && diffDays >= -999) isUrgent = true;
             }
 
-            // 💡 智能判断阶段：决定后续如果是 processing/rejected 应该跳转到哪个页面
-            let isDraftPhase = false;
-            if (task.history_json) {
-                try {
-                    const history = JSON.parse(task.history_json);
-                    for (let i = history.length - 1; i >= 0; i--) {
-                        if (history[i].reply_by && (history[i].reply_by.includes('主管') || history[i].reply_by.includes('领导')) && !history[i].is_rejected) isDraftPhase = true;
-                        if (history[i].action === 'submit_draft') isDraftPhase = true;
-                    }
-                } catch(e) {}
-            }
-            if (task.summary_desc && (task.summary_desc.includes('正式稿') || task.summary_desc.includes('过审') || task.summary_desc.includes('大方向') || task.summary_desc.includes('通过框架'))) {
-                isDraftPhase = true;
-            }
-
-            const baseQuery = `?id=${task.id}&role=req`;
-
             switch(task.status) {
                 case 'rejected': 
                     sColor = 'text-rose-500'; sText = '需求被打回修改'; 
-                    targetUrl = isDraftPhase ? 'assistant-task-draft.html' + baseQuery : 'assistant-task-processing.html' + baseQuery; 
                     isUrgent = true; 
                     break;
                 case 'reviewing': 
                     sColor = 'text-rose-500'; sText = '方案待验收'; 
-                    targetUrl = 'task-detail-review.html' + baseQuery; 
                     break;
                 case 'pending_accept': 
                     sColor = 'text-amber-400'; sText = '待接单'; 
-                    targetUrl = 'task-detail-new.html' + baseQuery; 
                     break;
                 case 'pending_approval': 
                     sColor = 'text-amber-500'; sText = '框架待审批'; 
-                    targetUrl = isJudy ? 'task-detail-locked.html?id=' + task.id : 'task-detail-locked.html' + baseQuery; 
                     break;
                 case 'processing': 
                     sColor = 'text-emerald-500'; sText = '设计制作中'; 
-                    targetUrl = isDraftPhase ? 'assistant-task-draft.html' + baseQuery : 'assistant-task-processing.html' + baseQuery; 
                     break;
                 case 'completed': 
                 case 'archived': 
                     sColor = 'text-zinc-400'; sText = '已完结'; 
-                    targetUrl = 'task-detail-archived.html' + baseQuery; 
                     break;
                 case 'terminated': 
                     sColor = 'text-rose-700'; sText = '已强行终止'; 
-                    targetUrl = 'task-detail-archived.html' + baseQuery; 
                     break;
                 default: 
                     sColor = 'text-sky-400'; sText = '待排期/待分配'; 
-                    targetUrl = 'task-detail-new.html' + baseQuery;
             }
 
             const isCompleted = task.status === 'completed' || task.status === 'archived' || task.status === 'terminated';
@@ -1013,10 +988,12 @@
             const newId = 'TEST-' + nextNum.toString().padStart(3, '0');
 
             const user = JSON.parse(localStorage.getItem('activeUserObj'));
+            // 💡 修复：注入 reject_count 计数器
             const taskData = {
                 id: newId, title: shortTitle, full_desc: fullDesc, summary_desc: finalDesc, project: projectVal,
                 due_date: dateInput, assignee: assigneeVal, link: linkInput, channels: selectedChannels,
-                file_name: window.getFileNameFromUI(), file_data: currentUploadedFileData, status: finalStatus, creator: user.displayName || user.cnName || user.enName
+                file_name: window.getFileNameFromUI(), file_data: currentUploadedFileData, status: finalStatus, creator: user.displayName || user.cnName || user.enName,
+                reject_count: 0 
             };
 
             const { error } = await window.supabase.from(window.DB_TABLE).insert([taskData]);
@@ -1142,7 +1119,6 @@
             }
         }
 
-        // 覆盖默认标记已读
         window.markAllAsRead = function(event) {
             if(event) event.stopPropagation();
             let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
@@ -1159,7 +1135,6 @@
             if(window.showToast) window.showToast('消息已清空', '所有未读消息已成功标记为已读。', 'success');
         }
 
-        // 🚀 核心：DOM 加载完成后，挂载轮询
         document.addEventListener('DOMContentLoaded', () => {
             window.loadNotifications();
             setInterval(window.loadNotifications, 3000); 
