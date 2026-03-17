@@ -59,7 +59,8 @@
                         <span class="text-sky-400 font-mono text-sm font-bold" id="req-id">读取中...</span>
                     </div>
                     <h2 class="text-[22px] font-bold text-white tracking-tight" id="req-title-display">正在拉取云端需求...</h2>
-                    <span class="bg-sky-500/20 text-sky-400 border border-sky-500/30 px-2.5 py-1 rounded text-[11px] font-bold shadow-[0_0_10px_rgba(56,189,248,0.2)] flex items-center gap-1.5">
+                    
+                    <span id="header-status-badge" class="bg-sky-500/20 text-sky-400 border border-sky-500/30 px-2.5 py-1 rounded text-[11px] font-bold shadow-[0_0_10px_rgba(56,189,248,0.2)] flex items-center gap-1.5">
                         <svg class="animate-spin h-3 w-3 text-sky-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 
                         等待系统分配
                     </span>
@@ -122,8 +123,8 @@
                                 <span class="w-2 h-2 bg-sky-400 rounded-full animate-pulse"></span>
                             </div>
                             <div class="pt-0.5 pb-2">
-                                <p class="text-[13px] font-bold text-sky-400 mb-0.5">等待系统分配执行人</p>
-                                <p class="text-[10px] text-zinc-400">目前状态: 排队中</p>
+                                <p class="text-[13px] font-bold text-sky-400 mb-0.5" id="progress-step-title">等待系统分配执行人</p>
+                                <p class="text-[10px] text-zinc-400" id="progress-step-desc">目前状态: 排队中</p>
                             </div>
                         </div>
 
@@ -273,7 +274,23 @@
             
             document.getElementById('req-desc-display').innerHTML = descHTML + extraHTML;
 
-            // 💡 只有该单的 creator (提单人) 才能看到撤销按钮
+            // 💡 新增：动态判断是否有执行人并修改文本
+            const assigneeName = (data.assignee && data.assignee !== 'none') ? data.assignee : null;
+            const badgeEl = document.getElementById('header-status-badge');
+            const pTitleEl = document.getElementById('progress-step-title');
+            const pDescEl = document.getElementById('progress-step-desc');
+
+            if (assigneeName) {
+                if(badgeEl) badgeEl.innerHTML = `<svg class="animate-spin h-3 w-3 text-sky-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 待 ${assigneeName} 确认接单`;
+                if(pTitleEl) pTitleEl.innerText = `待 ${assigneeName} 确认排期接单`;
+                if(pDescEl) pDescEl.innerText = `目前状态: 已指派，等待响应`;
+            } else {
+                if(badgeEl) badgeEl.innerHTML = `<svg class="animate-spin h-3 w-3 text-sky-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 等待系统分配`;
+                if(pTitleEl) pTitleEl.innerText = `等待系统分配执行人`;
+                if(pDescEl) pDescEl.innerText = `目前状态: 排队中`;
+            }
+
+            // 只有该单的 creator (提单人) 才能看到撤销按钮
             const userStr = localStorage.getItem('activeUserObj');
             const user = JSON.parse(userStr);
             const dispName = user.displayName || user.cnName || user.enName;
