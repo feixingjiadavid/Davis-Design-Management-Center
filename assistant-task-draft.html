@@ -75,7 +75,7 @@
                 
                 <div class="flex-1 flex flex-col gap-8 min-w-0">
                     
-                    <div class="bg-[#121217] border border-emerald-500/30 rounded-2xl p-8 relative overflow-hidden shadow-2xl">
+                    <div id="approved-framework-section" class="bg-[#121217] border border-emerald-500/30 rounded-2xl p-8 relative overflow-hidden shadow-2xl">
                         <div class="absolute right-0 top-0 bg-emerald-500/10 text-emerald-500 text-[10px] font-bold px-3 py-1 rounded-bl-xl border-b border-l border-emerald-500/20">领导已批复的框架基底</div>
                         <h3 class="text-[15px] font-bold text-white mb-4 flex items-center gap-2">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-emerald-500"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> 
@@ -192,6 +192,7 @@
                                     <label class="cursor-pointer"><input type="checkbox" class="hidden ai-tool-cb" value="ClaudeClaw"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-3 py-2 rounded-lg transition-colors text-center font-medium">ClaudeClaw</div></label>
                                     <label class="cursor-pointer"><input type="checkbox" class="hidden ai-tool-cb" value="PS生成式填充"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[11px] px-3 py-2 rounded-lg transition-colors text-center font-medium">PS生成式填充</div></label>
                                 </div>
+                                <div class="mt-2"><input type="text" id="ai-tool-other" placeholder="其他工具可在此手填..." class="w-full bg-[#09090b] border border-zinc-700 border-dashed rounded-xl px-4 py-2.5 text-[12px] text-zinc-300 outline-none focus:border-emerald-500 transition-colors"></div>
                             </div>
                         </div>
 
@@ -229,7 +230,7 @@
             <button onclick="closePreview()" class="absolute top-8 right-8 text-white/50 hover:text-white bg-white/10 hover:bg-rose-500 rounded-full p-2 transition-all btn-press z-50">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
-            <img id="modal-image" src="" alt="预览图" class="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl" onclick="event.stopPropagation()">
+            <img id="modal-image" src="" alt="预览图" class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl" onclick="event.stopPropagation()">
         </div>
     </div>
 
@@ -297,10 +298,9 @@
             // 填充基础信息
             safeSetTxt('req-id', data.id || '--');
             safeSetTxt('req-title-display', data.title || '无标题');
-            safeSetTxt('dt-project', `${data.project || '--'}`);
+            safeSetTxt('dt-project', `归属项目: ${data.project || '--'}`);
             safeSetTxt('dt-date', data.due_date || '--');
-            safeSetTxt('dt-creator', `${data.creator || '--'}`);
-            safeSetTxt('dt-assignee', data.assignee || '--');
+            safeSetTxt('dt-creator', `发起人: ${data.creator || '--'}`);
             
             const descEl = document.getElementById('req-desc-display');
             if(descEl) descEl.innerHTML = (data.full_desc || '暂无描述').replace(/\n/g, '<br>');
@@ -334,8 +334,8 @@
             if(!approvedImgUrl) approvedImgUrl = data.design_img_url;
 
             // 渲染前置过审信息
+            const sec = document.getElementById('approved-framework-section');
             if (approvedImgUrl) {
-                const sec = document.getElementById('approved-framework-section');
                 const img = document.getElementById('approved-framework-img');
                 const pEl = document.getElementById('no-framework-placeholder');
                 
@@ -343,6 +343,12 @@
                 if(img) { img.src = approvedImgUrl; img.classList.remove('hidden'); }
                 if(pEl) pEl.classList.add('hidden');
 
+                safeSetTxt('approved-leader-feedback', leaderFeedback);
+                safeSetTxt('approved-designer-desc', designerDesc);
+            } else {
+                if(sec) sec.classList.remove('hidden');
+                const pEl = document.getElementById('no-framework-placeholder');
+                if(pEl) pEl.classList.remove('hidden');
                 safeSetTxt('approved-leader-feedback', leaderFeedback);
                 safeSetTxt('approved-designer-desc', designerDesc);
             }
@@ -353,7 +359,9 @@
             const enName = user.enName.toLowerCase();
             const dispName = user.displayName || user.cnName || user.enName;
             
-            const isRequester = dispName === data.creator || enName === (data.creator || '').toLowerCase();
+            // 核心修复：优先判断是否为执行人（设计师）！
+            const isDesigner = enName === (data.assignee || '').toLowerCase();
+            const isRequester = (dispName === data.creator || enName === (data.creator || '').toLowerCase());
             
             // 安全赋值顶部/左侧身份标识
             const hTag = document.getElementById('header-identity-tag');
@@ -366,7 +374,18 @@
             const reqWaitArea = document.getElementById('requester-waiting-area');
             const reqActArea = document.getElementById('requester-action-area');
 
-            if (isRequester) {
+            if (isDesigner) {
+                // 设计师视角：正常显示上传
+                if(hTag) hTag.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> 身份: 设计方 (当前操作人)`;
+                if(sRole) sRole.innerText = `设计方视角`;
+                
+                if(dUploadArea) dUploadArea.classList.remove('hidden');
+                if(dFormArea) dFormArea.classList.remove('hidden');
+                
+                if(reqWaitArea) reqWaitArea.classList.add('hidden');
+                if(reqActArea) reqActArea.classList.add('hidden');
+
+            } else if (isRequester) {
                 // 需求方：隐藏设计师传图和填报区，显示等待占位和催办区
                 if(hTag) hTag.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> 身份: 需求方 (只读视角)`;
                 if(sRole) sRole.innerText = `需求方视角`;
@@ -377,18 +396,18 @@
                 if(reqWaitArea) reqWaitArea.classList.remove('hidden');
                 if(reqActArea) reqActArea.classList.remove('hidden');
             } else {
-                // 设计师/其他人：显示上传和填报，隐藏占位和催办
-                if(hTag) hTag.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> 身份: 设计方 (当前操作人)`;
-                if(sRole) sRole.innerText = `设计方视角`;
+                // 访客旁观者
+                if(hTag) hTag.innerHTML = `身份: 访客 (只读视角)`;
+                if(sRole) sRole.innerText = `访客`;
                 
-                if(dUploadArea) dUploadArea.classList.remove('hidden');
-                if(dFormArea) dFormArea.classList.remove('hidden');
+                if(dUploadArea) dUploadArea.classList.add('hidden');
+                if(dFormArea) dFormArea.classList.add('hidden');
                 
-                if(reqWaitArea) reqWaitArea.classList.add('hidden');
+                if(reqWaitArea) reqWaitArea.classList.remove('hidden');
                 if(reqActArea) reqActArea.classList.add('hidden');
             }
 
-            // 渲染右下角进度时间轴
+            // 渲染时间轴
             renderTimeline(data, windowHistoryArr);
         }
 
