@@ -167,7 +167,7 @@
 
             <div class="w-full max-w-[1400px] flex gap-8 items-start h-full pb-4">
                 
-                <div class="flex-1 bg-[#121217] border border-white/5 rounded-3xl overflow-hidden shadow-2xl flex flex-col h-full min-w-0" id="main-grid-wrapper" onscroll="hideHoverCard()">
+                <div class="flex-1 bg-[#121217] border border-white/5 rounded-3xl overflow-hidden shadow-2xl flex flex-col h-full min-w-0" id="main-grid-wrapper">
                     
                     <div id="view-month" class="view-section active flex-col h-full">
                         <div class="grid grid-cols-7 border-b border-white/5 bg-[#16161d] shrink-0">
@@ -193,12 +193,12 @@
                     </h3>
                     
                     <div class="grid grid-cols-2 gap-4 mb-4">
-                        <div class="bg-[#09090b] border border-white/5 p-4 rounded-2xl flex flex-col justify-center relative overflow-hidden group" title="本周期内您通过日志填报的总耗时">
+                        <div class="bg-[#09090b] border border-white/5 p-4 rounded-2xl flex flex-col justify-center relative overflow-hidden group">
                             <div class="absolute right-0 top-0 bottom-0 w-1 bg-orange-500 group-hover:w-2 transition-all"></div>
                             <p class="text-[11px] text-zinc-500 mb-1 font-medium" id="stat-period-title">本期填报工时</p>
                             <p class="text-[28px] font-black text-white font-mono leading-none tracking-tight"><span id="stat-total-hours">0.0</span><span class="text-xs text-zinc-600 ml-1 font-sans font-normal">h</span></p>
                         </div>
-                        <div class="bg-[#09090b] border border-white/5 p-4 rounded-2xl flex flex-col justify-center relative overflow-hidden group" title="您参与的任务在期望交付日之前完成的比例">
+                        <div class="bg-[#09090b] border border-white/5 p-4 rounded-2xl flex flex-col justify-center relative overflow-hidden group">
                             <div class="absolute right-0 top-0 bottom-0 w-1 bg-emerald-500 group-hover:w-2 transition-all"></div>
                             <p class="text-[11px] text-zinc-500 mb-1 font-medium">按时交付率</p>
                             <p class="text-[28px] font-black text-emerald-400 font-mono leading-none tracking-tight" id="stat-ontime-rate">--</p>
@@ -206,12 +206,12 @@
                     </div>
 
                     <div class="grid grid-cols-2 gap-4 mb-6">
-                        <div class="bg-[#09090b] border border-white/5 p-4 rounded-2xl flex flex-col justify-center relative overflow-hidden group" title="您的方案首次提交即过审，无需返工的比例">
+                        <div class="bg-[#09090b] border border-white/5 p-4 rounded-2xl flex flex-col justify-center relative overflow-hidden group">
                             <div class="absolute right-0 top-0 bottom-0 w-1 bg-indigo-500 group-hover:w-2 transition-all"></div>
                             <p class="text-[11px] text-zinc-500 mb-1 font-medium">一稿通过率</p>
                             <p class="text-[24px] font-black text-indigo-400 font-mono leading-none tracking-tight" id="stat-first-pass">--</p>
                         </div>
-                        <div class="bg-[#09090b] border border-white/5 p-4 rounded-2xl flex flex-col justify-center relative overflow-hidden group" title="因使用 AI 工具而预估为您节约的总时间">
+                        <div class="bg-[#09090b] border border-white/5 p-4 rounded-2xl flex flex-col justify-center relative overflow-hidden group">
                             <div class="absolute right-0 top-0 bottom-0 w-1 bg-fuchsia-500 group-hover:w-2 transition-all"></div>
                             <p class="text-[11px] text-zinc-500 mb-1 font-medium">AI 辅助提效</p>
                             <p class="text-[24px] font-black text-fuchsia-400 font-mono leading-none tracking-tight">+<span id="stat-ai-saved">0</span><span class="text-xs text-fuchsia-500/50 ml-1 font-sans font-normal">h</span></p>
@@ -249,8 +249,7 @@
         </div>
     </main>
 
-    <div id="hover-detail-card" class="fixed z-[999999] pointer-events-none opacity-0 transition-opacity duration-200 hidden bg-[#121217]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8)] p-5 w-80 flex-col">
-    </div>
+    <div id="hover-detail-card" class="fixed z-[999999] pointer-events-none opacity-0 transition-opacity duration-200 hidden bg-[#121217]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8)] p-5 w-80 flex-col"></div>
 
     <div id="period-detail-modal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center">
         <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('period-detail-modal')"></div>
@@ -293,20 +292,11 @@
         </div>
     </div>
 
-    <div id="action-toast" class="fixed top-8 right-8 z-[100000] hidden toast-slide-in">
-        <div class="bg-[#1a1a1f] border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-3 w-72">
-            <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            </div>
-            <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-zinc-400 text-[11px] mt-0.5">操作已执行。</p></div>
-        </div>
-    </div>
-
     <script type="module">
         import { supabase } from './supabase-config.js';
         window.supabase = supabase;
         window.DB_TABLE = 'test_tasks'; 
-        if(window.loadTasksFromCloud) window.loadTasksFromCloud();
+        if(window.initApp) window.initApp();
     </script>
 
     <script>
@@ -362,6 +352,7 @@
             showDialogUI();
         }
 
+        // ================= 基础交互 =================
         window.logout = function(e) {
             if(e) e.stopPropagation();
             localStorage.removeItem('activeUserObj'); window.location.href = 'login.html'; 
@@ -761,55 +752,60 @@
             document.getElementById('stat-first-pass').innerText = totalCompletedInPeriod > 0 ? `${firstPassRate}%` : '--';
             document.getElementById('stat-ai-saved').innerText = aiSavedHours;
 
+            // 💡 修复：确保这俩容器写入不出错
             const distContainer = document.getElementById('project-dist-container');
-            if (totalPeriodHours === 0) {
-                distContainer.innerHTML = '<div class="text-center text-zinc-500 py-10 text-sm">当前周期无填报工时</div>';
-            } else {
-                let distHtml = '';
-                const sortedProj = Object.keys(projectHoursMap).map(k => ({ name: k, count: projectHoursMap[k] })).sort((a,b) => b.count - a.count).slice(0,5);
-                const colors = ['orange', 'emerald', 'sky', 'indigo', 'fuchsia'];
+            if (distContainer) {
+                if (totalPeriodHours === 0) {
+                    distContainer.innerHTML = '<div class="text-center text-zinc-500 py-10 text-sm">当前周期无填报工时</div>';
+                } else {
+                    let distHtml = '';
+                    const sortedProj = Object.keys(projectHoursMap).map(k => ({ name: k, count: projectHoursMap[k] })).sort((a,b) => b.count - a.count).slice(0,5);
+                    const colors = ['orange', 'emerald', 'sky', 'indigo', 'fuchsia'];
 
-                sortedProj.forEach((p, idx) => {
-                    const pct = Math.round((p.count / totalPeriodHours) * 100);
-                    const col = colors[idx % colors.length];
-                    distHtml += `
-                    <div class="mb-4">
-                        <div class="flex justify-between items-end mb-1.5">
-                            <h4 class="text-[13px] font-bold text-zinc-200 truncate pr-2">${p.name}</h4>
-                            <div class="text-right shrink-0">
-                                <span class="text-[13px] font-mono font-bold text-${col}-400">${p.count.toFixed(1)} <span class="text-[10px] text-${col}-400/60 font-sans font-normal">h</span></span>
+                    sortedProj.forEach((p, idx) => {
+                        const pct = Math.round((p.count / totalPeriodHours) * 100);
+                        const col = colors[idx % colors.length];
+                        distHtml += `
+                        <div class="mb-4">
+                            <div class="flex justify-between items-end mb-1.5">
+                                <h4 class="text-[13px] font-bold text-zinc-200 truncate pr-2">${p.name}</h4>
+                                <div class="text-right shrink-0">
+                                    <span class="text-[13px] font-mono font-bold text-${col}-400">${p.count.toFixed(1)} <span class="text-[10px] text-${col}-400/60 font-sans font-normal">h</span></span>
+                                </div>
                             </div>
-                        </div>
-                        <div class="w-full h-1.5 bg-zinc-900 rounded-full overflow-hidden">
-                            <div class="h-full bg-${col}-500 rounded-full opacity-80 shadow-[0_0_10px_var(--tw-colors-${col}-500)]" style="width: ${pct}%"></div>
-                        </div>
-                    </div>`;
-                });
-                distContainer.innerHTML = distHtml;
+                            <div class="w-full h-1.5 bg-zinc-900 rounded-full overflow-hidden">
+                                <div class="h-full bg-${col}-500 rounded-full opacity-80 shadow-[0_0_10px_var(--tw-colors-${col}-500)]" style="width: ${pct}%"></div>
+                            </div>
+                        </div>`;
+                    });
+                    distContainer.innerHTML = distHtml;
+                }
             }
 
             const aiContainer = document.getElementById('ai-dist-container');
-            const totalToolTags = Object.values(aiToolsFreq).reduce((a, b) => a + b, 0);
-            if (totalToolTags === 0) {
-                aiContainer.innerHTML = '<div class="text-center text-zinc-500 py-6 text-sm">本期未使用 AI 辅助</div>';
-            } else {
-                let aiHtml = '';
-                const AI_COLOR_MAP = { 'Midjourney': 'emerald', 'Gemini': 'indigo', 'PS生成填充': 'sky', '豆包': 'fuchsia', '即梦': 'orange' };
-                const sortedTools = Object.keys(aiToolsFreq).map(k => ({ name: k, count: aiToolsFreq[k] })).sort((a,b) => b.count - a.count).slice(0,5);
-                
-                sortedTools.forEach(t => {
-                    const pct = Math.round((t.count / totalToolTags) * 100);
-                    const col = AI_COLOR_MAP[t.name] || 'indigo';
-                    aiHtml += `
-                    <div class="mb-3">
-                        <div class="flex items-center justify-between mb-1.5">
-                            <span class="text-[12px] font-bold text-${col}-400 flex items-center gap-2"><div class="w-2 h-2 bg-${col}-400 rounded-full shadow-[0_0_8px_var(--tw-colors-${col}-400)]"></div> ${t.name}</span>
-                            <span class="text-[12px] font-mono font-bold text-white">${pct}% <span class="text-[10px] font-normal text-zinc-500 ml-1">(${t.count}次)</span></span>
-                        </div>
-                        <div class="w-full h-1.5 bg-zinc-900 rounded-full"><div class="h-full bg-${col}-500 rounded-full opacity-80" style="width: ${pct}%"></div></div>
-                    </div>`;
-                });
-                aiContainer.innerHTML = aiHtml;
+            if (aiContainer) {
+                const totalToolTags = Object.values(aiToolsFreq).reduce((a, b) => a + b, 0);
+                if (totalToolTags === 0) {
+                    aiContainer.innerHTML = '<div class="text-center text-zinc-500 py-6 text-sm">本期未使用 AI 辅助</div>';
+                } else {
+                    let aiHtml = '';
+                    const AI_COLOR_MAP = { 'Midjourney': 'emerald', 'Gemini': 'indigo', 'PS生成填充': 'sky', '豆包': 'fuchsia', '即梦': 'orange' };
+                    const sortedTools = Object.keys(aiToolsFreq).map(k => ({ name: k, count: aiToolsFreq[k] })).sort((a,b) => b.count - a.count).slice(0,5);
+                    
+                    sortedTools.forEach(t => {
+                        const pct = Math.round((t.count / totalToolTags) * 100);
+                        const col = AI_COLOR_MAP[t.name] || 'indigo';
+                        aiHtml += `
+                        <div class="mb-3">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <span class="text-[12px] font-bold text-${col}-400 flex items-center gap-2"><div class="w-2 h-2 bg-${col}-400 rounded-full shadow-[0_0_8px_var(--tw-colors-${col}-400)]"></div> ${t.name}</span>
+                                <span class="text-[12px] font-mono font-bold text-white">${pct}% <span class="text-[10px] font-normal text-zinc-500 ml-1">(${t.count}次)</span></span>
+                            </div>
+                            <div class="w-full h-1.5 bg-zinc-900 rounded-full"><div class="h-full bg-${col}-500 rounded-full opacity-80" style="width: ${pct}%"></div></div>
+                        </div>`;
+                    });
+                    aiContainer.innerHTML = aiHtml;
+                }
             }
         }
 
