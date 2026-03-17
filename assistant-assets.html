@@ -88,11 +88,14 @@
             </div>
             
             <div class="flex items-center gap-6">
-                <div class="relative w-64">
+                <div class="relative w-64 flex items-center group">
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <svg class="h-4 w-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                     </div>
-                    <input type="text" id="asset-search" onkeyup="filterAssets()" class="w-full bg-[#121217] border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm text-white placeholder-zinc-500 outline-none focus:border-orange-500 transition-colors" placeholder="支持搜：202603、项目、标签...">
+                    <input type="text" id="asset-search" oninput="filterAssets()" class="w-full bg-[#121217] border border-white/10 rounded-xl pl-10 pr-10 py-2 text-sm text-white placeholder-zinc-500 outline-none focus:border-orange-500 transition-colors" placeholder="支持搜：202603、项目、标签...">
+                    <button id="clear-search-btn" onclick="clearAssetSearch()" class="absolute inset-y-0 right-0 pr-3 flex items-center text-zinc-500 hover:text-white transition-colors hidden btn-press">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
                 </div>
 
                 <div class="w-px h-8 bg-white/10"></div>
@@ -129,7 +132,7 @@
             </div>
         </header>
 
-        <div class="flex-1 overflow-hidden flex flex-col relative">
+        <div class="flex-1 p-10 overflow-y-auto custom-scrollbar flex justify-center relative">
             
             <div id="assets-loading" class="absolute inset-0 bg-[#0c0c0e]/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center">
                 <svg class="animate-spin h-8 w-8 text-orange-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
@@ -142,15 +145,13 @@
                 <p class="text-[11px] text-zinc-500 mt-2">当需求被验收完结后，作品会自动收录在此处</p>
             </div>
 
-            <div class="flex-1 overflow-y-auto custom-scrollbar p-10 flex justify-center">
-                <div class="w-full max-w-[1400px] flex flex-col">
-                    
-                    <div class="w-full mb-8 flex items-center gap-3 overflow-x-auto hide-scroll pb-2" id="month-filter-container">
-                        </div>
+            <div class="w-full max-w-[1400px] flex flex-col">
+                
+                <div class="w-full mb-6 flex items-center gap-3 overflow-x-auto hide-scroll py-3 px-1" id="month-filter-container">
+                    </div>
 
-                    <div class="w-full flex flex-col gap-12 pb-10" id="assets-container">
-                        </div>
-                </div>
+                <div class="w-full flex flex-col gap-12 pb-10" id="assets-container">
+                    </div>
             </div>
 
         </div>
@@ -164,9 +165,9 @@
                 <button onclick="window.closePwdModal()" class="text-zinc-500 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-full p-1 transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
             </div>
             <div class="space-y-4">
-                <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">当前密码</label><input type="password" id="old-pwd" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-orange-500 transition-colors"></div>
-                <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">新密码</label><input type="password" id="new-pwd" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-orange-500 transition-colors"></div>
-                <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">确认新密码</label><input type="password" id="new-pwd-confirm" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-orange-500 transition-colors"></div>
+                <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">当前密码</label><input type="password" id="old-pwd" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-orange-500 transition-colors" placeholder="输入原密码"></div>
+                <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">新密码</label><input type="password" id="new-pwd" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-orange-500 transition-colors" placeholder="输入新密码"></div>
+                <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">确认新密码</label><input type="password" id="new-pwd-confirm" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-orange-500 transition-colors" placeholder="再次输入新密码"></div>
             </div>
             <button onclick="window.submitPwdChange()" class="w-full mt-6 py-3.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-sm font-bold shadow-[0_5px_15px_rgba(249,115,22,0.3)] transition-all btn-press">确认修改并重新登录</button>
         </div>
@@ -283,6 +284,7 @@
             const avatarEl = document.getElementById('sidebar-avatar');
             if(avatarEl) { avatarEl.innerText = user.avatar || '?'; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-orange-600'} border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg shrink-0`; }
             if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.cnName || user.enName;
+            if(document.getElementById('sidebar-role')) document.getElementById('sidebar-role').innerHTML = `<span class="text-orange-400 font-bold">当前视角: 设计方</span>`;
             
             const menuContainer = document.getElementById('dynamic-identity-list');
             if (menuContainer) {
@@ -311,7 +313,6 @@
             return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
         }
 
-        // 全局状态记录
         window.activeMonthFilter = 'all';
 
         // ================= 💡 核心：全量按月分组剥离过稿资产 =================
@@ -384,7 +385,6 @@
 
                 const sortedKeys = Object.keys(groupedAssets).sort((a, b) => b - a);
 
-                // 💡 渲染月份过滤器
                 let filterHtml = `<button onclick="window.setMonthFilter('all')" class="month-filter-btn bg-orange-600 text-white border border-orange-500 px-5 py-2 rounded-full text-[13px] font-bold shadow-[0_4px_10px_rgba(249,115,22,0.3)] transition-all shrink-0 btn-press" data-key="all">全部月份</button>`;
                 sortedKeys.forEach(key => {
                     const group = groupedAssets[key];
@@ -392,7 +392,6 @@
                 });
                 document.getElementById('month-filter-container').innerHTML = filterHtml;
 
-                // 💡 渲染卡片区块
                 sortedKeys.forEach(key => {
                     const group = groupedAssets[key];
                     
@@ -494,15 +493,20 @@
             window.filterAssets();
         }
 
+        // 💡 修复：带 X 一键清空的输入框逻辑
         window.filterAssets = function() {
-            const input = document.getElementById("asset-search").value.toLowerCase().trim();
+            const inputEl = document.getElementById("asset-search");
+            const input = inputEl.value.toLowerCase().trim();
+            const clearBtn = document.getElementById("clear-search-btn");
+            
+            if (input.length > 0) clearBtn.classList.remove('hidden');
+            else clearBtn.classList.add('hidden');
+
             const sections = document.querySelectorAll('.month-section');
             let globalVisibleCount = 0;
 
             sections.forEach(sec => {
                 const secMonthKey = sec.dataset.monthKey;
-                
-                // 检查月份过滤
                 if (window.activeMonthFilter !== 'all' && window.activeMonthFilter !== secMonthKey) {
                     sec.style.display = "none";
                     return;
@@ -522,11 +526,8 @@
                     }
                 });
 
-                if (secVisibleCount === 0) {
-                    sec.style.display = "none";
-                } else {
-                    sec.style.display = "flex";
-                }
+                if (secVisibleCount === 0) sec.style.display = "none";
+                else sec.style.display = "flex";
             });
 
             if(globalVisibleCount === 0) {
@@ -535,6 +536,13 @@
             } else {
                 document.getElementById('emptyState').style.display = 'none';
             }
+        }
+
+        window.clearAssetSearch = function() {
+            const inputEl = document.getElementById("asset-search");
+            inputEl.value = "";
+            window.filterAssets();
+            inputEl.focus();
         }
 
         // ================= 🔔 全局消息通知 =================
