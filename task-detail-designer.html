@@ -156,6 +156,20 @@
                         </div>
                     </div>
 
+                    <div id="readonly-preview-area" class="hidden bg-[#121217] border border-white/5 rounded-2xl p-8 relative overflow-hidden shadow-2xl">
+                        <h3 class="text-[15px] font-bold text-white mb-4 flex items-center gap-2" id="readonly-preview-title">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                            当前提交方案预览
+                        </h3>
+                        <div class="w-full aspect-[16/9] bg-[#09090b] rounded-xl border border-white/10 overflow-hidden relative shadow-inner p-2 flex items-center justify-center">
+                            <img id="readonly-preview-img" src="" class="max-w-full max-h-full object-contain cursor-pointer transition-transform hover:scale-[1.02]" onclick="openPreview(this.src)" title="点击全屏查看">
+                        </div>
+                        <div class="mt-4 bg-white/5 border border-white/10 rounded-xl p-4">
+                            <p class="text-[12px] font-bold text-zinc-400 mb-1">📝 交付说明：</p>
+                            <p class="text-[12px] text-zinc-200 leading-relaxed whitespace-pre-wrap" id="readonly-preview-desc">--</p>
+                        </div>
+                    </div>
+
                 </div>
 
                 <div class="w-[380px] shrink-0 flex flex-col gap-6 sticky top-0 pb-10">
@@ -163,6 +177,9 @@
                     <div id="smart-action-panel" class="bg-[#121217] border border-white/5 rounded-3xl p-7 shadow-2xl relative overflow-hidden transition-all duration-300">
                         <div class="text-center py-6 text-zinc-500 text-sm">面板初始化中...</div>
                     </div>
+
+                    <div id="resource-summary-panel" class="hidden bg-[#121217] border border-white/5 rounded-3xl p-7 shadow-xl">
+                        </div>
 
                     <div class="bg-[#121217] border border-white/5 rounded-3xl p-7 flex flex-col shadow-xl">
                         <h3 class="text-[14px] font-bold text-white mb-6 border-b border-white/5 pb-4">全量流转生命周期日志</h3>
@@ -232,6 +249,24 @@
 
     <script>
         const safeSetTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.innerText = txt; };
+        function showToast(title, desc, type = 'success') {
+            const toast = document.getElementById('action-toast');
+            document.getElementById('toast-title').innerText = title;
+            document.getElementById('toast-desc').innerText = desc;
+            const icon = document.getElementById('toast-icon');
+            if(type === 'success') {
+                icon.className = "w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0";
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+            } else if(type === 'info') {
+                icon.className = "w-8 h-8 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center shrink-0";
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+            } else {
+                icon.className = "w-8 h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0";
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+            }
+            toast.classList.remove('hidden');
+            setTimeout(() => { toast.classList.add('hidden'); }, 3000);
+        }
 
         const urlParams = new URLSearchParams(window.location.search);
         const currentTaskId = urlParams.get('id');
@@ -256,6 +291,17 @@
             setTimeout(() => clearInterval(checkAndLoad), 5000); 
         }
 
+        // 💡 提取精确的真实版本号逻辑
+        function getNextVersionNumber(historyArr) {
+            let count = 0;
+            historyArr.forEach(h => {
+                if (h.action === 'submit_framework' || h.action === 'submit_draft') {
+                    count++;
+                }
+            });
+            return count + 1; // 下一个版本即为 count + 1
+        }
+
         async function fetchTaskData() {
             try {
                 const { data, error } = await window.supabase.from(window.DB_TABLE).select('*').eq('id', currentTaskId).single();
@@ -267,9 +313,10 @@
                 renderStaticInfo();
                 renderVersionHistory(); 
                 renderSmartDesignerPanel();
+                renderResourceSummary(); // 💡 渲染右侧资源汇总大盘
                 renderTimeline();
 
-            } catch(e) { console.error(e); }
+            } catch(e) { console.error(e); showToast("数据加载失败", e.message, "error"); }
         }
 
         function renderStaticInfo() {
@@ -300,7 +347,51 @@
             const a = document.createElement('a'); a.href = dataBase64; a.download = name; a.click();
         }
 
-        // ================= 💡 全新核心：版本历史画廊引擎 =================
+        // ================= 💡 全新右侧资源统筹大盘 =================
+        function renderResourceSummary() {
+            let stats = {};
+            
+            // 遍历并归总所有历史工时和工具
+            globalHistoryArr.forEach(h => {
+                if (h.action === 'submit_framework' || h.action === 'submit_draft') {
+                    let op = h.operator || '未知设计师';
+                    if (!stats[op]) stats[op] = { hours: 0, tools: new Set() };
+                    
+                    stats[op].hours += parseFloat(h.work_hours || 0);
+                    if (h.ai_tools && Array.isArray(h.ai_tools)) {
+                        h.ai_tools.forEach(t => stats[op].tools.add(t));
+                    }
+                }
+            });
+
+            const panel = document.getElementById('resource-summary-panel');
+            let html = `<h3 class="text-[14px] font-bold text-white mb-4 border-b border-white/5 pb-3 flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> 累计资源投入大盘</h3>`;
+            
+            if (Object.keys(stats).length === 0) {
+                html += `<p class="text-xs text-zinc-500">暂无投入记录</p>`;
+            } else {
+                html += `<div class="space-y-3">`;
+                for (let op in stats) {
+                    let toolsArray = Array.from(stats[op].tools);
+                    let toolsText = toolsArray.length > 0 ? toolsArray.join(', ') : '纯手绘 / 未使用';
+                    html += `
+                    <div class="bg-white/5 border border-white/10 p-3.5 rounded-xl">
+                        <div class="flex justify-between items-center mb-2.5">
+                            <span class="text-[13px] font-bold text-orange-400">${op}</span>
+                            <span class="text-[13px] font-black text-white font-mono bg-white/10 px-2 py-0.5 rounded shadow-inner">${stats[op].hours} <span class="text-[10px] text-zinc-400 font-normal">h</span></span>
+                        </div>
+                        <p class="text-[11px] text-zinc-400 truncate" title="${toolsText}">🛠️ 工具: <span class="text-emerald-400">${toolsText}</span></p>
+                    </div>
+                    `;
+                }
+                html += `</div>`;
+            }
+            
+            panel.innerHTML = html;
+            panel.classList.remove('hidden');
+        }
+
+        // ================= 💡 全新核心：版本历史画廊引擎 (增加提取按钮) =================
         function renderVersionHistory() {
             const container = document.getElementById('version-history-container');
             const block = document.getElementById('version-history-block');
@@ -344,8 +435,21 @@
                 let toolsArr = sub.ai_tools || [];
                 let toolsTxt = toolsArr.length > 0 ? toolsArr.join('、') : '纯手绘 / 未填';
 
+                // 💡 新增：动态生成源文件下载链接
+                let sourceLinkHtml = '';
+                if (sub.source_link) {
+                    let href = sub.source_link.trim();
+                    if(!href.match(/^https?:\/\//i) && !href.startsWith('//')) href = 'http://' + href;
+                    sourceLinkHtml = `
+                        <a href="${href}" target="_blank" class="mt-3 inline-flex items-center gap-1.5 text-[11px] text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1.5 rounded-lg hover:bg-indigo-500/20 transition-colors w-fit btn-press">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                            提取提交的源文件
+                        </a>
+                    `;
+                }
+
                 html += `
-                    <div class="bg-[#16161d] border border-white/5 rounded-2xl p-5 relative overflow-hidden flex gap-6 hover:border-${badgeCol}-500/30 transition-colors group">
+                    <div class="bg-[#16161d] border border-white/5 rounded-2xl p-5 relative overflow-hidden flex gap-6 hover:border-${badgeCol}-500/30 transition-colors group shadow-md">
                         <div class="absolute right-0 top-0 bg-${badgeCol}-500/10 text-${badgeCol}-500 text-[10px] font-bold px-3 py-1 rounded-bl-xl border-b border-l border-${badgeCol}-500/20">${badgeTxt}</div>
                         
                         <div class="w-[280px] aspect-video bg-[#09090b] rounded-xl border border-white/10 overflow-hidden relative shadow-inner p-1 flex items-center justify-center shrink-0 cursor-pointer" onclick="openPreview('${sub.img_url}')">
@@ -353,15 +457,15 @@
                             <div class="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded backdrop-blur-sm pointer-events-none">点击看大图</div>
                         </div>
                         
-                        <div class="flex-1 flex flex-col justify-center space-y-4">
+                        <div class="flex-1 flex flex-col justify-center space-y-3">
                             <div>
                                 <h4 class="text-[15px] font-bold text-white mb-1 flex items-center gap-2">
-                                    ${typeTxt} <span class="bg-white/10 px-2 py-0.5 rounded text-[11px] font-mono text-zinc-300 shadow-sm">${sub.version || 'v-1'}</span>
+                                    ${typeTxt} <span class="bg-white/10 px-2 py-0.5 rounded text-[11px] font-mono text-zinc-300 shadow-sm">${sub.version || 'v-X'}</span>
                                 </h4>
                                 <p class="text-[11px] text-zinc-500">执行人: <span class="text-orange-400 font-bold">${sub.operator || '未知'}</span> <span class="mx-2">|</span> 提交时间: ${new Date(sub.created_at || sub.time).toLocaleString()}</p>
                             </div>
                             
-                            <div class="grid grid-cols-2 gap-4 bg-white/5 p-3.5 rounded-xl border border-white/5">
+                            <div class="grid grid-cols-2 gap-4 bg-white/5 p-3 rounded-xl border border-white/5">
                                 <div>
                                     <p class="text-[10px] text-zinc-500 mb-1 flex items-center gap-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> 消耗工时</p>
                                     <p class="text-[14px] font-black text-white font-mono">${sub.work_hours || 0} <span class="text-[10px] text-zinc-500 font-normal">小时</span></p>
@@ -375,6 +479,8 @@
                             <div class="text-[12px] text-zinc-400 bg-[#09090b] p-3 rounded-lg border border-white/5">
                                 <span class="font-bold text-zinc-300">📝 交付说明:</span> ${sub.desc || '未填写'}
                             </div>
+
+                            ${sourceLinkHtml}
                             
                             ${sub.fate === 'rejected' ? `<div class="text-[12px] text-rose-400 bg-rose-500/10 p-3 rounded-lg border border-rose-500/20"><span class="font-bold">💥 被驳回原因:</span> ${sub.fateReason || '无详细意见'}</div>` : ''}
                             ${sub.fate === 'approved' ? `<div class="text-[12px] text-emerald-400 bg-emerald-500/10 p-3 rounded-lg border border-emerald-500/20"><span class="font-bold">✅ 过审意见:</span> ${sub.fateReason || '直接通过'}</div>` : ''}
@@ -385,7 +491,6 @@
             container.innerHTML = html;
         }
 
-        // 💡 动态操作面板
         function renderSmartDesignerPanel() {
             const status = globalTaskData.status;
             const hBadge = document.getElementById('header-status-badge');
@@ -399,8 +504,9 @@
             let pnlHtml = '';
             let pnlClasses = 'bg-[#121217] border border-white/5 rounded-3xl p-7 shadow-2xl relative overflow-hidden transition-all duration-300';
             
-            const newVerNum = globalHistoryArr.length + 1;
-            document.getElementById('upload-version-tag').innerText = `(记录为 v-${newVerNum})`;
+            // 💡 修复：使用精确计数算法获取版本号
+            const preciseVersionNum = getNextVersionNumber(globalHistoryArr);
+            document.getElementById('upload-version-tag').innerText = `(将记录为 v-${preciseVersionNum})`;
 
             let rejectFeedback = '';
             let rejectAction = '';
@@ -455,11 +561,11 @@
                 }
 
                 if (currentUploadPhase === 'draft') {
-                    document.getElementById('upload-section-title').innerHTML = `工作台：上传最终正式稿 <span class="text-xs text-orange-500/80 font-normal ml-2" id="upload-version-tag">(记录为 v-${newVerNum})</span>`;
+                    document.getElementById('upload-section-title').innerHTML = `工作台：上传最终正式稿 <span class="text-xs text-orange-500/80 font-normal ml-2" id="upload-version-tag">(将记录为 v-${preciseVersionNum})</span>`;
                     document.getElementById('upload-label-text').innerHTML = `1. 正式稿在线预览图 (JPG/PNG) <span class="text-rose-500">*</span>`;
                     document.getElementById('source-link-input-group').classList.remove('hidden'); 
                 } else {
-                    document.getElementById('upload-section-title').innerHTML = `工作台：上传框架方案 <span class="text-xs text-orange-500/80 font-normal ml-2" id="upload-version-tag">(记录为 v-${newVerNum})</span>`;
+                    document.getElementById('upload-section-title').innerHTML = `工作台：上传框架方案 <span class="text-xs text-orange-500/80 font-normal ml-2" id="upload-version-tag">(将记录为 v-${preciseVersionNum})</span>`;
                     document.getElementById('upload-label-text').innerHTML = `1. 框架预览图 (JPG/PNG) <span class="text-rose-500">*</span>`;
                 }
 
@@ -500,7 +606,6 @@
                 
                 upArea.classList.add('hidden'); 
                 
-                // 💡 修复：提供一键催办动作
                 let urgeFn = status === 'pending_approval' ? 'urgeLeader(this)' : 'urgeRequester(this)';
                 let urgeText = status === 'pending_approval' ? '🚀 催促丹楠姐审批' : '🚀 催促甲方验收';
 
@@ -540,7 +645,6 @@
             pnl.innerHTML = pnlHtml;
         }
 
-        // ================= 一键催办系统 =================
         window.urgeLeader = function(btn) {
             btn.innerHTML = '✓ 已发送催办提醒';
             btn.className = "w-full py-3.5 bg-zinc-800 border border-zinc-700 text-zinc-500 rounded-xl text-[13px] font-bold cursor-not-allowed mb-3";
@@ -654,25 +758,20 @@
             document.getElementById('upload-placeholder').classList.remove('hidden'); document.getElementById('upload-preview').classList.add('hidden');
         }
 
-        window.openAcceptModal = function() { 
-            const overlay = document.getElementById('accept-modal-overlay');
-            const modal = document.getElementById('accept-modal');
-            overlay.classList.remove('hidden'); setTimeout(() => { overlay.classList.remove('opacity-0'); modal.classList.remove('hidden'); }, 10); 
-        }
-        window.openRejectModal = function() { 
-            const overlay = document.getElementById('reject-modal-overlay');
-            const modal = document.getElementById('reject-modal');
-            overlay.classList.remove('hidden'); setTimeout(() => { overlay.classList.remove('opacity-0'); modal.classList.remove('hidden'); }, 10); 
-        }
+        // ================= 弹窗控制 =================
+        const acceptOverlay = document.getElementById('accept-modal-overlay');
+        const acceptModal = document.getElementById('accept-modal');
+        const rejectOverlay = document.getElementById('reject-modal-overlay');
+        const rejectModal = document.getElementById('reject-modal');
+
+        window.openAcceptModal = function() { acceptOverlay.classList.remove('hidden'); setTimeout(() => { acceptOverlay.classList.remove('opacity-0'); acceptModal.classList.remove('hidden'); }, 10); }
+        window.openRejectModal = function() { rejectOverlay.classList.remove('hidden'); setTimeout(() => { rejectOverlay.classList.remove('opacity-0'); rejectModal.classList.remove('hidden'); }, 10); }
         window.closeActionModals = function() {
-            const overlays = [document.getElementById('accept-modal-overlay'), document.getElementById('reject-modal-overlay')];
-            const modals = [document.getElementById('accept-modal'), document.getElementById('reject-modal')];
-            overlays.forEach(o => { if(o) o.classList.add('opacity-0'); });
-            setTimeout(() => { 
-                overlays.forEach(o => { if(o) o.classList.add('hidden'); }); 
-                modals.forEach(m => { if(m) m.classList.add('hidden'); }); 
-            }, 300);
+            acceptOverlay.classList.add('opacity-0'); rejectOverlay.classList.add('opacity-0');
+            setTimeout(() => { acceptOverlay.classList.add('hidden'); acceptModal.classList.add('hidden'); rejectOverlay.classList.add('hidden'); rejectModal.classList.add('hidden'); }, 300);
         }
+
+        // ================= 核心写入动作 =================
 
         window.submitAccept = async function() {
             const fwDate = document.getElementById('framework-date').value;
@@ -764,8 +863,11 @@
             const manualAI = document.getElementById('ai-tool-manual')?.value.trim();
             if (manualAI) checkedAIs.push(manualAI);
 
+            // 💡 修复：使用精确版本号
+            const preciseVersionNum = getNextVersionNumber(globalHistoryArr);
+
             const newHistoryRecord = {
-                version: `v-${globalHistoryArr.length + 1}`,
+                version: `v-${preciseVersionNum}`,
                 desc: descText,
                 img_url: finalCloudUrl,
                 source_link: sourceLink,
@@ -779,8 +881,8 @@
 
             const nextStatus = currentUploadPhase === 'framework' ? 'pending_approval' : 'reviewing';
             const summaryStr = currentUploadPhase === 'framework' 
-                ? `框架已上传，待领导审批 (版本: v-${globalHistoryArr.length})` 
-                : `正式稿已送达甲方，待验收 (版本: v-${globalHistoryArr.length})`;
+                ? `框架已上传，待领导审批 (版本: v-${preciseVersionNum})` 
+                : `正式稿已送达甲方，待验收 (版本: v-${preciseVersionNum})`;
 
             if (window.supabase) {
                 let fallbackImg = finalCloudUrl;
