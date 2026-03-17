@@ -98,11 +98,11 @@
                         </div>
                         <input type="text" id="searchInput" onkeyup="filterTable()" class="w-full bg-[#121217] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-[13px] text-white outline-none focus:border-indigo-500 transition-colors" placeholder="搜索单号、标题、执行人...">
                     </div>
+                    
                     <select id="projectFilter" onchange="filterTable()" class="bg-[#121217] border border-white/10 rounded-xl px-4 py-2.5 text-[13px] text-zinc-300 outline-none hover:border-white/20 transition-colors cursor-pointer appearance-none">
                         <option value="all">所有归属项目</option>
-                        <option value="routine">日常行政支撑</option>
-                        <option value="promo">2026战略宣发矩阵</option>
                     </select>
+                    
                     <select id="statusFilter" onchange="filterTable()" class="bg-[#121217] border border-white/10 rounded-xl px-4 py-2.5 text-[13px] text-zinc-300 outline-none hover:border-white/20 transition-colors cursor-pointer appearance-none min-w-[140px]">
                         <option value="all">所有状态</option>
                         <option value="doing">执行中/待确认</option>
@@ -117,7 +117,13 @@
                 </div>
             </div>
 
-            <div class="flex-1 bg-[#121217] border border-white/5 rounded-2xl overflow-hidden flex flex-col shadow-xl">
+            <div class="flex-1 bg-[#121217] border border-white/5 rounded-2xl overflow-hidden flex flex-col shadow-xl relative">
+                
+                <div id="table-loading" class="absolute inset-0 bg-[#121217]/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center">
+                    <svg class="animate-spin h-8 w-8 text-indigo-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <p class="text-xs text-zinc-500 font-bold tracking-widest uppercase">PULLING DATA...</p>
+                </div>
+
                 <div class="overflow-y-auto custom-scrollbar flex-1 relative">
                     <table class="w-full text-left border-collapse" id="recordTable">
                         <thead class="bg-[#18181b] sticky top-0 z-10">
@@ -132,97 +138,7 @@
                             </tr>
                         </thead>
                         <tbody class="text-[13px] text-zinc-300 divide-y divide-white/5" id="recordTableBody">
-                            
-                            <tr data-status="doing" data-project="routine" class="table-row-hover" onclick="window.location.href='task-detail-v1.html'">
-                                <td class="py-4 px-6 font-mono font-bold text-rose-500">TK-0810</td>
-                                <td class="py-4 px-6 font-medium text-zinc-100">企业文化宣传册排版</td>
-                                <td class="py-4 px-6 text-zinc-400">日常行政支撑</td>
-                                <td class="py-4 px-6 text-rose-500 font-bold">2026-03-14</td>
-                                <td class="py-4 px-6">
-                                    <div class="flex items-center gap-2">
-                                        <div class="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-white">王</div>
-                                        <span class="text-[13px] text-zinc-300">王助理</span>
-                                    </div>
-                                </td>
-                                <td class="py-4 px-6"><span class="bg-rose-500/10 text-rose-500 border border-rose-500/20 px-2.5 py-1 rounded text-[11px] font-bold flex items-center w-max gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>待您验收</span></td>
-                                <td class="py-4 px-6 text-right"><button class="text-[12px] text-indigo-400 font-bold hover:text-indigo-300 transition-colors">去处理</button></td>
-                            </tr>
-                            
-                            <tr data-status="doing" data-project="promo" class="table-row-hover" onclick="window.location.href='task-detail.html'">
-                                <td class="py-4 px-6 font-mono font-bold text-emerald-400">TK-0701</td>
-                                <td class="py-4 px-6 font-medium text-zinc-100">双十一大促活动主会场视觉海报</td>
-                                <td class="py-4 px-6 text-zinc-400">2026战略宣发矩阵</td>
-                                <td class="py-4 px-6 text-rose-500 font-bold">2026-03-14</td>
-                                <td class="py-4 px-6">
-                                    <div class="flex items-center gap-2">
-                                        <div class="w-6 h-6 rounded-full bg-indigo-900 flex items-center justify-center text-[10px] font-bold text-indigo-200">DA</div>
-                                        <span class="text-[13px] text-zinc-300">David</span>
-                                    </div>
-                                </td>
-                                <td class="py-4 px-6"><span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded text-[11px] font-bold flex items-center w-max gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>待您验收</span></td>
-                                <td class="py-4 px-6 text-right"><button class="text-[12px] text-indigo-400 font-bold hover:text-indigo-300 transition-colors">去处理</button></td>
-                            </tr>
-
-                            <tr data-status="doing" data-project="routine" class="table-row-hover" onclick="window.location.href='task-detail-processing.html'">
-                                <td class="py-4 px-6 font-mono font-bold text-emerald-400">TK-0820</td>
-                                <td class="py-4 px-6 font-medium text-zinc-100">新品发布会主KV视觉延展</td>
-                                <td class="py-4 px-6 text-zinc-400">日常行政支撑</td>
-                                <td class="py-4 px-6 text-emerald-500 font-bold">下周三</td>
-                                <td class="py-4 px-6">
-                                    <div class="flex items-center gap-2">
-                                        <div class="w-6 h-6 rounded-full bg-indigo-900 flex items-center justify-center text-[10px] font-bold text-indigo-200">SK</div>
-                                        <span class="text-[13px] text-zinc-300">Skyler</span>
-                                    </div>
-                                </td>
-                                <td class="py-4 px-6"><span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded text-[11px] font-bold flex items-center w-max gap-1.5"><svg class="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 正稿设计制作中</span></td>
-                                <td class="py-4 px-6 text-right"><button onclick="urgeTask(event, this, 'Skyler')" class="text-[12px] text-indigo-400 bg-indigo-500/10 px-3 py-1.5 rounded-lg hover:bg-indigo-500/20 transition-colors btn-press ml-auto">催办</button></td>
-                            </tr>
-
-                            <tr data-status="doing" data-project="routine" class="table-row-hover opacity-80" onclick="window.location.href='task-detail-locked.html'">
-                                <td class="py-4 px-6 font-mono font-bold text-amber-500">TK-0817</td>
-                                <td class="py-4 px-6 font-medium text-zinc-300">端午节礼盒插图设计</td>
-                                <td class="py-4 px-6 text-zinc-400">日常行政支撑</td>
-                                <td class="py-4 px-6 text-zinc-500">2026-05-20</td>
-                                <td class="py-4 px-6">
-                                    <div class="flex items-center gap-2">
-                                        <div class="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-white">De</div>
-                                        <span class="text-[13px] text-zinc-400">Designer B</span>
-                                    </div>
-                                </td>
-                                <td class="py-4 px-6"><span class="flex items-center gap-1.5 text-[11px] text-amber-500 font-bold bg-amber-500/10 px-2.5 py-1 rounded w-max border border-amber-500/20"><svg class="animate-spin h-3 w-3 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 领导审批中</span></td>
-                                <td class="py-4 px-6 text-right"><button onclick="urgeTask(event, this, '文哥')" class="text-[12px] text-amber-500 bg-amber-500/10 px-3 py-1.5 rounded-lg hover:bg-amber-500/20 transition-colors btn-press ml-auto">催批</button></td>
-                            </tr>
-
-                            <tr data-status="done" data-project="routine" class="table-row-hover opacity-60" onclick="window.location.href='task-detail-archived.html'">
-                                <td class="py-4 px-6 font-mono font-bold text-zinc-400">TK-0650</td>
-                                <td class="py-4 px-6 font-medium text-zinc-300">妇女节活动物料套版</td>
-                                <td class="py-4 px-6 text-zinc-500">日常行政支撑</td>
-                                <td class="py-4 px-6 text-zinc-500">2026-03-05</td>
-                                <td class="py-4 px-6">
-                                    <div class="flex items-center gap-2">
-                                        <div class="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-white">王</div>
-                                        <span class="text-[13px] text-zinc-400">王助理</span>
-                                    </div>
-                                </td>
-                                <td class="py-4 px-6"><span class="bg-zinc-800 border border-zinc-700 px-2.5 py-1 rounded text-[11px] font-bold text-zinc-400 w-max inline-block">✓ 已完结归档</span></td>
-                                <td class="py-4 px-6 text-right"><button class="text-[12px] text-indigo-400/80 font-bold hover:text-indigo-300 transition-colors flex items-center justify-end gap-1 ml-auto">去查看 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button></td>
-                            </tr>
-                            
-                            <tr data-status="done" data-project="routine" class="table-row-hover opacity-60" onclick="window.location.href='task-detail-archived.html'">
-                                <td class="py-4 px-6 font-mono font-bold text-zinc-400">TK-0621</td>
-                                <td class="py-4 px-6 font-medium text-zinc-300">公司前台迎宾屏视频</td>
-                                <td class="py-4 px-6 text-zinc-500">日常行政支撑</td>
-                                <td class="py-4 px-6 text-zinc-500">2026-02-28</td>
-                                <td class="py-4 px-6">
-                                    <div class="flex items-center gap-2">
-                                        <div class="w-6 h-6 rounded-full bg-indigo-900 flex items-center justify-center text-[10px] font-bold text-indigo-200">DA</div>
-                                        <span class="text-[13px] text-zinc-400">David</span>
-                                    </div>
-                                </td>
-                                <td class="py-4 px-6"><span class="bg-zinc-800 border border-zinc-700 px-2.5 py-1 rounded text-[11px] font-bold text-zinc-400 w-max inline-block">✓ 已完结归档</span></td>
-                                <td class="py-4 px-6 text-right"><button class="text-[12px] text-indigo-400/80 font-bold hover:text-indigo-300 transition-colors flex items-center justify-end gap-1 ml-auto">去查看 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button></td>
-                            </tr>
-                        </tbody>
+                            </tbody>
                     </table>
                     
                     <div id="emptyState" class="hidden flex-col items-center justify-center py-24 opacity-50 w-full absolute top-10 left-0">
@@ -232,14 +148,11 @@
                 </div>
 
                 <div class="p-5 border-t border-white/5 flex items-center justify-between bg-[#16161d] mt-auto">
-                    <span class="text-[12px] text-zinc-500" id="table-stats">显示第 1 到 6 条，共 46 条记录</span>
+                    <span class="text-[12px] text-zinc-500" id="table-stats">数据加载中...</span>
                     <div class="flex items-center gap-1.5">
                         <button class="px-3 py-1.5 flex items-center justify-center rounded-lg bg-zinc-800/50 text-zinc-600 cursor-not-allowed text-[12px]">上一页</button>
                         <button class="w-8 h-8 flex items-center justify-center rounded-lg bg-indigo-600 text-white font-bold text-[12px]">1</button>
-                        <button class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors text-[12px] btn-press">2</button>
-                        <button class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors text-[12px] btn-press">3</button>
-                        <span class="text-zinc-600 text-xs px-1">...</span>
-                        <button class="px-3 py-1.5 flex items-center justify-center rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors text-[12px] btn-press">下一页</button>
+                        <button class="px-3 py-1.5 flex items-center justify-center rounded-lg bg-zinc-800/50 text-zinc-600 cursor-not-allowed text-[12px]">下一页</button>
                     </div>
                 </div>
             </div>
@@ -257,6 +170,15 @@
         </div>
     </div>
 
+    <script type="module">
+        import { supabase } from './supabase-config.js';
+        window.supabase = supabase;
+        window.DB_TABLE = 'test_tasks'; 
+        
+        // 确保云端依赖就绪后再拉取数据
+        if(window.loadTasksFromCloud) window.loadTasksFromCloud();
+    </script>
+
     <script>
         const PAGE_TYPE = 'req'; 
 
@@ -270,30 +192,169 @@
             const userStr = localStorage.getItem('activeUserObj');
             if (!userStr) { window.location.href = 'login.html'; return false; }
             const user = JSON.parse(userStr);
-            if (!user.perms.includes(PAGE_TYPE)) { alert(`无权限`); logout(); return false; }
+            const enName = user.enName ? user.enName.toLowerCase() : '';
+
+            if (!(user.perms || []).includes(PAGE_TYPE)) { alert(`无权限访问`); logout(); return false; }
 
             const avatarEl = document.getElementById('sidebar-avatar');
-            if(avatarEl) { avatarEl.innerText = user.avatar; avatarEl.className = `w-9 h-9 rounded-full ${user.color} border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg`; }
-            if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName;
+            if(avatarEl) { avatarEl.innerText = user.avatar; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-indigo-600'} border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg`; }
+            if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.cnName || user.enName;
             if(document.getElementById('sidebar-role')) document.getElementById('sidebar-role').innerText = user.role;
 
             const menuContainer = document.getElementById('dynamic-identity-list');
             if (menuContainer) {
                 let html = '';
-                if (user.perms.includes('req')) { html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#2a2a35] text-indigo-300 cursor-default"><div class="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div><span class="text-[13px] font-bold">需求方 (当前)</span></div>`; }
-                if (user.perms.includes('design')) { html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='assistant-workspace.html'"><div class="w-7 h-7 rounded-lg bg-orange-500/10 text-orange-500 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div><span class="text-[13px] font-medium">设计方 (去执行接单)</span></div>`; }
-                if (user.perms.includes('admin')) { html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='manager-workspace.html'"><div class="w-7 h-7 rounded-lg bg-fuchsia-500/10 text-fuchsia-400 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg></div><span class="text-[13px] font-medium">管理方 (统筹/大盘)</span></div>`; }
+                html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#2a2a35] text-indigo-300 cursor-default"><div class="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div><span class="text-[13px] font-bold">需求方 (当前)</span></div>`;
+                if ((user.perms || []).includes('design')) { html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='assistant-workspace.html'"><div class="w-7 h-7 rounded-lg bg-orange-500/10 text-orange-500 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div><span class="text-[13px] font-medium">设计方 (去执行接单)</span></div>`; }
+                if ((user.perms || []).includes('admin')) { html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='manager-workspace.html'"><div class="w-7 h-7 rounded-lg bg-fuchsia-500/10 text-fuchsia-400 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg></div><span class="text-[13px] font-medium">管理方 (统筹/大盘)</span></div>`; }
                 menuContainer.innerHTML = html;
             }
 
             const triggerBtn = document.getElementById('identityBtn');
             if (triggerBtn) { triggerBtn.innerHTML = `<span class="text-indigo-400 font-black">•</span> 身份: 需求方 (当前) <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 ml-1"><polyline points="6 9 12 15 18 9"></polyline></svg>`; }
-            return true;
+            
+            return user;
+        }
+
+        // ================= 💡 核心：获取真实数据并动态渲染 =================
+        window.loadTasksFromCloud = async function() {
+            if(!window.supabase) return;
+            const currentUser = initRBAC();
+            if(!currentUser) return;
+            const currentUserEn = currentUser.enName ? currentUser.enName.toLowerCase() : '';
+            const isSuperAdmin = currentUserEn === 'davidxxu' || currentUserEn === 'judyzzhang';
+
+            try {
+                // 抓取全量数据，按创建时间倒序
+                const { data, error } = await window.supabase.from(window.DB_TABLE).select('*').order('created_at', { ascending: false });
+                if(error) throw error;
+
+                const tbody = document.getElementById('recordTableBody');
+                tbody.innerHTML = '';
+                
+                let renderCount = 0;
+                let projectSet = new Set(); // 用于收集动态项目
+
+                (data || []).forEach(task => {
+                    const creator = task.creator || '';
+                    const taskAssignee = task.assignee ? task.assignee.toLowerCase() : 'none';
+                    const isOwner = creator === currentUser.displayName || creator === currentUser.cnName || creator === currentUser.enName;
+                    
+                    // 🚨 权限隔离：只能看到自己发起的单据（除非你是上帝/领导）
+                    if(!isOwner && !isSuperAdmin) return;
+
+                    // 收集用到的项目名称
+                    if(task.project) projectSet.add(task.project);
+
+                    // 1. 智能状态解析系统
+                    let sColor, sText, sIcon, doingFlag;
+                    const isFinished = ['completed','archived','terminated'].includes(task.status);
+                    
+                    switch(task.status) {
+                        case 'rejected': 
+                            sColor = 'rose'; sText = '需求被打回修改'; doingFlag = 'doing';
+                            sIcon = `<span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>`; break;
+                        case 'reviewing': 
+                            sColor = 'emerald'; sText = '方案待验收'; doingFlag = 'doing';
+                            sIcon = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>`; break;
+                        case 'pending_accept': 
+                            sColor = 'sky'; sText = '待设计确认接单'; doingFlag = 'doing';
+                            sIcon = `<svg class="animate-spin h-3 w-3 text-sky-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`; break;
+                        case 'pending_approval': 
+                            sColor = 'amber'; sText = '领导审批框架中'; doingFlag = 'doing';
+                            sIcon = `<svg class="animate-spin h-3 w-3 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`; break;
+                        case 'processing': 
+                            sColor = 'orange'; sText = '设计制作中'; doingFlag = 'doing';
+                            sIcon = `<svg class="animate-spin h-3 w-3 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`; break;
+                        case 'completed': 
+                        case 'archived': 
+                            sColor = 'zinc'; sText = '✓ 已完结归档'; doingFlag = 'done';
+                            sIcon = ``; break;
+                        case 'terminated': 
+                            sColor = 'rose'; sText = '已强行终止 (废弃)'; doingFlag = 'done';
+                            sIcon = ``; break;
+                        default: 
+                            sColor = 'sky'; sText = '待排期统筹'; doingFlag = 'doing';
+                            sIcon = `<span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span>`; 
+                    }
+
+                    // 2. 日期判定
+                    let isUrgent = false;
+                    let dateText = task.due_date || '未定';
+                    if(task.due_date && !isFinished) {
+                        const due = new Date(task.due_date);
+                        const today = new Date();
+                        due.setHours(0,0,0,0); today.setHours(0,0,0,0);
+                        const diffDays = (due - today) / (1000 * 60 * 60 * 24);
+                        if(diffDays <= 2 && diffDays >= -999) isUrgent = true;
+                    }
+                    const dateCol = isFinished ? 'text-zinc-500' : (isUrgent ? 'text-rose-500 font-bold' : 'text-sky-400 font-bold');
+
+                    // 3. 执行人头像生成
+                    const displayAssignee = (task.assignee && task.assignee !== 'none') ? task.assignee : '暂未分配';
+                    const avatText = displayAssignee !== '暂未分配' ? displayAssignee.substring(0,2).toUpperCase() : '?';
+                    const avatCol = displayAssignee !== '暂未分配' ? 'bg-indigo-900 text-indigo-200' : 'bg-zinc-800 text-zinc-400';
+
+                    // 4. 状态徽章渲染
+                    const badgeHtml = `<span class="bg-${sColor}-500/10 text-${sColor}-400 border border-${sColor}-500/20 px-2.5 py-1 rounded text-[11px] font-bold flex items-center w-max gap-1.5">${sIcon}${sText}</span>`;
+
+                    // 5. 操作栏渲染
+                    let btnHtml = '';
+                    if(task.status === 'reviewing' && isOwner) {
+                        btnHtml = `<button class="text-[12px] text-indigo-400 font-bold hover:text-indigo-300 transition-colors btn-press">去验收</button>`;
+                    } else if (isFinished) {
+                        btnHtml = `<button class="text-[12px] text-indigo-400/80 font-bold hover:text-indigo-300 transition-colors flex items-center justify-end gap-1 ml-auto btn-press">去查看 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>`;
+                    } else {
+                        // 如果单子还没完结，超管可以一键催办
+                        if (isSuperAdmin) {
+                            const urgeTarget = ['pending_approval'].includes(task.status) ? '文哥' : task.assignee;
+                            btnHtml = `<button onclick="urgeTask(event, this, '${urgeTarget}')" class="text-[12px] text-indigo-400 bg-indigo-500/10 px-3 py-1.5 rounded-lg hover:bg-indigo-500/20 transition-colors btn-press ml-auto">督导催办</button>`;
+                        } else {
+                            btnHtml = `<button class="text-[12px] text-zinc-500 hover:text-zinc-300 transition-colors btn-press">查看进度</button>`;
+                        }
+                    }
+
+                    const rowHtml = `
+                        <tr data-status="${doingFlag}" data-project="${task.project || 'other'}" class="table-row-hover ${isFinished ? 'opacity-60' : ''}" onclick="window.location.href='task-detail-requester.html?id=${task.id}'">
+                            <td class="py-4 px-6 font-mono font-bold text-zinc-400">${task.id}</td>
+                            <td class="py-4 px-6 font-medium text-zinc-100 max-w-xs truncate" title="${task.title}">${task.title}</td>
+                            <td class="py-4 px-6 text-zinc-400">${task.project || '--'}</td>
+                            <td class="py-4 px-6 ${dateCol}">${dateText}</td>
+                            <td class="py-4 px-6">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-6 h-6 rounded-full ${avatCol} flex items-center justify-center text-[10px] font-bold shrink-0">${avatText}</div>
+                                    <span class="text-[13px] text-zinc-300">${displayAssignee}</span>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6">${badgeHtml}</td>
+                            <td class="py-4 px-6 text-right">${btnHtml}</td>
+                        </tr>
+                    `;
+                    tbody.insertAdjacentHTML('beforeend', rowHtml);
+                    renderCount++;
+                });
+
+                // 移除 Loading，更新统计
+                document.getElementById('table-loading').classList.add('hidden');
+                document.getElementById('table-stats').innerText = `找到 ${renderCount} 条匹配记录`;
+
+                // 动态更新项目下拉框的选项
+                if(projectSet.size > 0) {
+                    const sel = document.getElementById('projectFilter');
+                    let selHtml = `<option value="all">所有归属项目</option>`;
+                    Array.from(projectSet).forEach(p => {
+                        selHtml += `<option value="${p}">${p}</option>`;
+                    });
+                    sel.innerHTML = selHtml;
+                }
+
+            } catch (err) {
+                console.error(err);
+                document.getElementById('table-loading').innerHTML = `<p class="text-rose-500 font-bold">数据拉取失败</p><p class="text-xs text-zinc-500">${err.message}</p>`;
+            }
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            initRBAC();
-            
             const idBtn = document.getElementById('identityBtn');
             const idMenu = document.getElementById('identityMenu');
             if(idBtn && idMenu) { idBtn.addEventListener('click', (e) => { e.stopPropagation(); idMenu.classList.toggle('hidden'); }); }
@@ -302,6 +363,7 @@
             });
         });
 
+        // ================= 💡 真实表格筛选过滤引擎 =================
         function filterTable() {
             const input = document.getElementById("searchInput").value.toLowerCase();
             const projectFilter = document.getElementById("projectFilter").value;
@@ -343,7 +405,7 @@
             } else {
                 emptyState.classList.add('hidden');
                 emptyState.classList.remove('flex');
-                tableStats.innerText = `显示第 1 到 ${visibleCount} 条，共 ${visibleCount} 条记录`;
+                tableStats.innerText = `显示匹配的 ${visibleCount} 条记录`;
             }
         }
 
@@ -355,6 +417,7 @@
             showToast('催办通知已发送', `已向 ${target} 发送加急提醒。`, 'success');
         }
 
+        // ================= 💡 真实的 Excel CSV 导出流 =================
         function exportExcel(btn) {
             const icon = btn.querySelector('.export-icon');
             const text = btn.querySelector('.export-text');
@@ -364,7 +427,7 @@
             icon.classList.add('animate-spin', 'text-indigo-400');
             text.innerText = "数据抓取中...";
             
-            showToast('开始生成报表', '系统正在拉取历史提单记录并转换格式...', 'info');
+            showToast('开始生成报表', '系统正在拉取最新的历史提单记录...', 'info');
 
             setTimeout(() => {
                 btn.disabled = false;
@@ -372,38 +435,42 @@
                 icon.innerHTML = `<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line>`;
                 text.innerText = "导出记录";
 
-                const csvContent = "工单编号,需求描述,归属项目,期望交付日,执行人,状态\nTK-0810,企业文化宣传册排版,日常行政,2026-03-14,王助理,待确认\nTK-0701,双十一大促海报,2026战略,2026-03-14,David,待确认\nTK-0820,主KV视觉延展,日常行政,下周三,Skyler,制作中\nTK-0650,妇女节物料,日常行政,2026-03-05,王助理,已完结";
+                // 提取表格中当前 [可见] 的行数据
+                const tbody = document.getElementById("recordTableBody");
+                const trs = tbody.getElementsByTagName("tr");
+                let csvContent = "工单编号,需求描述,归属项目,期望交付日,执行人,状态\n";
+
+                let hasData = false;
+                for (let i = 0; i < trs.length; i++) {
+                    const tr = trs[i];
+                    if(tr.style.display !== "none") {
+                        const tds = tr.getElementsByTagName("td");
+                        const id = tds[0].textContent;
+                        const title = `"${tds[1].textContent.replace(/"/g, '""')}"`; // 转义双引号
+                        const project = tds[2].textContent;
+                        const date = tds[3].textContent;
+                        const assignee = tds[4].innerText.replace(/\n/g, ' ').trim(); // 提取纯文本执行人
+                        const status = tds[5].innerText.replace(/\n/g, ' ').trim();
+
+                        csvContent += `${id},${title},${project},${date},${assignee},${status}\n`;
+                        hasData = true;
+                    }
+                }
+
+                if(!hasData) return showToast('导出失败', '当前没有可导出的数据！', 'error');
+
+                // 添加 BOM 头防止中文乱码
                 const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' }); 
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.setAttribute('href', url);
-                link.setAttribute('download', '戴维斯设计需求历史汇总.csv');
+                link.setAttribute('download', `戴维斯需求台账_${new Date().toISOString().slice(0,10)}.csv`);
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
 
                 showToast('导出成功', 'Excel 报表已下载至本地。', 'success');
-            }, 1800);
-        }
-
-        function showToast(title, desc, type = 'success') {
-            const toast = document.getElementById('action-toast');
-            document.getElementById('toast-title').innerText = title;
-            document.getElementById('toast-desc').innerText = desc;
-            const icon = document.getElementById('toast-icon');
-            
-            if(type === 'info') {
-                icon.className = "w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0";
-                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
-            } else if(type === 'error') {
-                icon.className = "w-8 h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0";
-                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
-            } else {
-                icon.className = "w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0";
-                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-            }
-            toast.classList.remove('hidden');
-            setTimeout(() => { toast.classList.add('hidden'); }, 3000);
+            }, 1500);
         }
     </script>
 </body>
