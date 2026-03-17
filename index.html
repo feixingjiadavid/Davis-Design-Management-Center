@@ -347,7 +347,6 @@
         window.supabase = supabase;
         window.DB_TABLE = 'test_tasks'; 
         
-        // 💡 性能优化核心：列表轻量化查询，必须包含 history_json 才能让路由大脑生效！
         window.LIGHT_FIELDS = 'id, title, status, project, due_date, creator, created_at, summary_desc, assignee, history_json';
 
         if(window.loadTasksFromCloud) window.loadTasksFromCloud();
@@ -787,7 +786,7 @@
             let sColor, sText, targetUrl;
             let isUrgent = false;
 
-            if(task.due_date && !['completed','archived'].includes(task.status)) {
+            if(task.due_date && !['completed','archived','terminated'].includes(task.status)) {
                 const due = new Date(task.due_date);
                 const today = new Date();
                 due.setHours(0,0,0,0); today.setHours(0,0,0,0);
@@ -795,13 +794,21 @@
                 if(diffDays <= 2 && diffDays >= -999) isUrgent = true;
             }
 
-            // 💡 智能路由大脑：通过检查摘要中是否包含过审等字眼，决定是否跳入 Draft 正稿页
+            // 💡 智能判断阶段：决定后续如果是 processing/rejected 应该跳转到哪个页面
             let isDraftPhase = false;
+            if (task.history_json) {
+                try {
+                    const history = JSON.parse(task.history_json);
+                    for (let i = history.length - 1; i >= 0; i--) {
+                        if (history[i].reply_by && (history[i].reply_by.includes('主管') || history[i].reply_by.includes('领导')) && !history[i].is_rejected) isDraftPhase = true;
+                        if (history[i].action === 'submit_draft') isDraftPhase = true;
+                    }
+                } catch(e) {}
+            }
             if (task.summary_desc && (task.summary_desc.includes('正式稿') || task.summary_desc.includes('过审') || task.summary_desc.includes('大方向') || task.summary_desc.includes('通过框架'))) {
                 isDraftPhase = true;
             }
 
-            // 💡 核心修复：为所有目标页面带上角色参数，强制指定为需求方 (req)
             const baseQuery = `?id=${task.id}&role=req`;
 
             switch(task.status) {
@@ -812,7 +819,6 @@
                     break;
                 case 'reviewing': 
                     sColor = 'text-rose-500'; sText = '方案待验收'; 
-                    // 强制跳转到验收专属页面！
                     targetUrl = 'task-detail-review.html' + baseQuery; 
                     break;
                 case 'pending_accept': 
@@ -832,12 +838,16 @@
                     sColor = 'text-zinc-400'; sText = '已完结'; 
                     targetUrl = 'task-detail-archived.html' + baseQuery; 
                     break;
+                case 'terminated': 
+                    sColor = 'text-rose-700'; sText = '已强行终止'; 
+                    targetUrl = 'task-detail-archived.html' + baseQuery; 
+                    break;
                 default: 
                     sColor = 'text-sky-400'; sText = '待排期/待分配'; 
                     targetUrl = 'task-detail-new.html' + baseQuery;
             }
 
-            const isCompleted = task.status === 'completed' || task.status === 'archived';
+            const isCompleted = task.status === 'completed' || task.status === 'archived' || task.status === 'terminated';
             const borderColBase = isUrgent ? 'rgba(244,63,94,0.7)' : sColor.replace('text-', 'rgba(').replace('sky','56,189,248').replace('amber','251,191,36').replace('emerald','16,185,129').replace('rose','244,63,94').replace('zinc','113,113,122') + ',0.3)';
             const breatheClass = isUrgent ? 'breathe-rose' : '';
             const canCancel = (task.status === 'pending' || task.status === 'pending_accept' || task.status === 'rejected') && isOwner;
@@ -909,8 +919,8 @@
             
             try {
                 const [ongoingRes, completedRes] = await Promise.all([
-                    window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS).not('status', 'in', '("completed","archived")').order('created_at', { ascending: false }),
-                    window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS).in('status', '("completed","archived")').order('created_at', { ascending: false }).limit(15)
+                    window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS).not('status', 'in', '("completed","archived","terminated")').order('created_at', { ascending: false }),
+                    window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS).in('status', '("completed","archived","terminated")').order('created_at', { ascending: false }).limit(15)
                 ]);
 
                 const ongoingC = document.getElementById('ongoing-tasks-container');
