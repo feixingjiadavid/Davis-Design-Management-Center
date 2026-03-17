@@ -126,11 +126,6 @@
                 </div>
                 
                 <div class="flex items-center gap-5 relative pt-1 z-[110]">
-                    <button id="clear-db-btn" onclick="clearTestData()" class="hidden bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-500 px-4 py-3 rounded-[14px] text-[13px] font-bold transition-all btn-press items-center gap-1.5" title="仅清空提单数据，不影响账号">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                        清空测试数据
-                    </button>
-
                     <div class="relative" id="notif-wrapper">
                         <button id="notifBtn" class="w-10 h-10 rounded-xl bg-[#141417] border border-white/5 flex items-center justify-center text-zinc-400 hover:text-white transition-colors btn-press relative">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
@@ -172,7 +167,7 @@
                 </div>
                 <div class="flex-1 bg-[#121217]/60 border border-white/5 rounded-2xl p-3 overflow-y-auto custom-scrollbar space-y-3 shadow-inner" id="lane-pending">
                     <div class="text-center py-10" id="loading-spinner">
-                        <p class="text-xs text-zinc-500 flex justify-center items-center gap-2"><svg class="animate-spin h-3 w-3 text-zinc-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 极速同步云端数据...</p>
+                        <p class="text-xs text-zinc-500 flex justify-center items-center gap-2"><svg class="animate-spin h-3 w-3 text-zinc-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 同步云端数据中...</p>
                     </div>
                 </div>
             </div>
@@ -209,7 +204,8 @@
 
         </div>
     </main>
-<div id="transfer-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closeTransferModal()">
+
+    <div id="transfer-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closeTransferModal()">
         <div id="transfer-modal" class="hidden w-full max-w-lg bg-[#121217] border border-orange-500/20 rounded-3xl shadow-[0_20px_50px_-10px_rgba(249,115,22,0.2)] flex flex-col scale-95 transition-transform duration-300">
             <div class="px-6 py-5 border-b border-white/5 flex justify-between items-center bg-[#1a1a1f] rounded-t-3xl">
                 <h2 class="text-[15px] font-bold text-white flex items-center gap-2">
@@ -275,7 +271,6 @@
         window.supabase = supabase;
         window.DB_TABLE = 'test_tasks'; 
         
-        // 💡 增加 history_json 以支持路由大脑判定
         window.LIGHT_FIELDS = 'id, title, status, project, due_date, creator, created_at, summary_desc, assignee, history_json';
 
         if(window.loadTasksFromCloud) window.loadTasksFromCloud();
@@ -296,7 +291,10 @@
             if (hour >= 5 && hour < 12) timeStr = '上午好';
             else if (hour >= 12 && hour < 18) timeStr = '下午好';
             const display = user.displayName || user.cnName || user.enName;
-            document.getElementById('header-greeting').innerHTML = `${timeStr}，${display}。 <span class="bg-orange-500/20 text-orange-400 text-[11px] px-2.5 py-0.5 rounded-lg border border-orange-500/30 ml-2">设计看板</span>`;
+            const greetEl = document.getElementById('header-greeting');
+            if (greetEl) {
+                greetEl.innerHTML = `${timeStr}，${display}。 <span class="bg-orange-500/20 text-orange-400 text-[11px] px-2.5 py-0.5 rounded-lg border border-orange-500/30 ml-2">设计看板</span>`;
+            }
         }
 
         function initRBAC() {
@@ -312,17 +310,12 @@
             }
 
             const avatarEl = document.getElementById('sidebar-avatar');
-            if(avatarEl) { avatarEl.innerText = user.avatar; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-orange-600'} border border-white/20 flex items-center justify-center text-white font-bold text-sm shadow-lg`; }
-            if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.cnName || user.enName;
+            if(avatarEl) { avatarEl.innerText = user.avatar || '?'; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-orange-600'} border border-white/20 flex items-center justify-center text-white font-bold text-sm shadow-lg`; }
+            
+            const nameEl = document.getElementById('sidebar-name');
+            if(nameEl) nameEl.innerText = user.displayName || user.cnName || user.enName;
             
             updateGreeting(user);
-
-            const testUsers = ['ponyxu', 'davidxxu', 'yoshyliu', 'judyzzhang', '小戴维斯'];
-            const isTestUser = testUsers.includes(enName) || testUsers.includes(user.displayName) || testUsers.includes(user.cnName);
-            if(isTestUser) {
-                const clrBtn = document.getElementById('clear-db-btn');
-                if(clrBtn) { clrBtn.classList.remove('hidden'); clrBtn.classList.add('flex'); }
-            }
 
             const menuContainer = document.getElementById('dynamic-identity-list');
             if (menuContainer) {
@@ -344,19 +337,9 @@
             return true;
         }
 
-        window.clearTestData = async function() {
-            if(!window.supabase) return;
-            if(!confirm("⚠️ 警告：这将直接清空云端测试表中的所有需求数据！且不可恢复！\n确定要继续吗？")) return;
-            try {
-                const { error } = await window.supabase.from(window.DB_TABLE).delete().neq('id', '0');
-                if (error) throw error;
-                showToast('已清空', '云端测试数据已全部清空！', 'success');
-                setTimeout(() => window.location.reload(), 1500);
-            } catch(e) { alert("清理失败: " + e.message); }
-        }
-
         window.showToast = function(title, desc, type = 'success') {
             const toast = document.getElementById('action-toast');
+            if(!toast) return;
             document.getElementById('toast-title').innerText = title;
             document.getElementById('toast-desc').innerText = desc;
             const icon = document.getElementById('toast-icon');
@@ -374,28 +357,29 @@
         window.openPwdModal = function() {
             const pwdOverlay = document.getElementById('pwd-modal-overlay');
             const pwdModal = document.getElementById('pwd-modal');
-            pwdOverlay.classList.remove('hidden'); setTimeout(() => { pwdOverlay.classList.remove('opacity-0'); pwdModal.classList.remove('hidden'); pwdModal.classList.remove('scale-95'); }, 10);
+            if(pwdOverlay && pwdModal) {
+                pwdOverlay.classList.remove('hidden'); setTimeout(() => { pwdOverlay.classList.remove('opacity-0'); pwdModal.classList.remove('hidden'); pwdModal.classList.remove('scale-95'); }, 10);
+            }
         }
         window.closePwdModal = function() {
             const pwdOverlay = document.getElementById('pwd-modal-overlay');
             const pwdModal = document.getElementById('pwd-modal');
-            pwdOverlay.classList.add('opacity-0'); pwdModal.classList.add('scale-95'); setTimeout(() => { pwdOverlay.classList.add('hidden'); pwdModal.classList.add('hidden'); }, 300);
+            if(pwdOverlay && pwdModal) {
+                pwdOverlay.classList.add('opacity-0'); pwdModal.classList.add('scale-95'); setTimeout(() => { pwdOverlay.classList.add('hidden'); pwdModal.classList.add('hidden'); }, 300);
+            }
         }
         window.submitPwdChange = function() { alert('请联系管理员修改密码。'); closePwdModal(); }
 
-        // ================= 💡 核心：路由大脑 =================
+        // ================= 💡 核心：专门为设计师打造的路由大脑 =================
         function createTaskHTML(task, currentUser) {
-            const creator = task.creator || '';
             const currentUserEn = currentUser.enName ? currentUser.enName.toLowerCase() : '';
-            const isOwner = creator === currentUser.displayName || creator === currentUser.cnName || creator === currentUser.enName;
-            
             const taskAssignee = task.assignee ? task.assignee.toLowerCase() : 'none';
-            const isMyDesignTask = taskAssignee === currentUserEn;
-
-            let isJudy = currentUserEn === 'judyzzhang';
             
-            // 权限过滤
-            if(!isOwner && !isMyDesignTask && !(isJudy && task.status === 'pending_approval')) return null;
+            // 💡 执行看板的核心过滤：只看自己承接的，或者还没人接的公海单！
+            const isMyDesignTask = taskAssignee === currentUserEn;
+            const isUnassigned = taskAssignee === 'none' || taskAssignee === '';
+            
+            if (!isMyDesignTask && !isUnassigned) return null; 
 
             let sColor, sText, targetUrl;
             let isUrgent = false;
@@ -408,7 +392,7 @@
                 if(diffDays <= 2 && diffDays >= -999) isUrgent = true;
             }
 
-            // 💡 智能判断阶段：决定后续如果是 processing/rejected 应该跳转到哪个页面
+            // 判断阶段
             let isDraftPhase = false;
             if (task.history_json) {
                 try {
@@ -419,406 +403,161 @@
                     }
                 } catch(e) {}
             }
-            if (task.summary_desc && (task.summary_desc.includes('正式稿') || task.summary_desc.includes('过审') || task.summary_desc.includes('大方向') || task.summary_desc.includes('通过框架'))) {
-                isDraftPhase = true;
-            }
+            if (task.summary_desc && (task.summary_desc.includes('正式稿') || task.summary_desc.includes('过审') || task.summary_desc.includes('大方向') || task.summary_desc.includes('通过框架'))) isDraftPhase = true;
 
-            // 💡 路由大脑：从看板跳过去，强制加上 role=design！
+            // 💡 重点修复：在这里强行加上 role=design，让进入的任何页面都知道“我是设计师视角！”
             const baseQuery = `?id=${task.id}&role=design`;
+            let actionBtnHtml = '';
 
             switch(task.status) {
                 case 'rejected': 
                     sColor = 'text-rose-500'; sText = '需求被打回修改'; 
                     targetUrl = isDraftPhase ? 'assistant-task-draft.html' + baseQuery : 'assistant-task-processing.html' + baseQuery; 
                     isUrgent = true; 
+                    
+                    let rBtnColor = 'bg-rose-600 hover:bg-rose-500 shadow-[0_4px_12px_rgba(244,63,94,0.25)]';
+                    actionBtnHtml = `<div class="mt-auto border-t border-white/5 pt-3 pl-1 flex gap-2 relative z-10"><button onclick="event.stopPropagation(); window.location.href='${targetUrl}'" class="flex-1 ${rBtnColor} text-white rounded-lg py-2 text-[11px] font-bold btn-press transition-colors">去修改并重新提交</button><button onclick="event.stopPropagation(); window.openTransferModal('${task.id}', '${task.title}')" class="px-3 bg-[#1a1a24] text-orange-400 border border-orange-500/30 hover:bg-orange-500/10 rounded-lg text-[11px] font-bold btn-press transition-colors flex items-center justify-center gap-1" title="遇到阻力，转交他人">转单</button></div>`;
                     break;
                 case 'reviewing': 
-                    sColor = 'text-rose-500'; sText = '方案待验收'; 
-                    targetUrl = 'task-detail-review.html' + baseQuery; 
+                    sColor = 'text-emerald-400'; sText = '等待甲方验收'; 
+                    targetUrl = 'assistant-task-draft.html' + baseQuery; // 💡 设计师视角：跳回 draft 页面看等待反馈
+                    actionBtnHtml = `<div class="mt-auto border-t border-white/5 pt-3 pl-1 flex gap-2 relative z-10"><button onclick="event.stopPropagation(); window.location.href='${targetUrl}'" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg py-2 text-[11px] font-bold btn-press transition-colors shadow-[0_4px_12px_rgba(16,185,129,0.25)]">查看验收进度</button></div>`;
                     break;
                 case 'pending_accept': 
-                    sColor = 'text-amber-400'; sText = '待接单'; 
-                    targetUrl = 'task-detail-new.html' + baseQuery; 
+                case 'pending':
+                    sColor = task.status === 'pending' ? 'text-sky-400' : 'text-amber-400'; 
+                    sText = task.status === 'pending' ? '未分配(公海)' : '待确认接单'; 
+                    targetUrl = 'assistant-task-new.html' + baseQuery; 
+                    actionBtnHtml = `<div class="mt-auto border-t border-white/5 pt-3 pl-1 flex gap-2 relative z-10"><button onclick="event.stopPropagation(); window.location.href='${targetUrl}'" class="flex-1 bg-sky-600 hover:bg-sky-500 text-white rounded-lg py-2 text-[11px] font-bold btn-press transition-colors shadow-[0_4px_12px_rgba(56,189,248,0.25)]">去接单并响应</button><button onclick="event.stopPropagation(); window.openTransferModal('${task.id}', '${task.title}')" class="px-3 bg-[#1a1a24] text-sky-400 border border-sky-500/30 hover:bg-sky-500/10 rounded-lg text-[11px] font-bold btn-press transition-colors flex items-center justify-center gap-1" title="排期冲突，申请转单">转单</button></div>`;
                     break;
                 case 'pending_approval': 
-                    sColor = 'text-amber-500'; sText = '框架待审批'; 
-                    // 领导特权：如果是 judy 并且是待审批状态，强行送进 locked 页去批复
-                    const lockedUrl = (isJudy) ? 'task-detail-locked.html' : 'task-detail-locked.html' + baseQuery;
-                    targetUrl = lockedUrl + '?id=' + task.id; 
+                    sColor = 'text-amber-500'; sText = '领导框架审核中'; 
+                    targetUrl = 'task-detail-locked.html' + baseQuery; // 💡 设计师视角：跳去专门的 locked 只读页
+                    actionBtnHtml = `<div class="mt-auto border-t border-white/5 pt-3 pl-1 relative z-10 flex"><button onclick="event.stopPropagation(); window.showToast('已发送', '已提醒领导审批', 'info')" class="w-full bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/20 rounded-lg py-2 text-[11px] font-bold btn-press transition-colors">发送催办提醒给领导</button></div>`;
                     break;
                 case 'processing': 
-                    sColor = 'text-emerald-500'; sText = '设计制作中'; 
+                    sColor = 'text-orange-400'; sText = '设计制作中'; 
                     targetUrl = isDraftPhase ? 'assistant-task-draft.html' + baseQuery : 'assistant-task-processing.html' + baseQuery; 
+                    let pBtnColor = 'bg-orange-600 hover:bg-orange-500 shadow-[0_4px_12px_rgba(249,115,22,0.25)]';
+                    let pBtnText = isDraftPhase ? '去交付正式稿' : '去上传框架方案';
+                    actionBtnHtml = `<div class="mt-auto border-t border-white/5 pt-3 pl-1 flex gap-2 relative z-10"><button onclick="event.stopPropagation(); window.location.href='${targetUrl}'" class="flex-1 ${pBtnColor} text-white rounded-lg py-2 text-[11px] font-bold btn-press transition-colors">${pBtnText}</button><button onclick="event.stopPropagation(); window.openTransferModal('${task.id}', '${task.title}')" class="px-3 bg-[#1a1a24] text-orange-400 border border-orange-500/30 hover:bg-orange-500/10 rounded-lg text-[11px] font-bold btn-press transition-colors flex items-center justify-center gap-1" title="遇到阻力，转交他人">转单</button></div>`;
                     break;
                 case 'completed': 
                 case 'archived': 
                     sColor = 'text-zinc-400'; sText = '已完结'; 
                     targetUrl = 'task-detail-archived.html' + baseQuery; 
+                    actionBtnHtml = `<div class="mt-auto border-t border-white/5 pt-3 pl-1 flex gap-2 relative z-10"><button onclick="event.stopPropagation(); window.location.href='${targetUrl}'" class="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg py-2 text-[11px] font-bold btn-press transition-colors">查看历史存档</button></div>`;
                     break;
                 default: 
-                    sColor = 'text-sky-400'; sText = '待排期/待分配'; 
-                    targetUrl = 'task-detail-new.html' + baseQuery;
+                    sColor = 'text-sky-400'; sText = '待处理'; 
+                    targetUrl = 'assistant-task-new.html' + baseQuery;
             }
 
-            const isCompleted = task.status === 'completed' || task.status === 'archived';
-            const borderColBase = isUrgent ? 'rgba(244,63,94,0.7)' : sColor.replace('text-', 'rgba(').replace('sky','56,189,248').replace('amber','251,191,36').replace('emerald','16,185,129').replace('rose','244,63,94').replace('zinc','113,113,122') + ',0.3)';
+            const borderColBase = isUrgent ? 'rgba(244,63,94,0.7)' : sColor.replace('text-', 'rgba(').replace('sky','56,189,248').replace('orange','249,115,22').replace('amber','251,191,36').replace('emerald','16,185,129').replace('rose','244,63,94').replace('zinc','113,113,122') + ',0.3)';
             const breatheClass = isUrgent ? 'breathe-rose' : '';
-            const canCancel = (task.status === 'pending' || task.status === 'pending_accept' || task.status === 'rejected') && isOwner;
-            const cancelBtn = canCancel ? `<button onclick="event.stopPropagation(); window.cancelTask('${task.id}')" class="text-[10px] text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded ml-2 hover:bg-rose-500 hover:text-white transition-colors">撤销</button>` : '';
-            const iconHtml = (task.status === 'reviewing' || task.status === 'rejected' || isCompleted) ? '' : `<svg class="animate-spin h-3 w-3 ${sColor}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+            const iconHtml = (task.status === 'reviewing' || task.status === 'rejected' || task.status === 'completed') ? '' : `<svg class="animate-spin h-3 w-3 ${sColor}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
 
             const cardHTML = `
-                <div class="rounded-2xl p-5 interactive-card flex flex-col relative overflow-hidden bg-[#121217] border ${breatheClass} mb-4 ${isCompleted ? 'opacity-60' : ''}" style="border-color: ${borderColBase}" id="card-${task.id}" onmouseenter="window.previewTask('${task.id}', '${task.title}', '${sColor}')" onclick="window.location.href='${targetUrl}'">
+                <div class="bg-[#18181b] border rounded-xl p-4 kanban-card flex flex-col relative overflow-hidden group cursor-pointer ${breatheClass}" style="border-color: ${borderColBase}" id="card-${task.id}" onclick="window.location.href='${targetUrl}'">
                     ${isUrgent ? '<div class="absolute top-0 right-0 bg-rose-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl z-10 animate-pulse">临期预警</div>' : ''}
+                    <div class="absolute left-0 top-0 bottom-0 w-[4px] ${sColor.replace('text-', 'bg-')}"></div>
                     <div class="flex items-center justify-between mb-3 mt-1 relative z-10">
                         <div class="flex gap-2 items-center">
                             <span class="font-mono text-[10px] font-bold ${sColor} bg-white/5 px-2 py-0.5 rounded border border-white/5">${task.id}</span>
                             <span class="text-xs ${sColor} font-bold tracking-wide flex items-center gap-1.5">${iconHtml} ${sText}</span>
                         </div>
-                        ${cancelBtn || `<span class="text-[11px] ${sColor} font-bold opacity-0 group-hover:opacity-100 transition-opacity">查看详情 ↗</span>`}
                     </div>
-                    <h4 class="text-[17px] font-bold text-zinc-100 mb-2 relative z-10">${task.title}</h4>
-                    ${isCompleted ? '' : `<p class="text-xs text-zinc-400 mb-4 line-clamp-1 relative z-10">${task.summary_desc || ''}</p>`}
-                    <div class="flex items-center justify-between text-[11px] text-zinc-400 border-t border-white/5 pt-3 relative z-10">
-                        <span>归属: ${task.project}</span>
-                        <span>执行人: ${task.assignee === 'none' ? '待定' : task.assignee}</span>
-                        <span class="${isCompleted ? 'text-zinc-500' : (isUrgent ? 'text-rose-500 font-bold' : 'text-zinc-400')}">期望交付: ${task.due_date}</span>
+                    <h4 class="text-[15px] font-bold text-zinc-100 mb-1.5 pl-1 leading-snug relative z-10">${task.title}</h4>
+                    <p class="text-[11px] text-zinc-400 line-clamp-2 mb-3 pl-1 relative z-10">${task.summary_desc || task.full_desc || '暂无详细描述'}</p>
+                    
+                    <div class="flex flex-col gap-1.5 text-[10px] text-zinc-500 mb-3 pl-1 relative z-10 bg-white/5 p-2.5 rounded-lg border border-white/5">
+                        <div class="flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-zinc-500"></span>
+                            <span>发起人: <span class="text-zinc-300 font-bold">${task.creator || '未知'}</span></span>
+                        </div>
+                        <div class="flex items-center justify-between w-full">
+                            <div class="flex items-center gap-2">
+                                <span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
+                                <span>期望交付: <span class="${isUrgent ? 'text-rose-400 font-bold' : 'text-sky-400 font-bold'}">${task.due_date || '--'}</span></span>
+                            </div>
+                        </div>
                     </div>
+                    ${actionBtnHtml}
                 </div>
             `;
+            return { laneId: getLaneId(task.status), cardHTML };
+        }
 
-            let strokeColor = sColor.split('-')[1] || 'sky';
-            if(strokeColor === 'zinc') strokeColor = 'gray'; 
-
-            const timelineHTML = `
-                <div id="timeline-${task.id}" class="hidden" data-col="${sColor}" data-title="${task.title}">
-                    <div class="timeline-item relative flex gap-4 z-10 pb-6">
-                        <div class="timeline-line"></div>
-                        <div class="w-7 h-7 rounded-full bg-[#121217] border-[2px] border-${strokeColor}-500 flex items-center justify-center shrink-0 z-10 shadow-[0_0_15px_rgba(255,255,255,0.1)]">
-                            ${iconHtml || `<div class="w-2 h-2 bg-${strokeColor}-500 rounded-full"></div>`}
-                        </div>
-                        <div class="pt-0.5">
-                            <p class="text-[13px] font-bold ${sColor} mb-0.5">${sText}</p>
-                            <p class="text-[10px] text-zinc-500">${task.summary_desc || '系统同步中'}</p>
-                        </div>
-                    </div>
-                    <div class="timeline-item relative flex gap-4 z-10 pb-2 opacity-40 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-300">
-                        <div class="timeline-line"></div>
-                        <div class="w-7 h-7 rounded-full bg-[#121217] border-[2px] border-zinc-500 flex items-center justify-center shrink-0 z-10">
-                            <div class="w-2 h-2 bg-zinc-500 rounded-full"></div>
-                        </div>
-                        <div class="pt-0.5">
-                            <p class="text-[13px] font-bold text-zinc-300 mb-0.5">需求发单成功</p>
-                            <p class="text-[10px] text-zinc-500">发起人: ${task.creator || '系统'}</p>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            return { isCompleted, cardHTML, timelineHTML };
+        function getLaneId(status) {
+            if (['pending', 'pending_accept'].includes(status)) return 'lane-pending';
+            if (['processing', 'rejected'].includes(status)) return 'lane-processing';
+            if (['pending_approval'].includes(status)) return 'lane-blocked';
+            if (['reviewing'].includes(status)) return 'lane-review';
+            return 'lane-pending';
         }
 
         window.loadTasksFromCloud = async function() {
             if(!window.supabase) return;
-            
             const userStr = localStorage.getItem('activeUserObj');
             const currentUser = userStr ? JSON.parse(userStr) : null;
             if(!currentUser) return;
             
-            window.renderDraftToUI(); 
-            
             const spinner = document.getElementById('loading-spinner');
-            
             try {
                 const [ongoingRes, completedRes] = await Promise.all([
                     window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS).not('status', 'in', '("completed","archived")').order('created_at', { ascending: false }),
-                    window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS).in('status', '("completed","archived")').order('created_at', { ascending: false }).limit(15)
+                    window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS).in('status', '("completed","archived")').order('created_at', { ascending: false }).limit(10)
                 ]);
 
                 const ongoingC = document.getElementById('ongoing-tasks-container');
                 const completedC = document.getElementById('completed-tasks-container');
-                const timelineC = document.getElementById('all-timelines-container');
 
-                ongoingC.querySelectorAll('.interactive-card:not(#draft-card)').forEach(el => el.remove());
-                completedC.innerHTML = ''; timelineC.innerHTML = '';
+                if(ongoingC) ongoingC.querySelectorAll('.interactive-card').forEach(el => el.remove());
+                if(completedC) completedC.innerHTML = '';
 
-                const weights = { 'reviewing': 1, 'rejected': 1.5, 'pending': 2, 'pending_accept': 3, 'pending_approval': 4, 'processing': 5 };
+                const weights = { 'rejected': 1, 'processing': 2, 'pending_accept': 3, 'pending': 4, 'pending_approval': 5, 'reviewing': 6 };
                 const ongoingData = ongoingRes.data || [];
                 ongoingData.sort((a, b) => (weights[a.status] || 99) - (weights[b.status] || 99));
 
+                let activeCount = 0;
                 ongoingData.forEach(t => {
                     const res = createTaskHTML(t, currentUser);
-                    if(res) { ongoingC.insertAdjacentHTML('beforeend', res.cardHTML); timelineC.insertAdjacentHTML('beforeend', res.timelineHTML); }
+                    if(res && res.cardHTML) {
+                        const lane = document.getElementById(res.laneId);
+                        if(lane) lane.insertAdjacentHTML('beforeend', res.cardHTML);
+                        activeCount++;
+                    }
                 });
 
                 const completedData = completedRes.data || [];
                 completedData.forEach(t => {
                     const res = createTaskHTML(t, currentUser);
-                    if(res) { completedC.insertAdjacentHTML('beforeend', res.cardHTML); timelineC.insertAdjacentHTML('beforeend', res.timelineHTML); }
+                    if(res && res.cardHTML && completedC) {
+                        completedC.insertAdjacentHTML('beforeend', res.cardHTML);
+                    }
                 });
 
                 if(spinner) spinner.classList.add('hidden');
                 
-                if(!ongoingC.querySelector('.interactive-card')) {
-                    ongoingC.innerHTML = `
-                        <div class="text-center py-20 bg-[#121217] rounded-3xl border border-white/5 border-dashed">
-                            <div class="w-16 h-16 bg-zinc-800/50 rounded-full flex items-center justify-center mx-auto mb-4 text-zinc-500">
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
-                            </div>
-                            <p class="text-sm font-bold text-zinc-400 mb-1">大厅空空如也</p>
-                            <p class="text-xs text-zinc-600">快点击右上角发起你的第一个需求吧！</p>
-                        </div>`;
-                }
-
-                if(completedC.innerHTML === '') {
-                    completedC.innerHTML = `<div class="text-center py-8 text-zinc-600 text-sm">暂无已完结/归档的工单</div>`;
-                }
-
-                if (localStorage.getItem('myDraftTask')) {
-                    window.previewTask('draft-card', '草稿', 'text-zinc-400');
-                } else if (ongoingData.length > 0) {
-                    window.previewTask(ongoingData[0].id, ongoingData[0].title, 'text-sky-400');
-                }
+                const countEl = document.getElementById('dashboard-tasks-count');
+                if (countEl) countEl.innerHTML = `${activeCount} <span class="text-[11px] text-zinc-600 font-normal ml-1">单</span>`;
 
             } catch(e) { 
                 console.error(e); 
-                if(spinner) spinner.classList.add('hidden');
+                if(spinner) spinner.innerHTML = `<p class="text-rose-500 text-xs">加载失败：${e.message}</p>`;
             }
         }
 
-        window.submitNewReq = async function() {
-            if(!window.supabase) return alert("云端服务仍在初始化，请稍等！");
-
-            const shortTitle = document.getElementById('req-short-title').value.trim();
-            const fullDesc = document.getElementById('req-title').value.trim();
-            const projectVal = document.getElementById('req-project').value.trim();
-            const assigneeVal = document.getElementById('req-assignee').value;
-            const dateInput = document.getElementById('req-date').value;
-
-            if(!shortTitle || !fullDesc || !projectVal || !dateInput) return alert("【校验失败】带星号的为必填项！");
-            
-            const selectedChannels = Array.from(document.querySelectorAll('.req-channel:checked')).map(cb => cb.value);
-            const otherChannelText = document.getElementById('req-channel-other').value.trim();
-            if(otherChannelText) selectedChannels.push('其他: ' + otherChannelText);
-            
-            const linkInput = document.getElementById('req-link').value || '';
-            
-            let finalStatus = 'pending';
-            let finalDesc = '系统正在进行统筹评估，等待分配。';
-            if (assigneeVal !== 'none' && assigneeVal !== '') {
-                finalStatus = 'pending_accept'; 
-                const assigneeName = document.getElementById('req-assignee-input').value;
-                finalDesc = `已直接指派给设计师 ${assigneeName}，等待接单。`;
-            }
-
-            const btn = document.querySelector('button[onclick="submitNewReq()"]');
-            const originalText = btn.innerText;
-            btn.innerText = "数据同步中..."; btn.disabled = true;
-            
-            let nextNum = 1;
-            const { data: latestData } = await window.supabase.from(window.DB_TABLE).select('id').order('created_at', { ascending: false }).limit(1);
-            if(latestData && latestData.length > 0) {
-                const lastId = latestData[0].id;
-                const match = lastId.match(/\d+$/);
-                if(match) nextNum = parseInt(match[0], 10) + 1;
-            }
-            const newId = 'TEST-' + nextNum.toString().padStart(3, '0');
-
-            const user = JSON.parse(localStorage.getItem('activeUserObj'));
-            const taskData = {
-                id: newId, title: shortTitle, full_desc: fullDesc, summary_desc: finalDesc, project: projectVal,
-                due_date: dateInput, assignee: assigneeVal, link: linkInput, channels: selectedChannels,
-                file_name: window.getFileNameFromUI(), file_data: currentUploadedFileData, status: finalStatus, creator: user.displayName || user.cnName || user.enName
-            };
-
-            const { error } = await window.supabase.from(window.DB_TABLE).insert([taskData]);
-
-            btn.innerText = originalText;
-            btn.disabled = false;
-
-            if (error) return alert("云端写入失败: " + error.message);
-
-            localStorage.removeItem('myDraftTask');
-            
-            window.closeAllModals();
-            
-            const successOverlay = document.getElementById('success-overlay'); 
-            successOverlay.classList.remove('hidden'); void successOverlay.offsetWidth; successOverlay.classList.remove('opacity-0');
-
-            await window.loadTasksFromCloud();
-
-            setTimeout(() => {
-                successOverlay.classList.add('opacity-0');
-                setTimeout(() => {
-                    successOverlay.classList.add('hidden');
-                    window.previewTask(newId, shortTitle, 'text-sky-400');
-                    document.getElementById('card-' + newId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }, 300);
-            }, 1000);
-        }
-
-        window.previewTask = function(taskId, title='', col='') {
-            document.querySelectorAll('.interactive-card').forEach(el => el.classList.remove('active-card'));
-            const targetCard = document.getElementById('card-' + taskId);
-            if(targetCard) targetCard.classList.add('active-card');
-            
-            document.querySelectorAll('[id^="timeline-"]').forEach(el => el.classList.add('hidden'));
-            const timeline = document.getElementById('timeline-' + taskId);
-            if(timeline) {
-                timeline.classList.remove('hidden');
-                const focusEl = document.getElementById('tracking-focus-text');
-                if(focusEl) {
-                    focusEl.innerText = `${taskId} (${timeline.dataset.title})`;
-                    focusEl.className = `${timeline.dataset.col} font-mono font-bold`;
-                }
-            } else if (taskId === 'draft-card') {
-                const focusEl = document.getElementById('tracking-focus-text');
-                if(focusEl) {
-                    focusEl.innerText = `草稿 (暂存中)`;
-                    focusEl.className = `text-zinc-400 font-mono font-bold`;
-                }
-            }
-        }
-
-        // ================= 🔔 全局消息通知与悬浮预警引擎 =================
-        window.loadNotifications = function() {
-            const userStr = localStorage.getItem('activeUserObj');
-            if(!userStr) return;
-            const user = JSON.parse(userStr);
-            const enName = user.enName ? user.enName.toLowerCase() : '';
-            const isLeader = enName === 'judyzzhang' || enName === 'davidxxu';
-
-            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
-
-            let myNotifs = sysNotifs.filter(n => {
-                if (typeof PAGE_TYPE !== 'undefined' && PAGE_TYPE === 'design' && n.role === 'design') return true;
-                if (typeof PAGE_TYPE !== 'undefined' && PAGE_TYPE === 'req' && n.role === 'req') return true;
-                if (isLeader && n.role === 'admin') return true;
-                return false;
-            });
-
-            myNotifs.sort((a, b) => b.id - a.id);
-
-            const unreadCount = myNotifs.filter(n => !n.read).length;
-            const bellDot = document.getElementById('bell-dot');
-            const notifContainer = document.querySelector('#notifMenu .max-h-\\[300px\\]');
-
-            if (bellDot) {
-                if (unreadCount > 0) {
-                    bellDot.classList.remove('hidden', 'bg-zinc-600', 'border-transparent');
-                    bellDot.classList.add('bg-rose-500', 'animate-pulse', 'border-[#141417]');
-                } else {
-                    bellDot.classList.add('hidden');
-                }
-            }
-
-            if (notifContainer) {
-                if (myNotifs.length === 0) {
-                    notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无新消息</div>';
-                } else {
-                    let html = '';
-                    myNotifs.forEach(n => {
-                        const dot = n.read ? '' : '<span class="w-2 h-2 rounded-full bg-rose-500 shrink-0 shadow-[0_0_8px_rgba(244,63,94,0.8)]"></span>';
-                        const opacity = n.read ? 'opacity-50' : '';
-                        const dateStr = new Date(n.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                        html += `
-                            <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer ${opacity}" onclick="window.markSingleAsRead(${n.id})">
-                                <div class="flex justify-between items-start mb-1">
-                                    <h4 class="text-[13px] font-bold text-white flex items-center gap-2">${n.title} ${dot}</h4>
-                                    <span class="text-[10px] text-zinc-500">${dateStr}</span>
-                                </div>
-                                <p class="text-[11px] text-zinc-400 leading-relaxed">${n.desc}</p>
-                            </div>
-                        `;
-                    });
-                    notifContainer.innerHTML = html;
-                }
-            }
-
-            const latestUnread = myNotifs.find(n => !n.read);
-            if (latestUnread) {
-                const lastToasted = sessionStorage.getItem('last_toasted_notif_id');
-                if (lastToasted != latestUnread.id) {
-                    if(window.showToast) window.showToast('🔔 ' + latestUnread.title, latestUnread.desc, 'info');
-                    sessionStorage.setItem('last_toasted_notif_id', latestUnread.id);
-                }
-            }
-        }
-
-        window.markSingleAsRead = function(id) {
-            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
-            let target = sysNotifs.find(n => n.id === id);
-            if(target) {
-                target.read = true;
-                localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs));
-                window.loadNotifications();
-            }
-        }
-
-        // 覆盖默认标记已读
-        window.markAllAsRead = function(event) {
-            if(event) event.stopPropagation();
-            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
-            const user = JSON.parse(localStorage.getItem('activeUserObj'));
-            const isLeader = user.enName.toLowerCase() === 'judyzzhang' || user.enName.toLowerCase() === 'davidxxu';
-
-            sysNotifs.forEach(n => {
-                if (typeof PAGE_TYPE !== 'undefined' && PAGE_TYPE === 'design' && n.role === 'design') n.read = true;
-                if (typeof PAGE_TYPE !== 'undefined' && PAGE_TYPE === 'req' && n.role === 'req') n.read = true;
-                if (isLeader && n.role === 'admin') n.read = true;
-            });
-
-            localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs));
-            window.loadNotifications();
-            if(window.showToast) window.showToast('消息已清空', '所有未读消息已成功标记为已读。', 'success');
-        }
-
-        // 🚀 核心：DOM 加载完成后，挂载轮询
         document.addEventListener('DOMContentLoaded', () => {
-            window.loadNotifications();
-            setInterval(window.loadNotifications, 3000); 
-        });
-
-        // ================= 💡 转单逻辑 =================
-        const modalOverlay = document.getElementById('transfer-modal-overlay');
-        const modal = document.getElementById('transfer-modal');
-        let currentTransferTaskId = null;
-
-        window.openTransferModal = function(taskId, title = '') { 
-            currentTransferTaskId = taskId;
-            const titleSpan = document.getElementById('transfer-task-name');
-            if (titleSpan) titleSpan.innerText = `${taskId} ${title}`;
-            modalOverlay.classList.remove('hidden'); 
-            setTimeout(() => { modalOverlay.classList.remove('opacity-0'); modal.classList.remove('hidden'); modal.classList.remove('scale-95'); }, 10); 
-        }
-
-        window.closeTransferModal = function() { 
-            modalOverlay.classList.add('opacity-0'); modal.classList.add('scale-95'); 
-            setTimeout(() => { modalOverlay.classList.add('hidden'); modal.classList.add('hidden'); currentTransferTaskId = null; }, 300); 
-        }
-
-        window.submitTransfer = async function() { 
-            if (!window.supabase) return alert("云端未连接");
-            if (!currentTransferTaskId) return;
-
-            const reason = document.getElementById('transfer-reason').value.trim();
-            if(!reason) return alert('请填写转单原因');
-
-            const userStr = localStorage.getItem('activeUserObj');
-            const user = JSON.parse(userStr);
-            const dispName = user.displayName || user.cnName || user.enName;
-
-            const { error } = await window.supabase.from(window.DB_TABLE)
-                .update({ status: 'pending', assignee: 'none', summary_desc: `[转单记录] ${dispName} 退回公海：${reason}` })
-                .eq('id', currentTransferTaskId);
-
-            if(error) return alert("转单失败: " + error.message);
-
-            window.closeTransferModal(); 
-            window.showToast('转单成功', '任务已退回统筹池等待重新分配', 'success');
+            if(!initRBAC()) return;
             
-            setTimeout(async () => { await window.loadTasksFromCloud(); }, 300);
-        }
+            const idBtn = document.getElementById('identityBtn');
+            const idMenu = document.getElementById('identityMenu');
+            if(idBtn && idMenu) idBtn.addEventListener('click', (e) => { e.stopPropagation(); idMenu.classList.toggle('hidden'); });
+            document.addEventListener('click', (e) => { 
+                if(idMenu && !idMenu.contains(e.target)) idMenu.classList.add('hidden'); 
+            });
+        });
     </script>
 </body>
 </html>
