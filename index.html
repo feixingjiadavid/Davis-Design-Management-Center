@@ -777,13 +777,12 @@
             const isOwner = creator === currentUser.displayName || creator === currentUser.cnName || creator === currentUser.enName;
             
             let isJudy = currentUserEn === 'judyzzhang';
-            let isSuperAdmin = currentUserEn === 'davidxxu'; // 💡 修复：添加超管校验
+            let isSuperAdmin = currentUserEn === 'davidxxu';
             
-            // 💡 修复：前端数据过滤允许超管放行
             if(!isOwner && !(isJudy && task.status === 'pending_approval') && !isSuperAdmin) return null;
 
             let sColor, sText;
-            let targetUrl = `task-detail-requester.html?id=${task.id}`; // 💡 修复：统一路由入口
+            let targetUrl = `task-detail-requester.html?id=${task.id}`;
             let isUrgent = false;
 
             if(task.due_date && !['completed','archived','terminated'].includes(task.status)) {
@@ -988,12 +987,12 @@
             const newId = 'TEST-' + nextNum.toString().padStart(3, '0');
 
             const user = JSON.parse(localStorage.getItem('activeUserObj'));
-            // 💡 修复：注入 reject_count 计数器
             const taskData = {
                 id: newId, title: shortTitle, full_desc: fullDesc, summary_desc: finalDesc, project: projectVal,
                 due_date: dateInput, assignee: assigneeVal, link: linkInput, channels: selectedChannels,
                 file_name: window.getFileNameFromUI(), file_data: currentUploadedFileData, status: finalStatus, creator: user.displayName || user.cnName || user.enName,
-                reject_count: 0 
+                // 💡 修复：临时注释掉报错的字段，直到你在 Supabase 中添加了该字段为止
+                // reject_count: 0 
             };
 
             const { error } = await window.supabase.from(window.DB_TABLE).insert([taskData]);
