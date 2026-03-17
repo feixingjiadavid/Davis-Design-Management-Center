@@ -90,7 +90,7 @@
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                             反馈意见
                         </h3>
-                        <p class="text-[13px] text-zinc-300 leading-relaxed" id="reject-feedback-text">读取中...</p>
+                        <p class="text-[13px] text-zinc-300 leading-relaxed whitespace-pre-wrap" id="reject-feedback-text">读取中...</p>
                     </div>
 
                     <div class="bg-[#121217] border border-white/5 rounded-2xl p-8 relative overflow-hidden transition-opacity opacity-70 hover:opacity-100">
@@ -312,7 +312,6 @@
             } catch(e) { console.error(e); showToast("数据加载失败", e.message, "error"); }
         }
 
-        // 渲染基础信息（左上常驻区）
         function renderStaticInfo() {
             const d = globalTaskData;
             safeSetTxt('req-id', d.id || '--');
@@ -341,7 +340,6 @@
             const a = document.createElement('a'); a.href = dataBase64; a.download = name; a.click();
         }
 
-        // 💡 智能判断渲染设计面板 (核心逻辑)
         function renderSmartDesignerPanel() {
             const status = globalTaskData.status;
             const hBadge = document.getElementById('header-status-badge');
@@ -357,11 +355,9 @@
             let pnlHtml = '';
             let pnlClasses = 'bg-[#121217] border border-white/5 rounded-3xl p-7 shadow-2xl relative overflow-hidden transition-all duration-300';
             
-            // 计算最新版本号
             const newVerNum = globalHistoryArr.length + 1;
             document.getElementById('upload-version-tag').innerText = `(记录为 v-${newVerNum})`;
 
-            // 提取打回原因或领导审批意见
             let rejectFeedback = '';
             let rejectAction = '';
             let approvedFrameworkImg = null;
@@ -376,10 +372,7 @@
                 if(h.reply_by && h.reply_by.includes('领导') && !h.is_rejected && h.reply) leaderApprovedNotes = h.reply;
             }
 
-            // ======= 状态机分发 =======
-            
             if (status === 'pending' || status === 'pending_accept') {
-                // 1. 待接单评估期
                 sCol = 'sky'; sText = '需求待评估接单';
                 sIcon = `<svg class="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
                 
@@ -401,16 +394,13 @@
                 `;
             
             } else if (status === 'processing' || status === 'rejected') {
-                // 2. 作图与填报期 (核心功能区)
                 const isReject = status === 'rejected';
                 
-                // 判断当前是在搞框架还是搞正稿
                 let hasLeaderApproved = false;
                 for(let i = globalHistoryArr.length - 1; i >= 0; i--) {
                     if(globalHistoryArr[i].reply_by && globalHistoryArr[i].reply_by.includes('领导') && !globalHistoryArr[i].is_rejected) hasLeaderApproved = true;
                 }
                 
-                // 如果是甲方打回了正稿，或者是领导已经批了框架，就进入【正稿模式】
                 if (hasLeaderApproved || rejectAction === 'reject_draft' || (status === 'processing' && globalTaskData.design_img_url)) {
                     currentUploadPhase = 'draft';
                 } else {
@@ -429,11 +419,10 @@
                     document.getElementById('reject-feedback-text').innerText = rejectFeedback;
                 }
 
-                // 动态调整上传区的文案
                 if (currentUploadPhase === 'draft') {
-                    document.getElementById('upload-section-title').innerHTML = `上传最终正式稿产出物`;
+                    document.getElementById('upload-section-title').innerHTML = `上传最终正式稿产出物 <span class="text-xs text-orange-500/80 font-normal ml-2" id="upload-version-tag">(记录为 v-${newVerNum})</span>`;
                     document.getElementById('upload-label-text').innerHTML = `1. 正式稿在线预览图 (JPG/PNG) <span class="text-rose-500">*</span>`;
-                    document.getElementById('source-link-input-group').classList.remove('hidden'); // 正稿开放源文件外链
+                    document.getElementById('source-link-input-group').classList.remove('hidden'); 
                     
                     if (approvedFrameworkImg) {
                         frBlock.classList.remove('hidden');
@@ -444,13 +433,12 @@
                         document.getElementById('approved-framework-img').src = globalTaskData.design_img_url;
                     }
                 } else {
-                    document.getElementById('upload-section-title').innerHTML = `提交框架/版式大方向方案`;
+                    document.getElementById('upload-section-title').innerHTML = `提交框架/版式大方向方案 <span class="text-xs text-orange-500/80 font-normal ml-2" id="upload-version-tag">(记录为 v-${newVerNum})</span>`;
                     document.getElementById('upload-label-text').innerHTML = `1. 框架预览图 (JPG/PNG) <span class="text-rose-500">*</span>`;
                 }
 
                 pnlClasses = `bg-gradient-to-b from-[#1a110a] to-[#121217] border border-${sCol}-500/30 rounded-3xl p-7 shadow-[0_20px_40px_-10px_rgba(var(--tw-colors-${sCol}-500),0.15)] relative overflow-hidden`;
                 
-                // 复用旧页面的 AI 与工时表单
                 pnlHtml = `
                     <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-${sCol}-500"></div>
                     <h3 class="text-[16px] font-bold text-white mb-6 border-b border-white/5 pb-4">效能填报记录</h3>
@@ -462,24 +450,23 @@
                         <div>
                             <label class="block text-[12px] font-bold text-zinc-300 mb-2">借助的 AI 生产力</label>
                             <div class="grid grid-cols-3 gap-2">
-                                <label class="cursor-pointer"><input type="checkbox" class="hidden ai-tool-cb" value="Midjourney"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[10px] px-2 py-1.5 rounded-md text-center">Midjourney</div></label>
-                                <label class="cursor-pointer"><input type="checkbox" class="hidden ai-tool-cb" value="Gemini"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[10px] px-2 py-1.5 rounded-md text-center">Gemini</div></label>
-                                <label class="cursor-pointer"><input type="checkbox" class="hidden ai-tool-cb" value="豆包"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[10px] px-2 py-1.5 rounded-md text-center">豆包</div></label>
-                                <label class="cursor-pointer"><input type="checkbox" class="hidden ai-tool-cb" value="即梦"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[10px] px-2 py-1.5 rounded-md text-center">即梦</div></label>
-                                <label class="cursor-pointer"><input type="checkbox" class="hidden ai-tool-cb" value="PS生成填充"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[10px] px-2 py-1.5 rounded-md text-center">PS填充</div></label>
-                                <label class="cursor-pointer"><input type="checkbox" class="hidden ai-tool-cb" value="无AI辅助"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[10px] px-2 py-1.5 rounded-md text-center">纯手绘</div></label>
+                                <label class="cursor-pointer"><input type="checkbox" class="hidden ai-tool-cb" value="Midjourney"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[10px] px-2 py-1.5 rounded-md text-center transition-colors">Midjourney</div></label>
+                                <label class="cursor-pointer"><input type="checkbox" class="hidden ai-tool-cb" value="Gemini"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[10px] px-2 py-1.5 rounded-md text-center transition-colors">Gemini</div></label>
+                                <label class="cursor-pointer"><input type="checkbox" class="hidden ai-tool-cb" value="豆包"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[10px] px-2 py-1.5 rounded-md text-center transition-colors">豆包</div></label>
+                                <label class="cursor-pointer"><input type="checkbox" class="hidden ai-tool-cb" value="即梦"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[10px] px-2 py-1.5 rounded-md text-center transition-colors">即梦</div></label>
+                                <label class="cursor-pointer"><input type="checkbox" class="hidden ai-tool-cb" value="PS生成填充"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[10px] px-2 py-1.5 rounded-md text-center transition-colors">PS填充</div></label>
+                                <label class="cursor-pointer"><input type="checkbox" class="hidden ai-tool-cb" value="无AI辅助"><div class="border border-zinc-700 bg-[#09090b] text-zinc-400 text-[10px] px-2 py-1.5 rounded-md text-center transition-colors">纯手绘</div></label>
                             </div>
                         </div>
                     </div>
                     <div class="mt-8 pt-5 border-t border-white/5">
-                        <button onclick="submitDesignWork()" class="w-full py-4 bg-${sCol}-600 hover:bg-${sCol}-500 text-white rounded-xl text-[14px] font-bold shadow-lg btn-press flex items-center justify-center gap-2" id="btn-submit-design">
+                        <button onclick="submitDesignWork()" class="w-full py-4 bg-${sCol}-600 hover:bg-${sCol}-500 text-white rounded-xl text-[14px] font-bold shadow-lg btn-press flex items-center justify-center gap-2 transition-all" id="btn-submit-design">
                             🚀 ${currentUploadPhase === 'draft' ? '提交正稿给甲方验收' : '推送框架给主管审批'}
                         </button>
                     </div>
                 `;
 
             } else if (status === 'pending_approval' || status === 'reviewing') {
-                // 3. 锁定防穿透期
                 sCol = 'emerald'; 
                 sText = status === 'pending_approval' ? '锁定：主管审批框架中' : '锁定：甲方验收正稿中';
                 sIcon = `<svg class="animate-pulse h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" stroke="currentColor" d="M5 13l4 4L19 7"></path></svg>`;
@@ -500,7 +487,6 @@
                 `;
 
             } else {
-                // 4. 完结/终止期
                 sCol = status==='terminated'?'rose':'zinc'; sText = status==='terminated'?'已强行终止 (废弃)':'任务已圆满结项';
                 sIcon = status==='terminated'?`<svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`:`<svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
                 
@@ -515,7 +501,6 @@
                 `;
             }
 
-            // 更新 DOM
             hBadge.innerHTML = `${sIcon} ${sText}`;
             hBadge.className = `bg-${sCol}-500/20 text-${sCol}-400 border border-${sCol}-500/30 px-3 py-1.5 rounded-lg text-[12px] font-bold flex items-center gap-1.5 shadow-[0_0_10px_rgba(var(--tw-colors-${sCol}-500),0.2)]`;
             hBadge.classList.remove('hidden');
@@ -525,7 +510,6 @@
             pnl.innerHTML = pnlHtml;
         }
 
-        // 💡 渲染极简清爽的时间轴
         function renderTimeline() {
             let html = '';
             if (globalHistoryArr && globalHistoryArr.length > 0) {
@@ -537,11 +521,13 @@
                     else if(h.action === 'submit_draft') { dotColor = 'sky'; actionTxt = '你上传了正稿版本 ' + h.version; }
                     else if(h.action === 'submit_framework') { dotColor = 'amber'; actionTxt = '你上传了框架版本 ' + h.version; }
                     else if(h.action === 'complete') { dotColor = 'emerald'; actionTxt = '甲方验收成功完结'; }
+                    else if(h.action === 'terminate') { dotColor = 'rose'; actionTxt = '任务被强行终止'; subTxt = h.reply || ''; }
+                    else if(h.action === 'transfer') { dotColor = 'orange'; actionTxt = '任务发生转单'; subTxt = h.reply || ''; }
                     
                     html += `
                     <div class="relative flex gap-4 z-10 pb-6 group">
                        <div class="timeline-line group-last:hidden"></div>
-                       <div class="w-5 h-5 rounded-full bg-[#121217] border-[2px] border-${dotColor}-500 flex items-center justify-center shrink-0 z-10 mt-0.5"><div class="w-1.5 h-1.5 bg-${dotColor}-500 rounded-full"></div></div>
+                       <div class="w-5 h-5 rounded-full bg-[#121217] border-[2px] border-${dotColor}-500 flex items-center justify-center shrink-0 z-10 mt-0.5 shadow-[0_0_8px_rgba(var(--tw-colors-${dotColor}-500),0.3)]"><div class="w-1.5 h-1.5 bg-${dotColor}-500 rounded-full"></div></div>
                        <div class="w-full pr-2 z-10">
                            <p class="text-[12px] font-bold text-zinc-300 flex justify-between">${actionTxt} <span class="text-[9px] text-zinc-600 font-mono font-normal">${new Date(h.created_at || h.time).toLocaleDateString()}</span></p>
                            ${subTxt ? `<p class="text-[10px] text-zinc-500 mt-1 line-clamp-2">${subTxt}</p>` : ''}
@@ -553,7 +539,7 @@
             document.getElementById('task-timeline-container').innerHTML = html;
         }
 
-        // ================= 图片上传压缩引擎 =================
+        // ================= 图片上传引擎 (含 Base64 降级防崩机制) =================
         function compressImage(file, maxWidth = 1600, quality = 0.7) {
             return new Promise((resolve) => {
                 const reader = new FileReader();
@@ -573,6 +559,15 @@
                 }
                 reader.onerror = () => resolve(file);
                 reader.readAsDataURL(file);
+            });
+        }
+
+        // 强力 Base64 转换器 (用于云端失效时的兜底)
+        function blobToBase64(blob) {
+            return new Promise((resolve, _) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.readAsDataURL(blob);
             });
         }
 
@@ -616,7 +611,7 @@
             document.getElementById('upload-placeholder').classList.remove('hidden'); document.getElementById('upload-preview').classList.add('hidden');
         }
 
-        // ================= 弹窗控制 (接单/退回) =================
+        // ================= 弹窗控制 =================
         const acceptOverlay = document.getElementById('accept-modal-overlay');
         const acceptModal = document.getElementById('accept-modal');
         const rejectOverlay = document.getElementById('reject-modal-overlay');
@@ -631,7 +626,6 @@
 
         // ================= 核心写入动作 =================
 
-        // 1. 接单
         window.submitAccept = async function() {
             const fwDate = document.getElementById('framework-date').value;
             if(!fwDate) return alert("请填写预计交框架方案的时间！");
@@ -649,7 +643,6 @@
             setTimeout(() => { window.location.reload(); }, 1000);
         }
 
-        // 2. 拒单退回大厅
         window.submitRejectOrder = async function() {
             const reason = document.getElementById('reject-reason').value.trim();
             if(!reason) return alert("请填写退回原因！");
@@ -657,9 +650,16 @@
             btn.disabled = true; btn.innerText = "退回中...";
 
             if (window.supabase) {
-                const summary = `需求被退回大厅重提：${reason}`;
+                const summary = `需求被执行层退回大厅重提：${reason}`;
+                
+                let hist = [...globalHistoryArr];
+                hist.push({
+                    action: 'transfer', operator: `${currentUser.displayName || currentUser.enName} (设计师)`, time: new Date().toISOString(),
+                    reply: `因需求不清晰退回大厅，备注：${reason}`
+                });
+
                 const { error } = await window.supabase.from(window.DB_TABLE).update({
-                    status: 'rejected', summary_desc: summary, assignee: 'none' // 释放执行人
+                    status: 'rejected', summary_desc: summary, assignee: 'none', history_json: JSON.stringify(hist)
                 }).eq('id', currentTaskId);
                 if (error) { btn.disabled = false; btn.innerText = "确认退回"; return alert("云端更新失败：" + error.message); }
             }
@@ -667,7 +667,7 @@
             setTimeout(() => { window.location.href = 'manager-workspace.html'; }, 1000);
         }
 
-        // 3. 提交产出图纸 (防卡死机制)
+        // 🚀 终极防崩上传流
         window.submitDesignWork = async function() {
             const sourceLinkEl = document.getElementById('source-link');
             const sourceLink = sourceLinkEl ? sourceLinkEl.value.trim() : '';
@@ -685,30 +685,36 @@
             const descText = document.getElementById('delivery-desc').value.trim();
             const btn = document.getElementById('btn-submit-design');
             const btnOriginalText = btn.innerHTML;
-            btn.disabled = true; btn.innerText = "🚀 压缩并上传到云端...";
+            btn.disabled = true; btn.innerText = "🚀 压缩并同步到云端...";
 
             let finalCloudUrl = '';
 
-            try {
-                if (tempFileBlob) {
-                    let fileToUpload = tempFileBlob;
-                    try { fileToUpload = await compressImage(tempFileBlob, 1600, 0.7); } catch(e) {}
+            if (tempFileBlob) {
+                let fileToUpload = tempFileBlob;
+                try { fileToUpload = await compressImage(tempFileBlob, 1600, 0.7); } catch(e) {}
 
-                    let fileExt = tempFileBlob.name ? tempFileBlob.name.split('.').pop().toLowerCase() : 'jpg';
-                    const safeFileName = `output_${currentTaskId}_${Date.now()}.${fileExt}`;
-                    
+                let fileExt = tempFileBlob.name ? tempFileBlob.name.split('.').pop().toLowerCase() : 'jpg';
+                const safeFileName = `output_${currentTaskId}_${Date.now()}.${fileExt}`;
+                
+                try {
+                    // 1. 尝试上传到 Supabase Bucket
                     const { error: uploadError } = await window.supabase.storage.from('designs').upload(safeFileName, fileToUpload, { contentType: `image/${fileExt === 'png' ? 'png' : 'jpeg'}` });
                     if (uploadError) throw uploadError;
 
                     const { data: urlData } = window.supabase.storage.from('designs').getPublicUrl(safeFileName);
                     finalCloudUrl = urlData.publicUrl;
+                } catch (err) {
+                    console.warn("⚠️ 云端 Storage Bucket 尚未建立或配置错误，系统自动降级为 Base64 文本存储...");
+                    // 2. 防崩溃降级机制 -> Base64
+                    try {
+                        finalCloudUrl = await blobToBase64(fileToUpload);
+                    } catch(b64Err) {
+                        btn.disabled = false; btn.innerHTML = btnOriginalText;
+                        return alert("严重错误：本地文件读取失败！");
+                    }
                 }
-            } catch (err) {
-                btn.disabled = false; btn.innerHTML = btnOriginalText;
-                return alert("图片上传 Supabase 失败，请检查网络或联系超管。\n" + err.message);
             }
 
-            // 收集 AI 工具使用情况
             const checkedAIs = Array.from(document.querySelectorAll('.ai-tool-cb:checked')).map(cb => cb.value);
             const newHistoryRecord = {
                 version: `v-${globalHistoryArr.length + 1}`,
@@ -730,7 +736,7 @@
 
             if (window.supabase) {
                 let fallbackImg = finalCloudUrl;
-                if (!fallbackImg) fallbackImg = document.getElementById('approved-framework-img').src;
+                if (!fallbackImg) fallbackImg = document.getElementById('approved-framework-img')?.src;
 
                 const { error } = await window.supabase.from(window.DB_TABLE).update({
                     status: nextStatus, 
