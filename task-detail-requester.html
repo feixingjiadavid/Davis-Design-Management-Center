@@ -98,7 +98,7 @@
                     <div id="version-history-block" class="hidden mt-4">
                         <h3 class="text-[16px] font-bold text-white mb-4 flex items-center gap-2">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-                            交付方案迭代全景记录
+                            设计师历史交付版本库
                         </h3>
                         <div id="version-history-container" class="space-y-4">
                             </div>
@@ -246,6 +246,7 @@
             showDialogUI();
         }
 
+        // ================= 工具库 =================
         const safeSetTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.innerText = txt; };
         
         function showToast(title, desc, type = 'success') {
@@ -301,6 +302,7 @@
             setTimeout(() => { approveOverlay.classList.add('hidden'); approveModal.classList.add('hidden'); rejectOverlay.classList.add('hidden'); rejectModal.classList.add('hidden'); }, 300);
         }
 
+        // ================= 核心业务引擎 =================
         const urlParams = new URLSearchParams(window.location.search);
         const currentTaskId = urlParams.get('id');
         let globalTaskData = null;
@@ -308,7 +310,7 @@
         let rejectCountLimit = 5; 
         let currentRejectCount = 0;
         let currentUser = null;
-        let isRequesterMode = false;
+        let isRequesterMode = false; 
 
         window.initApp = async function() {
             const userStr = localStorage.getItem('activeUserObj');
@@ -377,19 +379,15 @@
             }
         }
 
-        // ================= 💡 资源大盘与版本画廊的完美同步 =================
+        // ================= 💡 同步的画廊与大盘 =================
         function renderResourceSummary() {
             let stats = {};
-            
             globalHistoryArr.forEach(h => {
                 if (h.action === 'submit_framework' || h.action === 'submit_draft') {
                     let op = h.operator || '未知设计师';
                     if (!stats[op]) stats[op] = { hours: 0, tools: new Set() };
-                    
                     stats[op].hours += parseFloat(h.work_hours || 0);
-                    if (h.ai_tools && Array.isArray(h.ai_tools)) {
-                        h.ai_tools.forEach(t => stats[op].tools.add(t));
-                    }
+                    if (h.ai_tools && Array.isArray(h.ai_tools)) h.ai_tools.forEach(t => stats[op].tools.add(t));
                 }
             });
 
@@ -415,7 +413,6 @@
                 }
                 html += `</div>`;
             }
-            
             panel.innerHTML = html;
             panel.classList.remove('hidden');
         }
@@ -425,13 +422,11 @@
             const block = document.getElementById('version-history-block');
             
             let submissions = [];
-            
             for(let i=0; i<globalHistoryArr.length; i++) {
                 let h = globalHistoryArr[i];
                 if(h.action === 'submit_framework' || h.action === 'submit_draft') {
                     let fate = 'pending'; 
                     let fateReason = '';
-                    
                     for(let j = i + 1; j < globalHistoryArr.length; j++) {
                         let nextH = globalHistoryArr[j];
                         if (nextH.action.startsWith('reject_') || nextH.is_rejected) {
@@ -516,7 +511,7 @@
             container.innerHTML = html;
         }
 
-        // 💡 智能控制台
+        // ================= 💡 智能 Action Panel =================
         function renderSmartActionPanel() {
             const status = globalTaskData.status;
             const enName = currentUser.enName.toLowerCase();
@@ -567,7 +562,7 @@
                         <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-orange-500"></div>
                         <div class="w-14 h-14 bg-orange-500/10 text-orange-500 rounded-full flex items-center justify-center mb-5"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div>
                         <h3 class="text-[16px] font-bold text-white mb-3">设计师爆肝作图中</h3>
-                        <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">设计师 ${globalTaskData.assignee || ''} 正在根据您的需求产出设计图。请通过左侧画廊查看历史版本。若进度缓慢，可点击催办。</p>
+                        <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">设计师 ${globalTaskData.assignee || ''} 已接手该单，正在根据您的需求产出设计图。若进度缓慢，可点击下方按钮催促。</p>
                         <button onclick="actionUrge(this)" class="w-full py-3.5 bg-[#1a1a24] hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white rounded-xl text-[13px] font-bold transition-all btn-press flex items-center justify-center gap-2"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>发送催办系统通知</button>
                     `;
                 } else {
@@ -578,7 +573,7 @@
                 sCol = 'amber'; sText = '领导审批框架大方向中';
                 sIcon = `<svg class="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
                 
-                if(isLeader || isSuperAdmin) {
+                if(isLeader) {
                     pnlClasses = 'bg-gradient-to-b from-[#291b0c] to-[#121217] border border-amber-500/40 rounded-3xl p-7 shadow-[0_20px_40px_-10px_rgba(245,158,11,0.2)] relative overflow-hidden';
                     pnlHtml = `
                         <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-amber-500"></div>
@@ -610,7 +605,7 @@
                 sCol = 'emerald'; sText = '正式设计稿待验收';
                 sIcon = `<svg class="animate-pulse h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" stroke="currentColor" d="M5 13l4 4L19 7"></path></svg>`;
                 
-                if(isCreator || isLeader || isSuperAdmin) {
+                if(isCreator) {
                     pnlClasses = 'bg-gradient-to-b from-[#061e13] to-[#121217] border border-emerald-500/40 rounded-3xl p-7 shadow-[0_20px_40px_-10px_rgba(16,185,129,0.2)] relative overflow-hidden';
                     
                     let limitHtml = '';
@@ -650,6 +645,14 @@
                         </h3>
                         ${limitHtml}
                     `;
+                } else if (isSuperAdmin) {
+                     pnlClasses = 'bg-[#18181b] border border-zinc-700 rounded-3xl p-7 shadow-2xl relative overflow-hidden';
+                     pnlHtml = `
+                        <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-zinc-500"></div>
+                        <h3 class="text-[16px] font-bold text-white mb-3">正式稿验收中</h3>
+                        <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">正式稿已送达，等待发起人 ${globalTaskData.creator} 验收。</p>
+                        <button onclick="actionUrge(this)" class="w-full py-3.5 bg-[#1a1a24] hover:bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white rounded-xl text-[13px] font-bold transition-all btn-press">催促发起人验收</button>
+                     `;
                 } else {
                     pnlHtml = `<div class="text-center py-6 text-zinc-500 text-sm">等待甲方最终验收结果。</div>`;
                 }
@@ -726,7 +729,7 @@
                 history_json: JSON.stringify(globalHistoryArr)
             }).eq('id', currentTaskId);
             
-            if(error) { alert("云端状态更新失败：" + error.message); return false; }
+            if(error) { showAlert("错误", "云端状态更新失败：" + error.message, "danger"); return false; }
             return true;
         }
 
