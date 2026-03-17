@@ -18,6 +18,7 @@
         
         .kanban-card { transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; cursor: pointer; }
         .kanban-card:hover { transform: translateY(-2px); box-shadow: 0 12px 30px -10px rgba(0,0,0,0.6); }
+        .kanban-card:active { transform: scale(0.98); }
         
         .kanban-column { height: calc(100vh - 220px); }
         .bg-glow-orange { position: absolute; top: -10%; right: -5%; width: 600px; height: 600px; background: radial-gradient(circle, rgba(249,115,22,0.08) 0%, transparent 70%); border-radius: 50%; filter: blur(100px); pointer-events: none; z-index: 0; }
@@ -26,10 +27,6 @@
         @keyframes dropIn { 0% { opacity: 0; transform: scale(0.95) translateY(-10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
         .toast-slide-in { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-
-        /* 💡 强制红色预警呼吸灯 */
-        @keyframes pulse-rose { 50% { box-shadow: inset 0 0 0 1px rgba(244,63,94,0.6), 0 0 20px rgba(244,63,94,0.3); } }
-        .breathe-rose { animation: pulse-rose 2s infinite ease-in-out; border-color: rgba(244,63,94,0.8) !important; }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-orange-500/30 text-zinc-300">
@@ -163,7 +160,7 @@
 
         <div class="flex-1 p-6 px-8 overflow-x-auto custom-scrollbar flex gap-6">
             
-            <div class="flex-1 min-w-[280px] max-w-[360px] flex flex-col kanban-column">
+            <div class="flex-1 min-w-[300px] max-w-[360px] flex flex-col kanban-column">
                 <div class="flex items-center justify-between mb-4 px-2">
                     <h3 class="text-[13px] font-bold text-white flex items-center gap-2">
                         <span class="w-2 h-2 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.6)]"></span> 待接单/统筹池
@@ -176,7 +173,7 @@
                 </div>
             </div>
 
-            <div class="flex-1 min-w-[280px] max-w-[360px] flex flex-col kanban-column">
+            <div class="flex-1 min-w-[300px] max-w-[360px] flex flex-col kanban-column">
                 <div class="flex items-center justify-between mb-4 px-2">
                     <h3 class="text-[13px] font-bold text-white flex items-center gap-2">
                         <span class="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.6)]"></span> 设计制作中
@@ -186,7 +183,7 @@
                 </div>
             </div>
 
-            <div class="flex-1 min-w-[280px] max-w-[360px] flex flex-col kanban-column">
+            <div class="flex-1 min-w-[300px] max-w-[360px] flex flex-col kanban-column">
                 <div class="flex items-center justify-between mb-4 px-2">
                     <h3 class="text-[13px] font-bold text-zinc-400 flex items-center gap-2">
                         <span class="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]"></span> 领导框架审核中
@@ -196,7 +193,7 @@
                 </div>
             </div>
             
-            <div class="flex-1 min-w-[280px] max-w-[360px] flex flex-col kanban-column">
+            <div class="flex-1 min-w-[300px] max-w-[360px] flex flex-col kanban-column">
                 <div class="flex items-center justify-between mb-4 px-2">
                     <h3 class="text-[13px] font-bold text-white flex items-center gap-2">
                         <span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]"></span> 终稿已提待验收
@@ -275,7 +272,6 @@
         window.supabase = supabase;
         window.DB_TABLE = 'test_tasks'; 
         
-        // 💡 增加 history_json 以支持路由大脑判定
         window.LIGHT_FIELDS = 'id, title, status, project, due_date, creator, created_at, summary_desc, assignee, history_json';
 
         if(window.loadTasksFromCloud) window.loadTasksFromCloud();
@@ -366,9 +362,6 @@
             } else if(type === 'info') {
                 icon.className = "w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0";
                 icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
-            } else {
-                icon.className = "w-8 h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0";
-                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
             }
             toast.classList.remove('hidden');
             setTimeout(() => { toast.classList.add('hidden'); }, 3000);
@@ -399,33 +392,39 @@
             if (!isSuperAdmin && !isMyDesignTask && !(isUnassignedPool && task.status === 'pending')) return null;
 
             let laneId = '';
-            let sColor, sText;
+            let sColor, sText, strokeColor;
             
             switch(task.status) {
                 case 'pending':
                 case 'pending_accept':
                     laneId = 'lane-pending';
-                    sColor = 'text-sky-400'; sText = task.status==='pending'?'待分配/认领':'派单待接单';
+                    sColor = 'text-amber-400'; 
+                    sText = task.status === 'pending' ? '待分配/认领' : '待确认接单';
+                    strokeColor = 'amber';
                     break;
                 case 'processing':
                 case 'rejected':
                     laneId = 'lane-processing';
-                    sColor = task.status === 'rejected' ? 'text-rose-500' : 'text-orange-400';
-                    sText = task.status === 'rejected' ? '被驳回重画' : '制作执行中';
+                    sColor = task.status === 'rejected' ? 'text-rose-500' : 'text-orange-500';
+                    sText = task.status === 'rejected' ? '被驳回重画' : '设计制作中';
+                    strokeColor = task.status === 'rejected' ? 'rose' : 'orange';
                     break;
                 case 'pending_approval':
                     laneId = 'lane-blocked';
-                    sColor = 'text-amber-500'; sText = '锁定中:待领导审批';
+                    sColor = 'text-zinc-400'; 
+                    sText = '领导审批中';
+                    strokeColor = 'zinc';
                     break;
                 case 'reviewing':
                     laneId = 'lane-review';
-                    sColor = 'text-emerald-500'; sText = '交付待甲方验收';
+                    sColor = 'text-emerald-500'; 
+                    sText = '待甲方验收';
+                    strokeColor = 'emerald';
                     break;
                 default:
                     return null; 
             }
 
-            // 统一跳往新做的 designer 详情页
             const targetUrl = `task-detail-designer.html?id=${task.id}`;
             
             let isUrgent = false;
@@ -437,13 +436,13 @@
                 if(diffDays <= 2 && diffDays >= -999) isUrgent = true;
             }
 
-            const borderColBase = isUrgent ? 'rgba(244,63,94,0.7)' : sColor.replace('text-', 'rgba(').replace('sky','56,189,248').replace('amber','251,191,36').replace('emerald','16,185,129').replace('rose','244,63,94').replace('orange','249,115,22').replace('zinc','113,113,122') + ',0.3)';
+            const borderColBase = isUrgent ? 'rgba(225,29,72,0.6)' : sColor.replace('text-', 'rgba(').replace('sky','56,189,248').replace('amber','251,191,36').replace('emerald','16,185,129').replace('rose','244,63,94').replace('orange','249,115,22').replace('zinc','113,113,122') + ',0.3)';
             const breatheClass = isUrgent ? 'breathe-rose' : '';
-            const iconHtml = (task.status === 'reviewing' || task.status === 'rejected') ? '' : `<svg class="animate-spin h-3 w-3 ${sColor}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+            const iconHtml = (task.status === 'reviewing' || task.status === 'rejected') ? '' : `<svg class="animate-spin h-3.5 w-3.5 ${sColor}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
 
             // 💡 还原底部大按钮交互逻辑
             let primaryBtnText = '查看进度详情';
-            let primaryBtnClass = 'bg-sky-600 hover:bg-sky-500 text-white'; // 默认天蓝色按钮
+            let primaryBtnClass = 'bg-[#0284c7] hover:bg-sky-500 text-white'; // 天蓝色大按钮
 
             if (task.status === 'pending' || task.status === 'pending_accept') {
                 primaryBtnText = '去接单并响应';
@@ -451,43 +450,40 @@
                 primaryBtnText = '去处理并传稿';
             } else if (task.status === 'pending_approval') {
                 primaryBtnText = isJudy ? '去审批' : '查看被锁进度';
-                primaryBtnClass = 'bg-white/10 hover:bg-white/20 text-zinc-300'; // 灰色按钮
+                primaryBtnClass = 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300'; // 灰色按钮
             } else if (task.status === 'reviewing') {
                 primaryBtnText = '查看验收进度';
-                primaryBtnClass = 'bg-white/10 hover:bg-white/20 text-zinc-300'; // 灰色按钮
+                primaryBtnClass = 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300'; // 灰色按钮
             }
 
             const canTransfer = (task.status === 'pending_accept' || task.status === 'processing' || task.status === 'rejected') && (isMyDesignTask || isSuperAdmin);
             
             let btnHtml = `
                 <div class="flex items-center gap-2 mt-4 relative z-10 pl-2">
-                    <button onclick="event.stopPropagation(); window.location.href='${targetUrl}'" class="flex-1 py-2.5 rounded-lg text-[12px] font-bold transition-all btn-press ${primaryBtnClass}">${primaryBtnText}</button>
-                    ${canTransfer ? `<button onclick="event.stopPropagation(); window.openTransferModal('${task.id}', '${task.title}')" class="px-4 py-2.5 rounded-lg text-[12px] font-bold text-zinc-400 bg-transparent border border-zinc-700 hover:text-white hover:bg-zinc-800 transition-all btn-press">转单</button>` : ''}
+                    <button onclick="event.stopPropagation(); window.location.href='${targetUrl}'" class="flex-1 py-2.5 rounded-lg text-[13px] font-bold transition-all btn-press ${primaryBtnClass}">${primaryBtnText}</button>
+                    ${canTransfer ? `<button onclick="event.stopPropagation(); window.openTransferModal('${task.id}', '${task.title}')" class="px-5 py-2.5 rounded-lg text-[13px] font-bold text-zinc-300 bg-transparent border border-zinc-600 hover:text-white hover:bg-zinc-700 transition-all btn-press">转单</button>` : ''}
                 </div>
             `;
 
-            let strokeColor = sColor.split('-')[1] || 'sky';
-            if(strokeColor === 'zinc') strokeColor = 'gray';
-
-            // 💡 还原图2的卡片样式 (左侧色带 + 内部灰块)
+            // 💡 还原图2的卡片样式 (左侧彩色侧带 + 内部灰底模块)
             const html = `
-                <div class="rounded-xl p-4 kanban-card flex flex-col relative overflow-hidden bg-[#16161d] border ${breatheClass} group" style="border-color: ${borderColBase}" onclick="window.location.href='${targetUrl}'">
-                    <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-${strokeColor}-500 z-10 shadow-[0_0_8px_rgba(var(--tw-colors-${strokeColor}-500),0.5)]"></div>
-                    ${isUrgent ? '<div class="absolute top-0 right-0 bg-rose-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl z-20 shadow-md animate-pulse">临期预警</div>' : ''}
+                <div class="rounded-xl p-4 kanban-card flex flex-col relative overflow-hidden bg-[#18181b] border border-zinc-800 group ${breatheClass}" onclick="window.location.href='${targetUrl}'" style="border-color: ${borderColBase}">
+                    <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-${strokeColor}-500 z-10"></div>
+                    ${isUrgent ? '<div class="absolute top-0 right-0 bg-[#e11d48] text-white text-[11px] font-bold px-3 py-1 rounded-bl-xl z-20 shadow-md">临期预警</div>' : ''}
                     
                     <div class="flex items-center justify-between mb-3 mt-1 relative z-10 pl-2">
-                        <div class="flex gap-1.5 items-center">
-                            <span class="font-mono text-[10px] font-black ${sColor} bg-white/5 px-2 py-0.5 rounded border border-white/10">${task.id}</span>
-                            <span class="text-[11px] ${sColor} font-bold tracking-wide flex items-center gap-1">${iconHtml} ${sText}</span>
+                        <div class="flex gap-2 items-center">
+                            <span class="font-mono text-[11px] font-black ${sColor} bg-${strokeColor}-500/10 px-2 py-0.5 rounded border border-${strokeColor}-500/20">${task.id}</span>
+                            <span class="text-[12px] ${sColor} font-bold tracking-wide flex items-center gap-1.5">${iconHtml} ${sText}</span>
                         </div>
                     </div>
                     
-                    <h4 class="text-[15px] font-bold text-white mb-2 relative z-10 pl-2 leading-snug">${task.title}</h4>
-                    ${task.summary_desc ? `<p class="text-xs text-zinc-400 mb-4 line-clamp-2 relative z-10 pl-2">${task.summary_desc}</p>` : ''}
+                    <h4 class="text-[16px] font-bold text-white mb-2 relative z-10 pl-2 leading-snug">${task.title}</h4>
+                    ${task.summary_desc ? `<p class="text-[13px] text-zinc-400 mb-3 line-clamp-2 relative z-10 pl-2">${task.summary_desc}</p>` : ''}
                     
-                    <div class="bg-white/5 border border-white/10 rounded-xl p-3 space-y-2 relative z-10 ml-2">
-                        <p class="text-[11px] text-zinc-400 flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-zinc-500"></span> 发起人: <span class="text-white font-bold">${task.creator || '未知'}</span></p>
-                        <p class="text-[11px] text-zinc-400 flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span> 期望交付: <span class="${isUrgent ? 'text-rose-400 font-bold' : 'text-rose-400 font-bold'}">${task.due_date || '未定'}</span></p>
+                    <div class="bg-[#27272a]/50 rounded-xl p-3.5 mt-1 space-y-2.5 relative z-10 ml-2">
+                        <p class="text-[12px] text-zinc-400 flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-zinc-500"></span> 发起人: <span class="text-white font-bold">${task.creator || '未知'}</span></p>
+                        <p class="text-[12px] text-zinc-400 flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-[#0ea5e9]"></span> 期望交付: <span class="${isUrgent ? 'text-[#f43f5e]' : 'text-[#f43f5e]'} font-bold">${task.due_date || '未定'}</span></p>
                     </div>
                     
                     ${btnHtml}
