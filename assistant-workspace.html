@@ -27,7 +27,6 @@
         .toast-slide-in { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-        /* 强制红色预警呼吸灯 */
         @keyframes pulse-rose { 50% { box-shadow: inset 0 0 0 1px rgba(244,63,94,0.6), 0 0 20px rgba(244,63,94,0.3); } }
         .breathe-rose { animation: pulse-rose 2s infinite ease-in-out; border-color: rgba(244,63,94,0.8) !important; }
     </style>
@@ -35,7 +34,7 @@
 <body class="flex h-screen overflow-hidden relative selection:bg-orange-500/30 text-zinc-300">
 
     <div class="absolute inset-0 bg-[#09090b] z-0 pointer-events-none"></div>
-    <div class="absolute top-0 left-1/4 w-[800px] h-[600px] bg-orange-900/5 rounded-full blur-[180px] pointer-events-none z-0"></div>
+    <div class="bg-glow-orange"></div>
 
     <aside class="w-[240px] border-r border-white/5 flex flex-col z-10 bg-[#09090b] shrink-0 h-full">
         <div class="p-7 border-b border-white/5 shrink-0">
@@ -62,43 +61,72 @@
             </button>
         </div>
 
-        <div class="px-5 py-5 mt-auto border-t border-white/5 bg-[#09090b] shrink-0 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div id="sidebar-avatar" class="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg">?</div>
-                <div><p id="sidebar-name" class="text-xs font-bold text-white mb-0.5">加载中...</p><p id="sidebar-role" class="text-[10px] text-zinc-500">读取中</p></div>
+        <div class="px-5 py-6 mt-auto border-t border-white/5 bg-[#0c0c0e] shrink-0 flex items-center justify-between relative z-[9999]">
+            <div class="flex items-center gap-3 min-w-0">
+                <div id="sidebar-avatar" class="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-lg">?</div>
+                <div class="min-w-0 flex-1">
+                    <p id="sidebar-name" class="text-[13px] font-bold text-white mb-0.5 truncate">加载中...</p>
+                    <p id="sidebar-role" class="text-[10px] text-zinc-500 truncate">读取中</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-1 shrink-0 ml-2">
+                <button onclick="window.openPwdModal()" class="p-1.5 text-zinc-500 hover:text-orange-400 hover:bg-orange-500/10 rounded-lg transition-colors btn-press cursor-pointer pointer-events-auto relative z-50" title="修改登录密码">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+                </button>
+                <button onclick="window.logout(event)" class="p-1.5 text-zinc-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors btn-press cursor-pointer pointer-events-auto relative z-50" title="退出登录">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                </button>
             </div>
         </div>
     </aside>
 
     <main class="flex-1 flex flex-col h-full overflow-hidden relative z-10 bg-[#0c0c0e]">
-        <header class="px-8 py-6 flex flex-col shrink-0 border-b border-white/5 bg-[#09090b]/80 backdrop-blur-xl relative z-[999]">
+        <header class="px-10 py-6 flex flex-col shrink-0 border-b border-white/5 bg-[#09090b]/80 backdrop-blur-xl relative z-[999]">
             <div class="flex justify-between items-start w-full">
                 <div>
                     <h2 id="header-greeting" class="text-[24px] font-bold text-white tracking-tight mb-2 flex items-center gap-3">
                         加载中...
                         <span class="bg-orange-500/20 text-orange-400 text-[11px] px-2.5 py-0.5 rounded-lg border border-orange-500/30">设计看板</span>
+                        <div id="sync-indicator" class="hidden w-2 h-2 rounded-full bg-emerald-500 animate-pulse ml-2" title="云端监听中..."></div>
                     </h2>
                     <p class="text-[13px] text-zinc-500 mb-6">所有的创意都在有条不紊地落地中。</p>
                     
                     <div class="flex items-center gap-5 mt-2">
-                        <div class="bg-[#16161d] border border-white/5 rounded-2xl p-4 flex items-center gap-4 shadow-lg min-w-[220px]">
-                            <div class="w-12 h-12 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500 border border-orange-500/20">
-                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                        
+                        <div class="bg-[#16161d] border border-white/5 rounded-2xl p-4 flex items-center gap-4 shadow-lg min-w-[190px]">
+                            <div class="w-11 h-11 rounded-full bg-sky-500/10 flex items-center justify-center text-sky-500 border border-sky-500/20 shrink-0">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                             </div>
                             <div>
-                                <p class="text-[11px] text-zinc-500 font-bold mb-1 uppercase tracking-wider">当前我的待办</p>
-                                <p class="text-[22px] font-black text-white font-mono leading-none" id="dashboard-tasks-count">0 <span class="text-[11px] text-zinc-600 font-normal ml-1">单</span></p>
+                                <p class="text-[11px] text-zinc-500 font-bold mb-1 uppercase tracking-wider">进行中待办</p>
+                                <p class="text-[20px] font-black text-white font-mono leading-none" id="metric-todo">0 <span class="text-[11px] text-zinc-600 font-normal ml-1 font-sans">单</span></p>
                             </div>
                         </div>
+
+                        <div class="bg-[#16161d] border border-white/5 rounded-2xl p-4 flex items-center gap-4 shadow-lg min-w-[190px]">
+                            <div class="w-11 h-11 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500 border border-rose-500/20 shrink-0">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                            </div>
+                            <div>
+                                <p class="text-[11px] text-zinc-500 font-bold mb-1 uppercase tracking-wider">被打回重画</p>
+                                <p class="text-[20px] font-black text-rose-400 font-mono leading-none" id="metric-rejected">0 <span class="text-[11px] text-zinc-600 font-normal ml-1 font-sans">单</span></p>
+                            </div>
+                        </div>
+
+                        <div class="bg-[#16161d] border border-white/5 rounded-2xl p-4 flex items-center gap-4 shadow-lg min-w-[190px]">
+                            <div class="w-11 h-11 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20 shrink-0">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                            </div>
+                            <div>
+                                <p class="text-[11px] text-zinc-500 font-bold mb-1 uppercase tracking-wider">本月已完结</p>
+                                <p class="text-[20px] font-black text-emerald-400 font-mono leading-none" id="metric-completed">0 <span class="text-[11px] text-zinc-600 font-normal ml-1 font-sans">单</span></p>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
                 
                 <div class="flex items-center gap-5 relative pt-1 z-[110]">
-                    <button id="clear-db-btn" onclick="clearTestData()" class="hidden bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-500 px-4 py-3 rounded-[14px] text-[13px] font-bold transition-all btn-press items-center gap-1.5" title="仅清空提单数据，不影响账号">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                        清空测试数据
-                    </button>
-
                     <div class="relative z-[120]" id="notif-wrapper">
                         <button id="notifBtn" class="w-11 h-11 rounded-2xl bg-[#141417] border border-white/5 flex items-center justify-center text-zinc-400 hover:text-white transition-colors btn-press relative">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
@@ -119,8 +147,8 @@
                     </div>
 
                     <div class="relative" id="identity-wrapper">
-                        <button id="identityBtn" class="bg-[#141417] border border-white/10 text-zinc-300 px-4 py-2.5 rounded-xl flex items-center gap-2.5 text-[12px] font-medium hover:bg-white/5 transition-colors btn-press">
-                            加载中...
+                        <button id="identityBtn" class="bg-[#141417] border border-white/10 text-zinc-300 px-5 py-3 rounded-[14px] flex items-center gap-3 text-[13px] font-medium hover:bg-[#1a1a1f] transition-colors btn-press">
+                            身份加载中...
                         </button>
                         <div id="identityMenu" class="hidden absolute right-0 top-[120%] w-[240px] bg-[#1a1a1f] border border-white/10 rounded-2xl shadow-2xl py-2 dropdown-enter z-[9999]">
                             <div class="px-2 space-y-1" id="dynamic-identity-list"></div>
@@ -130,10 +158,10 @@
             </div>
         </header>
 
-        <div class="flex-1 p-6 px-8 overflow-x-auto custom-scrollbar flex gap-6">
+        <div class="flex-1 p-6 px-10 overflow-x-auto custom-scrollbar flex gap-6">
             
             <div class="flex-1 min-w-[300px] max-w-[360px] flex flex-col kanban-column">
-                <div class="flex items-center justify-between mb-4 px-2">
+                <div class="flex items-center justify-between mb-4 px-2 mt-2">
                     <h3 class="text-[13px] font-bold text-white flex items-center gap-2">
                         <span class="w-2 h-2 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.6)]"></span> 待接单/统筹池
                     </h3>
@@ -146,7 +174,7 @@
             </div>
 
             <div class="flex-1 min-w-[300px] max-w-[360px] flex flex-col kanban-column">
-                <div class="flex items-center justify-between mb-4 px-2">
+                <div class="flex items-center justify-between mb-4 px-2 mt-2">
                     <h3 class="text-[13px] font-bold text-white flex items-center gap-2">
                         <span class="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.6)]"></span> 设计制作中
                     </h3>
@@ -156,7 +184,7 @@
             </div>
 
             <div class="flex-1 min-w-[300px] max-w-[360px] flex flex-col kanban-column">
-                <div class="flex items-center justify-between mb-4 px-2">
+                <div class="flex items-center justify-between mb-4 px-2 mt-2">
                     <h3 class="text-[13px] font-bold text-zinc-400 flex items-center gap-2">
                         <span class="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]"></span> 领导框架审核中
                     </h3>
@@ -166,7 +194,7 @@
             </div>
             
             <div class="flex-1 min-w-[300px] max-w-[360px] flex flex-col kanban-column">
-                <div class="flex items-center justify-between mb-4 px-2">
+                <div class="flex items-center justify-between mb-4 px-2 mt-2">
                     <h3 class="text-[13px] font-bold text-white flex items-center gap-2">
                         <span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]"></span> 终稿已提待验收
                     </h3>
@@ -176,7 +204,7 @@
             </div>
 
             <div class="flex-1 min-w-[300px] max-w-[360px] flex flex-col kanban-column opacity-80 hover:opacity-100 transition-opacity">
-                <div class="flex items-center justify-between mb-4 px-2">
+                <div class="flex items-center justify-between mb-4 px-2 mt-2">
                     <h3 class="text-[13px] font-bold text-zinc-400 flex items-center gap-2">
                         <span class="w-2 h-2 rounded-full bg-zinc-500 shadow-[0_0_8px_rgba(113,113,122,0.6)]"></span> 已完结 / 归档
                     </h3>
@@ -188,7 +216,7 @@
         </div>
     </main>
 
-    <div id="custom-dialog-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[999999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center">
+    <div id="custom-dialog-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[999999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closeCustomDialog()">
         <div id="custom-dialog" class="w-full max-w-sm bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 p-6 relative overflow-hidden">
             <div id="dialog-color-bar" class="absolute top-0 left-0 right-0 h-1 bg-indigo-500"></div>
             <div class="flex items-center gap-3 mb-3 mt-2">
@@ -229,7 +257,32 @@
         </div>
     </div>
 
-    <div id="action-toast" class="fixed top-8 right-8 z-[1000] hidden toast-slide-in">
+    <div id="pwd-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closePwdModal()">
+        <div id="pwd-modal" class="hidden w-full max-w-sm bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 p-6 relative">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 to-amber-500 rounded-t-3xl"></div>
+            <div class="flex justify-between items-center mb-6 mt-2">
+                <h2 class="text-[16px] font-bold text-white flex items-center gap-2"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-orange-500"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg> 修改登录密码</h2>
+                <button onclick="window.closePwdModal()" class="text-zinc-500 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-full p-1 transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-[12px] font-bold text-zinc-400 mb-1.5">当前密码</label>
+                    <input type="password" id="old-pwd" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-orange-500 transition-colors" placeholder="输入原密码">
+                </div>
+                <div>
+                    <label class="block text-[12px] font-bold text-zinc-400 mb-1.5">新密码</label>
+                    <input type="password" id="new-pwd" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-orange-500 transition-colors" placeholder="输入新密码">
+                </div>
+                <div>
+                    <label class="block text-[12px] font-bold text-zinc-400 mb-1.5">确认新密码</label>
+                    <input type="password" id="new-pwd-confirm" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-orange-500 transition-colors" placeholder="再次输入新密码">
+                </div>
+            </div>
+            <button onclick="window.submitPwdChange()" class="w-full mt-6 py-3.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-sm font-bold shadow-[0_5px_15px_rgba(249,115,22,0.3)] transition-all btn-press">确认修改并重新登录</button>
+        </div>
+    </div>
+
+    <div id="action-toast" class="fixed top-8 right-8 z-[100000] hidden toast-slide-in">
         <div class="bg-[#1a1a1f] border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-3 w-72">
             <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0"></div>
             <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-zinc-400 text-[11px] mt-0.5">操作已执行。</p></div>
@@ -251,8 +304,7 @@
         window.closeCustomDialog = function() {
             const overlay = document.getElementById('custom-dialog-overlay');
             const dialog = document.getElementById('custom-dialog');
-            overlay.classList.add('opacity-0');
-            dialog.classList.add('scale-95');
+            overlay.classList.add('opacity-0'); dialog.classList.add('scale-95');
             setTimeout(() => { overlay.classList.add('hidden'); }, 300);
         }
 
@@ -304,13 +356,38 @@
             showDialogUI();
         }
 
+        // ================= 基础交互 =================
+        window.logout = function(e) {
+            if(e) e.stopPropagation();
+            localStorage.removeItem('activeUserObj'); 
+            window.location.href = 'login.html'; 
+        }
+
+        window.openPwdModal = function() {
+            const pwdOverlay = document.getElementById('pwd-modal-overlay');
+            const pwdModal = document.getElementById('pwd-modal');
+            pwdOverlay.classList.remove('hidden'); setTimeout(() => { pwdOverlay.classList.remove('opacity-0'); pwdModal.classList.remove('hidden'); pwdModal.classList.remove('scale-95'); }, 10);
+            document.getElementById('old-pwd').value = ''; document.getElementById('new-pwd').value = ''; document.getElementById('new-pwd-confirm').value = '';
+        }
+        
+        window.closePwdModal = function() {
+            const pwdOverlay = document.getElementById('pwd-modal-overlay');
+            const pwdModal = document.getElementById('pwd-modal');
+            pwdOverlay.classList.add('opacity-0'); pwdModal.classList.add('scale-95'); setTimeout(() => { pwdOverlay.classList.add('hidden'); pwdModal.classList.add('hidden'); }, 300);
+        }
+        
+        window.submitPwdChange = function() { window.showAlert('提示', '系统演示环境暂不可自助修改密码，请联系管理员。', 'info'); window.closePwdModal(); }
+
         function updateGreeting(user) {
             const hour = new Date().getHours();
             let timeStr = '晚上好';
             if (hour >= 5 && hour < 12) timeStr = '上午好';
             else if (hour >= 12 && hour < 18) timeStr = '下午好';
             const display = user.displayName || user.cnName || user.enName;
-            document.getElementById('header-greeting').innerHTML = `${timeStr}，${display}。 <span class="bg-orange-500/20 text-orange-400 text-[11px] px-2.5 py-0.5 rounded-lg border border-orange-500/30 ml-2">设计看板</span>`;
+            document.getElementById('header-greeting').innerHTML = `${timeStr}，${display}。 
+                <span class="bg-orange-500/20 text-orange-400 text-[11px] px-2.5 py-0.5 rounded-lg border border-orange-500/30 ml-2">设计看板</span>
+                <div id="sync-indicator" class="hidden w-2 h-2 rounded-full bg-emerald-500 animate-pulse ml-3" title="云端监听中..."></div>
+            `;
         }
 
         function initRBAC() {
@@ -320,54 +397,37 @@
             const enName = user.enName ? user.enName.toLowerCase() : '';
 
             if (!(user.perms || []).includes(PAGE_TYPE)) {
-                showAlert("权限拦截", "您没有执行层做图权限，为您退回大厅。", "danger");
+                window.showAlert("权限拦截", "您没有执行层做图权限，为您退回大厅。", "danger");
                 setTimeout(()=> window.location.href = 'index.html', 1500);
                 return false;
             }
 
             const avatarEl = document.getElementById('sidebar-avatar');
-            if(avatarEl) { avatarEl.innerText = user.avatar || '?'; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-orange-600'} border border-white/20 flex items-center justify-center text-white font-bold text-sm shadow-lg`; }
+            if(avatarEl) { avatarEl.innerText = user.avatar || '?'; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-orange-600'} border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg shrink-0`; }
             if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.cnName || user.enName;
+            if(document.getElementById('sidebar-role')) document.getElementById('sidebar-role').innerHTML = `<span class="text-orange-400 font-bold">当前视角: 设计方</span>`;
             
             updateGreeting(user);
-
-            const testUsers = ['ponyxu', 'davidxxu', 'yoshyliu', 'judyzzhang', '小戴维斯'];
-            const isTestUser = testUsers.includes(enName) || testUsers.includes(user.displayName) || testUsers.includes(user.cnName);
-            if(isTestUser) {
-                const clrBtn = document.getElementById('clear-db-btn');
-                if(clrBtn) { clrBtn.classList.remove('hidden'); clrBtn.classList.add('flex'); }
-            }
 
             const menuContainer = document.getElementById('dynamic-identity-list');
             if (menuContainer) {
                 let html = '';
                 if ((user.perms || []).includes('req')) { 
-                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='index.html'"><div class="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div><span class="text-[13px] font-medium">需求方 (发单/验收)</span></div>`; 
+                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='index.html'"><div class="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div><span class="text-[13px] font-medium">需求方 (去发单/验收)</span></div>`; 
                 }
                 if ((user.perms || []).includes('design')) { 
-                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#362013] text-orange-400 cursor-default border border-orange-900/50"><div class="w-7 h-7 rounded-lg bg-orange-500/20 text-orange-500 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div><span class="text-[13px] font-bold">设计方 (执行/接单) (当前)</span></div>`; 
+                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#362013] text-orange-400 cursor-default border border-orange-900/50"><div class="w-7 h-7 rounded-lg bg-orange-500/20 flex items-center justify-center text-orange-500"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div><span class="text-[13px] font-bold">设计方 (当前)</span></div>`; 
                 }
                 if ((user.perms || []).includes('admin')) { 
-                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='manager-workspace.html'"><div class="w-7 h-7 rounded-lg bg-fuchsia-500/10 text-fuchsia-400 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg></div><span class="text-[13px] font-medium">管理方 (统筹/大盘)</span></div>`; 
+                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='manager-workspace.html'"><div class="w-7 h-7 rounded-lg bg-fuchsia-500/10 flex items-center justify-center text-fuchsia-400"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="21"></line></svg></div><span class="text-[13px] font-medium">管理方 (统筹/大盘)</span></div>`; 
                 }
                 menuContainer.innerHTML = html;
             }
 
             const triggerBtn = document.getElementById('identityBtn');
             if (triggerBtn) { triggerBtn.innerHTML = `<span class="text-orange-500 font-black flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span></span> 身份: 设计方 (当前) <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 ml-1"><polyline points="6 9 12 15 18 9"></polyline></svg>`; }
-            return true;
-        }
 
-        window.clearTestData = async function() {
-            if(!window.supabase) return;
-            showConfirm("清空数据", "⚠️ 警告：这将直接清空云端测试表中的所有需求数据！且不可恢复！<br><br>确定要继续吗？", async () => {
-                try {
-                    const { error } = await window.supabase.from(window.DB_TABLE).delete().neq('id', '0');
-                    if (error) throw error;
-                    showToast('已清空', '云端测试数据已全部清空！', 'success');
-                    setTimeout(() => window.location.reload(), 1500);
-                } catch(e) { showAlert("清理失败", e.message, "danger"); }
-            }, "danger");
+            return user;
         }
 
         window.showToast = function(title, desc, type = 'success') {
@@ -389,89 +449,16 @@
             setTimeout(() => { toast.classList.add('hidden'); }, 3000);
         }
 
-        // ================= 💡 核心：全自动消息铃铛 =================
-        window.loadNotifications = function() {
-            const userStr = localStorage.getItem('activeUserObj');
-            if(!userStr) return;
-            const user = JSON.parse(userStr);
-            const enName = user.enName ? user.enName.toLowerCase() : '';
-            const isLeader = enName === 'judyzzhang' || enName === 'davidxxu';
-
-            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
-
-            // 看板模式下，只接收 design 角色的消息，领导也能看 admin
-            let myNotifs = sysNotifs.filter(n => {
-                if (typeof PAGE_TYPE !== 'undefined' && PAGE_TYPE === 'design' && n.role === 'design') return true;
-                if (isLeader && n.role === 'admin') return true;
-                return false;
-            });
-
-            myNotifs.sort((a, b) => b.id - a.id);
-
-            const unreadCount = myNotifs.filter(n => !n.read).length;
-            const bellDot = document.getElementById('bell-dot');
-            const notifContainer = document.getElementById('notif-list-container');
-
-            if (bellDot) {
-                if (unreadCount > 0) {
-                    bellDot.classList.remove('hidden', 'bg-zinc-600', 'border-transparent');
-                    bellDot.classList.add('bg-rose-500', 'animate-pulse', 'border-[#141417]');
-                } else {
-                    bellDot.classList.add('hidden');
-                }
-            }
-
-            if (notifContainer) {
-                if (myNotifs.length === 0) {
-                    notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无新消息</div>';
-                } else {
-                    let html = '';
-                    myNotifs.forEach(n => {
-                        const dot = n.read ? '' : '<span class="w-2 h-2 rounded-full bg-rose-500 shrink-0 shadow-[0_0_8px_rgba(244,63,94,0.8)]"></span>';
-                        const opacity = n.read ? 'opacity-50' : '';
-                        const dateStr = new Date(n.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                        html += `
-                            <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer ${opacity}" onclick="window.markSingleAsRead(${n.id})">
-                                <div class="flex justify-between items-start mb-1">
-                                    <h4 class="text-[13px] font-bold text-white flex items-center gap-2">${n.title} ${dot}</h4>
-                                    <span class="text-[10px] text-zinc-500">${dateStr}</span>
-                                </div>
-                                <p class="text-[11px] text-zinc-400 leading-relaxed">${n.desc}</p>
-                            </div>
-                        `;
-                    });
-                    notifContainer.innerHTML = html;
-                }
-            }
+        window.kanbanUrge = function(e, btn, assignee) {
+            e.stopPropagation();
+            btn.innerHTML = '✓ 已提醒';
+            btn.classList.remove('hover:bg-zinc-700', 'bg-zinc-800', 'text-zinc-300', 'border-zinc-600', 'hover:text-white');
+            btn.classList.add('opacity-50', 'cursor-not-allowed', 'bg-zinc-900', 'text-zinc-500', 'border-zinc-800');
+            btn.disabled = true;
+            window.showToast('催办已发送', `已向 ${assignee} 发送系统提醒。`, 'success');
         }
 
-        window.markSingleAsRead = function(id) {
-            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
-            let target = sysNotifs.find(n => n.id === id);
-            if(target) {
-                target.read = true;
-                localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs));
-                window.loadNotifications();
-            }
-        }
-
-        window.markAllAsRead = function(event) {
-            if(event) event.stopPropagation();
-            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
-            const user = JSON.parse(localStorage.getItem('activeUserObj'));
-            const isLeader = user.enName.toLowerCase() === 'judyzzhang' || user.enName.toLowerCase() === 'davidxxu';
-
-            sysNotifs.forEach(n => {
-                if (typeof PAGE_TYPE !== 'undefined' && PAGE_TYPE === 'design' && n.role === 'design') n.read = true;
-                if (isLeader && n.role === 'admin') n.read = true;
-            });
-
-            localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs));
-            window.loadNotifications();
-            showToast('消息已清空', '所有未读消息已成功标记为已读。', 'success');
-        }
-
-        // ================= 💡 核心：看板智能路由与卡片 =================
+        // ================= 💡 核心：看板卡片引擎 =================
         function createKanbanCard(task, currentUser) {
             const currentUserEn = currentUser.enName ? currentUser.enName.toLowerCase() : '';
             const taskAssignee = task.assignee ? task.assignee.toLowerCase() : 'none';
@@ -490,9 +477,9 @@
                 case 'pending':
                 case 'pending_accept':
                     laneId = 'lane-pending';
-                    sColor = 'text-amber-400'; 
+                    sColor = 'text-sky-400'; 
                     sText = task.status === 'pending' ? '待分配/认领' : '待确认接单';
-                    strokeColor = 'amber';
+                    strokeColor = 'sky';
                     break;
                 case 'processing':
                 case 'rejected':
@@ -503,9 +490,9 @@
                     break;
                 case 'pending_approval':
                     laneId = 'lane-blocked';
-                    sColor = 'text-zinc-400'; 
+                    sColor = 'text-amber-500'; 
                     sText = '领导审批中';
-                    strokeColor = 'zinc';
+                    strokeColor = 'amber';
                     break;
                 case 'reviewing':
                     laneId = 'lane-review';
@@ -552,6 +539,7 @@
                     primaryBtnText = '去接单并响应';
                 } else if (task.status === 'processing' || task.status === 'rejected') {
                     primaryBtnText = '去处理并传稿';
+                    primaryBtnClass = 'bg-orange-600 hover:bg-orange-500 text-white border-transparent';
                 } else if (task.status === 'pending_approval') {
                     primaryBtnText = '查看被锁进度';
                     primaryBtnClass = 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border-zinc-700';
@@ -609,7 +597,7 @@
                         </div>
                     </div>
                     
-                    <h4 class="text-[16px] font-bold text-white mb-2 relative z-10 pl-2 leading-snug">${task.title}</h4>
+                    <h4 class="text-[16px] font-bold text-white mb-2 relative z-10 pl-2 leading-snug group-hover:text-${strokeColor}-400 transition-colors">${task.title}</h4>
                     ${task.summary_desc ? `<p class="text-[13px] text-zinc-400 mb-3 line-clamp-2 relative z-10 pl-2">${task.summary_desc}</p>` : ''}
                     
                     <div class="bg-[#27272a]/50 rounded-xl p-3.5 mt-1 space-y-2.5 relative z-10 ml-2">
@@ -624,7 +612,7 @@
             return { laneId, html };
         }
 
-        // ================= 💡 活体通知雷达 =================
+        // ================= 💡 活体通知雷达与看板渲染 =================
         window.loadTasksFromCloud = async function(isSilent = false) {
             if(!window.supabase) return;
             
@@ -633,6 +621,9 @@
             if(!currentUser) return;
             const currentUserEn = currentUser.enName ? currentUser.enName.toLowerCase() : '';
             
+            const syncDot = document.getElementById('sync-indicator');
+            if(syncDot && isSilent) syncDot.classList.remove('hidden');
+
             try {
                 const { data, error } = await window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS)
                     .order('created_at', { ascending: false }).limit(100);
@@ -651,7 +642,11 @@
                     Object.values(lanes).forEach(lane => { if(lane) lane.innerHTML = ''; });
                 }
 
-                let myTaskCount = 0;
+                let myTodoCount = 0;
+                let myRejectedCount = 0;
+                let myMonthCompletedCount = 0;
+                const now = new Date();
+
                 let knownHistories = JSON.parse(localStorage.getItem('known_histories_design') || '{}');
                 let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
                 let hasNewNotification = false;
@@ -661,7 +656,7 @@
                     const isSuperAdmin = currentUserEn === 'davidxxu' || currentUserEn === 'judyzzhang';
                     const isMyDesignTask = taskAssignee === currentUserEn;
                     
-                    // 💡 通知雷达核心判断
+                    // 💡 雷达核心判断
                     if (isMyDesignTask || isSuperAdmin) {
                         let historyArr = [];
                         try { historyArr = JSON.parse(task.history_json || '[]'); } catch(e){}
@@ -687,15 +682,32 @@
                             }
                             knownHistories[task.id] = historyArr.length;
                         }
+
+                        // 💡 顶层三大业务指标计算
+                        if (isMyDesignTask) {
+                            if (!['completed', 'archived', 'terminated'].includes(task.status)) {
+                                myTodoCount++;
+                            }
+                            if (task.status === 'rejected') {
+                                myRejectedCount++;
+                            }
+                            if (['completed', 'archived'].includes(task.status)) {
+                                let completeDateStr = task.created_at;
+                                try {
+                                    if (historyArr.length > 0) completeDateStr = historyArr[historyArr.length-1].time || historyArr[historyArr.length-1].created_at || completeDateStr;
+                                }catch(e){}
+                                const cDate = new Date(completeDateStr);
+                                if (cDate.getFullYear() === now.getFullYear() && cDate.getMonth() === now.getMonth()) {
+                                    myMonthCompletedCount++;
+                                }
+                            }
+                        }
                     }
 
                     if(!isSilent) {
                         const cardData = createKanbanCard(task, currentUser);
                         if(cardData && lanes[cardData.laneId]) {
                             lanes[cardData.laneId].insertAdjacentHTML('beforeend', cardData.html);
-                            if (isMyDesignTask && !['completed','archived','terminated'].includes(task.status)) {
-                                myTaskCount++;
-                            }
                         }
                     }
                 });
@@ -704,12 +716,13 @@
                     localStorage.setItem('known_histories_design', JSON.stringify(knownHistories));
                     localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs));
                     window.loadNotifications(); 
-                    if(isSilent) window.loadTasksFromCloud(false); // 重刷界面
+                    if(isSilent) window.loadTasksFromCloud(false); 
                 }
 
                 if(!isSilent) {
-                    document.getElementById('dashboard-tasks-count').innerHTML = `${myTaskCount} <span class="text-[11px] text-zinc-600 font-normal ml-1">单</span>`;
-                    document.getElementById('dashboard-hours').innerHTML = `${myTaskCount * 6} <span class="text-xs text-zinc-600 font-normal ml-0.5">/ 40h</span>`;
+                    document.getElementById('metric-todo').innerHTML = `${myTodoCount} <span class="text-[11px] text-zinc-600 font-normal ml-1 font-sans">单</span>`;
+                    document.getElementById('metric-rejected').innerHTML = `${myRejectedCount} <span class="text-[11px] text-zinc-600 font-normal ml-1 font-sans">单</span>`;
+                    document.getElementById('metric-completed').innerHTML = `${myMonthCompletedCount} <span class="text-[11px] text-zinc-600 font-normal ml-1 font-sans">单</span>`;
 
                     Object.values(lanes).forEach(lane => {
                         if(lane && lane.innerHTML === '') {
@@ -718,7 +731,87 @@
                     });
                 }
 
-            } catch(e) { console.error(e); }
+            } catch(e) { console.error(e); } finally {
+                if(syncDot) setTimeout(() => syncDot.classList.add('hidden'), 500);
+            }
+        }
+
+        window.loadNotifications = function() {
+            const userStr = localStorage.getItem('activeUserObj');
+            if(!userStr) return;
+            const user = JSON.parse(userStr);
+            const enName = user.enName ? user.enName.toLowerCase() : '';
+            const isLeader = enName === 'judyzzhang' || enName === 'davidxxu';
+
+            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
+
+            let myNotifs = sysNotifs.filter(n => {
+                if (typeof PAGE_TYPE !== 'undefined' && PAGE_TYPE === 'design' && n.role === 'design') return true;
+                if (isLeader && n.role === 'admin') return true;
+                return false;
+            });
+
+            myNotifs.sort((a, b) => b.id - a.id);
+
+            const unreadCount = myNotifs.filter(n => !n.read).length;
+            const bellDot = document.getElementById('bell-dot');
+            const notifContainer = document.getElementById('notif-list-container');
+
+            if (bellDot) {
+                if (unreadCount > 0) {
+                    bellDot.classList.remove('hidden', 'bg-zinc-600', 'border-transparent');
+                    bellDot.classList.add('bg-rose-500', 'animate-pulse', 'border-[#141417]');
+                } else {
+                    bellDot.classList.add('hidden');
+                }
+            }
+
+            if (notifContainer) {
+                if (myNotifs.length === 0) {
+                    notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无新消息</div>';
+                } else {
+                    let html = '';
+                    myNotifs.forEach(n => {
+                        const dot = n.read ? '' : '<span class="w-2 h-2 rounded-full bg-rose-500 shrink-0 shadow-[0_0_8px_rgba(244,63,94,0.8)]"></span>';
+                        const opacity = n.read ? 'opacity-50' : '';
+                        const dateStr = new Date(n.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                        html += `
+                            <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer ${opacity}" onclick="window.markSingleAsRead(${n.id}, '${n.taskId}')">
+                                <div class="flex justify-between items-start mb-1">
+                                    <h4 class="text-[13px] font-bold text-white flex items-center gap-2">${n.title} ${dot}</h4>
+                                    <span class="text-[10px] text-zinc-500">${dateStr}</span>
+                                </div>
+                                <p class="text-[11px] text-zinc-400 leading-relaxed">${n.desc}</p>
+                            </div>
+                        `;
+                    });
+                    notifContainer.innerHTML = html;
+                }
+            }
+        }
+
+        window.markSingleAsRead = function(id, taskId) {
+            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
+            let target = sysNotifs.find(n => n.id === id);
+            if(target) { target.read = true; localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs)); }
+            if (taskId && taskId !== 'KANBAN') window.location.href = `task-detail-designer.html?id=${taskId}`;
+            else window.loadNotifications();
+        }
+
+        window.markAllAsRead = function(event) {
+            if(event) event.stopPropagation();
+            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
+            const user = JSON.parse(localStorage.getItem('activeUserObj'));
+            const isLeader = user.enName.toLowerCase() === 'judyzzhang' || user.enName.toLowerCase() === 'davidxxu';
+
+            sysNotifs.forEach(n => {
+                if (typeof PAGE_TYPE !== 'undefined' && PAGE_TYPE === 'design' && n.role === 'design') n.read = true;
+                if (isLeader && n.role === 'admin') n.read = true;
+            });
+
+            localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs));
+            window.loadNotifications();
+            window.showToast('消息已清空', '所有未读消息已成功标记为已读。', 'success');
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -733,15 +826,12 @@
 
                 document.addEventListener('click', (e) => { 
                     if(idMenu && !idMenu.contains(e.target)) idMenu.classList.add('hidden'); 
-                    if(notifMenu && !notifMenu.contains(e.target)) notifMenu.classList.add('hidden');
+                    if(notifMenu && !notifMenu.contains(e.target)) notifMenu.classList.add('hidden'); 
                 });
 
                 window.loadNotifications();
                 
-                // 💡 每隔10秒跑一次后台静默雷达
-                setInterval(() => {
-                    window.loadTasksFromCloud(true);
-                }, 10000); 
+                setInterval(() => { window.loadTasksFromCloud(true); }, 8000); 
             }
         });
 
@@ -764,11 +854,11 @@
         }
 
         window.submitTransfer = async function() { 
-            if (!window.supabase) return showAlert("错误", "云端未连接", "danger");
+            if (!window.supabase) return window.showAlert("错误", "云端未连接", "danger");
             if (!currentTransferTaskId) return;
 
             const reason = document.getElementById('transfer-reason').value.trim();
-            if(!reason) return showAlert("提示", "请填写转单原因", "danger");
+            if(!reason) return window.showAlert("提示", "请填写转单原因", "danger");
 
             const btn = document.querySelector('#transfer-modal button:last-child');
             const originTxt = btn.innerText;
@@ -797,10 +887,10 @@
 
             btn.innerText = originTxt; btn.disabled = false;
 
-            if(error) return showAlert("错误", "转单失败: " + error.message, "danger");
+            if(error) return window.showAlert("错误", "转单失败: " + error.message, "danger");
 
             window.closeTransferModal(); 
-            showToast('转单成功', '任务已退回统筹池等待重新分配', 'success');
+            window.showToast('转单成功', '任务已退回统筹池等待重新分配', 'success');
             
             setTimeout(async () => { await window.loadTasksFromCloud(); }, 800);
         }
