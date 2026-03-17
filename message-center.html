@@ -17,7 +17,7 @@
         .btn-press:active { transform: scale(0.95); }
     </style>
 </head>
-<body class="flex h-screen overflow-hidden relative selection:bg-indigo-500/30 text-zinc-300">
+<body class="flex h-screen overflow-hidden relative text-zinc-300">
 
     <div class="absolute inset-0 bg-[#09090b] z-0 pointer-events-none"></div>
 
@@ -47,15 +47,18 @@
             <div>
                 <button onclick="goBack()" class="text-zinc-500 hover:text-white text-[12px] font-bold mb-3 flex items-center gap-1.5 transition-colors btn-press">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                    返回控制台
+                    返回工作台
                 </button>
                 <div class="flex items-center gap-3">
-                    <h2 class="text-2xl font-bold text-white tracking-tight">全局消息中心</h2>
-                    <span class="bg-rose-500/20 text-rose-500 border border-rose-500/30 px-2 py-0.5 rounded-full text-[10px] font-bold hidden" id="unread-badge">0 未读</span>
+                    <h2 class="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+                        全局消息中心
+                        <div id="sync-indicator" class="hidden w-2 h-2 rounded-full bg-emerald-500 animate-pulse ml-2" title="云端监听中..."></div>
+                    </h2>
+                    <span class="bg-rose-500/20 text-rose-500 border border-rose-500/30 px-2 py-0.5 rounded-full text-[10px] font-bold hidden shadow-[0_0_8px_rgba(244,63,94,0.4)]" id="unread-badge">0 未读</span>
                 </div>
             </div>
             
-            <button onclick="markAllAsRead()" class="text-zinc-400 hover:text-white text-[13px] font-bold transition-colors btn-press flex items-center gap-2">
+            <button onclick="markAllAsRead()" class="text-zinc-400 hover:text-white text-[13px] font-bold transition-colors btn-press flex items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-xl">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
                 全部标记为已读
             </button>
@@ -65,12 +68,15 @@
             <div class="w-full max-w-[1000px] flex flex-col h-full">
                 
                 <div class="flex items-center gap-6 border-b border-white/10 mb-6">
-                    <button class="pb-3 text-[14px] font-bold text-indigo-400 border-b-2 border-indigo-500">全部通知</button>
+                    <button class="pb-3 text-[14px] font-bold text-indigo-400 border-b-2 border-indigo-500 transition-colors" id="tab-all">全部通知</button>
                 </div>
 
                 <div class="bg-[#121217] border border-white/5 rounded-2xl p-4 shadow-xl flex-1 relative min-h-[400px]">
                     <div class="space-y-3 pb-10" id="msg-list">
-                        <div class="text-center py-20 text-zinc-500 text-sm">读取历史记录中...</div>
+                        <div class="text-center py-20 text-zinc-500 text-sm flex flex-col items-center justify-center">
+                            <svg class="animate-spin h-6 w-6 text-zinc-600 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            正在链接云端脉搏...
+                        </div>
                     </div>
                 </div>
 
@@ -78,9 +84,32 @@
         </div>
     </main>
 
+    <div id="action-toast" class="fixed top-8 right-8 z-[1000] hidden toast-slide-in">
+        <div class="bg-[#1a1a1f] border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-3 w-72">
+            <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </div>
+            <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-zinc-400 text-[11px] mt-0.5">操作已执行。</p></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { supabase } from './supabase-config.js';
+        window.supabase = supabase;
+        window.syncNotificationsFromCloud(); // 页面加载后立即探脉一次
+    </script>
+
     <script>
         const params = new URLSearchParams(window.location.search);
         const currentRole = params.get('role') || 'req'; // req, design, admin
+
+        function showToast(title, desc) {
+            const toast = document.getElementById('action-toast');
+            document.getElementById('toast-title').innerText = title;
+            document.getElementById('toast-desc').innerText = desc;
+            toast.classList.remove('hidden');
+            setTimeout(() => { toast.classList.add('hidden'); }, 3000);
+        }
 
         function goBack() {
             if (currentRole === 'design') window.location.href = 'assistant-workspace.html';
@@ -88,28 +117,104 @@
             else window.location.href = 'index.html';
         }
 
-        // ================= 💡 核心：动态拉取并渲染本地全局消息 =================
+        // ================= 💡 独立云端嗅探雷达 =================
+        window.syncNotificationsFromCloud = async function() {
+            if(!window.supabase) return;
+            const userStr = localStorage.getItem('activeUserObj');
+            if(!userStr) return;
+            const currentUser = JSON.parse(userStr);
+            const currentUserEn = currentUser.enName ? currentUser.enName.toLowerCase() : '';
+            const isLeader = currentUserEn === 'judyzzhang' || currentUserEn === 'davidxxu';
+
+            const syncDot = document.getElementById('sync-indicator');
+            if(syncDot) syncDot.classList.remove('hidden');
+
+            try {
+                // 去云端捞所有单子的历史
+                const { data, error } = await window.supabase.from('test_tasks').select('id, creator, assignee, status, history_json').order('created_at', { ascending: false }).limit(100);
+                if(error) throw error;
+
+                // 准备本地的探针账本
+                let knownHistories = JSON.parse(localStorage.getItem('known_histories_msgcenter') || '{}');
+                let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
+                let hasNew = false;
+
+                (data || []).forEach(task => {
+                    const creator = task.creator || '';
+                    const assignee = task.assignee ? task.assignee.toLowerCase() : 'none';
+                    const isOwner = creator === currentUser.displayName || creator === currentUser.cnName || creator === currentUser.enName;
+                    const isMyDesign = assignee === currentUserEn;
+                    const isUnassigned = assignee === 'none';
+
+                    // 1. 判断这个单子跟我这套身份有没有关系？没关系直接忽略
+                    let shouldCare = false;
+                    if (currentRole === 'req' && isOwner) shouldCare = true;
+                    if (currentRole === 'design' && (isMyDesign || (isUnassigned && task.status === 'pending'))) shouldCare = true;
+                    if (currentRole === 'admin' && (isLeader || currentUserEn === 'davidxxu')) shouldCare = true;
+
+                    if (!shouldCare) return;
+
+                    // 2. 对比历史长度
+                    let historyArr = [];
+                    try { historyArr = JSON.parse(task.history_json || '[]'); } catch(e){}
+
+                    const knownLen = knownHistories[task.id] || 0;
+                    if (historyArr.length > knownLen) {
+                        for(let i = knownLen; i < historyArr.length; i++) {
+                            const newEvent = historyArr[i];
+                            const opEnName = currentUser.enName || '';
+                            const opDispName = currentUser.displayName || '';
+                            // 别自己发通知给自己
+                            if (newEvent.operator && (newEvent.operator.includes(opEnName) || newEvent.operator.includes(opDispName))) continue;
+                            
+                            sysNotifs.push({
+                                id: new Date().getTime() + Math.random(),
+                                taskId: task.id,
+                                title: `💡 [${task.id}] 进展更新`,
+                                desc: `${newEvent.operator || '系统'} : ${newEvent.action}. ${newEvent.reply || newEvent.desc || ''}`,
+                                role: currentRole, // 直接发给当前登录查看的角色
+                                read: false,
+                                time: new Date().toISOString()
+                            });
+                            hasNew = true;
+                        }
+                        knownHistories[task.id] = historyArr.length;
+                    }
+                });
+
+                if (hasNew) {
+                    localStorage.setItem('known_histories_msgcenter', JSON.stringify(knownHistories));
+                    localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs));
+                }
+
+                // 无论有没有新消息，都重新渲染一次，确保多开网页时状态同步
+                loadMessages();
+
+            } catch(e) {
+                console.error("云端同步失败", e);
+            } finally {
+                if(syncDot) setTimeout(() => syncDot.classList.add('hidden'), 500);
+            }
+        }
+
+        // ================= 💡 本地缓存渲染引擎 =================
         function loadMessages() {
             const userStr = localStorage.getItem('activeUserObj');
-            if (!userStr) { window.location.href = 'login.html'; return; }
+            if (!userStr) return;
             const user = JSON.parse(userStr);
             const enName = user.enName ? user.enName.toLowerCase() : '';
             const isLeader = enName === 'judyzzhang' || enName === 'davidxxu';
 
-            // 1. 获取账本
             let allNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
 
-            // 2. 根据当前入口身份进行过滤
             let myNotifs = allNotifs.filter(n => {
                 if (currentRole === 'design' && n.role === 'design') return true;
                 if (currentRole === 'req' && n.role === 'req') return true;
                 if (currentRole === 'admin' && isLeader && n.role === 'admin') return true;
-                // 大盘领导视角的特权：也可以看发给 design 的消息
-                if (currentRole === 'admin' && isLeader && n.role === 'design') return true;
+                if (currentRole === 'admin' && isLeader && n.role === 'design') return true; // 领导统管
                 return false;
             });
 
-            // 3. 倒序排列，最新收到的在前
             myNotifs.sort((a, b) => b.id - a.id);
 
             const msgContainer = document.getElementById('msg-list');
@@ -125,23 +230,20 @@
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
                         </div>
                         <p class="text-zinc-400 text-sm font-bold">消息记录空空如也</p>
-                        <p class="text-zinc-600 text-xs mt-1">您尚未收到任何系统分发的通知。</p>
+                        <p class="text-zinc-600 text-xs mt-1">您在此身份下尚未收到任何系统通知。</p>
                     </div>`;
             } else {
                 myNotifs.forEach(n => {
                     const isUnread = !n.read;
                     if (isUnread) unreadCount++;
 
-                    // 动态分配图标颜色与样式
-                    let iconSvg = '';
-                    let iconClass = '';
-                    let titleColor = '';
+                    let iconSvg = ''; let iconClass = ''; let titleColor = '';
                     
-                    if (n.title.includes('催办') || n.title.includes('打回') || n.title.includes('驳回') || n.title.includes('撤销') || n.title.includes('终止')) {
+                    if (n.title.includes('催办') || n.title.includes('打回') || n.title.includes('驳回') || n.title.includes('撤销') || n.desc.includes('reject') || n.desc.includes('终止')) {
                         iconClass = 'bg-rose-500/10 text-rose-500 border border-rose-500/20';
                         titleColor = 'text-rose-400';
                         iconSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg>`;
-                    } else if (n.title.includes('已交付') || n.title.includes('验收') || n.title.includes('完结') || n.title.includes('通过') || n.title.includes('成功')) {
+                    } else if (n.title.includes('验收') || n.title.includes('完结') || n.title.includes('通过') || n.desc.includes('complete') || n.desc.includes('approve')) {
                         iconClass = 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20';
                         titleColor = 'text-emerald-400';
                         iconSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
@@ -151,9 +253,12 @@
                         iconSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`;
                     }
 
-                    const bgClass = isUnread ? 'bg-[#18181b] hover:bg-[#1f1f24] border-white/10 btn-press' : 'bg-transparent border-transparent opacity-60 hover:opacity-100';
+                    // Theme Colors
+                    let tabColor = currentRole === 'req' ? 'indigo' : (currentRole === 'design' ? 'orange' : 'fuchsia');
+
+                    const bgClass = isUnread ? `bg-[#18181b] hover:bg-[#1f1f24] border-white/10 btn-press` : `bg-transparent border-transparent opacity-60 hover:opacity-100`;
                     const cursorClass = 'cursor-pointer'; 
-                    const dotHtml = isUnread ? `<span class="w-2 h-2 bg-rose-500 rounded-full animate-pulse mr-1 shadow-[0_0_8px_#f43f5e]"></span>` : '';
+                    const dotHtml = isUnread ? `<span class="w-2 h-2 bg-${tabColor}-500 rounded-full animate-pulse mr-1 shadow-[0_0_8px_var(--tw-colors-${tabColor}-500)]"></span>` : '';
                     const timeStr = new Date(n.time).toLocaleString();
 
                     html += `
@@ -167,7 +272,7 @@
                                         <span class="${titleColor} font-mono text-[11px] bg-white/5 px-2 py-0.5 rounded border border-white/5 shrink-0">${n.taskId}</span> 
                                         <span class="truncate">${n.title}</span>
                                     </h4>
-                                    <span class="text-[11px] ${isUnread ? 'text-rose-500 font-bold' : 'text-zinc-500'} flex items-center shrink-0">
+                                    <span class="text-[11px] ${isUnread ? `text-${tabColor}-400 font-bold` : 'text-zinc-500'} flex items-center shrink-0">
                                         ${dotHtml} ${timeStr}
                                     </span>
                                 </div>
@@ -175,16 +280,14 @@
                                 <div class="flex items-center gap-2">
                                     <span class="bg-zinc-800 text-zinc-400 border border-zinc-700 px-2 py-1 rounded text-[10px] font-medium flex items-center gap-1.5 w-max hover:text-white transition-colors">
                                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M13.8 12H3"/></svg>
-                                        点击穿梭至详情页查阅
+                                        点击穿梭至详情页处理
                                     </span>
                                 </div>
                             </div>
                         </div>
                     `;
                 });
-
-                // 增加底部占位防遮挡
-                html += `<div class="h-10 w-full opacity-0"></div>`;
+                html += `<div class="h-10 w-full opacity-0"></div>`; // 底部留白
             }
 
             msgContainer.innerHTML = html;
@@ -192,12 +295,15 @@
             if (unreadCount > 0) {
                 unreadBadge.innerText = `${unreadCount} 未读`;
                 unreadBadge.classList.remove('hidden');
+                
+                // 页面标题也跳动一下
+                document.title = `(${unreadCount}) 消息中心 - 需求大厅`;
             } else {
                 unreadBadge.classList.add('hidden');
+                document.title = `全局消息中心 - 戴维斯设计需求管理中心`;
             }
         }
 
-        // ================= 💡 交互动作：点击标记已读并跳转 =================
         window.readAndNavigate = function(msgId, taskId) {
             let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
             let target = sysNotifs.find(n => n.id === msgId);
@@ -206,21 +312,19 @@
                 localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs));
             }
             
-            // KANBAN 大盘通报无需跳转详情
             if (taskId === 'KANBAN') {
                 loadMessages();
                 return;
             }
 
-            // 根据当前身份路由分流
             let destUrl = '';
             if (currentRole === 'design') destUrl = `task-detail-designer.html?id=${taskId}`;
-            else destUrl = `task-detail-requester.html?id=${taskId}`;
+            else if (currentRole === 'req') destUrl = `task-detail-requester.html?id=${taskId}`;
+            else destUrl = `task-detail-locked.html?id=${taskId}`; // 管理端看详情
             
             window.location.href = destUrl;
         }
 
-        // ================= 💡 动作：一键全读 =================
         window.markAllAsRead = function() {
             let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
             const user = JSON.parse(localStorage.getItem('activeUserObj'));
@@ -235,10 +339,10 @@
 
             localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs));
             loadMessages();
-            alert("所有通知已标记为已读！");
+            showToast('全部已读', '列表上的红点已全部清除');
         }
 
-        // ================= 初始化渲染侧边栏 =================
+        // ================= 初始化UI与颜色主题 =================
         document.addEventListener('DOMContentLoaded', () => {
             const userStr = localStorage.getItem('activeUserObj');
             if (!userStr) { window.location.href = 'login.html'; return; }
@@ -251,9 +355,11 @@
 
             const menuBox = document.getElementById('dynamic-sidebar-menu');
             const logoBlock = document.getElementById('logo-block');
+            const tabBtn = document.getElementById('tab-all');
 
             if (currentRole === 'req') {
                 logoBlock.className = 'w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shadow-[0_0_15px_rgba(79,70,229,0.3)] shrink-0';
+                tabBtn.className = "pb-3 text-[14px] font-bold text-indigo-400 border-b-2 border-indigo-500 transition-colors";
                 menuBox.innerHTML = `
                     <button onclick="window.location.href='index.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg><span class="font-medium text-[14px]">需求排号大厅</span></button>
                     <button onclick="window.location.href='record-list.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg><span class="font-medium text-[14px]">我的提单记录</span></button>
@@ -262,6 +368,7 @@
             } 
             else if (currentRole === 'design') {
                 logoBlock.className = 'w-8 h-8 rounded-lg bg-orange-600 flex items-center justify-center shadow-[0_0_15px_rgba(249,115,22,0.3)] shrink-0';
+                tabBtn.className = "pb-3 text-[14px] font-bold text-orange-400 border-b-2 border-orange-500 transition-colors";
                 menuBox.innerHTML = `
                     <button onclick="window.location.href='assistant-workspace.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg><span class="font-medium text-[14px]">执行看板 (Kanban)</span></button>
                     <button class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl bg-orange-500/10 text-orange-400 border border-orange-500/20 transition-all btn-press cursor-default"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg><span class="font-bold text-[14px]">全局消息中心</span></button>
@@ -269,14 +376,20 @@
             }
             else if (currentRole === 'admin') {
                 logoBlock.className = 'w-8 h-8 rounded-lg bg-fuchsia-600 flex items-center justify-center shadow-[0_0_15px_rgba(192,38,211,0.3)] shrink-0';
+                tabBtn.className = "pb-3 text-[14px] font-bold text-fuchsia-400 border-b-2 border-fuchsia-500 transition-colors";
                 menuBox.innerHTML = `
                     <button onclick="window.location.href='manager-workspace.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg><span class="font-medium text-[14px]">总监控制台</span></button>
                     <button class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl bg-fuchsia-500/10 text-fuchsia-400 border border-fuchsia-500/20 transition-all btn-press cursor-default"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg><span class="font-bold text-[14px]">全局消息中心</span></button>
                 `;
             }
 
-            // 初始化加载数据
+            // 立刻拉取并渲染一次
             loadMessages();
+
+            // 💡 部署极速探脉雷达（每5秒探测一次 Supabase 是否有异动）
+            setInterval(() => { window.syncNotificationsFromCloud(); }, 5000);
+            // 💡 部署内存监听（每1秒刷新一次 UI，防止别人点的瞬间没变）
+            setInterval(() => { loadMessages(); }, 1000);
         });
     </script>
 </body>
