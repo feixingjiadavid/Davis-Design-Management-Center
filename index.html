@@ -903,7 +903,7 @@
             try {
                 const [ongoingRes, completedRes] = await Promise.all([
                     window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS).not('status', 'in', '("completed","archived","terminated")').order('created_at', { ascending: false }),
-                    window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS).in('status', '("completed","archived","terminated")').order('created_at', { ascending: false }).limit(15)
+                    window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS).in('status', ['completed', 'archived', 'terminated']).order('created_at', { ascending: false }).limit(15)
                 ]);
 
                 const ongoingC = document.getElementById('ongoing-tasks-container');
