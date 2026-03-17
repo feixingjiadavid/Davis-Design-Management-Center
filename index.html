@@ -120,7 +120,7 @@
                     </div>
                 </div>
 
-                <div class="relative z-[110]">
+                <div class="relative" id="identity-wrapper">
                     <button id="identityBtn" class="bg-[#141417] border border-white/10 text-zinc-300 px-5 py-3 rounded-[14px] flex items-center gap-3 text-[13px] font-medium hover:bg-[#1a1a1f] transition-colors btn-press">
                         身份加载中...
                     </button>
@@ -347,8 +347,8 @@
         window.supabase = supabase;
         window.DB_TABLE = 'test_tasks'; 
         
-        // 💡 性能优化核心：列表轻量化查询，剔除图片等沉重字段，实现秒开！
-        window.LIGHT_FIELDS = 'id, title, status, project, due_date, creator, created_at, summary_desc, assignee';
+        // 💡 性能优化核心：列表轻量化查询，必须包含 history_json 才能让路由大脑生效！
+        window.LIGHT_FIELDS = 'id, title, status, project, due_date, creator, created_at, summary_desc, assignee, history_json';
 
         if(window.loadTasksFromCloud) window.loadTasksFromCloud();
     </script>
@@ -771,7 +771,7 @@
             }
         }
 
-        // ================= 核心：状态UI工厂引擎 =================
+        // ================= 💡 核心：带有路由大脑的状态UI工厂引擎 =================
         function createTaskHTML(task, currentUser) {
             const isOwner = task.creator === currentUser.displayName || task.creator === currentUser.cnName || task.creator === currentUser.enName;
             const isJudy = currentUser.enName.toLowerCase() === 'judyzzhang';
@@ -788,17 +788,50 @@
                 if(diffDays <= 2 && diffDays >= -999) isUrgent = true;
             }
 
+            // 💡 智能判断阶段：如果历史记录里有领导审批通过，或者已经提交了 draft，就是正稿阶段
+            let isDraftPhase = false;
+            if (task.history_json) {
+                try {
+                    const history = JSON.parse(task.history_json);
+                    for (let i = history.length - 1; i >= 0; i--) {
+                        if (history[i].reply_by && (history[i].reply_by.includes('主管') || history[i].reply_by.includes('领导')) && !history[i].is_rejected) isDraftPhase = true;
+                        if (history[i].action === 'submit_draft') isDraftPhase = true;
+                    }
+                } catch(e) {}
+            }
+            if (task.summary_desc && (task.summary_desc.includes('正式稿') || task.summary_desc.includes('已过审') || task.summary_desc.includes('已通过框架'))) isDraftPhase = true;
+
             switch(task.status) {
                 case 'rejected': 
-                    sColor = 'text-rose-500'; sText = '需求被打回修改'; targetUrl = 'task-detail-new.html?id=' + task.id; 
+                    sColor = 'text-rose-500'; sText = '需求被打回修改'; 
+                    targetUrl = isDraftPhase ? 'assistant-task-draft.html?id=' + task.id : 'task-detail-locked.html?id=' + task.id; 
                     isUrgent = true; 
                     break;
-                case 'reviewing': sColor = 'text-rose-500'; sText = '方案待验收'; targetUrl = 'task-detail.html?id=' + task.id; break;
-                case 'pending_accept': sColor = 'text-amber-400'; sText = '待接单'; targetUrl = 'task-detail-new.html?id=' + task.id; break;
-                case 'pending_approval': sColor = 'text-amber-500'; sText = '框架待审批'; targetUrl = 'task-detail-locked.html?id=' + task.id; break;
-                case 'processing': sColor = 'text-emerald-500'; sText = '设计制作中'; targetUrl = 'task-detail-processing.html?id=' + task.id; break;
-                case 'completed': case 'archived': sColor = 'text-zinc-400'; sText = '已完结'; targetUrl = 'task-detail-archived.html?id=' + task.id; break;
-                default: sColor = 'text-sky-400'; sText = '待排期/待分配'; targetUrl = 'task-detail-new.html?id=' + task.id;
+                case 'reviewing': 
+                    sColor = 'text-rose-500'; sText = '方案待验收'; 
+                    targetUrl = 'task-detail-locked.html?id=' + task.id; 
+                    break;
+                case 'pending_accept': 
+                    sColor = 'text-amber-400'; sText = '待接单'; 
+                    targetUrl = 'task-detail-new.html?id=' + task.id; 
+                    break;
+                case 'pending_approval': 
+                    sColor = 'text-amber-500'; sText = '框架待审批'; 
+                    targetUrl = 'task-detail-locked.html?id=' + task.id; 
+                    break;
+                case 'processing': 
+                    sColor = 'text-emerald-500'; sText = '设计制作中'; 
+                    // 💡 智能路由：如果是推正稿阶段跳 draft，如果是初次制作跳 processing
+                    targetUrl = isDraftPhase ? `assistant-task-draft.html?id=${task.id}` : `task-detail-processing.html?id=${task.id}`; 
+                    break;
+                case 'completed': 
+                case 'archived': 
+                    sColor = 'text-zinc-400'; sText = '已完结'; 
+                    targetUrl = 'task-detail-archived.html?id=' + task.id; 
+                    break;
+                default: 
+                    sColor = 'text-sky-400'; sText = '待排期/待分配'; 
+                    targetUrl = 'task-detail-new.html?id=' + task.id;
             }
 
             const isCompleted = task.status === 'completed' || task.status === 'archived';
@@ -862,70 +895,38 @@
         }
 
         window.loadTasksFromCloud = async function() {
+            if(!window.supabase) return;
+            
             const userStr = localStorage.getItem('activeUserObj');
-            if(!userStr) return;
-            const user = JSON.parse(userStr);
+            const currentUser = userStr ? JSON.parse(userStr) : null;
+            if(!currentUser) return;
             
-            window.renderDraftToUI(); 
-            
-            if(!window.supabase) {
-                const spinner = document.getElementById('loading-spinner');
-                if(spinner) spinner.innerHTML = '<p class="text-sm font-bold text-zinc-400 mb-1">大厅空空如也</p><p class="text-xs text-zinc-600">快点击右上角发起你的第一个需求吧！</p>';
-                return;
-            }
-            
-            try {
-                const [ongoingRes, completedRes] = await Promise.all([
-                    window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS).not('status', 'in', '("completed","archived")').order('created_at', { ascending: false }),
-                    window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS).in('status', '("completed","archived")').order('created_at', { ascending: false }).limit(15)
-                ]);
+            const currentUserEn = currentUser.enName.toLowerCase();
+            const isJudy = currentUserEn === 'judyzzhang';
+            const isDavid = currentUserEn === 'davidxxu';
 
-                const ongoingC = document.getElementById('ongoing-tasks-container');
-                const completedC = document.getElementById('completed-tasks-container');
-                const timelineC = document.getElementById('all-timelines-container');
+            const { data, error } = await window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS).order('created_at', { ascending: false });
+            if(error) return console.error(error);
 
-                ongoingC.querySelectorAll('.interactive-card:not(#draft-card)').forEach(el => el.remove());
-                completedC.innerHTML = ''; timelineC.innerHTML = '';
+            const lanes = { 'lane-pending': document.getElementById('lane-pending'), 'lane-processing': document.getElementById('lane-processing'), 'lane-blocked': document.getElementById('lane-blocked'), 'lane-review': document.getElementById('lane-review') };
+            for (const key in lanes) { lanes[key].innerHTML = ''; }
 
-                const weights = { 'reviewing': 1, 'rejected': 1.5, 'pending': 2, 'pending_accept': 3, 'pending_approval': 4, 'processing': 5 };
-                const ongoingData = ongoingRes.data || [];
-                ongoingData.sort((a, b) => (weights[a.status] || 99) - (weights[b.status] || 99));
+            let myTaskCount = 0;
 
-                ongoingData.forEach(t => {
-                    const res = createTaskHTML(t, user);
-                    if(res) { ongoingC.insertAdjacentHTML('beforeend', res.cardHTML); timelineC.insertAdjacentHTML('beforeend', res.timelineHTML); }
-                });
-
-                const completedData = completedRes.data || [];
-                completedData.forEach(t => {
-                    const res = createTaskHTML(t, user);
-                    if(res) { completedC.insertAdjacentHTML('beforeend', res.cardHTML); timelineC.insertAdjacentHTML('beforeend', res.timelineHTML); }
-                });
-
-                document.getElementById('loading-spinner')?.classList.add('hidden');
-                
-                if(!ongoingC.querySelector('.interactive-card')) {
-                    ongoingC.innerHTML = `
-                        <div class="text-center py-20 bg-[#121217] rounded-3xl border border-white/5 border-dashed">
-                            <div class="w-16 h-16 bg-zinc-800/50 rounded-full flex items-center justify-center mx-auto mb-4 text-zinc-500">
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
-                            </div>
-                            <p class="text-sm font-bold text-zinc-400 mb-1">大厅空空如也</p>
-                            <p class="text-xs text-zinc-600">快点击右上角发起你的第一个需求吧！</p>
-                        </div>`;
+            data.forEach(task => {
+                const res = createTaskHTML(task, currentUser, currentUserEn, isJudy, isDavid);
+                if(res) {
+                    lanes[res.laneId].insertAdjacentHTML('beforeend', res.cardHTML);
+                    if(res.isMyDesignTask || res.isUnassigned) myTaskCount++;
                 }
+            });
 
-                if(completedC.innerHTML === '') {
-                    completedC.innerHTML = `<div class="text-center py-8 text-zinc-600 text-sm">暂无已完结/归档的工单</div>`;
-                }
+            if (lanes['lane-pending'].innerHTML.trim() === '') lanes['lane-pending'].innerHTML = `<div class="text-center py-6 text-zinc-600 text-[11px]">暂无待排期任务</div>`;
+            if (lanes['lane-processing'].innerHTML.trim() === '') lanes['lane-processing'].innerHTML = `<div class="text-center py-6 text-zinc-600 text-[11px]">暂无制作中任务</div>`;
+            if (lanes['lane-blocked'].innerHTML.trim() === '') lanes['lane-blocked'].innerHTML = `<div class="text-center py-6 text-zinc-600 text-[11px]">暂无审核挂起任务</div>`;
+            if (lanes['lane-review'].innerHTML.trim() === '') lanes['lane-review'].innerHTML = `<div class="text-center py-6 text-zinc-600 text-[11px]">暂无待验收任务</div>`;
 
-                if (localStorage.getItem('myDraftTask')) {
-                    window.previewTask('draft-card', '草稿', 'text-zinc-400');
-                } else if (ongoingData.length > 0) {
-                    window.previewTask(ongoingData[0].id, ongoingData[0].title, 'text-sky-400');
-                }
-
-            } catch(e) { console.error(e); }
+            document.getElementById('dashboard-tasks-count').innerHTML = `${myTaskCount} <span class="text-[11px] text-zinc-600 font-normal ml-1">单</span>`;
         }
 
         window.submitNewReq = async function() {
