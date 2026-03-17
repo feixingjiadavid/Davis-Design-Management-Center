@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>项目投入分析 - 戴维斯设计需求管理中心</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
+        body { background-color: #09090b; color: #e4e4e7; font-family: 'Inter', system-ui, sans-serif; }
+        ::-webkit-scrollbar { width: 0px; } 
+        .custom-scrollbar { overflow-y: auto; padding-right: 8px; scroll-behavior: smooth; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 10px; }
+        .btn-press { transition: all 0.15s ease; cursor: pointer; }
+        .btn-press:active { transform: scale(0.95); }
+        
+        .dropdown-enter { animation: dropIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; transform-origin: top center; }
+        @keyframes dropIn { 0% { opacity: 0; transform: scaleY(0.95) translateY(-5px); } 100% { opacity: 1; transform: scaleY(1) translateY(0); } }
+        .toast-slide-in { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* 柱状图生长动画 */
+        .bar-grow { animation: growUp 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; transform-origin: bottom; }
+        @keyframes growUp { 0% { transform: scaleY(0); } 100% { transform: scaleY(1); } }
+
+        /* AI 报告生成打字机特效光标 */
+        .ai-cursor::after { content: '|'; animation: blink 1s step-start infinite; color: #a855f7; font-weight: bold; }
+        @keyframes blink { 50% { opacity: 0; } }
+        
+        /* 绚丽的 AI 分析背景 */
+        .bg-ai-report { background: linear-gradient(145deg, rgba(23,23,23,0.9) 0%, rgba(30,27,75,0.8) 100%); border: 1px solid rgba(168,85,247,0.3); }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden relative selection:bg-fuchsia-500/30 text-zinc-300">
+
+    <div class="absolute inset-0 bg-[#09090b] z-0 pointer-events-none"></div>
+    <div class="absolute top-0 right-1/4 w-[800px] h-[600px] bg-fuchsia-900/10 rounded-full blur-[180px] pointer-events-none z-0"></div>
+
+    <aside class="w-[240px] border-r border-white/5 flex flex-col z-10 bg-[#09090b] shrink-0 h-full">
+        <div class="p-7 border-b border-white/5 shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-fuchsia-600 flex items-center justify-center shadow-[0_0_15px_rgba(217,70,239,0.3)] shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+                </div>
+                <h1 class="text-[15px] font-bold text-white tracking-wide">戴维斯需求大厅</h1>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-5 space-y-2">
+            <button onclick="window.location.href='manager-workspace.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+                <span class="font-medium text-[14px]">总监控制台</span>
+            </button>
+            <button class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl bg-fuchsia-500/10 text-fuchsia-400 border border-fuchsia-500/20 transition-all btn-press cursor-default">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                <span class="font-bold text-[14px]">项目投入分析</span>
+            </button>
+            <button onclick="window.showAlert('开发中','团队效能大盘正在接入中...','info')" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                <span class="font-medium text-[14px]">团队效能大盘</span>
+            </button>
+            <button onclick="window.location.href='message-center.html?role=admin'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                <span class="font-medium text-[14px]">全局消息中心</span>
+            </button>
+        </div>
+
+        <div class="px-5 py-6 mt-auto border-t border-white/5 bg-[#0c0c0e] shrink-0 flex items-center justify-between relative z-[9999]">
+            <div class="flex items-center gap-3 min-w-0">
+                <div id="sidebar-avatar" class="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-lg">?</div>
+                <div class="min-w-0 flex-1">
+                    <p id="sidebar-name" class="text-[13px] font-bold text-white mb-0.5 truncate">加载中...</p>
+                    <p id="sidebar-role" class="text-[10px] text-zinc-500 truncate">读取中</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-1 shrink-0 ml-2">
+                <button onclick="window.openPwdModal()" class="p-1.5 text-zinc-500 hover:text-fuchsia-400 hover:bg-fuchsia-500/10 rounded-lg transition-colors btn-press cursor-pointer pointer-events-auto relative z-50" title="修改登录密码">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+                </button>
+                <button onclick="window.logout(event)" class="p-1.5 text-zinc-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors btn-press cursor-pointer pointer-events-auto relative z-50" title="退出登录">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative z-10 bg-[#0c0c0e]">
+        <header class="h-[88px] px-10 flex justify-between items-center shrink-0 border-b border-white/5 bg-[#09090b]/80 backdrop-blur-xl z-20">
+            <div>
+                <h2 class="text-2xl font-bold text-white tracking-tight mb-1.5 flex items-center gap-2">
+                    多维项目投入分析
+                    <span class="bg-fuchsia-500/20 text-fuchsia-400 text-[11px] px-2.5 py-0.5 rounded-lg border border-fuchsia-500/30 ml-2">管理视角</span>
+                    <div id="sync-indicator" class="hidden w-2 h-2 rounded-full bg-emerald-500 animate-pulse ml-2" title="云端连接中..."></div>
+                </h2>
+                <p class="text-xs text-zinc-500">直观比对跨周期项目消耗，并支持 Gemini 大模型生成智能洞察报告。</p>
+            </div>
+            
+            <div class="flex items-center gap-6">
+                <div class="relative z-[150]" id="project-selector-wrapper">
+                    <button onclick="toggleDropdown('project-dropdown')" class="px-5 py-2.5 h-full bg-[#121217] border border-white/10 rounded-xl text-[14px] font-bold text-white hover:bg-white/5 transition-colors btn-press flex items-center gap-3 min-w-[200px] justify-between shadow-inner">
+                        <span id="current-project-text" class="truncate">全部项目大盘</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 shrink-0"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </button>
+                    <div id="project-dropdown" class="hidden absolute top-full right-0 mt-2 w-72 bg-[#1a1a24] border border-white/10 rounded-2xl shadow-2xl py-2 z-50 dropdown-enter max-h-[400px] overflow-y-auto custom-scrollbar">
+                        <div class="px-4 py-2 border-b border-white/5 mb-1"><input type="text" id="project-search" oninput="filterProjectList()" class="w-full bg-[#09090b] border border-white/10 rounded-lg px-3 py-1.5 text-[12px] text-white outline-none focus:border-fuchsia-500" placeholder="检索项目..."></div>
+                        <div id="project-dropdown-list"></div>
+                    </div>
+                </div>
+
+                <div class="flex bg-[#121217] border border-white/10 rounded-xl p-1 shadow-inner">
+                    <button id="btn-view-month" onclick="switchView('month')" class="px-5 py-1.5 text-[13px] font-bold bg-fuchsia-500/20 text-fuchsia-400 border border-fuchsia-500/20 rounded-lg shadow-sm cursor-default">月度</button>
+                    <button id="btn-view-year" onclick="switchView('year')" class="px-5 py-1.5 text-[13px] font-medium text-zinc-400 hover:text-white transition-colors rounded-lg btn-press">年度</button>
+                </div>
+
+                <div class="flex gap-2">
+                    <button onclick="navDate(-1)" class="px-3 py-2 bg-[#121217] border border-white/5 rounded-xl hover:bg-white/10 text-zinc-400 hover:text-white transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+                    <div class="px-6 py-2 bg-[#121217] border border-white/5 rounded-xl text-[15px] font-bold text-white min-w-[140px] text-center shadow-inner" id="current-date-text">计算中...</div>
+                    <button onclick="navDate(1)" class="px-3 py-2 bg-[#121217] border border-white/5 rounded-xl hover:bg-white/10 text-zinc-400 hover:text-white transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+                </div>
+                
+                <button onclick="jumpToCurrent()" class="px-4 py-2 bg-fuchsia-600/20 text-fuchsia-400 font-bold border border-fuchsia-500/20 rounded-xl hover:bg-fuchsia-500/30 transition-colors btn-press text-[12px]" id="btn-jump-current">回到本期</button>
+
+                <div class="w-px h-8 bg-white/10 mx-1"></div>
+
+                <div class="relative" id="identity-wrapper">
+                    <button id="identityBtn" class="bg-[#141417] border border-white/10 text-zinc-300 px-5 py-3 rounded-[14px] flex items-center gap-3 text-[13px] font-medium hover:bg-[#1a1a1f] transition-colors btn-press">加载中...</button>
+                    <div id="identityMenu" class="hidden absolute right-0 top-[120%] w-[240px] bg-[#1a1a1f] border border-white/10 rounded-2xl shadow-2xl py-2 dropdown-enter z-[9999]"><div class="px-2 space-y-1" id="dynamic-identity-list"></div></div>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex-1 p-8 md:p-10 overflow-y-auto custom-scrollbar flex flex-col z-10 relative">
+            
+            <div id="dashboard-loading" class="absolute inset-0 bg-[#0c0c0e]/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
+                <svg class="animate-spin h-8 w-8 text-fuchsia-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                <p class="text-xs text-zinc-500 font-bold tracking-widest uppercase">PULLING PROJECT DATA...</p>
+            </div>
+
+            <div class="w-full max-w-[1400px] mx-auto flex flex-col gap-8">
+                
+                <div class="grid grid-cols-4 gap-6">
+                    <div class="bg-[#121217] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden">
+                        <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-indigo-500"></div>
+                        <p class="text-[12px] text-zinc-500 font-bold mb-2">当期投入总人力 (h)</p>
+                        <p class="text-[40px] font-black text-white font-mono leading-none mb-1" id="metric-cur-hours">0</p>
+                        <p class="text-[11px] text-zinc-500 mt-2" id="metric-trend-hours">对比前期: --</p>
+                    </div>
+                    <div class="bg-[#121217] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden">
+                        <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-fuchsia-500"></div>
+                        <p class="text-[12px] text-zinc-500 font-bold mb-2">当期参与人数</p>
+                        <p class="text-[40px] font-black text-white font-mono leading-none mb-1" id="metric-cur-people">0</p>
+                        <p class="text-[11px] text-zinc-500 mt-2">参与过该项目的独立账号数</p>
+                    </div>
+                    <div class="bg-[#121217] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden">
+                        <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-emerald-500"></div>
+                        <p class="text-[12px] text-zinc-500 font-bold mb-2">当期流转/完结单量</p>
+                        <p class="text-[40px] font-black text-white font-mono leading-none mb-1" id="metric-cur-tasks">0</p>
+                        <p class="text-[11px] text-zinc-500 mt-2" id="metric-trend-tasks">对比前期: --</p>
+                    </div>
+                    <div class="bg-[#121217] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden">
+                        <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-amber-500"></div>
+                        <p class="text-[12px] text-zinc-500 font-bold mb-2">AI 工具介入频次</p>
+                        <p class="text-[40px] font-black text-amber-400 font-mono leading-none mb-1" id="metric-cur-ai">0</p>
+                        <p class="text-[11px] text-zinc-500 mt-2" id="metric-trend-ai">对比前期: --</p>
+                    </div>
+                </div>
+
+                <div class="flex gap-8 items-start">
+                    
+                    <div class="flex-[1] flex flex-col gap-8">
+                        <div class="bg-[#121217] border border-white/5 rounded-3xl p-8 flex flex-col shadow-2xl">
+                            <h3 class="text-[15px] font-bold text-white mb-6 flex items-center gap-2">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                                当期人力贡献占比
+                            </h3>
+                            <div class="space-y-4" id="people-dist-container">
+                                <div class="text-center py-6 text-zinc-500 text-sm">暂无数据</div>
+                            </div>
+                        </div>
+
+                        <div class="bg-[#121217] border border-white/5 rounded-3xl p-8 flex flex-col shadow-2xl">
+                            <h3 class="text-[15px] font-bold text-white mb-6 flex items-center gap-2">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+                                AI 工具依赖度
+                            </h3>
+                            <div class="space-y-4" id="ai-dist-container">
+                                <div class="text-center py-6 text-zinc-500 text-sm">无 AI 介入记录</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex-[2] flex flex-col gap-8">
+                        
+                        <div class="bg-[#121217] border border-white/5 rounded-3xl p-8 flex flex-col shadow-2xl">
+                            <h3 class="text-[15px] font-bold text-white mb-8 flex items-center gap-2">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                                跨周期历史消耗走势 (近三期)
+                            </h3>
+                            
+                            <div class="h-56 flex items-end justify-around gap-4 px-4 pb-8 border-b border-white/5 relative" id="history-chart-container">
+                                <div class="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20">
+                                    <div class="w-full h-px bg-white"></div>
+                                    <div class="w-full h-px bg-white"></div>
+                                    <div class="w-full h-px bg-white"></div>
+                                    <div class="w-full h-px bg-white"></div>
+                                </div>
+                            </div>
+                            <div class="flex justify-center gap-8 mt-4 text-[12px] font-bold text-zinc-400">
+                                <div class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-indigo-500"></span> 投入人力 (h)</div>
+                                <div class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-amber-500"></span> AI 介入频次</div>
+                            </div>
+                        </div>
+
+                        <div class="bg-ai-report rounded-3xl p-8 flex flex-col shadow-2xl relative overflow-hidden">
+                            <div class="absolute top-0 right-0 opacity-10 pointer-events-none">
+                                <svg width="200" height="200" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="1"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                            </div>
+
+                            <div class="flex items-center justify-between mb-6 relative z-10">
+                                <h3 class="text-[16px] font-bold text-white flex items-center gap-2">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-fuchsia-500 animate-pulse"></span>
+                                    Gemini 智能洞察报告
+                                </h3>
+                                <button onclick="triggerAIReport()" id="btn-generate-ai" class="bg-fuchsia-600 hover:bg-fuchsia-500 text-white px-5 py-2.5 rounded-xl text-[13px] font-bold shadow-[0_5px_15px_rgba(217,70,239,0.4)] transition-all flex items-center gap-2 btn-press">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                                    一键生成分析报告
+                                </button>
+                            </div>
+
+                            <div id="ai-report-content" class="text-[13px] text-zinc-300 leading-relaxed space-y-4 relative z-10 bg-black/40 border border-fuchsia-500/20 p-6 rounded-2xl hidden">
+                                </div>
+                            
+                            <div id="ai-loading" class="hidden flex-col items-center justify-center py-10 relative z-10">
+                                <svg class="animate-spin h-8 w-8 text-fuchsia-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                <p class="text-xs text-fuchsia-400 font-bold tracking-widest uppercase animate-pulse">GEMINI IS ANALYZING PROJECT DATA...</p>
+                            </div>
+                            
+                            <div id="ai-empty" class="text-center py-12 opacity-50 relative z-10">
+                                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="mx-auto mb-3 text-zinc-500"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                                <p class="text-sm">点击右上角按钮，获取针对当前数据的自动化管理建议</p>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <div id="pwd-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closePwdModal()">
+        <div id="pwd-modal" class="hidden w-full max-w-sm bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 p-6 relative">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-fuchsia-500 to-indigo-500 rounded-t-3xl"></div>
+            <div class="flex justify-between items-center mb-6 mt-2">
+                <h2 class="text-[16px] font-bold text-white flex items-center gap-2"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-fuchsia-500"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg> 修改登录密码</h2>
+                <button onclick="window.closePwdModal()" class="text-zinc-500 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-full p-1 transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            </div>
+            <div class="space-y-4">
+                <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">当前密码</label><input type="password" id="old-pwd" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-fuchsia-500 transition-colors"></div>
+                <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">新密码</label><input type="password" id="new-pwd" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-fuchsia-500 transition-colors"></div>
+                <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">确认新密码</label><input type="password" id="new-pwd-confirm" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-fuchsia-500 transition-colors"></div>
+            </div>
+            <button onclick="window.submitPwdChange()" class="w-full mt-6 py-3.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded-xl text-sm font-bold shadow-[0_5px_15px_rgba(217,70,239,0.3)] transition-all btn-press">确认修改并重新登录</button>
+        </div>
+    </div>
+
+    <div id="custom-dialog-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[999999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center">
+        <div id="custom-dialog" class="w-full max-w-sm bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 p-6 relative overflow-hidden">
+            <div id="dialog-color-bar" class="absolute top-0 left-0 right-0 h-1 bg-fuchsia-500"></div>
+            <div class="flex items-center gap-3 mb-3 mt-2">
+                <div id="dialog-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0"></div>
+                <h2 id="dialog-title" class="text-[16px] font-bold text-white">提示</h2>
+            </div>
+            <p id="dialog-message" class="text-[13px] text-zinc-400 leading-relaxed mb-6">内容</p>
+            <div class="flex gap-3 justify-end w-full mt-auto" id="dialog-buttons"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { supabase } from './supabase-config.js';
+        window.supabase = supabase;
+        window.DB_TABLE = 'test_tasks'; 
+        if(window.loadDashboardData) window.loadDashboardData();
+    </script>
+
+    <script>
+        const PAGE_TYPE = 'admin'; 
+        let currentView = 'year'; 
+        let currentDate = new Date();
+        let myAllTasks = []; 
+        let allProjects = [];
+        let currentSelectedProject = 'all'; // 'all' or specific project string
+        let dropdownData = []; 
+        let currentUserData = null;
+        let aiReportDataSnap = null; // 用于发给 AI 的快照
+
+        // ================= 高定弹窗引擎 =================
+        window.closeCustomDialog = function() {
+            const overlay = document.getElementById('custom-dialog-overlay');
+            const dialog = document.getElementById('custom-dialog');
+            overlay.classList.add('opacity-0'); dialog.classList.add('scale-95');
+            setTimeout(() => { overlay.classList.add('hidden'); }, 300);
+        }
+
+        function setupDialog(title, message, type) {
+            document.getElementById('dialog-title').innerText = title;
+            document.getElementById('dialog-message').innerHTML = message;
+            const colorBar = document.getElementById('dialog-color-bar');
+            const icon = document.getElementById('dialog-icon');
+            if(type === 'danger') {
+                colorBar.className = 'absolute top-0 left-0 right-0 h-1 bg-rose-500';
+                icon.className = 'w-8 h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0';
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+            } else if(type === 'success') {
+                colorBar.className = 'absolute top-0 left-0 right-0 h-1 bg-emerald-500';
+                icon.className = 'w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0';
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+            } else {
+                colorBar.className = 'absolute top-0 left-0 right-0 h-1 bg-fuchsia-500';
+                icon.className = 'w-8 h-8 rounded-full bg-fuchsia-500/20 text-fuchsia-400 flex items-center justify-center shrink-0';
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+            }
+        }
+
+        function showDialogUI() {
+            const overlay = document.getElementById('custom-dialog-overlay');
+            const dialog = document.getElementById('custom-dialog');
+            overlay.classList.remove('hidden'); setTimeout(() => { overlay.classList.remove('opacity-0'); dialog.classList.remove('scale-95'); }, 10);
+        }
+
+        window.showAlert = function(title, message, type="primary") {
+            setupDialog(title, message, type);
+            const btnContainer = document.getElementById('dialog-buttons');
+            let btnColor = type === 'danger' ? 'bg-rose-600 hover:bg-rose-500' : (type === 'success' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-fuchsia-600 hover:bg-fuchsia-500');
+            btnContainer.innerHTML = `<button onclick="closeCustomDialog()" class="w-full py-2.5 ${btnColor} text-white rounded-xl text-[13px] font-bold shadow-lg transition-all btn-press">我知道了</button>`;
+            showDialogUI();
+        }
+
+        window.logout = function(e) {
+            if(e) e.stopPropagation();
+            localStorage.removeItem('activeUserObj'); window.location.href = 'login.html'; 
+        }
+
+        window.openPwdModal = function() {
+            const pwdOverlay = document.getElementById('pwd-modal-overlay');
+            const pwdModal = document.getElementById('pwd-modal');
+            pwdOverlay.classList.remove('hidden'); setTimeout(() => { pwdOverlay.classList.remove('opacity-0'); pwdModal.classList.remove('hidden'); pwdModal.classList.remove('scale-95'); }, 10);
+            document.getElementById('old-pwd').value = ''; document.getElementById('new-pwd').value = ''; document.getElementById('new-pwd-confirm').value = '';
+        }
+        
+        window.closePwdModal = function() {
+            const pwdOverlay = document.getElementById('pwd-modal-overlay');
+            const pwdModal = document.getElementById('pwd-modal');
+            pwdOverlay.classList.add('opacity-0'); pwdModal.classList.add('scale-95'); setTimeout(() => { pwdOverlay.classList.add('hidden'); pwdModal.classList.add('hidden'); }, 300);
+        }
+        
+        window.submitPwdChange = function() { window.showAlert('提示', '系统演示环境暂不可自助修改密码，请联系管理员。', 'info'); window.closePwdModal(); }
+
+        function initRBAC() {
+            const userStr = localStorage.getItem('activeUserObj');
+            if (!userStr) { window.location.href = 'login.html'; return false; }
+            const user = JSON.parse(userStr);
+
+            if (!(user.perms || []).includes(PAGE_TYPE)) {
+                window.showAlert("权限拦截", "您没有总监控制台访问权限，为您退回大厅。", "danger");
+                setTimeout(()=> window.location.href = 'index.html', 1500);
+                return false;
+            }
+
+            const avatarEl = document.getElementById('sidebar-avatar');
+            if(avatarEl) { avatarEl.innerText = user.avatar || '?'; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-fuchsia-600'} border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg shrink-0`; }
+            if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.cnName || user.enName;
+            if(document.getElementById('sidebar-role')) document.getElementById('sidebar-role').innerHTML = `<span class="text-fuchsia-400 font-bold">当前视角: 管理方</span>`;
+            
+            const menuContainer = document.getElementById('dynamic-identity-list');
+            if (menuContainer) {
+                let html = '';
+                if ((user.perms || []).includes('req')) { 
+                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='index.html'"><div class="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div><span class="text-[13px] font-medium">需求方 (去发单/验收)</span></div>`; 
+                }
+                if ((user.perms || []).includes('design')) { 
+                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='assistant-workspace.html'"><div class="w-7 h-7 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div><span class="text-[13px] font-medium">设计方 (执行看板)</span></div>`; 
+                }
+                if ((user.perms || []).includes('admin')) { 
+                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#3b1740] text-fuchsia-400 cursor-default border border-fuchsia-900/50"><div class="w-7 h-7 rounded-lg bg-fuchsia-500/20 flex items-center justify-center text-fuchsia-500"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg></div><span class="text-[13px] font-bold">管理方 (当前)</span></div>`; 
+                }
+                menuContainer.innerHTML = html;
+            }
+
+            const triggerBtn = document.getElementById('identityBtn');
+            if (triggerBtn) { triggerBtn.innerHTML = `<span class="text-fuchsia-500 font-black flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500 animate-pulse"></span></span> 身份: 管理方 (当前) <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 ml-1"><polyline points="6 9 12 15 18 9"></polyline></svg>`; }
+
+            currentUserData = user;
+            return user;
+        }
+
+        // ================= 💡 视图与时间引擎 =================
+        window.switchView = function(view) {
+            currentView = view;
+            const btns = ['month', 'year'];
+            btns.forEach(b => {
+                const btn = document.getElementById(`btn-view-${b}`);
+                if(b === view) {
+                    btn.className = "px-5 py-1.5 text-[13px] font-bold bg-fuchsia-500/20 text-fuchsia-400 border border-fuchsia-500/20 rounded-lg shadow-sm cursor-default";
+                } else {
+                    btn.className = "px-5 py-1.5 text-[13px] font-medium text-zinc-400 hover:text-white transition-colors rounded-lg btn-press";
+                    btn.setAttribute('onclick', `switchView('${b}')`);
+                }
+            });
+            const jumpBtn = document.getElementById('btn-jump-current');
+            if(view === 'month') jumpBtn.innerText = '回到本月';
+            else jumpBtn.innerText = '回到今年';
+
+            // Hide AI report on view switch
+            document.getElementById('ai-report-content').classList.add('hidden');
+            document.getElementById('ai-report-content').innerHTML = '';
+            document.getElementById('ai-empty').classList.remove('hidden');
+
+            updateDataAndRender();
+        }
+
+        window.navDate = function(step) {
+            if (currentView === 'month') currentDate.setMonth(currentDate.getMonth() + step);
+            else if (currentView === 'year') currentDate.setFullYear(currentDate.getFullYear() + step);
+            updateDataAndRender();
+        }
+
+        window.jumpToCurrent = function() {
+            currentDate = new Date();
+            updateDataAndRender();
+        }
+
+        window.toggleDropdown = function(id) {
+            const dropdown = document.getElementById(id);
+            if (id === 'project-dropdown') {
+                window.renderProjectList();
+            } else if (id === 'date-dropdown') {
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth();
+                dropdownData = [];
+                if (currentView === 'month') {
+                    for(let i = -5; i <= 5; i++) {
+                        const d = new Date(year, month + i, 1);
+                        dropdownData.push({ text: `${d.getFullYear()}年 ${d.getMonth()+1}月`, date: d, isCurrent: i===0 });
+                    }
+                } else {
+                    for(let i = -3; i <= 3; i++) {
+                        const y = year + i;
+                        dropdownData.push({ text: `${y} 年度`, date: new Date(y, 0, 1), isCurrent: i===0 });
+                    }
+                }
+                
+                let html = '<div class="py-2">';
+                dropdownData.forEach((item, index) => {
+                    if(item.isCurrent) {
+                        html += `<div class="w-full text-left px-5 py-2.5 text-[14px] text-fuchsia-400 bg-fuchsia-500/10 font-bold cursor-default">${item.text} <span class="text-[10px] bg-fuchsia-500/20 px-1.5 py-0.5 rounded ml-2">当前</span></div>`;
+                    } else {
+                        html += `<button onclick="selectDropdownDate(${index})" class="w-full text-left px-5 py-2.5 text-[14px] text-zinc-400 hover:bg-white/5 hover:text-white transition-colors">${item.text}</button>`;
+                    }
+                });
+                dropdown.innerHTML = html + '</div>';
+            }
+            
+            dropdown.classList.toggle('hidden');
+            if(id === 'date-dropdown') {
+                setTimeout(() => { const act = dropdown.querySelector('.bg-fuchsia-500\\/10'); if(act) act.scrollIntoView({ block: 'center' }); }, 10);
+            }
+        }
+
+        window.selectDropdownDate = function(index) {
+            currentDate = dropdownData[index].date;
+            document.getElementById('date-dropdown').classList.add('hidden');
+            updateDataAndRender();
+        }
+
+        window.selectProject = function(pName) {
+            currentSelectedProject = pName;
+            document.getElementById('current-project-text').innerText = pName === 'all' ? '全部项目大盘' : pName;
+            document.getElementById('project-dropdown').classList.add('hidden');
+            
+            document.getElementById('ai-report-content').classList.add('hidden');
+            document.getElementById('ai-empty').classList.remove('hidden');
+
+            updateDataAndRender();
+        }
+
+        window.filterProjectList = function() { window.renderProjectList(document.getElementById('project-search').value.toLowerCase()); }
+
+        window.renderProjectList = function(filterText = '') {
+            const listEl = document.getElementById('project-dropdown-list');
+            let filtered = allProjects.filter(p => p.toLowerCase().includes(filterText));
+            let html = `<button onclick="selectProject('all')" class="w-full text-left px-5 py-2 text-[13px] ${currentSelectedProject==='all'?'text-fuchsia-400 bg-fuchsia-500/10 font-bold':'text-zinc-300 hover:bg-white/5'} transition-colors">全部项目大盘</button>`;
+            
+            if(filtered.length === 0) {
+                html += `<div class="px-5 py-3 text-[12px] text-zinc-500 text-center">无相关项目</div>`;
+            } else {
+                filtered.forEach(p => {
+                    let isActive = currentSelectedProject === p;
+                    html += `<button onclick="selectProject('${p}')" class="w-full text-left px-5 py-2 text-[13px] truncate ${isActive?'text-fuchsia-400 bg-fuchsia-500/10 font-bold':'text-zinc-300 hover:bg-white/5'} transition-colors" title="${p}">${p}</button>`;
+                });
+            }
+            listEl.innerHTML = html;
+        }
+
+        document.addEventListener('click', (e) => {
+            const dateWrap = document.getElementById('date-selector-wrapper');
+            const dateDrop = document.getElementById('date-dropdown');
+            if (dateWrap && dateDrop && !dateWrap.contains(e.target)) dateDrop.classList.add('hidden');
+
+            const projWrap = document.getElementById('project-selector-wrapper');
+            const projDrop = document.getElementById('project-dropdown');
+            if (projWrap && projDrop && !projWrap.contains(e.target)) projDrop.classList.add('hidden');
+            
+            const idWrap = document.getElementById('identity-wrapper');
+            const idMenu = document.getElementById('identityMenu');
+            if (idWrap && idMenu && !idWrap.contains(e.target)) idMenu.classList.add('hidden');
+        });
+
+        // ================= 💡 核心：拉取云端数据 =================
+        window.loadDashboardData = async function() {
+            if(!initRBAC()) return;
+            if(!window.supabase) return;
+
+            const syncDot = document.getElementById('sync-indicator');
+            if(syncDot) syncDot.classList.remove('hidden');
+
+            try {
+                const { data: tasks, error } = await window.supabase.from(window.DB_TABLE).select('id, title, project, status, creator, assignee, due_date, history_json').order('created_at', { ascending: false });
+                if (error) throw error;
+                myAllTasks = tasks || [];
+
+                // 提取所有项目名
+                let pSet = new Set();
+                myAllTasks.forEach(t => { if(t.project) pSet.add(t.project); });
+                allProjects = Array.from(pSet).sort();
+
+                switchView('year'); // 默认进来看当年的总盘
+                document.getElementById('dashboard-loading').classList.add('hidden');
+
+            } catch (err) {
+                console.error(err);
+                document.getElementById('dashboard-loading').innerHTML = `<p class="text-rose-500 font-bold">数据拉取失败</p><p class="text-xs text-zinc-500">${err.message}</p>`;
+            } finally {
+                if(syncDot) setTimeout(() => syncDot.classList.add('hidden'), 500);
+            }
+        }
+
+        function extractDataForPeriod(year, month, isYearly) {
+            let totalHours = 0;
+            let peopleMap = {}; // { 'davidxxu': 25.5, ... }
+            let aiCount = 0;
+            let totalTasksSet = new Set();
+
+            myAllTasks.forEach(t => {
+                if (currentSelectedProject !== 'all' && t.project !== currentSelectedProject) return;
+
+                let isTaskInPeriod = false;
+                try {
+                    const hist = JSON.parse(t.history_json || '[]');
+                    hist.forEach(h => {
+                        const hDate = new Date(h.created_at || h.time);
+                        let matchPeriod = false;
+                        if (isYearly) { matchPeriod = (hDate.getFullYear() === year); } 
+                        else { matchPeriod = (hDate.getFullYear() === year && hDate.getMonth() === month); }
+
+                        if (matchPeriod) {
+                            // 工时与人员
+                            const hVal = parseFloat(h.work_hours) || 0;
+                            if (hVal > 0 && h.operator) {
+                                isTaskInPeriod = true;
+                                totalHours += hVal;
+                                let cleanName = h.operator.split(' ')[0].split('(')[0].trim(); // Extract real name
+                                if(!peopleMap[cleanName]) peopleMap[cleanName] = 0;
+                                peopleMap[cleanName] += hVal;
+                            }
+                            
+                            // AI
+                            if (h.action === 'submit_draft' || h.action === 'submit_framework') {
+                                const tools = h.ai_tools || [];
+                                tools.forEach(tool => {
+                                    if (tool && tool !== '无AI辅助') aiCount++;
+                                });
+                            }
+                        }
+                    });
+                } catch(e){}
+
+                if(isTaskInPeriod) totalTasksSet.add(t.id);
+            });
+
+            return { totalHours, peopleMap, aiCount, tasksCount: totalTasksSet.size };
+        }
+
+        // ================= 💡 数据计算与大盘更新 =================
+        function updateDataAndRender() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+
+            // 更新展示文本
+            if (currentView === 'month') {
+                document.getElementById('current-date-text').innerText = `${year}年 ${month+1}月`;
+            } else {
+                document.getElementById('current-date-text').innerText = `${year} 年度`;
+            }
+
+            // 💡 1. 抓取本期数据
+            const currentData = extractDataForPeriod(year, month, currentView === 'year');
+            
+            // 💡 2. 抓取上期、上上期数据做历史对比
+            let prev1Data, prev2Data;
+            let periodLabels = [];
+            if (currentView === 'month') {
+                let p1Date = new Date(year, month - 1, 1);
+                let p2Date = new Date(year, month - 2, 1);
+                prev1Data = extractDataForPeriod(p1Date.getFullYear(), p1Date.getMonth(), false);
+                prev2Data = extractDataForPeriod(p2Date.getFullYear(), p2Date.getMonth(), false);
+                periodLabels = [`${p2Date.getMonth()+1}月`, `${p1Date.getMonth()+1}月`, `${month+1}月 (本期)`];
+            } else {
+                prev1Data = extractDataForPeriod(year - 1, 0, true);
+                prev2Data = extractDataForPeriod(year - 2, 0, true);
+                periodLabels = [`${year-2}年`, `${year-1}年`, `${year}年 (本期)`];
+            }
+
+            // --- 渲染顶部四块指标 ---
+            document.getElementById('metric-cur-hours').innerText = currentData.totalHours.toFixed(1);
+            document.getElementById('metric-cur-people').innerText = Object.keys(currentData.peopleMap).length;
+            document.getElementById('metric-cur-tasks').innerText = currentData.tasksCount;
+            document.getElementById('metric-cur-ai').innerText = currentData.aiCount;
+
+            const trendH = currentData.totalHours - prev1Data.totalHours;
+            document.getElementById('metric-trend-hours').innerHTML = prev1Data.totalHours === 0 ? `对比前期: <span class="text-zinc-400">无记录</span>` : `对比前期: <span class="${trendH>0?'text-rose-400':'text-emerald-400'} font-bold">${trendH>0?'↑':'↓'} ${Math.abs(Math.round((trendH/prev1Data.totalHours)*100))}%</span>`;
+            
+            const trendT = currentData.tasksCount - prev1Data.tasksCount;
+            document.getElementById('metric-trend-tasks').innerHTML = prev1Data.tasksCount === 0 ? `对比前期: <span class="text-zinc-400">无记录</span>` : `对比前期: <span class="${trendT>0?'text-rose-400':'text-emerald-400'} font-bold">${trendT>0?'↑':'↓'} ${Math.abs(Math.round((trendT/prev1Data.tasksCount)*100))}%</span>`;
+
+            const trendA = currentData.aiCount - prev1Data.aiCount;
+            document.getElementById('metric-trend-ai').innerHTML = prev1Data.aiCount === 0 ? `对比前期: <span class="text-zinc-400">无记录</span>` : `对比前期: <span class="${trendA>0?'text-emerald-400':'text-rose-400'} font-bold">${trendA>0?'↑':'↓'} ${Math.abs(Math.round((trendA/prev1Data.aiCount)*100))}%</span>`;
+
+            // --- 渲染人员贡献图 ---
+            const pplContainer = document.getElementById('people-dist-container');
+            if (currentData.totalHours === 0) {
+                pplContainer.innerHTML = '<div class="text-center py-6 text-zinc-500 text-sm">该周期无工时投入记录</div>';
+            } else {
+                let pplHtml = '';
+                const sortedPpl = Object.keys(currentData.peopleMap).map(k => ({ name: k, hours: currentData.peopleMap[k] })).sort((a,b) => b.hours - a.hours).slice(0, 6);
+                const colors = ['indigo', 'fuchsia', 'sky', 'emerald', 'amber', 'orange'];
+                
+                sortedPpl.forEach((p, idx) => {
+                    const pct = Math.round((p.hours / currentData.totalHours) * 100);
+                    const col = colors[idx % colors.length];
+                    pplHtml += `
+                    <div class="mb-4 group">
+                        <div class="flex justify-between items-end mb-1.5">
+                            <h4 class="text-[13px] font-bold text-zinc-200 group-hover:text-${col}-400 transition-colors">${p.name}</h4>
+                            <div class="text-right">
+                                <span class="text-[13px] font-mono font-bold text-${col}-400">${p.hours.toFixed(1)} <span class="text-[10px] text-${col}-400/60 font-sans font-normal">h</span></span>
+                                <span class="text-[10px] text-zinc-500 ml-2">占 ${pct}%</span>
+                            </div>
+                        </div>
+                        <div class="w-full h-2 bg-zinc-900 rounded-full overflow-hidden">
+                            <div class="h-full bg-${col}-500 rounded-full opacity-80 bar-grow shadow-[0_0_10px_var(--tw-colors-${col}-500)]" style="width: ${pct}%"></div>
+                        </div>
+                    </div>`;
+                });
+                pplContainer.innerHTML = pplHtml;
+            }
+
+            // --- 渲染 AI 工具全局数据 ---
+            let globalAiFreq = {};
+            myAllTasks.forEach(t => {
+                if (currentSelectedProject !== 'all' && t.project !== currentSelectedProject) return;
+                try {
+                    const hist = JSON.parse(t.history_json || '[]');
+                    hist.forEach(h => {
+                        const hDate = new Date(h.created_at || h.time);
+                        let matchPeriod = false;
+                        if (currentView === 'year') { matchPeriod = (hDate.getFullYear() === year); } 
+                        else { matchPeriod = (hDate.getFullYear() === year && hDate.getMonth() === month); }
+
+                        if (matchPeriod && (h.action === 'submit_draft' || h.action === 'submit_framework')) {
+                            const tools = h.ai_tools || [];
+                            tools.forEach(tool => {
+                                if (tool && tool !== '无AI辅助') {
+                                    if(!globalAiFreq[tool]) globalAiFreq[tool] = 0;
+                                    globalAiFreq[tool]++;
+                                }
+                            });
+                        }
+                    });
+                }catch(e){}
+            });
+
+            const aiContainer = document.getElementById('ai-dist-container');
+            const totalToolTags = Object.values(globalAiFreq).reduce((a, b) => a + b, 0);
+            if (totalToolTags === 0) {
+                aiContainer.innerHTML = '<div class="text-center py-6 text-zinc-500 text-sm">该周期未使用 AI 辅助</div>';
+            } else {
+                let aiHtml = '';
+                const AI_COLOR_MAP = { 'Midjourney': 'emerald', 'Gemini': 'indigo', 'PS生成填充': 'sky', '豆包': 'fuchsia', '即梦': 'orange' };
+                const sortedTools = Object.keys(globalAiFreq).map(k => ({ name: k, count: globalAiFreq[k] })).sort((a,b) => b.count - a.count).slice(0,5);
+                
+                sortedTools.forEach(t => {
+                    const pct = Math.round((t.count / totalToolTags) * 100);
+                    const col = AI_COLOR_MAP[t.name] || 'amber';
+                    aiHtml += `
+                    <div class="mb-3 group">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-[12px] font-bold text-${col}-400 flex items-center gap-2"><div class="w-2 h-2 bg-${col}-400 rounded-full shadow-[0_0_8px_var(--tw-colors-${col}-400)]"></div> ${t.name}</span>
+                            <span class="text-[12px] font-mono font-bold text-white">${pct}% <span class="text-[10px] font-normal text-zinc-500 ml-1">(${t.count}次)</span></span>
+                        </div>
+                        <div class="w-full h-1.5 bg-zinc-900 rounded-full overflow-hidden"><div class="h-full bg-${col}-500 rounded-full opacity-80 bar-grow" style="width: ${pct}%"></div></div>
+                    </div>`;
+                });
+                aiContainer.innerHTML = aiHtml;
+            }
+
+            // --- 渲染三期比对复合图表 (纯 DOM 生成) ---
+            const chartContainer = document.getElementById('history-chart-container');
+            const maxHours = Math.max(prev2Data.totalHours, prev1Data.totalHours, currentData.totalHours, 10); // Minimum 10 to avoid div by zero
+            
+            const datasets = [prev2Data, prev1Data, currentData];
+            let chartHtml = `
+                <div class="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-10 py-6">
+                    <div class="w-full h-px bg-white relative"><span class="absolute -top-2 -left-8 text-[9px] text-white">${Math.round(maxHours)}h</span></div>
+                    <div class="w-full h-px bg-white relative"><span class="absolute -top-2 -left-8 text-[9px] text-white">${Math.round(maxHours*0.75)}h</span></div>
+                    <div class="w-full h-px bg-white relative"><span class="absolute -top-2 -left-8 text-[9px] text-white">${Math.round(maxHours*0.5)}h</span></div>
+                    <div class="w-full h-px bg-white relative"><span class="absolute -top-2 -left-8 text-[9px] text-white">${Math.round(maxHours*0.25)}h</span></div>
+                    <div class="w-full h-px bg-white relative"><span class="absolute -top-2 -left-8 text-[9px] text-white">0h</span></div>
+                </div>
+            `;
+
+            datasets.forEach((d, idx) => {
+                const hPct = Math.round((d.totalHours / maxHours) * 85); // cap at 85% visual height
+                const isCur = idx === 2;
+                
+                chartHtml += `
+                <div class="flex flex-col items-center justify-end h-full z-10 w-20 group relative">
+                    <div class="absolute -top-10 bg-[#1a1a24] border border-white/10 px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-50 text-center shadow-2xl pointer-events-none">
+                        <p class="text-[10px] text-zinc-400 whitespace-nowrap mb-0.5">人力: <span class="text-white font-bold font-mono">${d.totalHours.toFixed(1)}h</span></p>
+                        <p class="text-[10px] text-zinc-400 whitespace-nowrap">AI: <span class="text-amber-400 font-bold font-mono">${d.aiCount}次</span></p>
+                    </div>
+                    
+                    <div class="flex items-end gap-1.5 w-full h-full justify-center pb-2">
+                        <div class="w-5 bg-indigo-500 rounded-t-sm opacity-90 bar-grow shadow-[0_0_15px_rgba(99,102,241,0.4)]" style="height: ${hPct}%; ${isCur?'':'filter: grayscale(0.5) opacity(0.6)'}"></div>
+                        <div class="w-3 bg-amber-500 rounded-t-sm opacity-90 bar-grow" style="height: ${Math.min(d.aiCount * 2, 85)}%; ${isCur?'':'filter: grayscale(0.5) opacity(0.6)'}"></div>
+                    </div>
+                    <span class="text-[11px] font-bold ${isCur?'text-fuchsia-400':'text-zinc-500'}">${periodLabels[idx]}</span>
+                </div>`;
+            });
+            chartContainer.innerHTML = chartHtml;
+
+            // Snapshot for AI
+            aiReportDataSnap = {
+                project: currentSelectedProject === 'all' ? '全局大盘' : currentSelectedProject,
+                period: currentView === 'month' ? `${year}年${month+1}月` : `${year}年`,
+                currentData: currentData,
+                prevData: prev1Data,
+                trendH: trendH
+            };
+        }
+
+        // ================= 🧠 本地模拟的 Gemini 智能报告生成器 =================
+        window.triggerAIReport = function() {
+            const btn = document.getElementById('btn-generate-ai');
+            const loading = document.getElementById('ai-loading');
+            const empty = document.getElementById('ai-empty');
+            const content = document.getElementById('ai-report-content');
+
+            btn.disabled = true;
+            btn.innerHTML = `<svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 思考中...`;
+            
+            empty.classList.add('hidden');
+            content.classList.add('hidden');
+            loading.classList.remove('hidden');
+            loading.classList.add('flex');
+
+            /* 真实接入 Gemini API 的写法示例：
+               const API_KEY = "YOUR_GEMINI_KEY";
+               const prompt = `基于以下JSON分析效能: ${JSON.stringify(aiReportDataSnap)}...`;
+               fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key='+API_KEY, { ... })
+               .then(res => res.json()).then(data => { render(data.candidates[0].content.parts[0].text) })
+            */
+
+            // 因为是前端纯静态运行，这里用 setTimeout 模拟大模型推理延迟，并结合实际快照数据动态拼接真实 HTML 报告。
+            setTimeout(() => {
+                loading.classList.remove('flex');
+                loading.classList.add('hidden');
+                
+                btn.disabled = false;
+                btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg> 重新生成`;
+
+                const snap = aiReportDataSnap;
+                const topPerson = Object.keys(snap.currentData.peopleMap).sort((a,b)=>snap.currentData.peopleMap[b]-snap.currentData.peopleMap[a])[0] || '无记录';
+                
+                let evaluation = '健康';
+                let evaCol = 'emerald';
+                let suggestion = `目前 <b>${snap.project}</b> 在 <b>${snap.period}</b> 的人效投入合理。主力 <b>${topPerson}</b> 输出了最大的工时贡献。建议继续保持，可尝试进一步增加 AI (如 Midjourney) 的介入，提升基础物料的产出速度。`;
+
+                if (snap.trendH > 20) {
+                    evaluation = '负载激增'; evaCol = 'rose';
+                    suggestion = `警告：<b>${snap.project}</b> 的投入人力环比上期激增了 <b>${snap.trendH.toFixed(1)}小时</b>。且 <b>${topPerson}</b> 可能存在单点依赖风险。建议立即介入排期，引入外部助理分担基础排版工作。`;
+                } else if (snap.currentData.totalHours === 0) {
+                    evaluation = '静默'; evaCol = 'zinc';
+                    suggestion = `该时段内未检测到 <b>${snap.project}</b> 有任何工时投入。请确认项目是否已搁置或未规范填写日志。`;
+                }
+
+                // 模拟大模型 Markdown 转 Tailwind HTML
+                const reportHTML = `
+                    <div class="mb-4 flex items-center justify-between border-b border-fuchsia-500/20 pb-3">
+                        <span class="text-[12px] text-fuchsia-400 font-bold bg-fuchsia-500/10 px-2 py-1 rounded">分析对象: ${snap.project} (${snap.period})</span>
+                        <span class="text-[12px] font-bold text-${evaCol}-400 bg-${evaCol}-500/10 border border-${evaCol}-500/20 px-2 py-1 rounded">综合评估: ${evaluation}</span>
+                    </div>
+                    <div class="space-y-4 text-zinc-300">
+                        <p class="ai-cursor">${suggestion}</p>
+                        <div class="bg-black/50 p-4 rounded-xl border border-white/5 mt-4">
+                            <h4 class="text-white font-bold text-[13px] mb-2 flex items-center gap-1.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg> AI 执行建议</h4>
+                            <ul class="list-disc list-inside text-[12px] space-y-1.5 text-zinc-400 ml-2">
+                                <li>当前 AI 介入频次为 ${snap.currentData.aiCount} 次，同环比变化提示团队仍有空间通过 AIGC 工具压缩草图与线稿周期。</li>
+                                <li>建议为 ${topPerson} 等高负载产出节点配备专职的 AI 跑图助理，进一步释放核心脑力。</li>
+                            </ul>
+                        </div>
+                    </div>
+                `;
+
+                content.innerHTML = reportHTML;
+                content.classList.remove('hidden');
+                
+                // 去掉打字机光标动画
+                setTimeout(() => {
+                    const cursorP = content.querySelector('.ai-cursor');
+                    if(cursorP) cursorP.classList.remove('ai-cursor');
+                }, 1500);
+
+            }, 1800); // 模拟 1.8秒推理延时
+        }
+    </script>
+</body>
+</html>
