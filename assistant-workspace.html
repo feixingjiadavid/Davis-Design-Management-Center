@@ -135,7 +135,7 @@
                         <div id="notifMenu" class="hidden absolute right-0 top-[120%] w-[340px] bg-[#121217] border border-white/10 rounded-2xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.8)] py-3 dropdown-enter z-[9999]">
                             <div class="px-5 pb-3 border-b border-white/5 flex justify-between items-center">
                                 <h3 class="text-[14px] font-bold text-white">消息通知</h3>
-                                <button onclick="window.markAllAsRead(event)" class="text-[11px] text-indigo-400 hover:text-indigo-300 btn-press transition-colors">全部已读</button>
+                                <button onclick="window.markAllAsRead(event)" class="text-[11px] text-orange-400 hover:text-orange-300 btn-press transition-colors">全部已读</button>
                             </div>
                             <div class="max-h-[300px] overflow-y-auto custom-scrollbar" id="notif-list-container">
                                 <div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无新消息</div>
@@ -436,10 +436,10 @@
             document.getElementById('toast-desc').innerText = desc;
             const icon = document.getElementById('toast-icon');
             if(type === 'success') {
-                icon.className = "w-8 h-8 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center shrink-0";
+                icon.className = "w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0";
                 icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
             } else if(type === 'info') {
-                icon.className = "w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0";
+                icon.className = "w-8 h-8 rounded-full bg-sky-500/20 text-sky-400 flex items-center justify-center shrink-0";
                 icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
             } else {
                 icon.className = "w-8 h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0";
@@ -612,7 +612,7 @@
             return { laneId, html };
         }
 
-        // ================= 💡 活体通知雷达与看板渲染 =================
+        // ================= 💡 看板数据拉取与更新 =================
         window.loadTasksFromCloud = async function(isSilent = false) {
             if(!window.supabase) return;
             
@@ -647,59 +647,26 @@
                 let myMonthCompletedCount = 0;
                 const now = new Date();
 
-                let knownHistories = JSON.parse(localStorage.getItem('known_histories_design') || '{}');
-                let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
-                let hasNewNotification = false;
-
                 (data || []).forEach(task => {
                     const taskAssignee = task.assignee ? task.assignee.toLowerCase() : 'none';
-                    const isSuperAdmin = currentUserEn === 'davidxxu' || currentUserEn === 'judyzzhang';
                     const isMyDesignTask = taskAssignee === currentUserEn;
                     
-                    // 💡 雷达核心判断
-                    if (isMyDesignTask || isSuperAdmin) {
-                        let historyArr = [];
-                        try { historyArr = JSON.parse(task.history_json || '[]'); } catch(e){}
-                        
-                        const knownLen = knownHistories[task.id] || 0;
-                        if (historyArr.length > knownLen) {
-                            for(let i = knownLen; i < historyArr.length; i++) {
-                                const newEvent = historyArr[i];
-                                const opEnName = currentUser.enName || '';
-                                const opDispName = currentUser.displayName || '';
-                                if (newEvent.operator && (newEvent.operator.includes(opEnName) || newEvent.operator.includes(opDispName))) continue;
-                                
-                                sysNotifs.push({
-                                    id: new Date().getTime() + Math.random(),
-                                    taskId: task.id,
-                                    title: `🔔 [${task.id}] 收到新进展`,
-                                    desc: `${newEvent.operator || '系统'} 操作: ${newEvent.action}. ${newEvent.reply || newEvent.desc || ''}`,
-                                    role: 'design', 
-                                    read: false,
-                                    time: new Date().toISOString()
-                                });
-                                hasNewNotification = true;
-                            }
-                            knownHistories[task.id] = historyArr.length;
+                    if (isMyDesignTask) {
+                        if (!['completed', 'archived', 'terminated'].includes(task.status)) {
+                            myTodoCount++;
                         }
-
-                        // 💡 顶层三大业务指标计算
-                        if (isMyDesignTask) {
-                            if (!['completed', 'archived', 'terminated'].includes(task.status)) {
-                                myTodoCount++;
-                            }
-                            if (task.status === 'rejected') {
-                                myRejectedCount++;
-                            }
-                            if (['completed', 'archived'].includes(task.status)) {
-                                let completeDateStr = task.created_at;
-                                try {
-                                    if (historyArr.length > 0) completeDateStr = historyArr[historyArr.length-1].time || historyArr[historyArr.length-1].created_at || completeDateStr;
-                                }catch(e){}
-                                const cDate = new Date(completeDateStr);
-                                if (cDate.getFullYear() === now.getFullYear() && cDate.getMonth() === now.getMonth()) {
-                                    myMonthCompletedCount++;
-                                }
+                        if (task.status === 'rejected') {
+                            myRejectedCount++;
+                        }
+                        if (['completed', 'archived'].includes(task.status)) {
+                            let completeDateStr = task.created_at;
+                            try {
+                                let historyArr = JSON.parse(task.history_json || '[]');
+                                if (historyArr.length > 0) completeDateStr = historyArr[historyArr.length-1].time || historyArr[historyArr.length-1].created_at || completeDateStr;
+                            }catch(e){}
+                            const cDate = new Date(completeDateStr);
+                            if (cDate.getFullYear() === now.getFullYear() && cDate.getMonth() === now.getMonth()) {
+                                myMonthCompletedCount++;
                             }
                         }
                     }
@@ -711,13 +678,6 @@
                         }
                     }
                 });
-
-                if (hasNewNotification) {
-                    localStorage.setItem('known_histories_design', JSON.stringify(knownHistories));
-                    localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs));
-                    window.loadNotifications(); 
-                    if(isSilent) window.loadTasksFromCloud(false); 
-                }
 
                 if(!isSilent) {
                     document.getElementById('metric-todo').innerHTML = `${myTodoCount} <span class="text-[11px] text-zinc-600 font-normal ml-1 font-sans">单</span>`;
@@ -731,109 +691,13 @@
                     });
                 }
 
+                // 💡 在渲染完数据后，触发全局通知同步引擎！
+                await window.syncNotificationsFromCloud(data, isSilent);
+
             } catch(e) { console.error(e); } finally {
                 if(syncDot) setTimeout(() => syncDot.classList.add('hidden'), 500);
             }
         }
-
-        window.loadNotifications = function() {
-            const userStr = localStorage.getItem('activeUserObj');
-            if(!userStr) return;
-            const user = JSON.parse(userStr);
-            const enName = user.enName ? user.enName.toLowerCase() : '';
-            const isLeader = enName === 'judyzzhang' || enName === 'davidxxu';
-
-            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
-
-            let myNotifs = sysNotifs.filter(n => {
-                if (typeof PAGE_TYPE !== 'undefined' && PAGE_TYPE === 'design' && n.role === 'design') return true;
-                if (isLeader && n.role === 'admin') return true;
-                return false;
-            });
-
-            myNotifs.sort((a, b) => b.id - a.id);
-
-            const unreadCount = myNotifs.filter(n => !n.read).length;
-            const bellDot = document.getElementById('bell-dot');
-            const notifContainer = document.getElementById('notif-list-container');
-
-            if (bellDot) {
-                if (unreadCount > 0) {
-                    bellDot.classList.remove('hidden', 'bg-zinc-600', 'border-transparent');
-                    bellDot.classList.add('bg-rose-500', 'animate-pulse', 'border-[#141417]');
-                } else {
-                    bellDot.classList.add('hidden');
-                }
-            }
-
-            if (notifContainer) {
-                if (myNotifs.length === 0) {
-                    notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无新消息</div>';
-                } else {
-                    let html = '';
-                    myNotifs.forEach(n => {
-                        const dot = n.read ? '' : '<span class="w-2 h-2 rounded-full bg-rose-500 shrink-0 shadow-[0_0_8px_rgba(244,63,94,0.8)]"></span>';
-                        const opacity = n.read ? 'opacity-50' : '';
-                        const dateStr = new Date(n.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                        html += `
-                            <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer ${opacity}" onclick="window.markSingleAsRead(${n.id}, '${n.taskId}')">
-                                <div class="flex justify-between items-start mb-1">
-                                    <h4 class="text-[13px] font-bold text-white flex items-center gap-2">${n.title} ${dot}</h4>
-                                    <span class="text-[10px] text-zinc-500">${dateStr}</span>
-                                </div>
-                                <p class="text-[11px] text-zinc-400 leading-relaxed">${n.desc}</p>
-                            </div>
-                        `;
-                    });
-                    notifContainer.innerHTML = html;
-                }
-            }
-        }
-
-        window.markSingleAsRead = function(id, taskId) {
-            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
-            let target = sysNotifs.find(n => n.id === id);
-            if(target) { target.read = true; localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs)); }
-            if (taskId && taskId !== 'KANBAN') window.location.href = `task-detail-designer.html?id=${taskId}`;
-            else window.loadNotifications();
-        }
-
-        window.markAllAsRead = function(event) {
-            if(event) event.stopPropagation();
-            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
-            const user = JSON.parse(localStorage.getItem('activeUserObj'));
-            const isLeader = user.enName.toLowerCase() === 'judyzzhang' || user.enName.toLowerCase() === 'davidxxu';
-
-            sysNotifs.forEach(n => {
-                if (typeof PAGE_TYPE !== 'undefined' && PAGE_TYPE === 'design' && n.role === 'design') n.read = true;
-                if (isLeader && n.role === 'admin') n.read = true;
-            });
-
-            localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs));
-            window.loadNotifications();
-            window.showToast('消息已清空', '所有未读消息已成功标记为已读。', 'success');
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            if(initRBAC()) {
-                const idBtn = document.getElementById('identityBtn');
-                const idMenu = document.getElementById('identityMenu');
-                if(idBtn && idMenu) idBtn.addEventListener('click', (e) => { e.stopPropagation(); idMenu.classList.toggle('hidden'); });
-                
-                const notifBtn = document.getElementById('notifBtn');
-                const notifMenu = document.getElementById('notifMenu');
-                if(notifBtn && notifMenu) notifBtn.addEventListener('click', (e) => { e.stopPropagation(); notifMenu.classList.toggle('hidden'); });
-
-                document.addEventListener('click', (e) => { 
-                    if(idMenu && !idMenu.contains(e.target)) idMenu.classList.add('hidden'); 
-                    if(notifMenu && !notifMenu.contains(e.target)) notifMenu.classList.add('hidden'); 
-                });
-
-                window.loadNotifications();
-                
-                setInterval(() => { window.loadTasksFromCloud(true); }, 8000); 
-            }
-        });
 
         // ================= 转单逻辑 =================
         const modalOverlay = document.getElementById('transfer-modal-overlay');
@@ -894,6 +758,193 @@
             
             setTimeout(async () => { await window.loadTasksFromCloud(); }, 800);
         }
+
+        // ================= 🚀 全局跨角色实时消息引擎 (Universal Notification Engine) =================
+        window.syncNotificationsFromCloud = async function(tasksData = null, isSilent = false) {
+            if(!window.supabase) return;
+            const userStr = localStorage.getItem('activeUserObj');
+            if(!userStr) return;
+            const currentUser = JSON.parse(userStr);
+            const currentUserEn = currentUser.enName ? currentUser.enName.toLowerCase() : '';
+            const isLeader = currentUserEn === 'judyzzhang' || currentUserEn === 'davidxxu';
+            const hasDesignPerm = (currentUser.perms || []).includes('design');
+
+            try {
+                let tasks = tasksData;
+                if (!tasks) {
+                    const { data, error } = await window.supabase.from(window.DB_TABLE).select('id, title, creator, assignee, status, history_json').order('created_at', { ascending: false }).limit(200);
+                    if(error) throw error;
+                    tasks = data;
+                }
+
+                let myUnreadNotifs = [];
+                let readReceipts = JSON.parse(localStorage.getItem('read_receipts_' + currentUserEn) || '{}');
+                let newlyFoundCount = 0;
+
+                (tasks || []).forEach(task => {
+                    const creatorStr = (task.creator || '').toLowerCase();
+                    const isMyCreation = creatorStr.includes((currentUser.displayName||'').toLowerCase()) || creatorStr.includes((currentUser.cnName||'').toLowerCase()) || creatorStr.includes(currentUserEn);
+                    const isMyAssignment = (task.assignee || '').toLowerCase() === currentUserEn;
+                    const isUnassigned = (task.assignee || '').toLowerCase() === 'none';
+                    
+                    // 💡 智能判断逻辑：
+                    // 如果是你创建的、被指派给你的、或者是总监视角，都需要提醒。
+                    // 额外增强：如果是待分配的公海池任务（pending），那么所有具有 design 权限的人都能收到上游丢单通知！
+                    const isConcerned = isMyCreation || isMyAssignment || isLeader || (isUnassigned && hasDesignPerm && task.status === 'pending');
+
+                    if (!isConcerned) return; 
+
+                    let historyArr = [];
+                    try { historyArr = JSON.parse(task.history_json || '[]'); } catch(e){}
+
+                    historyArr.forEach((h, index) => {
+                        const eventId = `${task.id}_${index}`; 
+                        if (readReceipts[eventId]) return; // 已经读过了
+
+                        // 💡 防己刷屏：如果这个动作是你自己做的，自动标记为已读！
+                        const op = (h.operator || '').toLowerCase();
+                        if (op.includes(currentUserEn) || op.includes((currentUser.displayName||'').toLowerCase()) || op.includes((currentUser.cnName||'').toLowerCase())) {
+                            readReceipts[eventId] = true;
+                            return;
+                        }
+
+                        if (!window.currentUnreadNotifs || !window.currentUnreadNotifs.find(n => n.eventId === eventId)) {
+                            newlyFoundCount++;
+                        }
+
+                        let actionText = h.action || '更新了状态';
+                        let iconDot = 'bg-sky-500';
+                        if(h.action === 'submit_draft') { actionText = '上传了最新设计正稿'; iconDot = 'bg-sky-500'; }
+                        if(h.action === 'submit_framework') { actionText = '提交了设计框架'; iconDot = 'bg-amber-500'; }
+                        if(h.action === 'approve_framework') { actionText = '通过了框架审批'; iconDot = 'bg-emerald-500'; }
+                        if(h.is_rejected || h.action === 'reject') { actionText = '打回了该需求'; iconDot = 'bg-rose-500'; }
+                        if(h.action === 'complete') { actionText = '验收通过并完结了工单'; iconDot = 'bg-emerald-500'; }
+                        if(h.action === 'transfer') { actionText = '转移了需求执行人'; iconDot = 'bg-orange-500'; }
+                        if(h.action === 'accept') { actionText = '已接单并开始制作'; iconDot = 'bg-sky-500'; }
+                        if(h.action === 'create') { actionText = '向大厅发起了新需求'; iconDot = 'bg-indigo-500'; }
+
+                        myUnreadNotifs.push({
+                            eventId: eventId,
+                            taskId: task.id,
+                            title: `[${task.id}] ${actionText}`,
+                            desc: `${h.operator || '系统'} : ${h.reply || h.desc || '请及时跟进处理'}`,
+                            time: h.time || h.created_at || new Date().toISOString(),
+                            iconDot: iconDot
+                        });
+                    });
+                });
+
+                localStorage.setItem('read_receipts_' + currentUserEn, JSON.stringify(readReceipts));
+                myUnreadNotifs.sort((a, b) => new Date(b.time) - new Date(a.time));
+                
+                // 💡 只有在静默轮询且发现确实有新消息时，才会打扰用户弹出 Toast！
+                if (isSilent && newlyFoundCount > 0) {
+                    window.showToast('🔔 收到新消息', `您有 ${newlyFoundCount} 条业务动态，请点击右上角铃铛查看。`, 'info');
+                }
+
+                window.currentUnreadNotifs = myUnreadNotifs; 
+                window.renderNotificationsUI();
+
+            } catch(e) { console.error("消息引擎同步失败:", e); }
+        }
+
+        window.renderNotificationsUI = function() {
+            const notifs = window.currentUnreadNotifs || [];
+            const unreadCount = notifs.length;
+            const bellDot = document.getElementById('bell-dot');
+            const notifContainer = document.getElementById('notif-list-container');
+
+            if (bellDot) {
+                if (unreadCount > 0) {
+                    bellDot.classList.remove('hidden', 'bg-zinc-600', 'border-transparent');
+                    bellDot.classList.add('bg-rose-500', 'animate-pulse', 'border-[#141417]');
+                } else {
+                    bellDot.classList.add('hidden');
+                }
+            }
+
+            if (notifContainer) {
+                if (unreadCount === 0) {
+                    notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读消息，工作都在掌控中</div>';
+                } else {
+                    let html = '';
+                    notifs.forEach(n => {
+                        const dateStr = new Date(n.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                        html += `
+                            <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer group" onclick="window.markSingleAsRead('${n.eventId}', '${n.taskId}')">
+                                <div class="flex justify-between items-start mb-1">
+                                    <h4 class="text-[13px] font-bold text-white flex items-center gap-2 group-hover:text-sky-400 transition-colors">
+                                        <span class="w-2 h-2 rounded-full ${n.iconDot} shrink-0 shadow-[0_0_8px_currentColor]"></span>
+                                        ${n.title}
+                                    </h4>
+                                    <span class="text-[10px] text-zinc-500">${dateStr}</span>
+                                </div>
+                                <p class="text-[11px] text-zinc-400 leading-relaxed pl-4 line-clamp-2">${n.desc}</p>
+                            </div>
+                        `;
+                    });
+                    notifContainer.innerHTML = html;
+                }
+            }
+        }
+
+        window.markSingleAsRead = function(eventId, taskId) {
+            const userStr = localStorage.getItem('activeUserObj');
+            if(!userStr) return;
+            const currentUserEn = JSON.parse(userStr).enName.toLowerCase();
+            let readReceipts = JSON.parse(localStorage.getItem('read_receipts_' + currentUserEn) || '{}');
+            
+            // 写入已读账本
+            readReceipts[eventId] = true;
+            localStorage.setItem('read_receipts_' + currentUserEn, JSON.stringify(readReceipts));
+            
+            // 本地数组剔除，秒级更新UI
+            window.currentUnreadNotifs = window.currentUnreadNotifs.filter(n => n.eventId !== eventId);
+            window.renderNotificationsUI(); 
+            
+            // 智能跳入对应的详情页
+            window.location.href = `task-detail-designer.html?id=${taskId}`;
+        }
+
+        window.markAllAsRead = function(event) {
+            if(event) event.stopPropagation();
+            const userStr = localStorage.getItem('activeUserObj');
+            if(!userStr) return;
+            const currentUserEn = JSON.parse(userStr).enName.toLowerCase();
+            let readReceipts = JSON.parse(localStorage.getItem('read_receipts_' + currentUserEn) || '{}');
+            
+            const notifs = window.currentUnreadNotifs || [];
+            notifs.forEach(n => { readReceipts[n.eventId] = true; });
+            
+            localStorage.setItem('read_receipts_' + currentUserEn, JSON.stringify(readReceipts));
+            window.currentUnreadNotifs = [];
+            window.renderNotificationsUI();
+            
+            if(window.showToast) window.showToast('全部已读', '收件箱已清空。', 'success');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if(initRBAC()) {
+                const idBtn = document.getElementById('identityBtn');
+                const idMenu = document.getElementById('identityMenu');
+                if(idBtn && idMenu) idBtn.addEventListener('click', (e) => { e.stopPropagation(); idMenu.classList.toggle('hidden'); });
+                
+                const notifBtn = document.getElementById('notifBtn');
+                const notifMenu = document.getElementById('notifMenu');
+                if(notifBtn && notifMenu) notifBtn.addEventListener('click', (e) => { e.stopPropagation(); notifMenu.classList.toggle('hidden'); });
+
+                document.addEventListener('click', (e) => { 
+                    if(idMenu && !idMenu.contains(e.target)) idMenu.classList.add('hidden'); 
+                    if(notifMenu && !notifMenu.contains(e.target)) notifMenu.classList.add('hidden'); 
+                });
+
+                // 启动看板和通知渲染引擎
+                window.loadTasksFromCloud(false);
+                
+                // 💡 部署 8秒后台静默雷达，同时扫描面板变化和新消息通知！
+                setInterval(() => { window.loadTasksFromCloud(true); }, 8000); 
+            }
+        });
     </script>
 </body>
 </html>
