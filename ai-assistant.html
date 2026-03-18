@@ -24,7 +24,6 @@
         .typing-dot:nth-child(2) { animation-delay: -0.16s; }
         @keyframes typing { 0%, 80%, 100% { transform: scale(0); opacity: 0.3; } 40% { transform: scale(1); opacity: 1; } }
 
-        /* 渲染聊天里的链接 */
         .chat-content a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; font-weight: 600; }
         .chat-content a:hover { color: #a5b4fc; }
     </style>
@@ -38,41 +37,36 @@
         <div class="p-7 border-b border-white/5 shrink-0">
             <div class="flex items-center gap-3">
                 <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shadow-[0_0_15px_rgba(79,70,229,0.3)] shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
                 </div>
-                <h1 class="text-[15px] font-bold text-white tracking-wide">戴维斯需求大厅</h1>
+                <h1 class="text-[15px] font-bold text-white tracking-wide">AI 资产中心</h1>
             </div>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-5 space-y-2">
-            <button onclick="window.location.href='index.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
-                <span class="font-medium text-[14px]">需求排号大厅</span>
+        <div class="p-5 border-b border-white/5 shrink-0 space-y-3">
+            <button onclick="window.location.href='index.html'" class="w-full flex items-center gap-3 px-4 py-3 bg-white/5 hover:bg-white/10 rounded-xl text-zinc-300 transition-colors btn-press">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                <span class="text-[13px] font-bold">返回排号大厅</span>
             </button>
-            <button onclick="window.location.href='record-list.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
-                <span class="font-medium text-[14px]">我的提单记录</span>
-            </button>
-            <button onclick="window.location.href='calendar.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                <span class="font-medium text-[14px]">我的需求日历</span>
-            </button>
-            <button class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 transition-all btn-press cursor-default mt-6">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-                <span class="font-bold text-[14px]">AI 资产助手</span>
+            <button onclick="startNewChat()" class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-bold transition-colors btn-press shadow-md">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <span class="text-[13px]">开启新对话</span>
             </button>
         </div>
+
+        <div class="flex-1 overflow-y-auto p-3 space-y-1 custom-scrollbar" id="chat-session-list">
+            </div>
 
         <div class="px-5 py-6 mt-auto border-t border-white/5 bg-[#0c0c0e] shrink-0 flex items-center justify-between">
             <div class="flex items-center gap-3 min-w-0">
                 <div id="sidebar-avatar" class="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-lg">?</div>
                 <div class="min-w-0 flex-1">
                     <p id="sidebar-name" class="text-[13px] font-bold text-white mb-0.5 truncate">加载中...</p>
-                    <p id="sidebar-role" class="text-[10px] text-zinc-500 truncate">需求方</p>
+                    <p class="text-[10px] text-zinc-500 truncate">需求方</p>
                 </div>
             </div>
-            <div class="flex items-center gap-1">
-                <button onclick="window.location.href='login.html'" class="p-1.5 text-zinc-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors btn-press">
+            <div class="flex items-center gap-1 shrink-0 ml-2">
+                <button onclick="window.location.href='login.html'" class="p-1.5 text-zinc-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors btn-press" title="退出系统">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
                 </button>
             </div>
@@ -82,9 +76,6 @@
     <main class="flex-1 flex flex-col h-full relative z-10 bg-[#0c0c0e]">
         
         <header class="px-10 py-6 border-b border-white/5 shrink-0 bg-[#09090b]/80 backdrop-blur-xl flex flex-col z-20">
-            <button onclick="window.location.href='index.html'" class="text-[12px] font-bold text-zinc-500 hover:text-white transition-colors flex items-center gap-1.5 w-max mb-4 btn-press">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg> 返回排号大厅
-            </button>
             <div class="flex justify-between items-center w-full">
                 <div>
                     <h2 class="text-[22px] font-bold text-white tracking-tight flex items-center gap-3">
@@ -93,26 +84,15 @@
                     </h2>
                     <p class="text-[12px] text-zinc-500 mt-1">提单前，您可以先在此获取各项目的标准 Logo、字体包、常用宣发物料及历史规范链接。</p>
                 </div>
-                <button onclick="clearChatHistory()" class="text-zinc-500 hover:text-rose-400 text-[12px] flex items-center gap-1.5 transition-colors btn-press bg-white/5 px-3 py-1.5 rounded-lg border border-white/5 hover:border-rose-500/30">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg> 清空对话记录
+                <button onclick="deleteCurrentSession()" class="text-zinc-500 hover:text-rose-400 text-[12px] flex items-center gap-1.5 transition-colors btn-press bg-white/5 px-3 py-1.5 rounded-lg border border-white/5 hover:border-rose-500/30">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg> 删除当前对话
                 </button>
             </div>
         </header>
 
         <div class="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-10 flex flex-col items-center pb-32" id="chat-container">
             <div class="w-full max-w-[850px] space-y-6 flex flex-col" id="chat-box">
-                <div class="flex items-start gap-4 self-start max-w-[85%]">
-                    <div class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white shrink-0 shadow-[0_0_15px_rgba(79,70,229,0.3)]">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-                    </div>
-                    <div class="flex flex-col gap-1.5">
-                        <span class="text-[11px] text-zinc-500 font-medium ml-1">AI 资产小助手</span>
-                        <div class="bg-[#18181b] border border-white/5 text-zinc-200 text-[14px] leading-relaxed p-4 rounded-2xl rounded-tl-sm shadow-md chat-content">
-                            哈喽！我是设计部的 AI 资产助手。<br><br>你可以找我要：<br>1. 各大核心项目（如年度大会、1024等）的 <b>标准 Logo 矢量源文件</b>。<br>2. 企微、邮件等渠道的 <b>标准排版规范及尺寸</b>。<br>3. 往期的通用物料模板链接。<br><br>请问今天你需要找什么材料？
-                        </div>
-                    </div>
                 </div>
-            </div>
         </div>
 
         <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#09090b] via-[#09090b]/95 to-transparent pt-10 pb-8 px-10 flex justify-center z-20">
@@ -129,14 +109,16 @@
         // ==========================================
         // 🚀 配置你的 Coze API (V3版本)
         // ==========================================
-        const COZE_API_URL = 'https://api.coze.cn/v3/chat'; // 国内版扣子 API，如果是海外版请改为 api.coze.com
-        const COZE_PAT = 'YOUR_COZE_PERSONAL_ACCESS_TOKEN'; // 替换为你的 Personal Access Token
-        const COZE_BOT_ID = 'YOUR_COZE_BOT_ID'; // 替换为你的智能体 Bot ID
+        const COZE_API_URL = 'https://api.coze.cn/v3/chat'; 
+        const COZE_PAT = 'YOUR_COZE_PERSONAL_ACCESS_TOKEN'; 
+        const COZE_BOT_ID = 'YOUR_COZE_BOT_ID'; 
 
-        // 聊天记录持久化 Key (与当前登录用户绑定)
-        let chatStorageKey = 'coze_chat_history_';
         let currentUserName = 'User';
         let currentUserAvatar = 'U';
+        let currentUserEnName = 'guest';
+
+        let sessions = [];
+        let currentSessionId = null;
 
         function initApp() {
             const userStr = localStorage.getItem('activeUserObj');
@@ -148,12 +130,81 @@
             
             currentUserName = user.displayName || user.cnName || user.enName;
             currentUserAvatar = user.avatar || '?';
-            chatStorageKey += (user.enName || 'guest');
+            currentUserEnName = user.enName || 'guest';
 
-            loadLocalChatHistory();
+            loadSessions();
         }
 
-        // ================= UI 交互逻辑 =================
+        // ================= 💡 多会话管理引擎 =================
+        function loadSessions() {
+            sessions = JSON.parse(localStorage.getItem('coze_sessions_' + currentUserEnName) || '[]');
+            if (sessions.length === 0) {
+                startNewChat();
+            } else {
+                renderSessionList();
+                switchSession(sessions[0].id);
+            }
+        }
+
+        function saveSessions() {
+            localStorage.setItem('coze_sessions_' + currentUserEnName, JSON.stringify(sessions));
+        }
+
+        window.startNewChat = function() {
+            const id = 'chat_' + new Date().getTime();
+            const newSession = { id: id, title: '新对话', date: new Date().toISOString() };
+            sessions.unshift(newSession); // 插入到最前面
+            saveSessions();
+            switchSession(id);
+        }
+
+        window.deleteCurrentSession = function() {
+            if (!currentSessionId) return;
+            if (confirm("确定要删除当前对话吗？")) {
+                sessions = sessions.filter(s => s.id !== currentSessionId);
+                localStorage.removeItem(currentSessionId); 
+                saveSessions();
+                if (sessions.length === 0) startNewChat();
+                else switchSession(sessions[0].id);
+            }
+        }
+
+        function renderSessionList() {
+            const list = document.getElementById('chat-session-list');
+            list.innerHTML = sessions.map(s => `
+                <div onclick="switchSession('${s.id}')" class="p-3 rounded-xl cursor-pointer transition-colors ${s.id === currentSessionId ? 'bg-indigo-500/20 border border-indigo-500/30 text-indigo-300' : 'hover:bg-white/5 text-zinc-400 border border-transparent'} flex flex-col gap-1">
+                    <p class="text-[13px] font-bold truncate">${s.title}</p>
+                    <p class="text-[10px] opacity-50">${new Date(s.date).toLocaleDateString()} ${new Date(s.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                </div>
+            `).join('');
+        }
+
+        window.switchSession = function(id) {
+            currentSessionId = id;
+            renderSessionList();
+            
+            // 重置聊天区并打底欢迎语
+            document.getElementById('chat-box').innerHTML = `
+                <div class="flex items-start gap-4 self-start max-w-[85%]">
+                    <div class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white shrink-0 shadow-[0_0_15px_rgba(79,70,229,0.3)]">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                    </div>
+                    <div class="flex flex-col gap-1.5">
+                        <span class="text-[11px] text-zinc-500 font-medium ml-1">AI 资产小助手</span>
+                        <div class="bg-[#18181b] border border-white/5 text-zinc-200 text-[14px] leading-relaxed p-4 rounded-2xl rounded-tl-sm shadow-md chat-content">
+                            哈喽！我是设计部的 AI 资产助手。<br><br>你可以找我要：<br>1. 各大核心项目的 <b>标准 Logo 矢量源文件</b>。<br>2. 企微、邮件等渠道的 <b>标准排版规范及尺寸</b>。<br>3. 往期的通用物料模板链接。<br><br>请问今天你需要找什么材料？
+                        </div>
+                    </div>
+                </div>`;
+            
+            // 加载当前会话的具体记录
+            const history = JSON.parse(localStorage.getItem(currentSessionId) || '[]');
+            history.forEach(msg => appendMessageToUI(msg.role, msg.content, false));
+            
+            setTimeout(scrollToBottom, 100);
+        }
+
+        // ================= UI 交互 =================
         function autoResize(el) {
             el.style.height = 'auto';
             el.style.height = Math.min(el.scrollHeight, 150) + 'px';
@@ -171,15 +222,12 @@
             container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
         }
 
-        // ================= 解析与渲染 =================
         function parseMessageText(text) {
-            // 简单的文本格式化：换行转 <br>，提取链接转换为 <a> 标签
             let html = text.replace(/\n/g, '<br>');
             const urlRegex = /(https?:\/\/[^\s]+)/g;
             html = html.replace(urlRegex, function(url) {
                 return `<a href="${url}" target="_blank" title="${url}">${url} ↗</a>`;
             });
-            // 简单的粗体解析 **text**
             html = html.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
             return html;
         }
@@ -217,10 +265,10 @@
             box.insertAdjacentHTML('beforeend', html);
             scrollToBottom();
 
-            if (saveToLocal) {
-                const hist = JSON.parse(localStorage.getItem(chatStorageKey) || '[]');
+            if (saveToLocal && currentSessionId) {
+                const hist = JSON.parse(localStorage.getItem(currentSessionId) || '[]');
                 hist.push({ role, content });
-                localStorage.setItem(chatStorageKey, JSON.stringify(hist));
+                localStorage.setItem(currentSessionId, JSON.stringify(hist));
             }
         }
 
@@ -248,31 +296,22 @@
             if (el) el.remove();
         }
 
-        // ================= 数据收发逻辑 =================
-        function loadLocalChatHistory() {
-            const hist = JSON.parse(localStorage.getItem(chatStorageKey) || '[]');
-            hist.forEach(msg => {
-                appendMessageToUI(msg.role, msg.content, false);
-            });
-            setTimeout(scrollToBottom, 100);
-        }
-
-        window.clearChatHistory = function() {
-            if (confirm("确定要清空与 AI 助手的全部对话记录吗？")) {
-                localStorage.removeItem(chatStorageKey);
-                window.location.reload();
-            }
-        }
-
         async function sendUserMessage() {
             const inputEl = document.getElementById('chat-input');
             const btnEl = document.getElementById('btn-send');
             const text = inputEl.value.trim();
-            if (!text) return;
+            if (!text || !currentSessionId) return;
 
-            // 1. 上屏并锁定输入
+            // 如果是新对话的第一句话，更新会话标题
+            const currentSessionObj = sessions.find(s => s.id === currentSessionId);
+            if (currentSessionObj && currentSessionObj.title === '新对话') {
+                currentSessionObj.title = text.substring(0, 12) + (text.length > 12 ? '...' : '');
+                saveSessions();
+                renderSessionList();
+            }
+
             inputEl.value = '';
-            inputEl.style.height = 'auto'; // reset height
+            inputEl.style.height = 'auto'; 
             inputEl.disabled = true;
             btnEl.disabled = true;
             btnEl.classList.add('opacity-50');
@@ -280,20 +319,17 @@
             appendMessageToUI('user', text);
             const thinkingId = appendThinkingUI();
 
-            // 2. 调用 Coze API
             try {
-                // 🛑 如果你还没有填写真实的 PAT 和 Bot ID，这里会走本地模拟回复，方便你查看 UI 效果
                 if (COZE_PAT === 'YOUR_COZE_PERSONAL_ACCESS_TOKEN') {
-                    await new Promise(r => setTimeout(r, 1500)); // 模拟网络延迟
+                    await new Promise(r => setTimeout(r, 1500)); 
                     removeThinkingUI(thinkingId);
                     const mockReply = `这是一个模拟回复。因为您还没有在 \`ai-assistant.html\` 底部配置真实的 \`COZE_PAT\` 和 \`COZE_BOT_ID\`。\n\n当您配置好后，系统会自动调用真实的扣子大模型，返回类似这样的云端设计资产链接：\n🔗 https://docs.qq.com/doc/mock-link-123`;
                     appendMessageToUI('assistant', mockReply);
                 } else {
-                    // 🟢 真实请求扣子 Coze API V3 逻辑
                     const requestBody = {
                         bot_id: COZE_BOT_ID,
-                        user_id: chatStorageKey, // 用唯一键作为 userId 保持会话
-                        stream: false, // 静态演示中，使用非流式请求处理更简单可靠
+                        user_id: currentSessionId, // 绑定当前会话 ID 保持 Coze 的上下文记忆
+                        stream: false, 
                         auto_save_history: true,
                         additional_messages: [
                             { role: "user", content: text, content_type: "text" }
@@ -314,12 +350,9 @@
                     }
 
                     const data = await response.json();
-                    
                     removeThinkingUI(thinkingId);
 
-                    // 解析 Coze V3 返回结构
                     if (data.code === 0 && data.data && data.data.messages) {
-                        // 提取类型为 answer 的消息
                         const ansMsg = data.data.messages.find(m => m.type === 'answer');
                         if (ansMsg && ansMsg.content) {
                             appendMessageToUI('assistant', ansMsg.content);
@@ -335,7 +368,6 @@
                 removeThinkingUI(thinkingId);
                 appendMessageToUI('assistant', `❌ 连接智能体失败，请检查网络或 API 配置。\n错误信息: ${error.message}`);
             } finally {
-                // 解锁输入
                 inputEl.disabled = false;
                 btnEl.disabled = false;
                 btnEl.classList.remove('opacity-50');
