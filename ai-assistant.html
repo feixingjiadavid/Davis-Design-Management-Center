@@ -111,8 +111,8 @@
         // 🚀 配置你的 Coze API (V3版本)
         // ==========================================
         const COZE_API_URL = 'https://api.coze.cn/v3/chat'; 
-        const COZE_PAT = 'YOUR_COZE_PERSONAL_ACCESS_TOKEN'; 
-        const COZE_BOT_ID = 'YOUR_COZE_BOT_ID'; 
+        const COZE_PAT = 'pat_FbgsPIfAiUkR2TWqw16MZMjxeafODI93LWcy35hlJNpVnL00YD2o0ifxc90jkfct'; 
+        const COZE_BOT_ID = '7559104686386036777'; 
 
         let currentUserName = 'User';
         let currentUserAvatar = 'U';
@@ -321,49 +321,45 @@
             const thinkingId = appendThinkingUI();
 
             try {
-                if (COZE_PAT === 'YOUR_COZE_PERSONAL_ACCESS_TOKEN') {
-                    await new Promise(r => setTimeout(r, 1500)); 
-                    removeThinkingUI(thinkingId);
-                    const mockReply = `这是一个模拟回复。因为您还没有在 \`ai-assistant.html\` 底部配置真实的 \`COZE_PAT\` 和 \`COZE_BOT_ID\`。\n\n当您配置好后，系统会自动调用真实的扣子大模型，返回类似这样的云端设计资产链接：\n🔗 https://docs.qq.com/doc/mock-link-123`;
-                    appendMessageToUI('assistant', mockReply);
-                } else {
-                    const requestBody = {
-                        bot_id: COZE_BOT_ID,
-                        user_id: currentSessionId, 
-                        stream: false, 
-                        auto_save_history: true,
-                        additional_messages: [
-                            { role: "user", content: text, content_type: "text" }
-                        ]
-                    };
+                // 🟢 真实请求扣子 Coze API V3 逻辑
+                const requestBody = {
+                    bot_id: COZE_BOT_ID,
+                    user_id: currentSessionId, // 使用唯一的会话 ID 来维持上下文
+                    stream: false, 
+                    auto_save_history: true,
+                    additional_messages: [
+                        { role: "user", content: text, content_type: "text" }
+                    ]
+                };
 
-                    const response = await fetch(COZE_API_URL, {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${COZE_PAT}`,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(requestBody)
-                    });
+                const response = await fetch(COZE_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${COZE_PAT}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
 
-                    if (!response.ok) {
-                        throw new Error(`API 连接异常: ${response.status} ${response.statusText}`);
-                    }
-
-                    const data = await response.json();
-                    removeThinkingUI(thinkingId);
-
-                    if (data.code === 0 && data.data && data.data.messages) {
-                        const ansMsg = data.data.messages.find(m => m.type === 'answer');
-                        if (ansMsg && ansMsg.content) {
-                            appendMessageToUI('assistant', ansMsg.content);
-                        } else {
-                            appendMessageToUI('assistant', '⚠️ 抱歉，小戴维斯未能匹配到相关结果，或接口未返回内容。');
-                        }
-                    } else {
-                        throw new Error(data.msg || '未知解析错误');
-                    }
+                if (!response.ok) {
+                    throw new Error(`API 连接异常: ${response.status} ${response.statusText}`);
                 }
+
+                const data = await response.json();
+                removeThinkingUI(thinkingId);
+
+                // 解析 Coze V3 返回结构
+                if (data.code === 0 && data.data && data.data.messages) {
+                    const ansMsg = data.data.messages.find(m => m.type === 'answer');
+                    if (ansMsg && ansMsg.content) {
+                        appendMessageToUI('assistant', ansMsg.content);
+                    } else {
+                        appendMessageToUI('assistant', '⚠️ 抱歉，小戴维斯未能匹配到相关结果，或接口未返回内容。');
+                    }
+                } else {
+                    throw new Error(data.msg || '未知解析错误');
+                }
+                
             } catch (error) {
                 console.error("Coze API 报错:", error);
                 removeThinkingUI(thinkingId);
