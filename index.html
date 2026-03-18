@@ -287,7 +287,7 @@
         <div id="pwd-modal" class="hidden w-full max-w-sm bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 p-6 relative">
             <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-t-3xl"></div>
             <div class="flex justify-between items-center mb-6 mt-2">
-                <h2 class="text-[16px] font-bold text-white flex items-center gap-2"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-indigo-500"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg> 修改登录密码</h2>
+                <h2 class="text-[16px] font-bold text-white flex items-center gap-2"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-indigo-500"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4m-3.5 3.5L19 4"></path></svg> 修改登录密码</h2>
                 <button onclick="window.closePwdModal()" class="text-zinc-500 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-full p-1 transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
             </div>
             <div class="space-y-4">
@@ -340,7 +340,6 @@
         const PAGE_TYPE = 'req'; 
         let currentUploadedFileData = null;
 
-        // ================= 高定级弹窗引擎 =================
         window.closeCustomDialog = function() {
             const overlay = document.getElementById('custom-dialog-overlay');
             const dialog = document.getElementById('custom-dialog');
@@ -511,7 +510,6 @@
         window.submitPwdChange = function() { window.showAlert('提示', '系统演示环境暂不可自助修改密码，请联系管理员。', 'info'); window.closePwdModal(); }
 
 
-        // ================= 💡 核心：生成卡片 =================
         function createTaskHTML(task, currentUser) {
             const currentUserEn = currentUser.enName ? currentUser.enName.toLowerCase() : '';
             const creator = task.creator || '';
@@ -641,7 +639,6 @@
             return { isCompleted, cardHTML, timelineHTML };
         }
 
-        // ================= 云端探脉与渲染 =================
         window.loadTasksFromCloud = async function(isSilent = false) {
             if(!window.supabase) return;
             
@@ -767,7 +764,6 @@
             }
         }
 
-        // ================= 弹窗/草稿 =================
         window.openModal = function(modalId, isEdit = false) {
             const overlay = document.getElementById('modal-overlay');
             overlay.classList.remove('hidden');
@@ -1015,7 +1011,6 @@
             }
         }
 
-        // ================= 💡 全局活体通知铃铛 =================
         window.loadNotifications = function() {
             const userStr = localStorage.getItem('activeUserObj');
             if(!userStr) return;
@@ -1091,62 +1086,7 @@
             window.showToast('消息已清空', '所有未读消息已成功标记为已读。', 'success');
         }
 
-        // ================= 获取辅助数据等杂项 =================
-        function toggleOtherInput() {
-            const otherCb = document.getElementById('channel-other-cb');
-            const otherContainer = document.getElementById('other-channel-input-container');
-            if(otherCb && otherCb.checked) {
-                otherContainer.classList.remove('hidden');
-                document.getElementById('req-channel-other').focus();
-            } else {
-                otherContainer.classList.add('hidden');
-                document.getElementById('req-channel-other').value = ''; 
-            }
-        }
-        window.toggleOtherInput = toggleOtherInput;
-
-        function resetUploadZone() {
-            document.getElementById('real-file-upload').value = '';
-            currentUploadedFileData = null; 
-            document.getElementById('upload-text').innerHTML = `<svg id="upload-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg> 点击选择参考附件...`;
-            document.getElementById('upload-text').className = "text-xs font-medium flex items-center gap-2 text-zinc-500";
-            document.getElementById('upload-zone').className = "w-full bg-[#09090b] border border-zinc-700 border-dashed rounded-xl px-4 py-2.5 flex flex-col items-center justify-center cursor-pointer hover:border-indigo-500 transition-colors h-[46px]";
-        }
-        window.resetUploadZone = resetUploadZone;
-
-        function handleFileSelect(event) {
-            const fileList = event.target.files;
-            const uploadZone = document.getElementById('upload-zone');
-            const uploadText = document.getElementById('upload-text');
-            if(fileList.length > 0) {
-                let file = fileList[0];
-                let fileName = file.name;
-                
-                const maxSize = 2.5 * 1024 * 1024;
-                if (file.size > maxSize) {
-                    window.showAlert("附件体积过大", "您选择的文件超过了 2.5MB。由于当前系统暂未接入云端图床，大文件将导致浏览器存储崩溃。\n\n建议您：\n1. 压缩图片后再上传\n2. 或者将源文件传至腾讯文档，在上方【需求参考链接】处提供 URL。", "warning");
-                    document.getElementById('real-file-upload').value = ''; 
-                    return;
-                }
-
-                const reader = new FileReader();
-                reader.onload = function(e) { currentUploadedFileData = e.target.result; };
-                reader.readAsDataURL(file); 
-                uploadText.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg> 已选附件: <span class="font-bold truncate max-w-[120px]">${fileName}</span>`;
-                uploadText.className = "text-xs font-medium flex items-center gap-1.5 text-indigo-400 w-full justify-center";
-                uploadZone.className = "w-full bg-indigo-500/10 border border-indigo-500/50 rounded-xl px-4 py-2.5 flex flex-col items-center justify-center cursor-pointer transition-colors h-[46px]";
-            }
-        }
-        window.handleFileSelect = handleFileSelect;
-
-        function getFileNameFromUI() {
-            const uploadTextEl = document.getElementById('upload-text');
-            if(uploadTextEl && uploadTextEl.innerText.includes('已选附件:')) { return uploadTextEl.innerText.split('已选附件:')[1].trim(); }
-            return '';
-        }
-        window.getFileNameFromUI = getFileNameFromUI;
-
-        // 💡 核心修复：完全复原你原来设定的 40+真实项目名单 和 20+真实执行人名单
+        // 💡 核心：全量恢复 40+真实项目和人名！
         const PROJECT_LIST = [
             "Smart文化-OpenTalk", "Smart文化-1024", "Smart文化-后勤小管家", "Smart文化-小蓝书运营", "Smart文化-送物机器人",
             "荣誉体系-即时激励", "荣誉体系-荣誉奖项", "荣誉体系-AI奖项", "荣誉体系-最佳拍档", "荣誉体系-科技合作社", "荣誉体系-极客团",
@@ -1231,12 +1171,9 @@
                 });
 
                 window.loadNotifications();
-                
-                // 💡 部署 8秒后台静默雷达
-                setInterval(() => { window.loadTasksFromCloud(true); }, 8000); 
+                setInterval(() => { window.loadTasksFromCloud(true); }, 10000); 
             }
         });
-
     </script>
 </body>
 </html>
