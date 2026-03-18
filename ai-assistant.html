@@ -24,6 +24,7 @@
         .typing-dot:nth-child(2) { animation-delay: -0.16s; }
         @keyframes typing { 0%, 80%, 100% { transform: scale(0); opacity: 0.3; } 40% { transform: scale(1); opacity: 1; } }
 
+        /* 渲染聊天里的链接 */
         .chat-content a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; font-weight: 600; }
         .chat-content a:hover { color: #a5b4fc; }
     </style>
@@ -62,7 +63,7 @@
                 <div id="sidebar-avatar" class="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-lg">?</div>
                 <div class="min-w-0 flex-1">
                     <p id="sidebar-name" class="text-[13px] font-bold text-white mb-0.5 truncate">加载中...</p>
-                    <p class="text-[10px] text-zinc-500 truncate">需求方</p>
+                    <p class="text-[10px] text-zinc-500 truncate">系统成员</p>
                 </div>
             </div>
             <div class="flex items-center gap-1 shrink-0 ml-2">
@@ -107,11 +108,11 @@
 
     <script>
         // ==========================================
-        // 🚀 配置你的 Coze API (V3版本)
+        // 🚀 配置你的 Coze API (V3版本) 
         // ==========================================
         const COZE_API_URL = 'https://api.coze.cn/v3/chat'; 
-        const COZE_PAT = 'YOUR_COZE_PERSONAL_ACCESS_TOKEN'; 
-        const COZE_BOT_ID = 'YOUR_COZE_BOT_ID'; 
+        const COZE_PAT = 'pat_FbgsPIfAiUkR2TWqw16MZMjxeafODI93LWcy35hlJNpVnL00YD2o0ifxc90jkfct'; 
+        const COZE_BOT_ID = '7559104686386036777'; 
 
         let currentUserName = 'User';
         let currentUserAvatar = 'U';
@@ -153,14 +154,14 @@
         window.startNewChat = function() {
             const id = 'chat_' + new Date().getTime();
             const newSession = { id: id, title: '新对话', date: new Date().toISOString() };
-            sessions.unshift(newSession); // 插入到最前面
+            sessions.unshift(newSession); 
             saveSessions();
             switchSession(id);
         }
 
         window.deleteCurrentSession = function() {
             if (!currentSessionId) return;
-            if (confirm("确定要删除当前对话吗？")) {
+            if (confirm("确定要彻底删除当前对话吗？此操作不可恢复。")) {
                 sessions = sessions.filter(s => s.id !== currentSessionId);
                 localStorage.removeItem(currentSessionId); 
                 saveSessions();
@@ -172,9 +173,9 @@
         function renderSessionList() {
             const list = document.getElementById('chat-session-list');
             list.innerHTML = sessions.map(s => `
-                <div onclick="switchSession('${s.id}')" class="p-3 rounded-xl cursor-pointer transition-colors ${s.id === currentSessionId ? 'bg-indigo-500/20 border border-indigo-500/30 text-indigo-300' : 'hover:bg-white/5 text-zinc-400 border border-transparent'} flex flex-col gap-1">
-                    <p class="text-[13px] font-bold truncate">${s.title}</p>
-                    <p class="text-[10px] opacity-50">${new Date(s.date).toLocaleDateString()} ${new Date(s.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                <div onclick="switchSession('${s.id}')" class="p-3 rounded-xl cursor-pointer transition-colors ${s.id === currentSessionId ? 'bg-indigo-500/20 border border-indigo-500/30 text-indigo-300' : 'hover:bg-white/5 text-zinc-400 border border-transparent'} flex flex-col gap-1 group">
+                    <p class="text-[13px] font-bold truncate group-hover:text-white transition-colors">${s.title}</p>
+                    <p class="text-[10px] opacity-50 font-mono">${new Date(s.date).toLocaleDateString()}</p>
                 </div>
             `).join('');
         }
@@ -192,7 +193,7 @@
                     <div class="flex flex-col gap-1.5">
                         <span class="text-[11px] text-zinc-500 font-medium ml-1">AI 资产小助手</span>
                         <div class="bg-[#18181b] border border-white/5 text-zinc-200 text-[14px] leading-relaxed p-4 rounded-2xl rounded-tl-sm shadow-md chat-content">
-                            哈喽！我是设计部的 AI 资产助手。<br><br>你可以找我要：<br>1. 各大核心项目的 <b>标准 Logo 矢量源文件</b>。<br>2. 企微、邮件等渠道的 <b>标准排版规范及尺寸</b>。<br>3. 往期的通用物料模板链接。<br><br>请问今天你需要找什么材料？
+                            哈喽，<b>${currentUserName}</b>！我是设计团队部署的 <b>AI 资产查询引擎</b>。<br><br>我的底层挂载了团队的规范与物料知识库，你可以随时向我索取：<br>1. 各大核心项目（如年度大会、1024等）的 <b>标准 Logo 源文件</b>。<br>2. 企微、邮件等渠道的 <b>标准排版规范及尺寸</b>。<br>3. 往期的通用物料模板链接。<br><br>💡 <b>试试这样问我：</b><br><span class="text-indigo-400">“请给我发一下今年年度大会的Logo矢量图链接”</span><br><span class="text-indigo-400">“企微推文的首图标准尺寸是多少？”</span>
                         </div>
                     </div>
                 </div>`;
@@ -223,12 +224,15 @@
         }
 
         function parseMessageText(text) {
+            // 简单的文本格式化：换行转 <br>
             let html = text.replace(/\n/g, '<br>');
+            // 提取链接转换为 <a> 标签并支持点击跳转
             const urlRegex = /(https?:\/\/[^\s]+)/g;
             html = html.replace(urlRegex, function(url) {
-                return `<a href="${url}" target="_blank" title="${url}">${url} ↗</a>`;
+                return `<a href="${url}" target="_blank" title="${url}" class="text-indigo-400 font-mono hover:text-indigo-300 transition-colors">${url} ↗</a>`;
             });
-            html = html.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+            // 解析 Markdown 粗体 **text**
+            html = html.replace(/\*\*(.*?)\*\*/g, '<b class="text-white">$1</b>');
             return html;
         }
 
@@ -255,7 +259,7 @@
                     </div>
                     <div class="flex flex-col gap-1.5">
                         <span class="text-[11px] text-zinc-500 font-medium ml-1">AI 资产小助手</span>
-                        <div class="bg-[#18181b] border border-white/5 text-zinc-200 text-[14px] leading-relaxed p-4 rounded-2xl rounded-tl-sm shadow-md chat-content break-words">
+                        <div class="bg-[#18181b] border border-white/5 text-zinc-300 text-[14px] leading-relaxed p-5 rounded-2xl rounded-tl-sm shadow-md chat-content break-words">
                             ${parseMessageText(content)}
                         </div>
                     </div>
@@ -302,7 +306,7 @@
             const text = inputEl.value.trim();
             if (!text || !currentSessionId) return;
 
-            // 如果是新对话的第一句话，更新会话标题
+            // 更新会话标题
             const currentSessionObj = sessions.find(s => s.id === currentSessionId);
             if (currentSessionObj && currentSessionObj.title === '新对话') {
                 currentSessionObj.title = text.substring(0, 12) + (text.length > 12 ? '...' : '');
@@ -320,53 +324,54 @@
             const thinkingId = appendThinkingUI();
 
             try {
-                if (COZE_PAT === 'YOUR_COZE_PERSONAL_ACCESS_TOKEN') {
-                    await new Promise(r => setTimeout(r, 1500)); 
-                    removeThinkingUI(thinkingId);
-                    const mockReply = `这是一个模拟回复。因为您还没有在 \`ai-assistant.html\` 底部配置真实的 \`COZE_PAT\` 和 \`COZE_BOT_ID\`。\n\n当您配置好后，系统会自动调用真实的扣子大模型，返回类似这样的云端设计资产链接：\n🔗 https://docs.qq.com/doc/mock-link-123`;
-                    appendMessageToUI('assistant', mockReply);
-                } else {
-                    const requestBody = {
-                        bot_id: COZE_BOT_ID,
-                        user_id: currentSessionId, // 绑定当前会话 ID 保持 Coze 的上下文记忆
-                        stream: false, 
-                        auto_save_history: true,
-                        additional_messages: [
-                            { role: "user", content: text, content_type: "text" }
-                        ]
-                    };
+                // 🟢 真实请求扣子 Coze API V3 逻辑
+                const requestBody = {
+                    bot_id: COZE_BOT_ID,
+                    user_id: currentSessionId, // 使用唯一的会话 ID 来维持上下文
+                    stream: false, 
+                    auto_save_history: true,
+                    additional_messages: [
+                        { role: "user", content: text, content_type: "text" }
+                    ]
+                };
 
-                    const response = await fetch(COZE_API_URL, {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${COZE_PAT}`,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(requestBody)
-                    });
+                const response = await fetch(COZE_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${COZE_PAT}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
 
-                    if (!response.ok) {
-                        throw new Error(`API 请求失败: ${response.status} ${response.statusText}`);
-                    }
-
-                    const data = await response.json();
-                    removeThinkingUI(thinkingId);
-
-                    if (data.code === 0 && data.data && data.data.messages) {
-                        const ansMsg = data.data.messages.find(m => m.type === 'answer');
-                        if (ansMsg && ansMsg.content) {
-                            appendMessageToUI('assistant', ansMsg.content);
-                        } else {
-                            appendMessageToUI('assistant', '⚠️ 抱歉，智能体返回了空结果。');
-                        }
-                    } else {
-                        throw new Error(data.msg || '未知错误');
-                    }
+                if (!response.ok) {
+                    throw new Error(`API 连接异常: ${response.status} ${response.statusText}`);
                 }
-            } catch (error) {
-                console.error("Coze API 错误:", error);
+
+                const data = await response.json();
                 removeThinkingUI(thinkingId);
-                appendMessageToUI('assistant', `❌ 连接智能体失败，请检查网络或 API 配置。\n错误信息: ${error.message}`);
+
+                // 解析 Coze V3 返回结构
+                if (data.code === 0 && data.data && data.data.messages) {
+                    const ansMsg = data.data.messages.find(m => m.type === 'answer');
+                    if (ansMsg && ansMsg.content) {
+                        appendMessageToUI('assistant', ansMsg.content);
+                    } else {
+                        appendMessageToUI('assistant', '⚠️ 抱歉，知识库未能匹配到相关结果，或智能体未返回内容。');
+                    }
+                } else {
+                    throw new Error(data.msg || '未知解析错误');
+                }
+                
+            } catch (error) {
+                console.error("Coze API 报错:", error);
+                removeThinkingUI(thinkingId);
+                // 提供详细的报错引导
+                if (error.message.includes('Failed to fetch')) {
+                    appendMessageToUI('assistant', `❌ **连接被浏览器拦截 (CORS 跨域错误)**\n\n您直接从浏览器调用了 Coze API。由于安全策略，浏览器阻止了此次请求。您可以尝试以下方式解决：\n1. 安装浏览器插件：搜索并安装 \`Allow CORS: Access-Control-Allow-Origin\` 插件，开启后即可正常对话。\n2. 或者在后端架设一个简单的 Nginx / Node.js 代理转发请求。`);
+                } else {
+                    appendMessageToUI('assistant', `❌ **发生错误**\n${error.message}`);
+                }
             } finally {
                 inputEl.disabled = false;
                 btnEl.disabled = false;
