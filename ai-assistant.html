@@ -23,10 +23,6 @@
         .typing-dot:nth-child(1) { animation-delay: -0.32s; }
         .typing-dot:nth-child(2) { animation-delay: -0.16s; }
         @keyframes typing { 0%, 80%, 100% { transform: scale(0); opacity: 0.3; } 40% { transform: scale(1); opacity: 1; } }
-
-        /* 渲染聊天里的链接 */
-        .chat-content a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; font-weight: 600; }
-        .chat-content a:hover { color: #a5b4fc; }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-indigo-500/30 text-zinc-300">
@@ -38,7 +34,7 @@
         <div class="p-7 border-b border-white/5 shrink-0 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shadow-[0_0_15px_rgba(79,70,229,0.3)] shrink-0">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path><line x1="8" y1="16" x2="8.01" y2="16"></line><line x1="16" y1="16" x2="16.01" y2="16"></line></svg>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path><line x1="8" y1="16" x2="8.01" y2="16"></line><line x1="16" y1="16" x2="16.01" y2="16"></line></svg>
                 </div>
                 <h1 class="text-[15px] font-bold text-white tracking-wide">小戴维斯-AI</h1>
             </div>
@@ -143,7 +139,6 @@
         let sessions = [];
         let currentSessionId = null;
 
-        // ================= 高定弹窗引擎 =================
         function closeCustomDialog() {
             const overlay = document.getElementById('custom-dialog-overlay');
             const dialog = document.getElementById('custom-dialog');
@@ -196,7 +191,6 @@
             setTimeout(() => { toast.classList.add('hidden'); }, 3000);
         }
 
-        // ================= 初始化 =================
         function initApp() {
             const userStr = localStorage.getItem('activeUserObj');
             if (!userStr) { window.location.href = 'login.html'; return; }
@@ -236,7 +230,6 @@
 
         window.deleteCurrentSession = function() {
             if (!currentSessionId) return;
-            // 调用高定弹窗取代浏览器原生 confirm
             showConfirm("删除对话", "确定要彻底删除当前对话吗？此操作不可恢复。", () => {
                 sessions = sessions.filter(s => s.id !== currentSessionId);
                 localStorage.removeItem(currentSessionId); 
@@ -261,7 +254,6 @@
             currentSessionId = id;
             renderSessionList();
             
-            // 💡 重置聊天区并打底欢迎语
             document.getElementById('chat-box').innerHTML = `
                 <div class="flex items-start gap-4 self-start max-w-[85%]">
                     <div class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white shrink-0 shadow-[0_0_15px_rgba(79,70,229,0.3)]">
@@ -281,7 +273,6 @@
             scrollToBottom();
         }
 
-        // ================= UI 交互 =================
         function autoResize(el) {
             el.style.height = 'auto';
             el.style.height = Math.min(el.scrollHeight, 150) + 'px';
@@ -296,19 +287,40 @@
 
         function scrollToBottom() {
             const container = document.getElementById('chat-container');
-            // 确保在渲染队列完成后再滚动到底部
             requestAnimationFrame(() => {
                 container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
             });
         }
 
+        // 💡 核心修复：强大的 Markdown 智能解析器
         function parseMessageText(text) {
-            let html = text.replace(/\n/g, '<br>');
-            const urlRegex = /(https?:\/\/[^\s]+)/g;
-            html = html.replace(urlRegex, function(url) {
-                return `<a href="${url}" target="_blank" title="${url}" class="text-indigo-400 font-mono hover:text-indigo-300 transition-colors">${url} ↗</a>`;
+            let html = text;
+
+            // 1. 解析 Markdown 标题 (变成好看的粗体字)
+            html = html.replace(/^### (.*$)/gim, '<h3 class="text-[15px] font-bold text-white mt-4 mb-2 flex items-center gap-2">$1</h3>');
+            html = html.replace(/^## (.*$)/gim, '<h2 class="text-[16px] font-bold text-white mt-4 mb-2">$1</h2>');
+
+            // 2. 💡 解析 Markdown 图片: ![alt](url) -> 直接渲染为可视图片
+            html = html.replace(/!\[([^\]]*)\]\((https?:\/\/[^\)]+)\)/g, function(match, alt, url) {
+                return `<div class="mt-3 mb-4 rounded-xl overflow-hidden border border-white/10 shadow-lg bg-[#0c0c0e]/50 max-w-sm"><img src="${url}" alt="${alt}" class="w-full h-auto object-contain cursor-zoom-in" onclick="window.open('${url}', '_blank')"></div>`;
             });
-            html = html.replace(/\*\*(.*?)\*\*/g, '<b class="text-white">$1</b>');
+
+            // 3. 解析 Markdown 规范链接: [text](url) -> 变成安全的超链接，防污染
+            html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, function(match, text, url) {
+                return `<a href="${url}" target="_blank" class="text-indigo-400 font-bold hover:text-indigo-300 transition-colors underline underline-offset-2 break-all">${text} ↗</a>`;
+            });
+
+            // 4. 解析加粗: **text**
+            html = html.replace(/\*\*(.*?)\*\*/g, '<b class="text-white font-bold">$1</b>');
+            
+            // 5. 解析代码块高亮: `text`
+            html = html.replace(/`([^`]+)`/g, '<span class="bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded font-mono text-[12px] border border-indigo-500/30">$1</span>');
+
+            // 6. 解析无序列表 * html = html.replace(/^\* (.*$)/gim, '<div class="flex gap-2 items-start my-1"><span class="text-indigo-500 mt-1 shrink-0">•</span><span>$1</span></div>');
+
+            // 7. 处理多余换行符
+            html = html.replace(/\n/g, '<br>');
+
             return html;
         }
 
@@ -322,7 +334,7 @@
                     <div class="w-9 h-9 rounded-full bg-zinc-700 flex items-center justify-center text-white shrink-0 font-bold text-xs border border-white/10 shadow-lg">${currentUserAvatar}</div>
                     <div class="flex flex-col gap-1.5 items-end">
                         <span class="text-[11px] text-zinc-500 font-medium mr-1">${currentUserName}</span>
-                        <div class="bg-indigo-600 text-white text-[14px] leading-relaxed p-4 rounded-2xl rounded-tr-sm shadow-md chat-content break-words text-left">
+                        <div class="bg-indigo-600 text-white text-[14px] leading-relaxed p-4 rounded-2xl rounded-tr-sm shadow-md chat-content text-left" style="word-break: break-word;">
                             ${parseMessageText(content)}
                         </div>
                     </div>
@@ -335,7 +347,7 @@
                     </div>
                     <div class="flex flex-col gap-1.5">
                         <span class="text-[11px] text-zinc-500 font-medium ml-1">小戴维斯</span>
-                        <div class="bg-[#18181b] border border-white/5 text-zinc-300 text-[14px] leading-relaxed p-5 rounded-2xl rounded-tl-sm shadow-md chat-content break-words">
+                        <div class="bg-[#18181b] border border-white/5 text-zinc-300 text-[14px] leading-relaxed p-5 rounded-2xl rounded-tl-sm shadow-md chat-content" style="word-break: break-word;">
                             ${parseMessageText(content)}
                         </div>
                     </div>
@@ -376,14 +388,12 @@
             if (el) el.remove();
         }
 
-        // ================= 💡 Coze API V3 核心异步轮询引擎 (防超时重构版) =================
         async function sendUserMessage() {
             const inputEl = document.getElementById('chat-input');
             const btnEl = document.getElementById('btn-send');
             const text = inputEl.value.trim();
             if (!text || !currentSessionId) return;
 
-            // 更新会话标题
             const currentSessionObj = sessions.find(s => s.id === currentSessionId);
             if (currentSessionObj && currentSessionObj.title === '新对话') {
                 currentSessionObj.title = text.substring(0, 12) + (text.length > 12 ? '...' : '');
@@ -401,7 +411,7 @@
             const thinkingId = appendThinkingUI();
 
             try {
-                // 🟢 1. 第一步：发送问题，获取 chat_id
+                // 1. 发送问题
                 const requestBody = {
                     bot_id: COZE_BOT_ID,
                     user_id: currentSessionId, 
@@ -429,11 +439,11 @@
                 const chatId = chatData.data.id;
                 const conversationId = chatData.data.conversation_id;
 
-                // 🟢 2. 第二步：轮询等待 Coze 处理完成 (最多等待 120 秒，避免搜知识库时超时报错)
+                // 2. 轮询等待处理结果 (上限延长到 120 秒)
                 let isCompleted = false;
-                let retries = 60; // 60 次 * 2秒 = 等待 120 秒
+                let retries = 60; // 60 * 2 = 120s
                 while (!isCompleted && retries > 0) {
-                    await new Promise(resolve => setTimeout(resolve, 2000)); // 每 2 秒问一次
+                    await new Promise(resolve => setTimeout(resolve, 2000));
                     
                     const retrieveRes = await fetch(`https://api.coze.cn/v3/chat/retrieve?chat_id=${chatId}&conversation_id=${conversationId}`, {
                         method: 'GET',
@@ -448,21 +458,20 @@
                         if (retrieveData.code === 0 && retrieveData.data) {
                             const status = retrieveData.data.status;
                             if (status === 'completed') {
-                                isCompleted = true; // 处理完毕！
+                                isCompleted = true;
                             } else if (status === 'failed' || status === 'canceled') {
-                                throw new Error(`智能体执行失败，状态: ${status}`);
+                                throw new Error(`智能体执行异常中止。状态码: ${status}`);
                             } else if (status === 'requires_action') {
-                                throw new Error(`智能体需要外部操作，系统暂不支持`);
+                                throw new Error(`智能体请求外部工具授权，当前环境不支持`);
                             }
-                            // 如果是 in_progress 或 created 则继续循环等
                         }
                     }
                     retries--;
                 }
 
-                if (!isCompleted) throw new Error('TIMEOUT_ERROR'); // 自定义超时抛出
+                if (!isCompleted) throw new Error('TIMEOUT_ERROR'); 
 
-                // 🟢 3. 第三步：确认完成后，拉取消息列表拿答案
+                // 3. 拉取消息内容
                 const msgRes = await fetch(`https://api.coze.cn/v3/chat/message/list?chat_id=${chatId}&conversation_id=${conversationId}`, {
                     method: 'GET',
                     headers: {
@@ -478,12 +487,11 @@
 
                 if (msgData.code === 0 && msgData.data) {
                     const messages = msgData.data;
-                    // 找到 AI (assistant) 且类型为 answer 的最终回复
                     const ansMsg = messages.find(m => m.type === 'answer' && m.role === 'assistant');
                     if (ansMsg && ansMsg.content) {
                         appendMessageToUI('assistant', ansMsg.content);
                     } else {
-                        appendMessageToUI('assistant', '⚠️ 抱歉，小戴维斯未能从知识库匹配到相关结果。');
+                        appendMessageToUI('assistant', '⚠️ 抱歉，小戴维斯未能从知识库匹配到相关结果，请换个描述再试一次。');
                     }
                 } else {
                     throw new Error(msgData.msg || '解析消息列表失败');
@@ -494,11 +502,11 @@
                 removeThinkingUI(thinkingId);
                 
                 if (error.message === 'TIMEOUT_ERROR') {
-                    appendMessageToUI('assistant', `⚠️ **响应超时**\n小戴维斯检索知识库或执行工作流的时间超过了 2 分钟。您可以尝试精简问题，或者稍后再试一次。`);
+                    appendMessageToUI('assistant', `⚠️ **响应超时**<br>小戴维斯在知识库里翻找得太久了（超过 120 秒）。您可以换个词搜索，或者稍后再试一次。`);
                 } else if (error.message.includes('Failed to fetch')) {
-                    appendMessageToUI('assistant', `❌ **连接被浏览器拦截 (CORS 跨域错误)**\n\n由于安全策略，浏览器阻止了纯前端发起的请求。请安装浏览器扩展 \`Allow CORS: Access-Control-Allow-Origin\` 并开启，即可正常获取资源链接！`);
+                    appendMessageToUI('assistant', `❌ **浏览器安全拦截 (CORS)**<br>由于安全策略，浏览器阻止了纯前端请求。请确保您已安装浏览器扩展 \`Allow CORS: Access-Control-Allow-Origin\` 并处于开启状态！`);
                 } else {
-                    appendMessageToUI('assistant', `❌ **发生错误**\n${error.message}`);
+                    appendMessageToUI('assistant', `❌ **发生错误**<br>${error.message}`);
                 }
             } finally {
                 inputEl.disabled = false;
