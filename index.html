@@ -117,6 +117,11 @@
                     清空测试数据
                 </button>
 
+                <button onclick="window.location.href='ai-assistant.html'" class="bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-400 px-4 py-2.5 rounded-[14px] text-[13px] font-bold transition-all btn-press flex items-center gap-2" title="AI 智能资产助手">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                    AI 资产助手
+                </button>
+
                 <div class="relative z-[120]" id="notif-wrapper">
                     <button id="notifBtn" class="w-11 h-11 rounded-2xl bg-[#141417] border border-white/5 flex items-center justify-center text-zinc-400 hover:text-white transition-colors btn-press relative">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
@@ -432,7 +437,6 @@
             const avatarEl = document.getElementById('sidebar-avatar');
             if(avatarEl) { avatarEl.innerText = user.avatar || '?'; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-indigo-600'} border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg shrink-0`; }
             if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.cnName || user.enName;
-            if(document.getElementById('sidebar-role')) document.getElementById('sidebar-role').innerHTML = `<span class="text-indigo-400 font-bold">当前视角: 需求方</span>`;
             
             updateGreeting(user);
 
@@ -1150,7 +1154,6 @@
         }
         window.getFileNameFromUI = getFileNameFromUI;
 
-        // 💡 核心修复：限定名单，不再混合云端杂乱数据！
         const PROJECT_LIST = [
             "Smart文化-OpenTalk", "Smart文化-1024", "Smart文化-后勤小管家", "Smart文化-小蓝书运营", "Smart文化-送物机器人",
             "荣誉体系-即时激励", "荣誉体系-荣誉奖项", "荣誉体系-AI奖项", "荣誉体系-最佳拍档", "荣誉体系-科技合作社", "荣誉体系-极客团",
@@ -1200,7 +1203,6 @@
         }
         
         window.loadAssigneesFromCloud = async function() {
-            // 💡 核心修复：直接使用设定的严格名单，不再从云端乱拉取其他人名混合！
             finalAssigneeList = [...PREDEFINED_ASSIGNEES].sort();
         }
 
