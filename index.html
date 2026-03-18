@@ -294,7 +294,7 @@
         </div>
     </div>
 
-    <div id="pwd-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center">
+    <div id="pwd-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closePwdModal()">
         <div id="pwd-modal" class="hidden w-full max-w-sm bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 p-6 relative">
             <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-t-3xl"></div>
             <div class="flex justify-between items-center mb-6 mt-2">
@@ -353,6 +353,7 @@
         const PAGE_TYPE = 'req'; 
         let currentUploadedFileData = null;
 
+        // ================= 高定级弹窗引擎 =================
         window.closeCustomDialog = function() {
             const overlay = document.getElementById('custom-dialog-overlay');
             const dialog = document.getElementById('custom-dialog');
@@ -409,6 +410,7 @@
             showDialogUI();
         }
 
+        // ================= 工具与页面基础 =================
         window.logout = function(e) {
             if(e) e.stopPropagation();
             localStorage.removeItem('activeUserObj'); 
@@ -651,7 +653,7 @@
             return { isCompleted, cardHTML, timelineHTML };
         }
 
-        // ================= 🚀 全局跨角色实时消息引擎 (新) =================
+        // ================= 💡 核心：全局消息同步引擎 =================
         window.syncNotificationsFromCloud = async function() {
             if(!window.supabase) return;
             const userStr = localStorage.getItem('activeUserObj');
@@ -661,19 +663,25 @@
             const isLeader = currentUserEn === 'judyzzhang' || currentUserEn === 'davidxxu';
 
             try {
-                // 全局拉取最新 200 条单据历史
+                // 全局拉取最新 200 条单据历史，不受当前页面过滤条件影响，保证不漏消息
                 const { data: tasks, error } = await window.supabase.from(window.DB_TABLE).select('id, title, creator, assignee, status, history_json').order('created_at', { ascending: false }).limit(200);
                 if(error) throw error;
 
                 let myUnreadNotifs = [];
+                // 读取当前用户的专属已读回执账本
                 let readReceipts = JSON.parse(localStorage.getItem('read_receipts_' + currentUserEn) || '{}');
+                let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
+                let sysNotifsUpdated = false;
+                let newlyFoundCount = 0;
 
                 (tasks || []).forEach(task => {
+                    // 判断这个单子跟我有没有关系？
                     const creatorStr = (task.creator || '').toLowerCase();
                     const isMyCreation = creatorStr.includes((currentUser.displayName||'').toLowerCase()) || creatorStr.includes((currentUser.cnName||'').toLowerCase()) || creatorStr.includes(currentUserEn);
                     const isMyAssignment = (task.assignee || '').toLowerCase() === currentUserEn;
                     const isConcerned = isMyCreation || isMyAssignment || isLeader;
 
+                    // 跟我无关的单子，直接跳过，不收通知
                     if (!isConcerned) return; 
 
                     let historyArr = [];
@@ -682,14 +690,27 @@
                     historyArr.forEach((h, index) => {
                         const eventId = `${task.id}_${index}`; 
                         
-                        if (readReceipts[eventId]) return; 
+                        if (readReceipts[eventId]) {
+                            let existing = sysNotifs.find(n => n.eventId === eventId && n.role === PAGE_TYPE);
+                            if (existing && !existing.read) {
+                                existing.read = true;
+                                sysNotifsUpdated = true;
+                            }
+                            return; 
+                        }
 
+                        // 如果这个动作是我自己做的，自动标记为已读（不自己通知自己）
                         const op = (h.operator || '').toLowerCase();
                         if (op.includes(currentUserEn) || op.includes((currentUser.displayName||'').toLowerCase()) || op.includes((currentUser.cnName||'').toLowerCase())) {
                             readReceipts[eventId] = true;
                             return;
                         }
 
+                        if (!window.currentUnreadNotifs || !window.currentUnreadNotifs.find(n => n.eventId === eventId)) {
+                            newlyFoundCount++;
+                        }
+
+                        // 翻译动作，变成友好的系统语言
                         let actionText = h.action || '更新了状态';
                         let iconDot = 'bg-sky-500';
                         if(h.action === 'submit_draft') { actionText = '上传了最新设计正稿'; iconDot = 'bg-sky-500'; }
@@ -709,13 +730,38 @@
                             time: h.time || h.created_at || new Date().toISOString(),
                             iconDot: iconDot
                         });
+
+                        // 💡 修复：写回 sys_notifications 供全局消息中心调取
+                        if (!sysNotifs.find(n => n.eventId === eventId && n.role === PAGE_TYPE)) {
+                            sysNotifs.push({
+                                id: new Date().getTime() + Math.random(),
+                                eventId: eventId,
+                                taskId: task.id,
+                                title: `[${task.id}] ${actionText}`,
+                                desc: `${h.operator || '系统'} : ${h.reply || h.desc || '请及时跟进处理'}`,
+                                role: PAGE_TYPE, 
+                                read: false,
+                                time: h.time || h.created_at || new Date().toISOString()
+                            });
+                            sysNotifsUpdated = true;
+                        }
                     });
                 });
 
+                // 存回已读账本
                 localStorage.setItem('read_receipts_' + currentUserEn, JSON.stringify(readReceipts));
+                if (sysNotifsUpdated) {
+                    localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs));
+                }
+
+                // 按时间倒序排列未读消息
                 myUnreadNotifs.sort((a, b) => new Date(b.time) - new Date(a.time));
+
+                if (newlyFoundCount > 0 && window.currentUnreadNotifs !== undefined) {
+                    window.showToast('🔔 收到新消息', `您有 ${newlyFoundCount} 条新动态，请点击右上角铃铛查看。`, 'info');
+                }
+
                 window.currentUnreadNotifs = myUnreadNotifs; 
-                
                 window.renderNotificationsUI();
 
             } catch(e) { console.error("消息引擎同步失败:", e); }
@@ -752,7 +798,7 @@
                                     </h4>
                                     <span class="text-[10px] text-zinc-500">${dateStr}</span>
                                 </div>
-                                <p class="text-[11px] text-zinc-400 leading-relaxed pl-4 line-clamp-2">${n.desc}</p>
+                                <p class="text-[11px] text-zinc-400 leading-relaxed pl-4">${n.desc}</p>
                             </div>
                         `;
                     });
@@ -767,12 +813,15 @@
             const currentUserEn = JSON.parse(userStr).enName.toLowerCase();
             let readReceipts = JSON.parse(localStorage.getItem('read_receipts_' + currentUserEn) || '{}');
             
+            // 写入已读账本
             readReceipts[eventId] = true;
             localStorage.setItem('read_receipts_' + currentUserEn, JSON.stringify(readReceipts));
             
+            // 本地数组剔除，秒级更新UI
             window.currentUnreadNotifs = window.currentUnreadNotifs.filter(n => n.eventId !== eventId);
             window.renderNotificationsUI(); 
             
+            // 智能路由跳转
             let targetUrl = `task-detail.html?id=${taskId}`;
             if (typeof PAGE_TYPE !== 'undefined') {
                 if (PAGE_TYPE === 'req') targetUrl = `task-detail-requester.html?id=${taskId}`;
@@ -829,12 +878,14 @@
                 if(!isSilent && timelineC) timelineC.innerHTML = '';
 
                 const allData = [...(ongoingRes.data || []), ...(completedRes.data || [])];
+                
                 let ongoingCount = 0;
                 let completedCount = 0;
 
                 allData.forEach(task => {
                     const creator = task.creator || '';
                     const isOwner = cNames.includes(creator.toLowerCase());
+                    
                     if(!isOwner && !isSuperAdmin) return;
 
                     if (!isSilent) {
@@ -850,8 +901,8 @@
                     }
                 });
 
-                // 💡 剥离了旧通知代码，这里纯粹呼叫新通知引擎
-                window.syncNotificationsFromCloud();
+                // 💡 剥离出来的独立消息引擎
+                await window.syncNotificationsFromCloud();
 
                 if(!isSilent) {
                     if(spinner) spinner.classList.add('hidden');
@@ -1040,6 +1091,7 @@
             }, "danger");
         }
 
+        // 💡 核心修复：提交需求时，强制写入第一条“创建”历史记录！唤醒下游消息系统！
         window.submitNewReq = async function() {
             if(!window.supabase) return window.showAlert("系统错误", "云端服务仍在初始化，请稍等！", "danger");
 
@@ -1059,10 +1111,13 @@
             
             let finalStatus = 'pending';
             let finalDesc = '系统正在进行统筹评估，等待分配。';
+            let actionReply = '向大厅发起了新需求，等待系统统筹。';
+
             if (assigneeVal !== 'none' && assigneeVal !== '') {
                 finalStatus = 'pending_accept'; 
                 const assigneeName = document.getElementById('req-assignee-input').value;
                 finalDesc = `已直接指派给设计师 ${assigneeName}，等待接单。`;
+                actionReply = `直接指派给了 ${assigneeName}，等待接单。`;
             }
 
             const btn = document.querySelector('button[onclick="submitNewReq()"]');
@@ -1079,11 +1134,21 @@
             const newId = 'TK-' + nextNum.toString().padStart(4, '0'); 
 
             const user = JSON.parse(localStorage.getItem('activeUserObj'));
+            const creatorDisplay = user.displayName || user.cnName || user.enName;
+
+            // 💡 强行注入初始历史
+            const initialHistory = [{
+                action: 'create',
+                operator: `${creatorDisplay} (需求方)`,
+                time: new Date().toISOString(),
+                reply: actionReply
+            }];
             
             const taskData = {
                 id: newId, title: shortTitle, full_desc: fullDesc, summary_desc: finalDesc, project: projectVal,
                 due_date: dateInput, assignee: assigneeVal, link: linkInput, channels: selectedChannels,
-                file_name: window.getFileNameFromUI(), file_data: currentUploadedFileData, status: finalStatus, creator: user.displayName || user.cnName || user.enName,
+                file_name: window.getFileNameFromUI(), file_data: currentUploadedFileData, status: finalStatus, creator: creatorDisplay,
+                history_json: JSON.stringify(initialHistory) // <--- 关键注入
             };
 
             const { error } = await window.supabase.from(window.DB_TABLE).insert([taskData]);
@@ -1265,10 +1330,8 @@
                     if (assWrap && assDrop && !assWrap.contains(e.target)) assDrop.classList.add('hidden');
                 });
 
-                // 💡 在页面加载完毕后，启动全局通知循环
-                setInterval(() => { 
-                    window.loadTasksFromCloud(true); 
-                }, 8000); 
+                // 启动全局通信渲染引擎
+                setInterval(() => { window.loadTasksFromCloud(true); }, 8000); 
             }
         });
 
