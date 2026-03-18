@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>设计助手戴维斯 - 戴维斯设计需求管理中心</title>
+    <title>小戴维斯-AI - 戴维斯设计需求管理中心</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -37,9 +37,9 @@
         <div class="p-7 border-b border-white/5 shrink-0 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shadow-[0_0_15px_rgba(79,70,229,0.3)] shrink-0">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path><line x1="8" y1="16" x2="8" y2="16"></line><line x1="16" y1="16" x2="16" y2="16"></line></svg>
                 </div>
-                <h1 class="text-[15px] font-bold text-white tracking-wide">设计助手戴维斯</h1>
+                <h1 class="text-[15px] font-bold text-white tracking-wide">小戴维斯-AI</h1>
             </div>
         </div>
 
@@ -56,7 +56,7 @@
 
         <div class="px-5 pt-4 pb-2 text-[10px] font-bold text-zinc-500 uppercase tracking-wider shrink-0">历史会话</div>
         <div class="flex-1 overflow-y-auto px-3 pb-3 space-y-1 custom-scrollbar" id="chat-session-list">
-            </div>
+        </div>
 
         <div class="px-5 py-6 mt-auto border-t border-white/5 bg-[#0c0c0e] shrink-0 flex items-center justify-between">
             <div class="flex items-center gap-3 min-w-0">
@@ -93,7 +93,7 @@
 
         <div class="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-10 w-full" id="chat-container">
             <div class="w-full max-w-[850px] mx-auto space-y-6 flex flex-col pb-32" id="chat-box">
-                </div>
+            </div>
         </div>
 
         <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#09090b] via-[#09090b]/95 to-transparent pt-10 pb-8 px-10 flex justify-center z-20">
@@ -105,6 +105,27 @@
             </div>
         </div>
     </main>
+
+    <div id="custom-dialog-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[999999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center">
+        <div id="custom-dialog" class="w-full max-w-sm bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 p-6 relative overflow-hidden">
+            <div id="dialog-color-bar" class="absolute top-0 left-0 right-0 h-1 bg-indigo-500"></div>
+            <div class="flex items-center gap-3 mb-3 mt-2">
+                <div id="dialog-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0"></div>
+                <h2 id="dialog-title" class="text-[16px] font-bold text-white">提示</h2>
+            </div>
+            <p id="dialog-message" class="text-[13px] text-zinc-400 leading-relaxed mb-6">内容</p>
+            <div class="flex gap-3 justify-end w-full mt-auto" id="dialog-buttons"></div>
+        </div>
+    </div>
+
+    <div id="action-toast" class="fixed top-8 right-8 z-[100000] hidden toast-slide-in">
+        <div class="bg-[#1a1a1f] border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-3 w-72">
+            <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </div>
+            <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-[11px] text-zinc-400 mt-0.5">操作已执行。</p></div>
+        </div>
+    </div>
 
     <script>
         // ==========================================
@@ -121,6 +142,60 @@
         let sessions = [];
         let currentSessionId = null;
 
+        // ================= 弹窗引擎 =================
+        function closeCustomDialog() {
+            const overlay = document.getElementById('custom-dialog-overlay');
+            const dialog = document.getElementById('custom-dialog');
+            overlay.classList.add('opacity-0');
+            dialog.classList.add('scale-95');
+            setTimeout(() => { overlay.classList.add('hidden'); }, 300);
+        }
+
+        function setupDialog(title, message, type) {
+            document.getElementById('dialog-title').innerText = title;
+            document.getElementById('dialog-message').innerHTML = message;
+            const colorBar = document.getElementById('dialog-color-bar');
+            const icon = document.getElementById('dialog-icon');
+            
+            if(type === 'danger') {
+                colorBar.className = 'absolute top-0 left-0 right-0 h-1 bg-rose-500';
+                icon.className = 'w-8 h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0';
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+            } else {
+                colorBar.className = 'absolute top-0 left-0 right-0 h-1 bg-indigo-500';
+                icon.className = 'w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0';
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+            }
+        }
+
+        function showDialogUI() {
+            const overlay = document.getElementById('custom-dialog-overlay');
+            const dialog = document.getElementById('custom-dialog');
+            overlay.classList.remove('hidden');
+            setTimeout(() => { overlay.classList.remove('opacity-0'); dialog.classList.remove('scale-95'); }, 10);
+        }
+
+        function showConfirm(title, message, onConfirm, type="primary") {
+            setupDialog(title, message, type);
+            const btnContainer = document.getElementById('dialog-buttons');
+            let btnColor = type === 'danger' ? 'bg-rose-600 hover:bg-rose-500' : 'bg-indigo-600 hover:bg-indigo-500';
+            btnContainer.innerHTML = `
+                <button onclick="closeCustomDialog()" class="flex-1 py-2.5 bg-transparent border border-zinc-700 text-zinc-400 hover:text-white rounded-xl text-[13px] font-bold transition-colors btn-press">取消</button>
+                <button id="dialog-confirm-btn" class="flex-1 py-2.5 ${btnColor} text-white rounded-xl text-[13px] font-bold shadow-lg transition-all btn-press">确认</button>
+            `;
+            document.getElementById('dialog-confirm-btn').onclick = () => { closeCustomDialog(); onConfirm(); };
+            showDialogUI();
+        }
+
+        function showToast(title, desc) {
+            const toast = document.getElementById('action-toast');
+            document.getElementById('toast-title').innerText = title;
+            document.getElementById('toast-desc').innerText = desc;
+            toast.classList.remove('hidden');
+            setTimeout(() => { toast.classList.add('hidden'); }, 3000);
+        }
+
+        // ================= 初始化 =================
         function initApp() {
             const userStr = localStorage.getItem('activeUserObj');
             if (!userStr) { window.location.href = 'login.html'; return; }
@@ -136,7 +211,6 @@
             loadSessions();
         }
 
-        // ================= 💡 多会话管理引擎 =================
         function loadSessions() {
             sessions = JSON.parse(localStorage.getItem('coze_sessions_' + currentUserEnName) || '[]');
             if (sessions.length === 0) {
@@ -154,20 +228,22 @@
         window.startNewChat = function() {
             const id = 'chat_' + new Date().getTime();
             const newSession = { id: id, title: '新对话', date: new Date().toISOString() };
-            sessions.unshift(newSession); // 插入到最前面
+            sessions.unshift(newSession); 
             saveSessions();
             switchSession(id);
         }
 
         window.deleteCurrentSession = function() {
             if (!currentSessionId) return;
-            if (confirm("确定要彻底删除当前对话吗？此操作不可恢复。")) {
+            // 💡 替换掉了丑陋的原生 confirm 弹窗
+            showConfirm("删除对话", "确定要彻底删除当前对话吗？此操作不可恢复。", () => {
                 sessions = sessions.filter(s => s.id !== currentSessionId);
                 localStorage.removeItem(currentSessionId); 
                 saveSessions();
+                showToast("删除成功", "对话记录已移除。");
                 if (sessions.length === 0) startNewChat();
                 else switchSession(sessions[0].id);
-            }
+            }, "danger");
         }
 
         function renderSessionList() {
@@ -184,21 +260,19 @@
             currentSessionId = id;
             renderSessionList();
             
-            // 重置聊天区并打底欢迎语
             document.getElementById('chat-box').innerHTML = `
                 <div class="flex items-start gap-4 self-start max-w-[85%]">
                     <div class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white shrink-0 shadow-[0_0_15px_rgba(79,70,229,0.3)]">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path><line x1="8" y1="16" x2="8" y2="16"></line><line x1="16" y1="16" x2="16" y2="16"></line></svg>
                     </div>
                     <div class="flex flex-col gap-1.5">
                         <span class="text-[11px] text-zinc-500 font-medium ml-1">小戴维斯</span>
-                        <div class="bg-[#18181b] border border-white/5 text-zinc-200 text-[14px] leading-relaxed p-5 rounded-2xl rounded-tl-sm shadow-md chat-content break-words">
+                        <div class="bg-[#18181b] border border-white/5 text-zinc-300 text-[14px] leading-relaxed p-5 rounded-2xl rounded-tl-sm shadow-md chat-content break-words">
                             👋 欢迎来到 TIG Design，<b>${currentUserName}</b>。我是小戴维斯，你可以找我要：<br><br>1. 公司/项目Logo、VI、源文件<br>2. 企微、邮件等渠道的 标准排版规范及尺寸等<br><br>💡 <b>试试这样问我：</b><br><span class="text-indigo-400">“请给我发一下今年年度大会的Logo矢量图链接”</span><br><span class="text-indigo-400">“企微推文的首图标准尺寸是多少？”</span>
                         </div>
                     </div>
                 </div>`;
             
-            // 加载当前会话的具体记录
             const history = JSON.parse(localStorage.getItem(currentSessionId) || '[]');
             history.forEach(msg => appendMessageToUI(msg.role, msg.content, false));
             
@@ -254,7 +328,7 @@
                 html = `
                 <div class="flex items-start gap-4 self-start max-w-[85%] chat-bubble-enter">
                     <div class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white shrink-0 shadow-[0_0_15px_rgba(79,70,229,0.3)]">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path><line x1="8" y1="16" x2="8" y2="16"></line><line x1="16" y1="16" x2="16" y2="16"></line></svg>
                     </div>
                     <div class="flex flex-col gap-1.5">
                         <span class="text-[11px] text-zinc-500 font-medium ml-1">小戴维斯</span>
@@ -281,7 +355,7 @@
             const html = `
             <div id="${id}" class="flex items-start gap-4 self-start max-w-[85%] chat-bubble-enter">
                 <div class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white shrink-0 shadow-[0_0_15px_rgba(79,70,229,0.3)]">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path><line x1="8" y1="16" x2="8" y2="16"></line><line x1="16" y1="16" x2="16" y2="16"></line></svg>
                 </div>
                 <div class="bg-[#18181b] border border-white/5 text-zinc-200 p-4 rounded-2xl rounded-tl-sm shadow-md flex gap-1.5 items-center h-[52px] mt-5">
                     <div class="w-1.5 h-1.5 bg-indigo-400 rounded-full typing-dot"></div>
@@ -299,13 +373,13 @@
             if (el) el.remove();
         }
 
+        // ================= 💡 Coze API V3 核心异步轮询引擎 =================
         async function sendUserMessage() {
             const inputEl = document.getElementById('chat-input');
             const btnEl = document.getElementById('btn-send');
             const text = inputEl.value.trim();
             if (!text || !currentSessionId) return;
 
-            // 更新会话标题
             const currentSessionObj = sessions.find(s => s.id === currentSessionId);
             if (currentSessionObj && currentSessionObj.title === '新对话') {
                 currentSessionObj.title = text.substring(0, 12) + (text.length > 12 ? '...' : '');
@@ -323,10 +397,10 @@
             const thinkingId = appendThinkingUI();
 
             try {
-                // 🟢 真实请求扣子 Coze API V3 逻辑
+                // 🟢 1. 第一步：发送问题，获取 chat_id
                 const requestBody = {
                     bot_id: COZE_BOT_ID,
-                    user_id: currentSessionId, // 使用唯一的会话 ID 来维持上下文
+                    user_id: currentSessionId, 
                     stream: false, 
                     auto_save_history: true,
                     additional_messages: [
@@ -343,19 +417,47 @@
                     body: JSON.stringify(requestBody)
                 });
 
-                if (!chatRes.ok) throw new Error(`API 连接异常: ${chatRes.status}`);
+                if (!chatRes.ok) throw new Error(`API 请求失败: ${chatRes.status}`);
                 const chatData = await chatRes.json();
                 
-                if (chatData.code !== 0) {
-                    throw new Error(chatData.msg || '发起会话失败');
-                }
+                if (chatData.code !== 0) throw new Error(chatData.msg || '发起会话失败');
 
-                // 🟢 Coze V3 非流式接口需要拿着 chat_id 和 conversation_id 去拉取真正的消息结果
                 const chatId = chatData.data.id;
                 const conversationId = chatData.data.conversation_id;
 
-                const msgUrl = `https://api.coze.cn/v3/chat/message/list?chat_id=${chatId}&conversation_id=${conversationId}`;
-                const msgRes = await fetch(msgUrl, {
+                // 🟢 2. 第二步：轮询等待 Coze 处理完成 (最多等待 40 秒)
+                let isCompleted = false;
+                let retries = 40; 
+                while (!isCompleted && retries > 0) {
+                    await new Promise(resolve => setTimeout(resolve, 1000)); // 每秒问一次
+                    
+                    const retrieveRes = await fetch(`https://api.coze.cn/v3/chat/retrieve?chat_id=${chatId}&conversation_id=${conversationId}`, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${COZE_PAT}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (retrieveRes.ok) {
+                        const retrieveData = await retrieveRes.json();
+                        if (retrieveData.code === 0 && retrieveData.data) {
+                            const status = retrieveData.data.status;
+                            if (status === 'completed') {
+                                isCompleted = true; // 处理完毕！
+                            } else if (status === 'failed' || status === 'canceled' || status === 'requires_action') {
+                                throw new Error(`智能体执行失败，状态: ${status}`);
+                            }
+                            // 如果是 in_progress 则继续等
+                        }
+                    }
+                    retries--;
+                }
+
+                if (!isCompleted) throw new Error('等待智能体回复超时');
+
+                // 🟢 3. 第三步：确认完成后，拉取消息列表拿答案
+                const msgRes = await fetch(`https://api.coze.cn/v3/chat/message/list?chat_id=${chatId}&conversation_id=${conversationId}`, {
                     method: 'GET',
                     headers: {
                         'Authorization': `Bearer ${COZE_PAT}`,
@@ -363,19 +465,19 @@
                     }
                 });
 
-                if (!msgRes.ok) throw new Error(`拉取消息异常: ${msgRes.status}`);
+                if (!msgRes.ok) throw new Error(`拉取消息失败: ${msgRes.status}`);
                 const msgData = await msgRes.json();
 
                 removeThinkingUI(thinkingId);
 
                 if (msgData.code === 0 && msgData.data) {
                     const messages = msgData.data;
-                    // 找到 AI (assistant) 返回的最终答案 (answer)
+                    // 找到 AI (assistant) 且类型为 answer 的最终回复
                     const ansMsg = messages.find(m => m.type === 'answer' && m.role === 'assistant');
                     if (ansMsg && ansMsg.content) {
                         appendMessageToUI('assistant', ansMsg.content);
                     } else {
-                        appendMessageToUI('assistant', '⚠️ 抱歉，小戴维斯未能匹配到相关结果，或接口未返回内容。');
+                        appendMessageToUI('assistant', '⚠️ 抱歉，小戴维斯未能从知识库匹配到相关结果。');
                     }
                 } else {
                     throw new Error(msgData.msg || '解析消息列表失败');
@@ -394,6 +496,7 @@
                 btnEl.disabled = false;
                 btnEl.classList.remove('opacity-50');
                 inputEl.focus();
+                scrollToBottom();
             }
         }
 
