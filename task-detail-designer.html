@@ -240,10 +240,18 @@
         </div>
     </div>
 
+    <script src="sys-notification.js"></script>
+
     <script type="module">
         import { supabase } from './supabase-config.js';
         window.supabase = supabase;
         window.DB_TABLE = 'test_tasks';
+
+        // 初始化发件引擎
+        if(window.SysNotification) {
+            window.SysNotification.init();
+        }
+
         if(window.initApp) window.initApp();
     </script>
 
@@ -282,6 +290,7 @@
             if (!userStr) { window.location.href = 'login.html'; return; }
             currentUser = JSON.parse(userStr);
             document.getElementById('sidebar-avatar').innerText = currentUser.avatar || '?';
+            document.getElementById('sidebar-name').innerText = currentUser.displayName || currentUser.cnName || currentUser.enName;
             
             if(!currentTaskId) { alert("非法访问：未找到需求单号！"); window.location.href = 'assistant-workspace.html'; return; }
 
@@ -300,6 +309,31 @@
                 }
             });
             return count + 1; // 下一个版本即为 count + 1
+        }
+
+        // 🚀 全局通用邮件派发工厂
+        async function sendNotificationEmail(targetIdentifier, content, category = 'update') {
+            if (!window.SysNotification || !targetIdentifier) return;
+            try {
+                const { data: allUsers } = await window.supabase.from('users').select('id, email, name, enName');
+                if (allUsers) {
+                    const targetUser = allUsers.find(u => 
+                        (u.email && u.email.toLowerCase().includes(targetIdentifier.toLowerCase())) ||
+                        (u.name && u.name.toLowerCase().includes(targetIdentifier.toLowerCase())) ||
+                        (u.enName && u.enName.toLowerCase().includes(targetIdentifier.toLowerCase()))
+                    );
+                    
+                    if (targetUser) {
+                        await window.SysNotification.sendNotice({
+                            targetId: targetUser.id,
+                            targetEmail: targetUser.email,
+                            content: content,
+                            category: category,
+                            url: `task-detail-designer.html?id=${currentTaskId}` // 引导回去看
+                        });
+                    }
+                }
+            } catch(e) { console.error("发送邮件通知失败:", e); }
         }
 
         async function fetchTaskData() {
@@ -607,7 +641,7 @@
                 upArea.classList.add('hidden'); 
                 
                 let urgeFn = status === 'pending_approval' ? 'urgeLeader(this)' : 'urgeRequester(this)';
-                let urgeText = status === 'pending_approval' ? '🚀 催促丹楠姐审批' : '🚀 催促甲方验收';
+                let urgeText = status === 'pending_approval' ? '🚀 发送邮件催办丹楠姐审批' : '🚀 发送邮件催办甲方验收';
 
                 pnlClasses = 'bg-[#18181b] border border-zinc-700 rounded-3xl p-7 shadow-2xl relative overflow-hidden';
                 pnlHtml = `
@@ -645,17 +679,33 @@
             pnl.innerHTML = pnlHtml;
         }
 
-        window.urgeLeader = function(btn) {
-            btn.innerHTML = '✓ 已发送催办提醒';
-            btn.className = "w-full py-3.5 bg-zinc-800 border border-zinc-700 text-zinc-500 rounded-xl text-[13px] font-bold cursor-not-allowed mb-3";
+        // ================= 🚀 催办自动发系统邮件逻辑 =================
+        window.urgeLeader = async function(btn) {
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<svg class="animate-spin h-3.5 w-3.5 mr-2 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 发送警报邮件中...';
             btn.disabled = true;
-            showToast('已提醒', '系统催办提醒已发送给丹楠姐', 'success');
+
+            if (globalTaskData) {
+                await sendNotificationEmail('judyzzhang', `🚨 催办强提醒：设计师已提交框架，等待您的火速审批：《${globalTaskData.title || currentTaskId}》。`, 'urgent');
+            }
+
+            btn.innerHTML = '✓ 已发送系统邮件催办提醒';
+            btn.className = "w-full py-3.5 bg-zinc-800 border border-zinc-700 text-zinc-500 rounded-xl text-[13px] font-bold cursor-not-allowed mb-3";
+            showToast('已提醒', '系统催办提醒邮件已发送给丹楠姐', 'success');
         }
-        window.urgeRequester = function(btn) {
-            btn.innerHTML = '✓ 已发送催办提醒';
-            btn.className = "w-full py-3.5 bg-zinc-800 border border-zinc-700 text-zinc-500 rounded-xl text-[13px] font-bold cursor-not-allowed mb-3";
+
+        window.urgeRequester = async function(btn) {
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<svg class="animate-spin h-3.5 w-3.5 mr-2 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 发送警报邮件中...';
             btn.disabled = true;
-            showToast('已提醒', '系统催办提醒已发送给甲方', 'success');
+
+            if (globalTaskData && globalTaskData.creator) {
+                await sendNotificationEmail(globalTaskData.creator, `🚨 催办强提醒：设计师交付了最终稿件，等待您的火速验收：《${globalTaskData.title || currentTaskId}》。`, 'urgent');
+            }
+
+            btn.innerHTML = '✓ 已发送系统邮件催办提醒';
+            btn.className = "w-full py-3.5 bg-zinc-800 border border-zinc-700 text-zinc-500 rounded-xl text-[13px] font-bold cursor-not-allowed mb-3";
+            showToast('已提醒', '系统催办提醒邮件已发送给甲方', 'success');
         }
 
         function renderTimeline() {
@@ -771,7 +821,7 @@
             setTimeout(() => { acceptOverlay.classList.add('hidden'); acceptModal.classList.add('hidden'); rejectOverlay.classList.add('hidden'); rejectModal.classList.add('hidden'); }, 300);
         }
 
-        // ================= 核心写入动作 =================
+        // ================= 🚀 核心写入与发邮件动作 =================
 
         window.submitAccept = async function() {
             const fwDate = document.getElementById('framework-date').value;
@@ -781,10 +831,24 @@
 
             if (window.supabase) {
                 const summary = `排期中，预计 ${fwDate} 上传框架方案`;
+                
+                // 💡 在历史中写入“接单”记录
+                let hist = [...globalHistoryArr];
+                hist.push({
+                    action: 'accept', operator: `${currentUser.displayName || currentUser.enName} (设计师)`, time: new Date().toISOString(),
+                    reply: `已确认接单，排期于 ${fwDate} 提供初稿框架。`
+                });
+
                 const { error } = await window.supabase.from(window.DB_TABLE).update({
-                    status: 'processing', summary_desc: summary, assignee: currentUser.enName 
+                    status: 'processing', summary_desc: summary, assignee: currentUser.enName, history_json: JSON.stringify(hist)
                 }).eq('id', currentTaskId);
+                
                 if (error) { btn.disabled = false; btn.innerText = "保存排期并接单"; return alert("云端更新失败：" + error.message); }
+
+                // 🚀 发送接单通知邮件
+                if (globalTaskData && globalTaskData.creator) {
+                    await sendNotificationEmail(globalTaskData.creator, `【已接单】设计师 ${currentUser.displayName || currentUser.enName} 已接手你的需求：《${globalTaskData.title}》，预计交稿：${fwDate}。`);
+                }
             }
             closeActionModals(); showToast('✅ 接单成功', '任务已分配给您并进入制作池。', 'success');
             setTimeout(() => { window.location.href = 'assistant-workspace.html'; }, 1000);
@@ -808,7 +872,13 @@
                 const { error } = await window.supabase.from(window.DB_TABLE).update({
                     status: 'rejected', summary_desc: summary, assignee: 'none', history_json: JSON.stringify(hist)
                 }).eq('id', currentTaskId);
+                
                 if (error) { btn.disabled = false; btn.innerText = "确认退回"; return alert("云端更新失败：" + error.message); }
+
+                // 🚀 发送退单通知邮件
+                if (globalTaskData && globalTaskData.creator) {
+                    await sendNotificationEmail(globalTaskData.creator, `【需求被退回】设计师因需求不清晰退回了你的单子：《${globalTaskData.title}》，原因：${reason}。`, 'urgent');
+                }
             }
             closeActionModals(); showToast('已退回', '该需求已退回给甲方。', 'info');
             setTimeout(() => { window.location.href = 'manager-workspace.html'; }, 1000);
@@ -866,6 +936,7 @@
             // 💡 修复：使用精确版本号
             const preciseVersionNum = getNextVersionNumber(globalHistoryArr);
 
+            const actionType = currentUploadPhase === 'framework' ? 'submit_framework' : 'submit_draft';
             const newHistoryRecord = {
                 version: `v-${preciseVersionNum}`,
                 desc: descText,
@@ -874,7 +945,7 @@
                 work_hours: hours,
                 ai_tools: checkedAIs,
                 created_at: new Date().toISOString(),
-                action: currentUploadPhase === 'framework' ? 'submit_framework' : 'submit_draft',
+                action: actionType,
                 operator: currentUser.displayName || currentUser.enName
             };
             globalHistoryArr.push(newHistoryRecord);
@@ -897,6 +968,15 @@
                 }).eq('id', currentTaskId);
 
                 if (error) { btn.disabled = false; btn.innerHTML = btnOriginalText; return alert("状态更新失败：" + error.message); }
+
+                // 🚀 发送完工通知邮件
+                if (actionType === 'submit_framework') {
+                    await sendNotificationEmail('judyzzhang', `【框架待审】设计师 ${currentUser.displayName || currentUser.enName} 上传了中期方案：《${globalTaskData.title}》，请您火速审批把关。`);
+                } else if (actionType === 'submit_draft') {
+                    if (globalTaskData.creator) {
+                        await sendNotificationEmail(globalTaskData.creator, `【正稿待收】设计师 ${currentUser.displayName || currentUser.enName} 交付了正式设计稿：《${globalTaskData.title}》，请您火速验收。`);
+                    }
+                }
             }
 
             showToast('推送成功', `该节点产出已流转至下一步。`, 'success');
