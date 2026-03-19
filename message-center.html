@@ -73,7 +73,7 @@
                     <div class="flex gap-6 text-[14px] font-bold">
                         <button class="text-white border-b-2 border-white pb-3 relative top-[13px]">全部通知</button>
                     </div>
-                    <button onclick="markAllAsRead()" class="text-[12px] text-zinc-500 hover:text-white transition-colors flex items-center gap-1.5 btn-press">
+                    <button onclick="markAllAsRead(this)" class="text-[12px] text-zinc-500 hover:text-white transition-colors flex items-center gap-1.5 btn-press">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg> 全部标记为已读
                     </button>
                 </div>
@@ -81,7 +81,7 @@
                 <div class="space-y-4" id="msg-list-container">
                     <div class="text-center py-20 opacity-50 flex flex-col items-center">
                         <svg class="animate-spin h-8 w-8 text-zinc-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                        <p class="text-sm font-bold text-zinc-400">加载中...</p>
+                        <p class="text-sm font-bold text-zinc-400">系统数据极速同步中...</p>
                     </div>
                 </div>
             </div>
@@ -104,11 +104,17 @@
         </div>
     </div>
 
+    <script type="module">
+        import { supabase } from './supabase-config.js';
+        window.supabase = supabase;
+        if(window.initPage) window.initPage();
+    </script>
+
     <script>
         let currentRole = 'req'; 
         let themeColor = 'indigo'; 
 
-        function initPage() {
+        window.initPage = function() {
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.has('role')) currentRole = urlParams.get('role');
 
@@ -209,80 +215,134 @@
             loadMsgs();
         }
 
-        function loadMsgs() {
-            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
-            let myNotifs = sysNotifs.filter(n => n.role === currentRole);
-            myNotifs.sort((a, b) => b.id - a.id);
-
+        // 🚀 核心更新：连接真实 Supabase 云端查询
+        window.loadMsgs = async function() {
             const container = document.getElementById('msg-list-container');
             const badge = document.getElementById('unread-badge');
 
-            const unreadCount = myNotifs.filter(n => !n.read).length;
-            if(unreadCount > 0) {
-                badge.innerText = `${unreadCount} 未读`;
-                badge.classList.remove('hidden');
-            } else {
-                badge.classList.add('hidden');
-            }
-
-            if(myNotifs.length === 0) {
-                container.innerHTML = `
-                    <div class="text-center py-24 opacity-50 flex flex-col items-center">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-zinc-500 mb-4"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-                        <p class="text-[14px] font-medium text-zinc-400">消息列表空空如也</p>
-                        <p class="text-[11px] text-zinc-500 mt-2">没有任何新的通知或动态</p>
-                    </div>`;
+            if(!window.supabase) {
+                container.innerHTML = '<div class="text-center py-20 text-zinc-500">云端数据库未连接，请刷新重试</div>';
                 return;
             }
 
-            let html = '';
-            myNotifs.forEach(n => {
-                const isRead = n.read;
-                const dotHtml = isRead ? `<div class="w-8 h-8 rounded-full bg-zinc-800/50 flex items-center justify-center text-zinc-600 shrink-0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg></div>` : 
-                                       `<div class="w-8 h-8 rounded-full bg-${themeColor}-500/20 border border-${themeColor}-500/30 flex items-center justify-center text-${themeColor}-400 shrink-0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></div>`;
-                
-                const bgClass = isRead ? 'bg-[#121217]' : `bg-[#18181b] border-${themeColor}-500/30 shadow-[0_0_15px_rgba(var(--tw-colors-${themeColor}-500),0.05)]`;
-                const titleClass = isRead ? 'text-zinc-400' : 'text-white';
-                
-                let targetUrl = '#';
-                if (currentRole === 'req') targetUrl = `task-detail-requester.html?id=${n.taskId}`;
-                else if (currentRole === 'design') targetUrl = `task-detail-designer.html?id=${n.taskId}`;
-                else if (currentRole === 'admin') targetUrl = `task-detail-locked.html?id=${n.taskId}`;
+            const userStr = localStorage.getItem('activeUserObj');
+            if (!userStr) return;
+            const currentUser = JSON.parse(userStr);
+            const userKeyword = (currentUser.enName || currentUser.cnName || '').toLowerCase();
 
-                const dateStr = new Date(n.time).toLocaleString();
+            try {
+                // 取最近的记录，前端过滤匹配 (最高效且不被RLS卡死)
+                const { data, error } = await window.supabase.from('notifications')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(200);
+                
+                if (error) throw error;
 
-                html += `
-                <div class="msg-card p-5 rounded-2xl flex items-start gap-4 ${bgClass}">
-                    ${dotHtml}
-                    <div class="flex-1 min-w-0">
-                        <div class="flex justify-between items-start mb-1.5">
-                            <div class="flex items-center gap-2">
-                                <span class="text-[10px] font-mono font-bold bg-white/5 px-2 py-0.5 rounded text-zinc-400 border border-white/5">${n.taskId}</span>
-                                <h4 class="text-[14px] font-bold ${titleClass}">${n.title}</h4>
+                // 💡 智能拦截：只找包含当前用户邮箱或名字的记录
+                let myNotifs = data.filter(n => {
+                    const target = (n.target_email || '').toLowerCase();
+                    return target.includes(userKeyword) || (currentUser.email && target.includes(currentUser.email.toLowerCase()));
+                });
+
+                const unreadCount = myNotifs.filter(n => !n.is_read).length;
+                if(unreadCount > 0) {
+                    badge.innerText = `${unreadCount} 未读`;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+
+                if(myNotifs.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center py-24 opacity-50 flex flex-col items-center">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-zinc-500 mb-4"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                            <p class="text-[14px] font-medium text-zinc-400">消息列表空空如也</p>
+                            <p class="text-[11px] text-zinc-500 mt-2">没有任何新的通知或动态</p>
+                        </div>`;
+                    return;
+                }
+
+                let html = '';
+                myNotifs.forEach(n => {
+                    const isRead = n.is_read;
+                    const dotHtml = isRead ? `<div class="w-8 h-8 rounded-full bg-zinc-800/50 flex items-center justify-center text-zinc-600 shrink-0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg></div>` : 
+                                           `<div class="w-8 h-8 rounded-full bg-${themeColor}-500/20 border border-${themeColor}-500/30 flex items-center justify-center text-${themeColor}-400 shrink-0 shadow-[0_0_15px_rgba(var(--tw-colors-${themeColor}-500),0.3)]"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></div>`;
+                    
+                    const bgClass = isRead ? 'bg-[#121217] opacity-60' : `bg-[#18181b] border-${themeColor}-500/30 shadow-[0_0_15px_rgba(var(--tw-colors-${themeColor}-500),0.05)]`;
+                    const titleClass = isRead ? 'text-zinc-400' : 'text-white';
+                    
+                    let targetUrl = n.link_url || '#';
+                    let taskIdMatch = targetUrl.match(/id=(TK-\d+)/);
+                    let taskId = taskIdMatch ? taskIdMatch[1] : '系统通知';
+
+                    // 💡 智能拆分标题和正文
+                    let titleText = '业务动态更新';
+                    let contentText = n.content || '';
+                    let titleMatch = contentText.match(/^(【.*?】)/);
+                    if(titleMatch) {
+                        titleText = titleMatch[1];
+                        contentText = contentText.replace(titleMatch[1], '').trim();
+                    } else if(n.category === 'urgent') {
+                        titleText = '🚨 紧急催办';
+                    } else if(n.category === 'transfer') {
+                        titleText = '🔄 转单提醒';
+                    }
+
+                    const dateStr = new Date(n.created_at).toLocaleString();
+
+                    html += `
+                    <div class="msg-card p-5 rounded-2xl flex items-start gap-4 ${bgClass}">
+                        ${dotHtml}
+                        <div class="flex-1 min-w-0">
+                            <div class="flex justify-between items-start mb-1.5">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[10px] font-mono font-bold bg-white/5 px-2 py-0.5 rounded text-zinc-400 border border-white/5">${taskId}</span>
+                                    <h4 class="text-[14px] font-bold ${titleClass}">${titleText}</h4>
+                                </div>
+                                <span class="text-[11px] text-zinc-500 font-mono flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full ${isRead?'bg-zinc-700':`bg-${themeColor}-500 animate-pulse`}"></span> ${dateStr}</span>
                             </div>
-                            <span class="text-[11px] text-zinc-500 font-mono flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full ${isRead?'bg-zinc-700':`bg-${themeColor}-500 animate-pulse`}"></span> ${dateStr}</span>
+                            <p class="text-[13px] text-zinc-300 leading-relaxed mb-4">${contentText}</p>
+                            <button onclick="markSingleAndGo('${n.id}', '${targetUrl}')" class="text-[11px] font-bold text-zinc-300 bg-white/5 hover:bg-white/10 border border-white/5 px-3 py-1.5 rounded flex items-center gap-1.5 transition-colors w-max btn-press">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg> 点击穿梭至详情页处理
+                            </button>
                         </div>
-                        <p class="text-[12px] text-zinc-400 leading-relaxed mb-3">${n.desc}</p>
-                        <button onclick="markSingleAndGo(${n.id}, '${targetUrl}')" class="text-[11px] font-bold text-zinc-300 bg-white/5 hover:bg-white/10 border border-white/5 px-3 py-1.5 rounded flex items-center gap-1.5 transition-colors w-max btn-press">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg> 点击穿梭至详情页处理
-                        </button>
-                    </div>
-                </div>`;
-            });
-            container.innerHTML = html;
+                    </div>`;
+                });
+                container.innerHTML = html;
+
+                // 保存给全读按钮用
+                window.currentMyUnreadIds = myNotifs.filter(n => !n.is_read).map(n => n.id);
+
+            } catch(e) {
+                console.error("加载消息失败:", e);
+                container.innerHTML = '<div class="text-center py-20 text-zinc-500">拉取云端数据失败，请刷新重试</div>';
+            }
         }
 
-        window.markAllAsRead = function() {
-            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
-            sysNotifs.forEach(n => { if (n.role === currentRole) n.read = true; });
-            localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs));
-            loadMsgs();
+        // 🚀 更新云端消除红点
+        window.markAllAsRead = async function(btnNode) {
+            if (!window.supabase || !window.currentMyUnreadIds || window.currentMyUnreadIds.length === 0) return;
+            
+            const originalText = btnNode.innerHTML;
+            btnNode.innerHTML = `<svg class="animate-spin h-3.5 w-3.5 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 处理中...`;
+            
+            try {
+                await window.supabase.from('notifications')
+                    .update({ is_read: true })
+                    .in('id', window.currentMyUnreadIds);
+                
+                await window.loadMsgs(); // 重新拉取
+            } catch(e) { console.error(e); }
+            
+            btnNode.innerHTML = originalText;
         }
 
-        window.markSingleAndGo = function(id, url) {
-            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
-            let target = sysNotifs.find(n => n.id === id);
-            if(target) { target.read = true; localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs)); }
+        // 🚀 单个点击跳转并消除红点
+        window.markSingleAndGo = async function(id, url) {
+            try {
+                await window.supabase.from('notifications').update({ is_read: true }).eq('id', id);
+            } catch(e) {}
             window.location.href = url;
         }
 
@@ -296,8 +356,6 @@
             else if (currentRole === 'design') window.location.href = 'assistant-workspace.html';
             else window.location.href = 'manager-workspace.html';
         }
-
-        document.addEventListener('DOMContentLoaded', initPage);
     </script>
 </body>
 </html>
