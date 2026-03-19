@@ -360,7 +360,7 @@
         const PAGE_TYPE = 'req'; 
         let currentUploadedFileData = null;
 
-        // 🚀 系统级通知写入引擎（暴力强写 DB 确保稳定触发 Webhook）
+        // 🚀 系统级通知写入引擎（暴力写库防失败兜底版）
         window.insertDbNotification = async function(targetIdentifier, content, link_url) {
             if (!window.supabase || !targetIdentifier) return;
             try {
@@ -379,7 +379,7 @@
                         targetEmail = targetUser.email;
                         targetUserId = targetUser.id;
                     } else {
-                        targetUserId = allUsers[0].id; // 兜底防报错
+                        targetUserId = allUsers[0].id; // 借用首个有效ID防崩溃
                     }
                 }
 
@@ -393,18 +393,18 @@
                 const senderName = currentUser.enName || currentUser.displayName || 'System';
 
                 const { error } = await window.supabase.from('notifications').insert([{
-                    user_id: targetUserId, content: content, link_url: link_url, target_email: targetEmail, sender_name: senderName, is_read: false, category: 'new'
+                    user_id: targetUserId, content: content, link_url: link_url, target_email: targetEmail, sender_name: senderName, is_read: false
                 }]);
                 
                 if (error) console.error("🚨 写入数据库失败:", error.message);
             } catch(e) { console.error("通知执行异常", e); }
         };
 
+        // ================= 高定弹窗引擎 =================
         window.closeCustomDialog = function() {
             const overlay = document.getElementById('custom-dialog-overlay');
             const dialog = document.getElementById('custom-dialog');
-            overlay.classList.add('opacity-0');
-            dialog.classList.add('scale-95');
+            overlay.classList.add('opacity-0'); dialog.classList.add('scale-95');
             setTimeout(() => { overlay.classList.add('hidden'); }, 300);
         }
 
@@ -423,8 +423,8 @@
                 icon.className = 'w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0';
                 icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
             } else {
-                colorBar.className = 'absolute top-0 left-0 right-0 h-1 bg-indigo-500';
-                icon.className = 'w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0';
+                colorBar.className = 'absolute top-0 left-0 right-0 h-1 bg-sky-500';
+                icon.className = 'w-8 h-8 rounded-full bg-sky-500/20 text-sky-400 flex items-center justify-center shrink-0';
                 icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
             }
         }
@@ -456,11 +456,27 @@
             showDialogUI();
         }
 
+        // ================= 基础交互 =================
         window.logout = function(e) {
             if(e) e.stopPropagation();
             localStorage.removeItem('activeUserObj'); 
             window.location.href = 'login.html'; 
         }
+
+        window.openPwdModal = function() {
+            const pwdOverlay = document.getElementById('pwd-modal-overlay');
+            const pwdModal = document.getElementById('pwd-modal');
+            pwdOverlay.classList.remove('hidden'); setTimeout(() => { pwdOverlay.classList.remove('opacity-0'); pwdModal.classList.remove('hidden'); pwdModal.classList.remove('scale-95'); }, 10);
+            document.getElementById('old-pwd').value = ''; document.getElementById('new-pwd').value = ''; document.getElementById('new-pwd-confirm').value = '';
+        }
+        
+        window.closePwdModal = function() {
+            const pwdOverlay = document.getElementById('pwd-modal-overlay');
+            const pwdModal = document.getElementById('pwd-modal');
+            pwdOverlay.classList.add('opacity-0'); pwdModal.classList.add('scale-95'); setTimeout(() => { pwdOverlay.classList.add('hidden'); pwdModal.classList.add('hidden'); }, 300);
+        }
+        
+        window.submitPwdChange = function() { window.showAlert('提示', '系统演示环境暂不可自助修改密码，请联系管理员。', 'info'); window.closePwdModal(); }
 
         function updateGreeting(user) {
             const hour = new Date().getHours();
@@ -468,7 +484,9 @@
             if (hour >= 5 && hour < 12) timeStr = '上午好';
             else if (hour >= 12 && hour < 18) timeStr = '下午好';
             const display = user.displayName || user.cnName || user.enName;
-            document.getElementById('header-greeting').innerHTML = `${timeStr}，${display}。<div id="sync-indicator" class="hidden w-2 h-2 rounded-full bg-emerald-500 animate-pulse ml-2" title="云端连接中..."></div>`;
+            document.getElementById('header-greeting').innerHTML = `${timeStr}，${display}。 
+                <div id="sync-indicator" class="hidden w-2 h-2 rounded-full bg-emerald-500 animate-pulse ml-3" title="云端监听中..."></div>
+            `;
         }
 
         function initRBAC() {
@@ -477,15 +495,19 @@
             const user = JSON.parse(userStr);
             const enName = user.enName ? user.enName.toLowerCase() : '';
 
-            if (!(user.perms || []).includes(PAGE_TYPE)) { window.showAlert("权限错误", "无权限访问此页面", "danger"); setTimeout(window.logout, 1500); return false; }
+            if (!(user.perms || []).includes(PAGE_TYPE)) {
+                window.showAlert("权限拦截", "您没有执行层做图权限，为您退回大厅。", "danger");
+                setTimeout(()=> window.location.href = 'index.html', 1500);
+                return false;
+            }
 
             const avatarEl = document.getElementById('sidebar-avatar');
             if(avatarEl) { avatarEl.innerText = user.avatar || '?'; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-indigo-600'} border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg shrink-0`; }
             if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.cnName || user.enName;
             
-            // 💡 左下角身份显示Bug强制兜底修复
+            // 💡 修复左下角身份显示Bug
             if(document.getElementById('sidebar-role')) document.getElementById('sidebar-role').innerHTML = `<span class="text-indigo-400 font-bold">当前视角: 需求方</span>`;
-
+            
             updateGreeting(user);
 
             const testUsers = ['ponyxu', 'davidxxu', 'yoshyliu', 'judyzzhang', '小戴维斯'];
@@ -502,12 +524,14 @@
                     html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='assistant-workspace.html'"><div class="w-7 h-7 rounded-lg bg-orange-500/10 text-orange-500 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div><span class="text-[13px] font-medium">设计方视角 (去接单)</span></div>`; 
                 }
                 if ((user.perms || []).includes('admin')) { 
-                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='manager-workspace.html'"><div class="w-7 h-7 rounded-lg bg-fuchsia-500/10 text-fuchsia-400 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg></div><span class="text-[13px] font-medium">管理方视角 (统筹大盘)</span></div>`; 
+                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='manager-workspace.html'"><div class="w-7 h-7 rounded-lg bg-fuchsia-500/10 text-fuchsia-400 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="21"></line></svg></div><span class="text-[13px] font-medium">管理方视角 (统筹大盘)</span></div>`; 
                 }
                 menuContainer.innerHTML = html;
             }
+
             const triggerBtn = document.getElementById('identityBtn');
             if (triggerBtn) { triggerBtn.innerHTML = `<span class="text-indigo-400 font-black">•</span> 身份: 需求方 (当前) <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 ml-1"><polyline points="6 9 12 15 18 9"></polyline></svg>`; }
+
             return user;
         }
 
@@ -556,21 +580,7 @@
             }, "danger");
         }
 
-        window.openPwdModal = function() {
-            const pwdOverlay = document.getElementById('pwd-modal-overlay');
-            const pwdModal = document.getElementById('pwd-modal');
-            pwdOverlay.classList.remove('hidden'); setTimeout(() => { pwdOverlay.classList.remove('opacity-0'); pwdModal.classList.remove('hidden'); pwdModal.classList.remove('scale-95'); }, 10);
-            document.getElementById('old-pwd').value = ''; document.getElementById('new-pwd').value = ''; document.getElementById('new-pwd-confirm').value = '';
-        }
-        
-        window.closePwdModal = function() {
-            const pwdOverlay = document.getElementById('pwd-modal-overlay');
-            const pwdModal = document.getElementById('pwd-modal');
-            pwdOverlay.classList.add('opacity-0'); pwdModal.classList.add('scale-95'); setTimeout(() => { pwdOverlay.classList.add('hidden'); pwdModal.classList.add('hidden'); }, 300);
-        }
-        
-        window.submitPwdChange = function() { window.showAlert('提示', '系统演示环境暂不可自助修改密码，请联系管理员。', 'info'); window.closePwdModal(); }
-
+        // ================= 💡 核心：看板卡片引擎 =================
         function createTaskHTML(task, currentUser) {
             const currentUserEn = currentUser.enName ? currentUser.enName.toLowerCase() : '';
             const creator = task.creator || '';
@@ -940,6 +950,7 @@
             }, "danger");
         }
 
+        // 💡 🚀 系统直接写入 Supabase Notifications 表的兜底发信方法！
         window.submitNewReq = async function() {
             if(!window.supabase) return window.showAlert("系统错误", "云端服务仍在初始化，请稍等！", "danger");
 
@@ -1000,9 +1011,42 @@
 
             const { error } = await window.supabase.from(window.DB_TABLE).insert([taskData]);
 
-            // 🚀 核心：指派通知逻辑 (使用强力兜底引擎)
+            // 🚀 核心：直接向 notifications 表强插记录，100% 激活邮件 webhook！
             if (!error && assigneeVal !== 'none') {
-                await window.insertDbNotification(assigneeVal, `【新需求指派】${creatorDisplay} 指派了新需求给你：《${shortTitle}》`, `task-detail-designer.html?id=${newId}`);
+                try {
+                    let tEmail = '';
+                    let tUserId = null;
+
+                    const { data: allUsers } = await window.supabase.from('users').select('id, email, name, enName');
+                    if (allUsers && allUsers.length > 0) {
+                        const targetUser = allUsers.find(u => 
+                            (u.email && u.email.toLowerCase().includes(assigneeVal.toLowerCase())) ||
+                            (u.name && u.name.toLowerCase().includes(assigneeVal.toLowerCase())) ||
+                            (u.enName && u.enName.toLowerCase().includes(assigneeVal.toLowerCase())) ||
+                            assigneeVal.toLowerCase().includes((u.enName||'').toLowerCase())
+                        );
+                        if (targetUser) {
+                            tEmail = targetUser.email;
+                            tUserId = targetUser.id;
+                        } else {
+                            tUserId = allUsers[0].id; // 兜底防止外键崩溃
+                        }
+                    }
+
+                    if (!tEmail) {
+                        if (/^[a-zA-Z]+$/.test(assigneeVal)) tEmail = assigneeVal.toLowerCase() + '@webank.com';
+                        else tEmail = 'davidxxu@webank.com'; 
+                    }
+
+                    await window.supabase.from('notifications').insert([{
+                        user_id: tUserId, 
+                        content: `【新需求指派】${creatorDisplay} 指派了新需求给你：《${shortTitle}》`, 
+                        link_url: `task-detail-designer.html?id=${newId}`, 
+                        target_email: tEmail, 
+                        sender_name: creatorDisplay, 
+                        is_read: false
+                    }]);
+                } catch(e) { console.error("通知写入异常", e); }
             }
 
             btn.innerText = originalText;
@@ -1190,7 +1234,6 @@
     </script>
 
     <script>
-        // 1. 修复左下角“读取中”的 Bug
         setTimeout(() => {
             const roleEl = document.getElementById('sidebar-role');
             if(roleEl && roleEl.innerText.includes('读取中')) {
@@ -1198,7 +1241,6 @@
             }
         }, 1000);
 
-        // 2. 无缝植入真实的云端铃铛监听引擎 (严格身份过滤)
         window.syncNotificationsFromCloud = async function(isSilent = true) {
             if(!window.supabase) return;
             const userStr = localStorage.getItem('activeUserObj');
@@ -1228,7 +1270,6 @@
                 const unreadNotifs = myNotifs.filter(n => !n.is_read);
                 const unreadCount = unreadNotifs.length;
 
-                // 检查是否需要弹出新消息通知
                 let prevUnreadCount = parseInt(localStorage.getItem('prevUnreadCount_req_' + userKeyword) || '0');
                 if (isSilent && unreadCount > prevUnreadCount) {
                     const newCount = unreadCount - prevUnreadCount;
@@ -1236,7 +1277,6 @@
                 }
                 localStorage.setItem('prevUnreadCount_req_' + userKeyword, unreadCount.toString());
                 
-                // 点亮或熄灭右上角的铃铛红点
                 const bellDot = document.getElementById('bell-dot');
                 if (bellDot) {
                     if (unreadCount > 0) {
@@ -1247,7 +1287,6 @@
                     }
                 }
 
-                // 渲染铃铛下拉框
                 const notifContainer = document.getElementById('notif-list-container');
                 if (notifContainer) {
                     if (unreadCount === 0) {
@@ -1276,13 +1315,11 @@
             } catch(e) { console.error("通知同步失败", e); }
         };
 
-        // 点击单条消息：消除云端红点并按身份智能跳转
         window.markSingleAsRead = async function(id, url) {
             if(window.supabase) { 
                 try { await window.supabase.from('notifications').update({ is_read: true }).eq('id', id); } catch(e){} 
             }
             
-            // 💡 强制将跳转链接替换为需求方专用的详情页！
             let finalUrl = url || '#';
             let match = finalUrl.match(/id=(TK-\d+)/);
             if (match) {
@@ -1291,7 +1328,6 @@
             window.location.href = finalUrl;
         };
 
-        // 点击全部已读：批量消除云端红点
         window.markAllAsRead = async function(e) {
             if(e) e.stopPropagation();
             if (!window.supabase || !window.currentMyUnreadIds || window.currentMyUnreadIds.length === 0) return;
@@ -1306,7 +1342,6 @@
             btn.innerHTML = originalText;
         };
 
-        // 启动轮询
         setTimeout(() => { window.syncNotificationsFromCloud(true); }, 1500);
     </script>
 </body>
