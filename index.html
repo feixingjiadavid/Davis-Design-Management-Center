@@ -443,7 +443,6 @@
             if(avatarEl) { avatarEl.innerText = user.avatar || '?'; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-indigo-600'} border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg shrink-0`; }
             if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.cnName || user.enName;
             
-            // 💡 修复：补全底部角色的显示
             if(document.getElementById('sidebar-role')) document.getElementById('sidebar-role').innerHTML = `<span class="text-indigo-400 font-bold">当前视角: 需求方</span>`;
 
             updateGreeting(user);
@@ -660,118 +659,6 @@
             return { isCompleted, cardHTML, timelineHTML };
         }
 
-        // 🚀 全新替换：直接读取真实 Supabase 云端消息库
-        window.syncNotificationsFromCloud = async function(isSilent = false) {
-            if(!window.supabase) return;
-            const userStr = localStorage.getItem('activeUserObj');
-            if(!userStr) return;
-            const currentUser = JSON.parse(userStr);
-            const userKeyword = (currentUser.enName || currentUser.cnName || '').toLowerCase();
-
-            try {
-                const { data, error } = await window.supabase.from('notifications')
-                    .select('*')
-                    .order('created_at', { ascending: false })
-                    .limit(200);
-                
-                if (error) throw error;
-
-                // 💡 智能过滤：只找包含当前用户邮箱或名字的记录
-                let myNotifs = data.filter(n => {
-                    const target = (n.target_email || '').toLowerCase();
-                    return target.includes(userKeyword) || (currentUser.email && target.includes(currentUser.email.toLowerCase()));
-                });
-
-                const unreadNotifs = myNotifs.filter(n => !n.is_read);
-                const unreadCount = unreadNotifs.length;
-                
-                // 为了静默轮询时可以弹出 toast，记录一下历史未读数
-                let prevUnreadCount = parseInt(localStorage.getItem('prevUnreadCount_' + userKeyword) || '0');
-                if (isSilent && unreadCount > prevUnreadCount) {
-                    const newCount = unreadCount - prevUnreadCount;
-                    if(window.showToast) window.showToast('🔔 收到新消息', `您有 ${newCount} 条新动态，请点击右上角铃铛查看。`, 'info');
-                }
-                localStorage.setItem('prevUnreadCount_' + userKeyword, unreadCount.toString());
-
-                // 💡 实时点亮或熄灭右上角的小红点
-                const bellDot = document.getElementById('bell-dot');
-                if (bellDot) {
-                    if (unreadCount > 0) {
-                        bellDot.classList.remove('hidden', 'bg-zinc-600', 'border-transparent');
-                        bellDot.classList.add('bg-rose-500', 'animate-pulse', 'border-[#141417]');
-                    } else {
-                        bellDot.classList.add('hidden');
-                    }
-                }
-
-                // 💡 实时渲染下拉框里的消息列表
-                const notifContainer = document.getElementById('notif-list-container');
-                if (notifContainer) {
-                    if (unreadCount === 0) {
-                        notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读消息，工作都在掌控中</div>';
-                    } else {
-                        let html = '';
-                        unreadNotifs.forEach(n => {
-                            let targetUrl = n.link_url || '#';
-                            let titleText = '业务动态';
-                            let contentText = n.content || '';
-                            let titleMatch = contentText.match(/^(【.*?】)/);
-                            if(titleMatch) {
-                                titleText = titleMatch[1];
-                                contentText = contentText.replace(titleMatch[1], '').trim();
-                            } else if(n.category === 'urgent') {
-                                titleText = '🚨 紧急催办';
-                            } else if(n.category === 'transfer') {
-                                titleText = '🔄 转单提醒';
-                            }
-
-                            const dateStr = new Date(n.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-
-                            html += `
-                                <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer group" onclick="window.markSingleAsRead('${n.id}', '${targetUrl}')">
-                                    <div class="flex justify-between items-start mb-1">
-                                        <h4 class="text-[13px] font-bold text-white flex items-center gap-2 group-hover:text-indigo-400 transition-colors">
-                                            <span class="w-2 h-2 rounded-full bg-indigo-500 shrink-0 shadow-[0_0_8px_currentColor]"></span>
-                                            ${titleText}
-                                        </h4>
-                                        <span class="text-[10px] text-zinc-500">${dateStr}</span>
-                                    </div>
-                                    <p class="text-[11px] text-zinc-400 leading-relaxed pl-4 line-clamp-2">${contentText}</p>
-                                </div>
-                            `;
-                        });
-                        notifContainer.innerHTML = html;
-                    }
-                }
-                
-                // 将真实的云端未读 ID 存下来，留给“全部已读”按钮用
-                window.currentMyUnreadIds = unreadNotifs.map(n => n.id);
-
-            } catch(e) { console.error("消息同步失败:", e); }
-        }
-
-        // 🚀 单个点击跳转并消除云端红点
-        window.markSingleAsRead = async function(id, url) {
-            if(window.supabase) {
-                try {
-                    await window.supabase.from('notifications').update({ is_read: true }).eq('id', id);
-                } catch(e){}
-            }
-            window.location.href = url;
-        }
-
-        // 🚀 一键消除所有云端红点
-        window.markAllAsRead = async function(event) {
-            if(event) event.stopPropagation();
-            if (!window.supabase || !window.currentMyUnreadIds || window.currentMyUnreadIds.length === 0) return;
-            
-            try {
-                await window.supabase.from('notifications').update({ is_read: true }).in('id', window.currentMyUnreadIds);
-                await window.syncNotificationsFromCloud(true); // 重新拉取刷新界面
-                if(window.showToast) window.showToast('全部已读', '收件箱已清空。', 'success');
-            } catch(e) { console.error(e); }
-        }
-
         window.loadTasksFromCloud = async function(isSilent = false) {
             if(!window.supabase) return;
             
@@ -825,7 +712,7 @@
                     }
                 });
 
-                // 💡 在渲染完需求数据后，触发真实的云端消息同步引擎！
+                // 💡 实时更新右上角红点
                 await window.syncNotificationsFromCloud(isSilent);
 
                 if(!isSilent) {
@@ -1075,6 +962,7 @@
 
             const { error } = await window.supabase.from(window.DB_TABLE).insert([taskData]);
 
+            // 通知逻辑
             if (!error && assigneeVal !== 'none') {
                 const { data: uData } = await window.supabase.from('users').select('id, email').ilike('email', `${assigneeVal}%`).single();
                 if (uData) {
@@ -1265,11 +1153,116 @@
                     if (assWrap && assDrop && !assWrap.contains(e.target)) assDrop.classList.add('hidden');
                 });
 
-                // 启动全局通信渲染引擎
                 setInterval(() => { window.loadTasksFromCloud(true); }, 8000); 
             }
         });
 
+    </script>
+
+    <script>
+        // 1. 修复左下角“读取中”的 Bug
+        setTimeout(() => {
+            const roleEl = document.getElementById('sidebar-role');
+            if(roleEl && roleEl.innerText.includes('读取中')) {
+                roleEl.innerHTML = '<span class="text-indigo-400 font-bold">当前视角: 需求方</span>';
+            }
+        }, 1000);
+
+        // 2. 无缝植入真实的云端铃铛监听引擎
+        window.syncNotificationsFromCloud = async function(isSilent = true) {
+            if(!window.supabase) return;
+            const userStr = localStorage.getItem('activeUserObj');
+            if(!userStr) return;
+            const currentUser = JSON.parse(userStr);
+            const userKeyword = (currentUser.enName || currentUser.cnName || '').toLowerCase();
+
+            try {
+                const { data, error } = await window.supabase.from('notifications')
+                    .select('*').order('created_at', { ascending: false }).limit(100);
+                if (error) throw error;
+
+                // 过滤出属于当前用户的消息
+                let myNotifs = data.filter(n => {
+                    const target = (n.target_email || '').toLowerCase();
+                    return target.includes(userKeyword) || (currentUser.email && target.includes(currentUser.email.toLowerCase()));
+                });
+
+                const unreadNotifs = myNotifs.filter(n => !n.is_read);
+                const unreadCount = unreadNotifs.length;
+
+                // 检查是否需要弹出新消息通知
+                let prevUnreadCount = parseInt(localStorage.getItem('prevUnreadCount_' + userKeyword) || '0');
+                if (isSilent && unreadCount > prevUnreadCount) {
+                    const newCount = unreadCount - prevUnreadCount;
+                    if(window.showToast) window.showToast('🔔 收到新消息', `您有 ${newCount} 条新动态，请点击右上角铃铛查看。`, 'info');
+                }
+                localStorage.setItem('prevUnreadCount_' + userKeyword, unreadCount.toString());
+                
+                // 点亮或熄灭右上角的铃铛红点
+                const bellDot = document.getElementById('bell-dot');
+                if (bellDot) {
+                    if (unreadCount > 0) {
+                        bellDot.classList.remove('hidden', 'bg-zinc-600', 'border-transparent');
+                        bellDot.classList.add('bg-rose-500', 'animate-pulse', 'border-[#141417]');
+                    } else {
+                        bellDot.classList.add('hidden');
+                    }
+                }
+
+                // 渲染铃铛下拉框
+                const notifContainer = document.getElementById('notif-list-container');
+                if (notifContainer) {
+                    if (unreadCount === 0) {
+                        notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读消息</div>';
+                    } else {
+                        notifContainer.innerHTML = unreadNotifs.map(n => {
+                            let titleText = '系统通知';
+                            let contentText = n.content || '';
+                            let titleMatch = contentText.match(/^(【.*?】)/);
+                            if(titleMatch) {
+                                titleText = titleMatch[1];
+                                contentText = contentText.replace(titleMatch[1], '').trim();
+                            } else if(n.category === 'urgent') {
+                                titleText = '🚨 紧急催办';
+                            }
+                            
+                            return `
+                            <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 cursor-pointer" onclick="window.markSingleAsRead('${n.id}', '${n.link_url}')">
+                                <h4 class="text-[13px] font-bold text-white mb-1"><span class="w-2 h-2 rounded-full bg-indigo-500 inline-block mr-1"></span>${titleText}</h4>
+                                <p class="text-[11px] text-zinc-400 pl-3 line-clamp-2">${contentText}</p>
+                            </div>`;
+                        }).join('');
+                    }
+                }
+                window.currentMyUnreadIds = unreadNotifs.map(n => n.id);
+            } catch(e) { console.error("通知同步失败", e); }
+        };
+
+        // 点击单条消息：消除云端红点并跳转
+        window.markSingleAsRead = async function(id, url) {
+            if(window.supabase) { 
+                try { await window.supabase.from('notifications').update({ is_read: true }).eq('id', id); } catch(e){} 
+            }
+            window.location.href = url || '#';
+        };
+
+        // 点击全部已读：批量消除云端红点
+        window.markAllAsRead = async function(e) {
+            if(e) e.stopPropagation();
+            if (!window.supabase || !window.currentMyUnreadIds || window.currentMyUnreadIds.length === 0) return;
+            const btn = e.currentTarget;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "处理中...";
+            try {
+                await window.supabase.from('notifications').update({ is_read: true }).in('id', window.currentMyUnreadIds);
+                await window.syncNotificationsFromCloud(true);
+                if(window.showToast) window.showToast('全部已读', '消息红点已清除。', 'success');
+            } catch(e) {}
+            btn.innerHTML = originalText;
+        };
+
+        // 启动轮询
+        setTimeout(() => { window.syncNotificationsFromCloud(true); }, 1500);
     </script>
 </body>
 </html>
