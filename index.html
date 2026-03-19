@@ -712,9 +712,6 @@
                     }
                 });
 
-                // 💡 实时更新右上角红点
-                await window.syncNotificationsFromCloud(isSilent);
-
                 if(!isSilent) {
                     if(spinner) spinner.classList.add('hidden');
                     
@@ -1216,16 +1213,8 @@
                         notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读消息</div>';
                     } else {
                         notifContainer.innerHTML = unreadNotifs.map(n => {
-                            let titleText = '系统通知';
-                            let contentText = n.content || '';
-                            let titleMatch = contentText.match(/^(【.*?】)/);
-                            if(titleMatch) {
-                                titleText = titleMatch[1];
-                                contentText = contentText.replace(titleMatch[1], '').trim();
-                            } else if(n.category === 'urgent') {
-                                titleText = '🚨 紧急催办';
-                            }
-                            
+                            let titleText = n.content.match(/^(【.*?】)/) ? n.content.match(/^(【.*?】)/)[1] : '系统通知';
+                            let contentText = n.content.replace(titleText, '').trim();
                             return `
                             <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 cursor-pointer" onclick="window.markSingleAsRead('${n.id}', '${n.link_url}')">
                                 <h4 class="text-[13px] font-bold text-white mb-1"><span class="w-2 h-2 rounded-full bg-indigo-500 inline-block mr-1"></span>${titleText}</h4>
@@ -1238,12 +1227,25 @@
             } catch(e) { console.error("通知同步失败", e); }
         };
 
-        // 点击单条消息：消除云端红点并跳转
+        // 点击单条消息：消除云端红点并按身份智能跳转
         window.markSingleAsRead = async function(id, url) {
             if(window.supabase) { 
                 try { await window.supabase.from('notifications').update({ is_read: true }).eq('id', id); } catch(e){} 
             }
-            window.location.href = url || '#';
+            let finalUrl = url || '#';
+            let match = finalUrl.match(/id=(TK-\d+)/);
+            if (match) {
+                const taskId = match[1];
+                // 根据当前页面的 PAGE_TYPE 智能路由到对应的详情页
+                if (typeof PAGE_TYPE !== 'undefined') {
+                    if (PAGE_TYPE === 'req') finalUrl = 'task-detail-requester.html?id=' + taskId;
+                    if (PAGE_TYPE === 'design') finalUrl = 'task-detail-designer.html?id=' + taskId;
+                    if (PAGE_TYPE === 'admin') finalUrl = 'task-detail-locked.html?id=' + taskId;
+                } else {
+                    finalUrl = 'task-detail-requester.html?id=' + taskId;
+                }
+            }
+            window.location.href = finalUrl;
         };
 
         // 点击全部已读：批量消除云端红点
