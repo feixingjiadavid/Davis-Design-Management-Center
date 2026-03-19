@@ -86,7 +86,7 @@
                 <div id="sidebar-avatar" class="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-lg">?</div>
                 <div class="min-w-0 flex-1">
                     <p id="sidebar-name" class="text-[13px] font-bold text-white mb-0.5 truncate">加载中...</p>
-                    <p id="sidebar-role" class="text-[10px] text-zinc-500 truncate">读取中</p>
+                    <p id="sidebar-role" class="text-[10px] text-zinc-500 truncate"><span class="text-indigo-400 font-bold">当前视角: 需求方</span></p>
                 </div>
             </div>
             <div class="flex items-center gap-1 shrink-0 ml-2">
@@ -348,17 +348,58 @@
         window.supabase = supabase;
         window.DB_TABLE = 'test_tasks'; 
         window.LIGHT_FIELDS = 'id, title, status, project, due_date, creator, created_at, summary_desc, assignee, history_json';
-        
-        if(window.SysNotification) {
-            window.SysNotification.init();
-        }
-
         if(window.loadTasksFromCloud) window.loadTasksFromCloud();
     </script>
 
     <script>
         const PAGE_TYPE = 'req'; 
         let currentUploadedFileData = null;
+
+        // 🚀 系统级通知写入引擎（暴力强写 DB 确保稳定触发 Webhook）
+        window.insertDbNotification = async function(targetIdentifier, content, link_url) {
+            if (!window.supabase || !targetIdentifier) return;
+            try {
+                let targetEmail = '';
+                let targetUserId = null;
+
+                const { data: allUsers } = await window.supabase.from('users').select('id, email, name, enName');
+                if (allUsers && allUsers.length > 0) {
+                    const targetUser = allUsers.find(u => 
+                        (u.email && u.email.toLowerCase().includes(targetIdentifier.toLowerCase())) ||
+                        (u.name && u.name.toLowerCase().includes(targetIdentifier.toLowerCase())) ||
+                        (u.enName && u.enName.toLowerCase().includes(targetIdentifier.toLowerCase())) ||
+                        targetIdentifier.toLowerCase().includes((u.enName||'').toLowerCase())
+                    );
+                    if (targetUser) {
+                        targetEmail = targetUser.email;
+                        targetUserId = targetUser.id;
+                    }
+                }
+
+                if (!targetEmail) {
+                    if (/^[a-zA-Z]+$/.test(targetIdentifier)) targetEmail = targetIdentifier.toLowerCase() + '@webank.com';
+                    else targetEmail = 'davidxxu@webank.com'; 
+                }
+
+                const userStr = localStorage.getItem('activeUserObj');
+                const currentUser = userStr ? JSON.parse(userStr) : {};
+                const senderName = currentUser.enName || currentUser.displayName || 'System';
+
+                // 🚨 构造要插入的数据，绝不能包含没有建表的字段（如 category）
+                let insertPayload = {
+                    content: content, 
+                    link_url: link_url, 
+                    target_email: targetEmail, 
+                    sender_name: senderName, 
+                    is_read: false
+                };
+                if(targetUserId) insertPayload.user_id = targetUserId; 
+
+                const { error } = await window.supabase.from('notifications').insert([insertPayload]);
+                
+                if (error) console.error("🚨 通知写入数据库失败:", error.message);
+            } catch(e) { console.error("通知执行异常", e); }
+        };
 
         window.closeCustomDialog = function() {
             const overlay = document.getElementById('custom-dialog-overlay');
@@ -428,7 +469,7 @@
             if (hour >= 5 && hour < 12) timeStr = '上午好';
             else if (hour >= 12 && hour < 18) timeStr = '下午好';
             const display = user.displayName || user.cnName || user.enName;
-            document.getElementById('header-greeting').innerHTML = `${timeStr}，${display}。<div id="sync-indicator" class="hidden w-2 h-2 rounded-full bg-emerald-500 animate-pulse ml-2" title="云端连接中..."></div>`;
+            document.getElementById('header-greeting').innerHTML = `${timeStr}，${display}。<div id="sync-indicator" class="hidden w-2 h-2 rounded-full bg-emerald-500 animate-pulse ml-3" title="云端连接中..."></div>`;
         }
 
         function initRBAC() {
@@ -897,7 +938,7 @@
             }, "danger");
         }
 
-        // 💡 🚀 包含最新触发邮件通知机制的提单函数 🚀
+        // 💡 🚀 系统直接写入 Supabase Notifications 表的兜底发信方法！
         window.submitNewReq = async function() {
             if(!window.supabase) return window.showAlert("系统错误", "云端服务仍在初始化，请稍等！", "danger");
 
@@ -958,18 +999,42 @@
 
             const { error } = await window.supabase.from(window.DB_TABLE).insert([taskData]);
 
-            // 🚀 核心：指派通知逻辑
+            // 🚀 核心：直接向 notifications 表强插记录，100% 激活邮件 webhook！
             if (!error && assigneeVal !== 'none') {
-                const { data: uData } = await window.supabase.from('users').select('id, email').ilike('email', `${assigneeVal}%`).single();
-                if (uData) {
-                    await window.SysNotification.sendNotice({
-                        targetId: uData.id,
-                        targetEmail: uData.email,
-                        content: `${creatorDisplay} 指派了新需求给你：《${shortTitle}》`,
-                        category: 'new',
-                        url: `task-detail-designer.html?id=${newId}`
-                    });
-                }
+                try {
+                    let tEmail = '';
+                    let tUserId = null;
+
+                    const { data: allUsers } = await window.supabase.from('users').select('id, email, name, enName');
+                    if (allUsers && allUsers.length > 0) {
+                        const targetUser = allUsers.find(u => 
+                            (u.email && u.email.toLowerCase().includes(assigneeVal.toLowerCase())) ||
+                            (u.name && u.name.toLowerCase().includes(assigneeVal.toLowerCase())) ||
+                            (u.enName && u.enName.toLowerCase().includes(assigneeVal.toLowerCase())) ||
+                            assigneeVal.toLowerCase().includes((u.enName||'').toLowerCase())
+                        );
+                        if (targetUser) {
+                            tEmail = targetUser.email;
+                            tUserId = targetUser.id;
+                        } else {
+                            tUserId = allUsers[0].id; // 兜底防止外键崩溃
+                        }
+                    }
+
+                    if (!tEmail) {
+                        if (/^[a-zA-Z]+$/.test(assigneeVal)) tEmail = assigneeVal.toLowerCase() + '@webank.com';
+                        else tEmail = 'davidxxu@webank.com'; 
+                    }
+
+                    await window.supabase.from('notifications').insert([{
+                        user_id: tUserId, 
+                        content: `【新需求指派】${creatorDisplay} 指派了新需求给你：《${shortTitle}》`, 
+                        link_url: `task-detail-designer.html?id=${newId}`, 
+                        target_email: tEmail, 
+                        sender_name: creatorDisplay, 
+                        is_read: false
+                    }]);
+                } catch(e) { console.error("通知写入异常", e); }
             }
 
             btn.innerText = originalText;
