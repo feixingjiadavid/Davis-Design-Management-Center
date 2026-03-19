@@ -241,9 +241,21 @@
             <div class="p-6 space-y-5">
                 <div class="bg-orange-500/10 border border-orange-500/20 p-3 rounded-xl text-[12px] text-orange-400 leading-relaxed">
                     当前任务：<span class="font-bold text-white" id="transfer-task-name">加载中...</span><br>
-                    请说明转单原因，系统将退回统筹池重新分配。
+                    请说明转单原因，并选择转交对象。
                 </div>
                 
+                <div>
+                    <label class="block text-[12px] font-bold text-zinc-300 mb-2">转交给谁 <span class="text-zinc-500 font-normal">(不选则退回公海池)</span></label>
+                    <div class="relative">
+                        <select id="transfer-assignee" class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3 text-[13px] text-white outline-none focus:border-orange-500 custom-scrollbar appearance-none cursor-pointer">
+                            <option value="none">退回大厅统筹池 (不指定人)</option>
+                        </select>
+                        <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </div>
+                    </div>
+                </div>
+
                 <div>
                     <label class="block text-[12px] font-bold text-zinc-300 mb-2">转单原因及进度说明 <span class="text-rose-500">*</span></label>
                     <textarea id="transfer-reason" class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3 text-[13px] text-white outline-none focus:border-orange-500 h-24 resize-none custom-scrollbar" placeholder="例如：排期有冲突，请求支援..."></textarea>
@@ -289,16 +301,63 @@
         </div>
     </div>
 
+    <script src="sys-notification.js"></script>
+
     <script type="module">
         import { supabase } from './supabase-config.js';
         window.supabase = supabase;
         window.DB_TABLE = 'test_tasks'; 
         window.LIGHT_FIELDS = 'id, title, status, project, due_date, creator, created_at, summary_desc, assignee, history_json';
+        
+        if(window.SysNotification) {
+            window.SysNotification.init();
+        }
+
         if(window.loadTasksFromCloud) window.loadTasksFromCloud();
     </script>
 
     <script>
         const PAGE_TYPE = 'design'; 
+
+        // 🚀 系统级通知写入引擎（暴力写库防失败兜底版）
+        window.insertDbNotification = async function(targetIdentifier, content, link_url) {
+            if (!window.supabase || !targetIdentifier) return;
+            try {
+                let targetEmail = '';
+                let targetUserId = null;
+
+                const { data: allUsers } = await window.supabase.from('users').select('id, email, name, enName');
+                if (allUsers && allUsers.length > 0) {
+                    const targetUser = allUsers.find(u => 
+                        (u.email && u.email.toLowerCase().includes(targetIdentifier.toLowerCase())) ||
+                        (u.name && u.name.toLowerCase().includes(targetIdentifier.toLowerCase())) ||
+                        (u.enName && u.enName.toLowerCase().includes(targetIdentifier.toLowerCase())) ||
+                        targetIdentifier.toLowerCase().includes((u.enName||'').toLowerCase())
+                    );
+                    if (targetUser) {
+                        targetEmail = targetUser.email;
+                        targetUserId = targetUser.id;
+                    } else {
+                        targetUserId = allUsers[0].id; // 借用首个有效ID防崩溃
+                    }
+                }
+
+                if (!targetEmail) {
+                    if (/^[a-zA-Z]+$/.test(targetIdentifier)) targetEmail = targetIdentifier.toLowerCase() + '@webank.com';
+                    else targetEmail = 'davidxxu@webank.com'; 
+                }
+
+                const userStr = localStorage.getItem('activeUserObj');
+                const currentUser = userStr ? JSON.parse(userStr) : {};
+                const senderName = currentUser.enName || currentUser.displayName || 'System';
+
+                const { error } = await window.supabase.from('notifications').insert([{
+                    user_id: targetUserId, content: content, link_url: link_url, target_email: targetEmail, sender_name: senderName, is_read: false, category: 'update'
+                }]);
+                
+                if (error) console.error("🚨 写入数据库失败:", error.message);
+            } catch(e) { console.error("通知执行异常", e); }
+        };
 
         // ================= 高定弹窗引擎 =================
         window.closeCustomDialog = function() {
@@ -419,7 +478,7 @@
                     html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#362013] text-orange-400 cursor-default border border-orange-900/50"><div class="w-7 h-7 rounded-lg bg-orange-500/20 flex items-center justify-center text-orange-500"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div><span class="text-[13px] font-bold">设计方 (当前)</span></div>`; 
                 }
                 if ((user.perms || []).includes('admin')) { 
-                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='manager-workspace.html'"><div class="w-7 h-7 rounded-lg bg-fuchsia-500/10 flex items-center justify-center text-fuchsia-400"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="21"></line></svg></div><span class="text-[13px] font-medium">管理方 (统筹/大盘)</span></div>`; 
+                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='manager-workspace.html'"><div class="w-7 h-7 rounded-lg bg-fuchsia-500/10 text-fuchsia-400 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="21"></line></svg></div><span class="text-[13px] font-medium">管理方 (统筹/大盘)</span></div>`; 
                 }
                 menuContainer.innerHTML = html;
             }
@@ -699,15 +758,32 @@
             }
         }
 
-        // ================= 转单逻辑 =================
+        // ================= 🚀🚀🚀 新增强化的转单选人逻辑 =================
         const modalOverlay = document.getElementById('transfer-modal-overlay');
         const modal = document.getElementById('transfer-modal');
         let currentTransferTaskId = null;
+        
+        // 名单库
+        const PREDEFINED_ASSIGNEES = ['anckyyu', 'davidxxu', 'debbiehuang', 'evazzhu', 'hscheng', 'mengmengli', 'skylerhuang', 'sophiachen', 'tiaouyang', 'v_lijuangchen', 'v_lucui', 'v_sijieli', 'v_siyifu', 'v_sjtian', 'v_wbchye', 'v_wbjgao', 'v_wbmtli', 'v_zqlan', 'wenjiawu', 'yamyzhang', 'yaozhong', 'yoshyliu', 'zoeyzhou'];
 
         window.openTransferModal = function(taskId, title = '') { 
             currentTransferTaskId = taskId;
             const titleSpan = document.getElementById('transfer-task-name');
             if (titleSpan) titleSpan.innerText = `${taskId} ${title}`;
+            
+            // 自动填充下拉选人列表
+            const selectEl = document.getElementById('transfer-assignee');
+            if (selectEl && selectEl.options.length <= 1) {
+                PREDEFINED_ASSIGNEES.sort().forEach(name => {
+                    const opt = document.createElement('option');
+                    opt.value = name;
+                    opt.innerText = `指派给: ${name}`;
+                    selectEl.appendChild(opt);
+                });
+            }
+            if (selectEl) selectEl.value = 'none';
+            document.getElementById('transfer-reason').value = '';
+
             modalOverlay.classList.remove('hidden'); 
             setTimeout(() => { modalOverlay.classList.remove('opacity-0'); modal.classList.remove('hidden'); modal.classList.remove('scale-95'); }, 10); 
         }
@@ -717,12 +793,18 @@
             setTimeout(() => { modalOverlay.classList.add('hidden'); modal.classList.add('hidden'); currentTransferTaskId = null; }, 300); 
         }
 
+        // 提交转单动作
         window.submitTransfer = async function() { 
             if (!window.supabase) return window.showAlert("错误", "云端未连接", "danger");
             if (!currentTransferTaskId) return;
 
             const reason = document.getElementById('transfer-reason').value.trim();
             if(!reason) return window.showAlert("提示", "请填写转单原因", "danger");
+            
+            // 获取目标人员
+            const newAssignee = document.getElementById('transfer-assignee').value;
+            const isToPool = newAssignee === 'none';
+            const newStatus = isToPool ? 'pending' : 'pending_accept';
 
             const btn = document.querySelector('#transfer-modal button:last-child');
             const originTxt = btn.innerText;
@@ -732,29 +814,53 @@
             const user = JSON.parse(userStr);
             const dispName = user.displayName || user.cnName || user.enName;
 
-            const { data: curTask } = await window.supabase.from(window.DB_TABLE).select('history_json').eq('id', currentTransferTaskId).single();
+            const { data: curTask } = await window.supabase.from(window.DB_TABLE).select('title, history_json').eq('id', currentTransferTaskId).single();
             let hist = [];
             if(curTask && curTask.history_json) { try { hist = JSON.parse(curTask.history_json); } catch(e){} }
+            
+            const actionReply = isToPool ? `因排期或其他原因退回大厅，备注：${reason}` : `将任务转交给了 ${newAssignee}，备注：${reason}`;
+
             hist.push({
                 action: 'transfer', operator: `${dispName} (设计师)`, time: new Date().toISOString(),
-                reply: `因排期或其他原因转出，备注：${reason}`
+                reply: actionReply
             });
+            
+            const summaryDesc = isToPool ? `设计方已将单据退回公海：${reason}` : `设计方已将单据转交给 ${newAssignee}：${reason}`;
 
             const { error } = await window.supabase.from(window.DB_TABLE)
                 .update({ 
-                    status: 'pending', 
-                    assignee: 'none', 
-                    summary_desc: `设计方已将单据退回公海：${reason}`,
+                    status: newStatus, 
+                    assignee: newAssignee, 
+                    summary_desc: summaryDesc,
                     history_json: JSON.stringify(hist)
                 })
                 .eq('id', currentTransferTaskId);
+                
+            // 🚀 发送实时邮件与通知 (加入兜底机制！)
+            if (!error && !isToPool && window.SysNotification) {
+                let targetEmail = `${newAssignee}@webank.com`; // 强制兜底邮箱！
+                let targetId = '00000000-0000-0000-0000-000000000000';
+                
+                try {
+                    const { data: uData } = await window.supabase.from('users').select('id, email').ilike('email', `${newAssignee}%`).single();
+                    if (uData) { targetEmail = uData.email; targetId = uData.id; }
+                } catch(err) { console.warn("用户表未找到此人，使用默认Webank邮箱后缀触发通知"); }
+                
+                await window.SysNotification.sendNotice({
+                    targetId: targetId,
+                    targetEmail: targetEmail,
+                    content: `${dispName} 将需求转交给了你：《${curTask.title || currentTransferTaskId}》，请查收！`,
+                    category: 'transfer',
+                    url: `task-detail-designer.html?id=${currentTransferTaskId}`
+                });
+            }
 
             btn.innerText = originTxt; btn.disabled = false;
 
             if(error) return window.showAlert("错误", "转单失败: " + error.message, "danger");
 
             window.closeTransferModal(); 
-            window.showToast('转单成功', '任务已退回统筹池等待重新分配', 'success');
+            window.showToast('转单成功', isToPool ? '任务已退回统筹池等待分配' : `任务已转交给 ${newAssignee}`, 'success');
             
             setTimeout(async () => { await window.loadTasksFromCloud(); }, 800);
         }
@@ -778,7 +884,9 @@
                 }
 
                 let myUnreadNotifs = [];
-                let readReceipts = JSON.parse(localStorage.getItem('read_receipts_' + currentUserEn) || '{}');
+                let readReceipts = JSON.parse(localStorage.getItem('read_receipts_design_' + currentUserEn) || '{}');
+                let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
+                let sysNotifsUpdated = false;
                 let newlyFoundCount = 0;
 
                 (tasks || []).forEach(task => {
@@ -787,9 +895,6 @@
                     const isMyAssignment = (task.assignee || '').toLowerCase() === currentUserEn;
                     const isUnassigned = (task.assignee || '').toLowerCase() === 'none';
                     
-                    // 💡 智能判断逻辑：
-                    // 如果是你创建的、被指派给你的、或者是总监视角，都需要提醒。
-                    // 额外增强：如果是待分配的公海池任务（pending），那么所有具有 design 权限的人都能收到上游丢单通知！
                     const isConcerned = isMyCreation || isMyAssignment || isLeader || (isUnassigned && hasDesignPerm && task.status === 'pending');
 
                     if (!isConcerned) return; 
@@ -799,9 +904,21 @@
 
                     historyArr.forEach((h, index) => {
                         const eventId = `${task.id}_${index}`; 
-                        if (readReceipts[eventId]) return; // 已经读过了
 
-                        // 💡 防己刷屏：如果这个动作是你自己做的，自动标记为已读！
+                        // 💡 核心隔离：过滤掉属于需求方和领导的消息（设计师工作台不该看这些）
+                        if (h.action === 'accept' || h.action === 'submit_framework' || h.action === 'submit_draft') {
+                            return; // 这些是给甲方/领导看的，设计师自己跳过
+                        }
+
+                        if (readReceipts[eventId]) {
+                            let existing = sysNotifs.find(n => n.eventId === eventId && n.role === PAGE_TYPE);
+                            if (existing && !existing.read) {
+                                existing.read = true;
+                                sysNotifsUpdated = true;
+                            }
+                            return; 
+                        }
+
                         const op = (h.operator || '').toLowerCase();
                         if (op.includes(currentUserEn) || op.includes((currentUser.displayName||'').toLowerCase()) || op.includes((currentUser.cnName||'').toLowerCase())) {
                             readReceipts[eventId] = true;
@@ -814,13 +931,10 @@
 
                         let actionText = h.action || '更新了状态';
                         let iconDot = 'bg-sky-500';
-                        if(h.action === 'submit_draft') { actionText = '上传了最新设计正稿'; iconDot = 'bg-sky-500'; }
-                        if(h.action === 'submit_framework') { actionText = '提交了设计框架'; iconDot = 'bg-amber-500'; }
                         if(h.action === 'approve_framework') { actionText = '通过了框架审批'; iconDot = 'bg-emerald-500'; }
                         if(h.is_rejected || h.action === 'reject') { actionText = '打回了该需求'; iconDot = 'bg-rose-500'; }
                         if(h.action === 'complete') { actionText = '验收通过并完结了工单'; iconDot = 'bg-emerald-500'; }
                         if(h.action === 'transfer') { actionText = '转移了需求执行人'; iconDot = 'bg-orange-500'; }
-                        if(h.action === 'accept') { actionText = '已接单并开始制作'; iconDot = 'bg-sky-500'; }
                         if(h.action === 'create') { actionText = '向大厅发起了新需求'; iconDot = 'bg-indigo-500'; }
 
                         myUnreadNotifs.push({
@@ -831,15 +945,32 @@
                             time: h.time || h.created_at || new Date().toISOString(),
                             iconDot: iconDot
                         });
+
+                        if (!sysNotifs.find(n => n.eventId === eventId && n.role === PAGE_TYPE)) {
+                            sysNotifs.push({
+                                id: new Date().getTime() + Math.random(),
+                                eventId: eventId,
+                                taskId: task.id,
+                                title: `[${task.id}] ${actionText}`,
+                                desc: `${h.operator || '系统'} : ${h.reply || h.desc || '请及时跟进处理'}`,
+                                role: PAGE_TYPE, 
+                                read: false,
+                                time: h.time || h.created_at || new Date().toISOString()
+                            });
+                            sysNotifsUpdated = true;
+                        }
                     });
                 });
 
-                localStorage.setItem('read_receipts_' + currentUserEn, JSON.stringify(readReceipts));
+                localStorage.setItem('read_receipts_design_' + currentUserEn, JSON.stringify(readReceipts));
+                if (sysNotifsUpdated) {
+                    localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs));
+                }
+
                 myUnreadNotifs.sort((a, b) => new Date(b.time) - new Date(a.time));
                 
-                // 💡 只有在静默轮询且发现确实有新消息时，才会打扰用户弹出 Toast！
                 if (isSilent && newlyFoundCount > 0) {
-                    window.showToast('🔔 收到新消息', `您有 ${newlyFoundCount} 条业务动态，请点击右上角铃铛查看。`, 'info');
+                    window.showToast('🔔 收到新消息', `您有 ${newlyFoundCount} 条新动态，请点击右上角铃铛查看。`, 'info');
                 }
 
                 window.currentUnreadNotifs = myUnreadNotifs; 
@@ -892,17 +1023,15 @@
             const userStr = localStorage.getItem('activeUserObj');
             if(!userStr) return;
             const currentUserEn = JSON.parse(userStr).enName.toLowerCase();
-            let readReceipts = JSON.parse(localStorage.getItem('read_receipts_' + currentUserEn) || '{}');
+            let readReceipts = JSON.parse(localStorage.getItem('read_receipts_design_' + currentUserEn) || '{}');
             
-            // 写入已读账本
             readReceipts[eventId] = true;
-            localStorage.setItem('read_receipts_' + currentUserEn, JSON.stringify(readReceipts));
+            localStorage.setItem('read_receipts_design_' + currentUserEn, JSON.stringify(readReceipts));
             
-            // 本地数组剔除，秒级更新UI
             window.currentUnreadNotifs = window.currentUnreadNotifs.filter(n => n.eventId !== eventId);
             window.renderNotificationsUI(); 
             
-            // 智能跳入对应的详情页
+            // 💡 强制跳转为设计师详情页
             window.location.href = `task-detail-designer.html?id=${taskId}`;
         }
 
@@ -911,12 +1040,12 @@
             const userStr = localStorage.getItem('activeUserObj');
             if(!userStr) return;
             const currentUserEn = JSON.parse(userStr).enName.toLowerCase();
-            let readReceipts = JSON.parse(localStorage.getItem('read_receipts_' + currentUserEn) || '{}');
+            let readReceipts = JSON.parse(localStorage.getItem('read_receipts_design_' + currentUserEn) || '{}');
             
             const notifs = window.currentUnreadNotifs || [];
             notifs.forEach(n => { readReceipts[n.eventId] = true; });
             
-            localStorage.setItem('read_receipts_' + currentUserEn, JSON.stringify(readReceipts));
+            localStorage.setItem('read_receipts_design_' + currentUserEn, JSON.stringify(readReceipts));
             window.currentUnreadNotifs = [];
             window.renderNotificationsUI();
             
