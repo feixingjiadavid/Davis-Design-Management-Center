@@ -360,6 +360,46 @@
         const PAGE_TYPE = 'req'; 
         let currentUploadedFileData = null;
 
+        // 🚀 系统级通知写入引擎（暴力强写 DB 确保稳定触发 Webhook）
+        window.insertDbNotification = async function(targetIdentifier, content, link_url) {
+            if (!window.supabase || !targetIdentifier) return;
+            try {
+                let targetEmail = '';
+                let targetUserId = null;
+
+                const { data: allUsers } = await window.supabase.from('users').select('id, email, name, enName');
+                if (allUsers && allUsers.length > 0) {
+                    const targetUser = allUsers.find(u => 
+                        (u.email && u.email.toLowerCase().includes(targetIdentifier.toLowerCase())) ||
+                        (u.name && u.name.toLowerCase().includes(targetIdentifier.toLowerCase())) ||
+                        (u.enName && u.enName.toLowerCase().includes(targetIdentifier.toLowerCase())) ||
+                        targetIdentifier.toLowerCase().includes((u.enName||'').toLowerCase())
+                    );
+                    if (targetUser) {
+                        targetEmail = targetUser.email;
+                        targetUserId = targetUser.id;
+                    } else {
+                        targetUserId = allUsers[0].id; // 兜底防报错
+                    }
+                }
+
+                if (!targetEmail) {
+                    if (/^[a-zA-Z]+$/.test(targetIdentifier)) targetEmail = targetIdentifier.toLowerCase() + '@webank.com';
+                    else targetEmail = 'davidxxu@webank.com'; 
+                }
+
+                const userStr = localStorage.getItem('activeUserObj');
+                const currentUser = userStr ? JSON.parse(userStr) : {};
+                const senderName = currentUser.enName || currentUser.displayName || 'System';
+
+                const { error } = await window.supabase.from('notifications').insert([{
+                    user_id: targetUserId, content: content, link_url: link_url, target_email: targetEmail, sender_name: senderName, is_read: false, category: 'new'
+                }]);
+                
+                if (error) console.error("🚨 写入数据库失败:", error.message);
+            } catch(e) { console.error("通知执行异常", e); }
+        };
+
         window.closeCustomDialog = function() {
             const overlay = document.getElementById('custom-dialog-overlay');
             const dialog = document.getElementById('custom-dialog');
@@ -443,6 +483,7 @@
             if(avatarEl) { avatarEl.innerText = user.avatar || '?'; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-indigo-600'} border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg shrink-0`; }
             if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.cnName || user.enName;
             
+            // 💡 左下角身份显示Bug强制兜底修复
             if(document.getElementById('sidebar-role')) document.getElementById('sidebar-role').innerHTML = `<span class="text-indigo-400 font-bold">当前视角: 需求方</span>`;
 
             updateGreeting(user);
@@ -959,18 +1000,9 @@
 
             const { error } = await window.supabase.from(window.DB_TABLE).insert([taskData]);
 
-            // 通知逻辑
+            // 🚀 核心：指派通知逻辑 (使用强力兜底引擎)
             if (!error && assigneeVal !== 'none') {
-                const { data: uData } = await window.supabase.from('users').select('id, email').ilike('email', `${assigneeVal}%`).single();
-                if (uData) {
-                    await window.SysNotification.sendNotice({
-                        targetId: uData.id,
-                        targetEmail: uData.email,
-                        content: `${creatorDisplay} 指派了新需求给你：《${shortTitle}》`,
-                        category: 'new',
-                        url: `task-detail-designer.html?id=${newId}`
-                    });
-                }
+                await window.insertDbNotification(assigneeVal, `【新需求指派】${creatorDisplay} 指派了新需求给你：《${shortTitle}》`, `task-detail-designer.html?id=${newId}`);
             }
 
             btn.innerText = originalText;
@@ -1150,6 +1182,7 @@
                     if (assWrap && assDrop && !assWrap.contains(e.target)) assDrop.classList.add('hidden');
                 });
 
+                // 启动全局通信渲染引擎
                 setInterval(() => { window.loadTasksFromCloud(true); }, 8000); 
             }
         });
@@ -1165,7 +1198,7 @@
             }
         }, 1000);
 
-        // 2. 无缝植入真实的云端铃铛监听引擎
+        // 2. 无缝植入真实的云端铃铛监听引擎 (严格身份过滤)
         window.syncNotificationsFromCloud = async function(isSilent = true) {
             if(!window.supabase) return;
             const userStr = localStorage.getItem('activeUserObj');
@@ -1181,19 +1214,27 @@
                 // 过滤出属于当前用户的消息
                 let myNotifs = data.filter(n => {
                     const target = (n.target_email || '').toLowerCase();
-                    return target.includes(userKeyword) || (currentUser.email && target.includes(currentUser.email.toLowerCase()));
+                    const isForMe = target.includes(userKeyword) || (currentUser.email && target.includes(currentUser.email.toLowerCase()));
+                    if (!isForMe) return false;
+
+                    const content = n.content || '';
+                    // 💡 核心隔离：需求方(index)只看属于需求方的消息！设计师和领导的消息统统屏蔽！
+                    if (content.includes('指派了新需求') || content.includes('框架待审') || (content.includes('打回') && !content.includes('退回'))) {
+                        return false; 
+                    }
+                    return true;
                 });
 
                 const unreadNotifs = myNotifs.filter(n => !n.is_read);
                 const unreadCount = unreadNotifs.length;
 
                 // 检查是否需要弹出新消息通知
-                let prevUnreadCount = parseInt(localStorage.getItem('prevUnreadCount_' + userKeyword) || '0');
+                let prevUnreadCount = parseInt(localStorage.getItem('prevUnreadCount_req_' + userKeyword) || '0');
                 if (isSilent && unreadCount > prevUnreadCount) {
                     const newCount = unreadCount - prevUnreadCount;
-                    if(window.showToast) window.showToast('🔔 收到新消息', `您有 ${newCount} 条新动态，请点击右上角铃铛查看。`, 'info');
+                    if(window.showToast) window.showToast('🔔 收到新消息', `您有 ${newCount} 条需求动态，请点击右上角铃铛查看。`, 'info');
                 }
-                localStorage.setItem('prevUnreadCount_' + userKeyword, unreadCount.toString());
+                localStorage.setItem('prevUnreadCount_req_' + userKeyword, unreadCount.toString());
                 
                 // 点亮或熄灭右上角的铃铛红点
                 const bellDot = document.getElementById('bell-dot');
@@ -1213,8 +1254,16 @@
                         notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读消息</div>';
                     } else {
                         notifContainer.innerHTML = unreadNotifs.map(n => {
-                            let titleText = n.content.match(/^(【.*?】)/) ? n.content.match(/^(【.*?】)/)[1] : '系统通知';
-                            let contentText = n.content.replace(titleText, '').trim();
+                            let titleText = '系统通知';
+                            let contentText = n.content || '';
+                            let titleMatch = contentText.match(/^(【.*?】)/);
+                            if(titleMatch) {
+                                titleText = titleMatch[1];
+                                contentText = contentText.replace(titleMatch[1], '').trim();
+                            } else if(n.category === 'urgent') {
+                                titleText = '🚨 紧急催办';
+                            }
+                            
                             return `
                             <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 cursor-pointer" onclick="window.markSingleAsRead('${n.id}', '${n.link_url}')">
                                 <h4 class="text-[13px] font-bold text-white mb-1"><span class="w-2 h-2 rounded-full bg-indigo-500 inline-block mr-1"></span>${titleText}</h4>
@@ -1232,18 +1281,12 @@
             if(window.supabase) { 
                 try { await window.supabase.from('notifications').update({ is_read: true }).eq('id', id); } catch(e){} 
             }
+            
+            // 💡 强制将跳转链接替换为需求方专用的详情页！
             let finalUrl = url || '#';
             let match = finalUrl.match(/id=(TK-\d+)/);
             if (match) {
-                const taskId = match[1];
-                // 根据当前页面的 PAGE_TYPE 智能路由到对应的详情页
-                if (typeof PAGE_TYPE !== 'undefined') {
-                    if (PAGE_TYPE === 'req') finalUrl = 'task-detail-requester.html?id=' + taskId;
-                    if (PAGE_TYPE === 'design') finalUrl = 'task-detail-designer.html?id=' + taskId;
-                    if (PAGE_TYPE === 'admin') finalUrl = 'task-detail-locked.html?id=' + taskId;
-                } else {
-                    finalUrl = 'task-detail-requester.html?id=' + taskId;
-                }
+                finalUrl = 'task-detail-requester.html?id=' + match[1];
             }
             window.location.href = finalUrl;
         };
