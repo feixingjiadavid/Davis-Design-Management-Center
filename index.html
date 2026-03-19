@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>需求排号大厅 - 戴维斯设计需求管理中心</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="sys-notification.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         body { background-color: #09090b; color: #e4e4e7; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
@@ -1091,7 +1092,7 @@
             }, "danger");
         }
 
-        // 💡 核心修复：提交需求时，强制写入第一条“创建”历史记录！唤醒下游消息系统！
+        // 🚀 核心逻辑集成
         window.submitNewReq = async function() {
             if(!window.supabase) return window.showAlert("系统错误", "云端服务仍在初始化，请稍等！", "danger");
 
@@ -1136,7 +1137,6 @@
             const user = JSON.parse(localStorage.getItem('activeUserObj'));
             const creatorDisplay = user.displayName || user.cnName || user.enName;
 
-            // 💡 强行注入初始历史
             const initialHistory = [{
                 action: 'create',
                 operator: `${creatorDisplay} (需求方)`,
@@ -1148,10 +1148,24 @@
                 id: newId, title: shortTitle, full_desc: fullDesc, summary_desc: finalDesc, project: projectVal,
                 due_date: dateInput, assignee: assigneeVal, link: linkInput, channels: selectedChannels,
                 file_name: window.getFileNameFromUI(), file_data: currentUploadedFileData, status: finalStatus, creator: creatorDisplay,
-                history_json: JSON.stringify(initialHistory) // <--- 关键注入
+                history_json: JSON.stringify(initialHistory)
             };
 
             const { error } = await window.supabase.from(window.DB_TABLE).insert([taskData]);
+
+            // 🚀 核心：指派通知触发器
+            if (!error && assigneeVal !== 'none') {
+                const { data: uData } = await window.supabase.from('users').select('id, email').ilike('email', `${assigneeVal}%`).single();
+                if (uData) {
+                    await SysNotification.sendNotice({
+                        targetId: uData.id,
+                        targetEmail: uData.email,
+                        content: `${creatorDisplay} 指派了新需求给你：《${shortTitle}》`,
+                        category: 'new',
+                        url: `task-detail-designer.html?id=${newId}`
+                    });
+                }
+            }
 
             btn.innerText = originalText;
             btn.disabled = false;
@@ -1309,6 +1323,9 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             if(initRBAC()) {
+                // 🚀 启动通知大脑
+                if(window.SysNotification) SysNotification.init(); 
+
                 window.loadAssigneesFromCloud();
                 
                 const idBtn = document.getElementById('identityBtn');
@@ -1330,7 +1347,6 @@
                     if (assWrap && assDrop && !assWrap.contains(e.target)) assDrop.classList.add('hidden');
                 });
 
-                // 启动全局通信渲染引擎
                 setInterval(() => { window.loadTasksFromCloud(true); }, 8000); 
             }
         });
