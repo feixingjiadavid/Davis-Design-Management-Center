@@ -309,7 +309,6 @@
         window.DB_TABLE = 'test_tasks'; 
         window.LIGHT_FIELDS = 'id, title, status, project, due_date, creator, created_at, summary_desc, assignee, history_json';
         
-        // 🚀 激活通知组件
         if(window.SysNotification) {
             window.SysNotification.init();
         }
@@ -732,7 +731,7 @@
             const titleSpan = document.getElementById('transfer-task-name');
             if (titleSpan) titleSpan.innerText = `${taskId} ${title}`;
             
-            // 自动填充下拉选人列表（如果还没填）
+            // 自动填充下拉选人列表
             const selectEl = document.getElementById('transfer-assignee');
             if (selectEl && selectEl.options.length <= 1) {
                 PREDEFINED_ASSIGNEES.sort().forEach(name => {
@@ -797,18 +796,23 @@
                 })
                 .eq('id', currentTransferTaskId);
                 
-            // 🚀 发送实时邮件与通知！
-            if (!error && !isToPool) {
-                const { data: uData } = await window.supabase.from('users').select('id, email').ilike('email', `${newAssignee}%`).single();
-                if (uData && window.SysNotification) {
-                    await window.SysNotification.sendNotice({
-                        targetId: uData.id,
-                        targetEmail: uData.email,
-                        content: `${dispName} 将需求转交给了你：《${curTask.title || currentTransferTaskId}》，请查收！`,
-                        category: 'transfer',
-                        url: `task-detail-designer.html?id=${currentTransferTaskId}`
-                    });
-                }
+            // 🚀 发送实时邮件与通知 (加入兜底机制！)
+            if (!error && !isToPool && window.SysNotification) {
+                let targetEmail = `${newAssignee}@webank.com`; // 强制兜底邮箱！
+                let targetId = '00000000-0000-0000-0000-000000000000';
+                
+                try {
+                    const { data: uData } = await window.supabase.from('users').select('id, email').ilike('email', `${newAssignee}%`).single();
+                    if (uData) { targetEmail = uData.email; targetId = uData.id; }
+                } catch(err) { console.warn("用户表未找到此人，使用默认Webank邮箱后缀触发通知"); }
+                
+                await window.SysNotification.sendNotice({
+                    targetId: targetId,
+                    targetEmail: targetEmail,
+                    content: `${dispName} 将需求转交给了你：《${curTask.title || currentTransferTaskId}》，请查收！`,
+                    category: 'transfer',
+                    url: `task-detail-designer.html?id=${currentTransferTaskId}`
+                });
             }
 
             btn.innerText = originTxt; btn.disabled = false;
@@ -849,9 +853,6 @@
                     const isMyAssignment = (task.assignee || '').toLowerCase() === currentUserEn;
                     const isUnassigned = (task.assignee || '').toLowerCase() === 'none';
                     
-                    // 💡 智能判断逻辑：
-                    // 如果是你创建的、被指派给你的、或者是总监视角，都需要提醒。
-                    // 额外增强：如果是待分配的公海池任务（pending），那么所有具有 design 权限的人都能收到上游丢单通知！
                     const isConcerned = isMyCreation || isMyAssignment || isLeader || (isUnassigned && hasDesignPerm && task.status === 'pending');
 
                     if (!isConcerned) return; 
@@ -863,12 +864,12 @@
                         const eventId = `${task.id}_${index}`; 
                         if (readReceipts[eventId]) return; // 已经读过了
 
-                        // 💡 防己刷屏：如果这个动作是你自己做的，自动标记为已读！
-                        const op = (h.operator || '').toLowerCase();
-                        if (op.includes(currentUserEn) || op.includes((currentUser.displayName||'').toLowerCase()) || op.includes((currentUser.cnName||'').toLowerCase())) {
-                            readReceipts[eventId] = true;
-                            return;
-                        }
+                        // ⚠️ 调试版解除“防己刷屏”：目前你左右手互搏测试时，铃铛也会亮了！
+                        // const op = (h.operator || '').toLowerCase();
+                        // if (op.includes(currentUserEn) || op.includes((currentUser.displayName||'').toLowerCase()) || op.includes((currentUser.cnName||'').toLowerCase())) {
+                        //     readReceipts[eventId] = true;
+                        //     return;
+                        // }
 
                         if (!window.currentUnreadNotifs || !window.currentUnreadNotifs.find(n => n.eventId === eventId)) {
                             newlyFoundCount++;
@@ -899,7 +900,6 @@
                 localStorage.setItem('read_receipts_' + currentUserEn, JSON.stringify(readReceipts));
                 myUnreadNotifs.sort((a, b) => new Date(b.time) - new Date(a.time));
                 
-                // 💡 只有在静默轮询且发现确实有新消息时，才会打扰用户弹出 Toast！
                 if (isSilent && newlyFoundCount > 0) {
                     window.showToast('🔔 收到新消息', `您有 ${newlyFoundCount} 条业务动态，请点击右上角铃铛查看。`, 'info');
                 }
@@ -956,15 +956,11 @@
             const currentUserEn = JSON.parse(userStr).enName.toLowerCase();
             let readReceipts = JSON.parse(localStorage.getItem('read_receipts_' + currentUserEn) || '{}');
             
-            // 写入已读账本
             readReceipts[eventId] = true;
             localStorage.setItem('read_receipts_' + currentUserEn, JSON.stringify(readReceipts));
             
-            // 本地数组剔除，秒级更新UI
             window.currentUnreadNotifs = window.currentUnreadNotifs.filter(n => n.eventId !== eventId);
             window.renderNotificationsUI(); 
-            
-            // 智能跳入对应的详情页
             window.location.href = `task-detail-designer.html?id=${taskId}`;
         }
 
@@ -1000,10 +996,7 @@
                     if(notifMenu && !notifMenu.contains(e.target)) notifMenu.classList.add('hidden'); 
                 });
 
-                // 启动看板和通知渲染引擎
                 window.loadTasksFromCloud(false);
-                
-                // 💡 部署 8秒后台静默雷达，同时扫描面板变化和新消息通知！
                 setInterval(() => { window.loadTasksFromCloud(true); }, 8000); 
             }
         });
