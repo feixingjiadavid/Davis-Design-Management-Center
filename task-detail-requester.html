@@ -180,11 +180,18 @@
         </div>
     </div>
 
+    <script src="sys-notification.js"></script>
+
     <script type="module">
         import { supabase } from './supabase-config.js';
         window.supabase = supabase;
         window.DB_TABLE = 'test_tasks';
         
+        // 🚀 初始化大盘邮件系统
+        if(window.SysNotification) {
+            window.SysNotification.init();
+        }
+
         if(window.initApp) window.initApp();
     </script>
 
@@ -563,7 +570,7 @@
                         <div class="w-14 h-14 bg-orange-500/10 text-orange-500 rounded-full flex items-center justify-center mb-5"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div>
                         <h3 class="text-[16px] font-bold text-white mb-3">设计师爆肝作图中</h3>
                         <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">设计师 ${globalTaskData.assignee || ''} 已接手该单，正在根据您的需求产出设计图。若进度缓慢，可点击下方按钮催促。</p>
-                        <button onclick="actionUrge(this)" class="w-full py-3.5 bg-[#1a1a24] hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white rounded-xl text-[13px] font-bold transition-all btn-press flex items-center justify-center gap-2"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>发送催办系统通知</button>
+                        <button onclick="actionUrge(this)" class="w-full py-3.5 bg-[#1a1a24] hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white rounded-xl text-[13px] font-bold transition-all btn-press flex items-center justify-center gap-2"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>发送催办系统邮件通知</button>
                     `;
                 } else {
                     pnlHtml = `<div class="text-center py-6 text-zinc-500 text-sm">系统处理中，旁观者无操作权限。</div>`;
@@ -597,7 +604,7 @@
                         <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-zinc-500"></div>
                         <h3 class="text-[16px] font-bold text-white mb-3">框架方案审核中</h3>
                         <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">设计已提交中期框架方案，请等待主管 (丹楠姐) 审批把关结果。</p>
-                        <button onclick="actionUrge(this)" class="w-full py-3.5 bg-[#1a1a24] hover:bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white rounded-xl text-[13px] font-bold transition-all btn-press">发送催办红点给主管</button>
+                        <button onclick="actionUrge(this)" class="w-full py-3.5 bg-[#1a1a24] hover:bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white rounded-xl text-[13px] font-bold transition-all btn-press">发送邮件催办主管审批</button>
                     `;
                 }
 
@@ -651,7 +658,7 @@
                         <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-zinc-500"></div>
                         <h3 class="text-[16px] font-bold text-white mb-3">正式稿验收中</h3>
                         <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">正式稿已送达，等待发起人 ${globalTaskData.creator} 验收。</p>
-                        <button onclick="actionUrge(this)" class="w-full py-3.5 bg-[#1a1a24] hover:bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white rounded-xl text-[13px] font-bold transition-all btn-press">催促发起人验收</button>
+                        <button onclick="actionUrge(this)" class="w-full py-3.5 bg-[#1a1a24] hover:bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white rounded-xl text-[13px] font-bold transition-all btn-press">发邮件催促发起人验收</button>
                      `;
                 } else {
                     pnlHtml = `<div class="text-center py-6 text-zinc-500 text-sm">等待甲方最终验收结果。</div>`;
@@ -667,7 +674,7 @@
                     <div class="w-14 h-14 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center mb-5"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></div>
                     <h3 class="text-[16px] font-bold text-white mb-3">方案已被打回重修</h3>
                     <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">当前设计存在不符预期的地方已被驳回，请留意下方时间轴中指出的打回意见。目前正在等待设计师重新提交新版本。</p>
-                    <button onclick="actionUrge(this)" class="w-full py-3.5 bg-[#1a1a24] hover:bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white rounded-xl text-[13px] font-bold transition-all btn-press">催促设计尽快重传</button>
+                    <button onclick="actionUrge(this)" class="w-full py-3.5 bg-[#1a1a24] hover:bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white rounded-xl text-[13px] font-bold transition-all btn-press">发邮件催促设计尽快重传</button>
                 `;
 
             } else {
@@ -721,6 +728,7 @@
             document.getElementById('task-timeline-container').innerHTML = html;
         }
 
+        // ================= 🚀🚀🚀 全局动作状态同步与智能邮件分发枢纽 🚀🚀🚀 =================
         async function updateSupabaseState(newStatus, newSummary, actionPayload) {
             globalHistoryArr.push(actionPayload);
             const { error } = await window.supabase.from(window.DB_TABLE).update({
@@ -730,6 +738,56 @@
             }).eq('id', currentTaskId);
             
             if(error) { showAlert("错误", "云端状态更新失败：" + error.message, "danger"); return false; }
+            
+            // 💡 智能判断并发送邮件：不管是谁点了什么按钮，自动识别上游或下游进行推送
+            try {
+                if (window.SysNotification && globalTaskData) {
+                    const act = actionPayload.action;
+                    let notifyRole = ''; 
+                    let content = '';
+
+                    // 1. 如果是你(甲方或领导)操作了，给设计师发邮件
+                    if (act === 'approve_framework') { notifyRole = 'assignee'; content = `【审核通过】领导已同意大方向：《${globalTaskData.title}》，请继续推进正稿。`; }
+                    else if (act.startsWith('reject_')) { notifyRole = 'assignee'; content = `【打回修改】你的设计单《${globalTaskData.title}》已被打回，请立刻查看修改意见。`; }
+                    else if (act === 'complete') { notifyRole = 'assignee'; content = `【验收完结】恭喜！你的设计单《${globalTaskData.title}》已被甲方满意验收，任务闭环。`; }
+                    else if (act === 'terminate') { notifyRole = 'assignee'; content = `【任务终止】注意：单据《${globalTaskData.title}》已被强行终止并废弃。`; }
+                    
+                    // 2. 如果未来设计师端在这个页面操作了，给上游(发单人或领导)发邮件
+                    else if (act === 'accept') { notifyRole = 'creator'; content = `【已接单】设计师 ${actionPayload.operator} 已接手你的需求：《${globalTaskData.title}》。`; }
+                    else if (act === 'submit_framework') { notifyRole = 'leader'; content = `【框架待审】设计师 ${actionPayload.operator} 上传了中期方案：《${globalTaskData.title}》，请您火速审批把关。`; }
+                    else if (act === 'submit_draft') { notifyRole = 'creator'; content = `【正稿待收】设计师 ${actionPayload.operator} 交付了正式设计稿：《${globalTaskData.title}》，请您火速验收。`; }
+
+                    // 如果匹配到了发送规则
+                    if (notifyRole && content) {
+                        let targetIdentifier = '';
+                        if (notifyRole === 'creator') targetIdentifier = globalTaskData.creator;
+                        else if (notifyRole === 'assignee') targetIdentifier = globalTaskData.assignee;
+                        else if (notifyRole === 'leader') targetIdentifier = 'judyzzhang'; // 给丹楠姐发
+
+                        if (targetIdentifier && targetIdentifier !== 'none') {
+                            const { data: allUsers } = await window.supabase.from('users').select('*');
+                            if (allUsers) {
+                                const targetUser = allUsers.find(u => 
+                                    (u.email && u.email.toLowerCase().includes(targetIdentifier.toLowerCase())) ||
+                                    (u.name && u.name.toLowerCase().includes(targetIdentifier.toLowerCase())) ||
+                                    (u.enName && u.enName.toLowerCase().includes(targetIdentifier.toLowerCase()))
+                                );
+                                
+                                if (targetUser) {
+                                    await window.SysNotification.sendNotice({
+                                        targetId: targetUser.id,
+                                        targetEmail: targetUser.email,
+                                        content: content,
+                                        category: 'update',
+                                        url: `task-detail-designer.html?id=${currentTaskId}` 
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch(err) { console.error("邮件触发布局失败", err); }
+            
             return true;
         }
 
@@ -742,11 +800,56 @@
             }, "danger");
         }
 
-        window.actionUrge = function(btn) {
-            btn.innerHTML = '✓ 已发送系统强提醒';
-            btn.className = "w-full py-3.5 bg-zinc-800 border border-zinc-700 text-zinc-500 rounded-xl text-[13px] font-bold cursor-not-allowed";
+        // ================= 🚀🚀🚀 终极加强：催办直接发邮件 🚀🚀🚀 =================
+        window.actionUrge = async function(btn) {
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<svg class="animate-spin h-3.5 w-3.5 mr-2 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 发送警报邮件中...';
             btn.disabled = true;
-            showToast('催办成功', '已向对方端推送提醒', 'success');
+
+            try {
+                let targetIdentifier = '';
+                let content = '';
+                const title = globalTaskData.title || currentTaskId;
+                const status = globalTaskData.status;
+
+                // 智能判断你要催谁
+                if (status === 'processing' || status === 'rejected') {
+                    targetIdentifier = globalTaskData.assignee;
+                    content = `🚨 催办强提醒：甲方很着急！请加快设计单《${title}》的制作进度。`;
+                } else if (status === 'pending_approval') {
+                    targetIdentifier = 'judyzzhang';
+                    content = `🚨 催办强提醒：设计师已提交框架，等待您的火速审批：《${title}》。`;
+                } else if (status === 'reviewing' || status === 'pending') {
+                    targetIdentifier = globalTaskData.creator;
+                    content = `🚨 催办强提醒：系统提醒您及时跟进单据《${title}》的验收或处理。`;
+                }
+
+                // 找到该人的邮箱并发信
+                if (targetIdentifier && window.SysNotification) {
+                    const { data: allUsers } = await window.supabase.from('users').select('id, email, name, enName');
+                    if (allUsers) {
+                        const targetUser = allUsers.find(u => 
+                            (u.email && u.email.toLowerCase().includes(targetIdentifier.toLowerCase())) ||
+                            (u.name && u.name.toLowerCase().includes(targetIdentifier.toLowerCase())) ||
+                            (u.enName && u.enName.toLowerCase().includes(targetIdentifier.toLowerCase()))
+                        );
+                        
+                        if (targetUser) {
+                            await window.SysNotification.sendNotice({
+                                targetId: targetUser.id,
+                                targetEmail: targetUser.email,
+                                content: content,
+                                category: 'urgent',
+                                url: `task-detail-designer.html?id=${currentTaskId}`
+                            });
+                        }
+                    }
+                }
+            } catch(e) { console.error(e); }
+
+            btn.innerHTML = '✓ 已发送警报通知与系统邮件';
+            btn.className = "w-full py-3.5 bg-zinc-800 border border-zinc-700 text-zinc-500 rounded-xl text-[13px] font-bold cursor-not-allowed";
+            showToast('催办成功', '已向对方直接发送系统强提醒邮件！', 'success');
         }
 
         window.submitApprove = async function() {
