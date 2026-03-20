@@ -245,13 +245,15 @@
                 <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">新密码</label><input type="password" id="new-pwd" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-fuchsia-500 transition-colors" placeholder="输入新密码"></div>
                 <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">确认新密码</label><input type="password" id="new-pwd-confirm" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-fuchsia-500 transition-colors" placeholder="再次输入新密码"></div>
             </div>
-            <button onclick="alert('系统演示环境暂不可自助修改密码'); closePwdModal();" class="w-full mt-6 py-3.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded-xl text-sm font-bold shadow-[0_5px_15px_rgba(217,70,239,0.3)] transition-all btn-press">确认修改并重新登录</button>
+            <button onclick="window.submitPwdChange()" class="w-full mt-6 py-3.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded-xl text-sm font-bold shadow-[0_5px_15px_rgba(217,70,239,0.3)] transition-all btn-press">确认修改并重新登录</button>
         </div>
     </div>
 
     <div id="action-toast" class="fixed top-8 right-8 z-[100000] hidden toast-slide-in">
         <div class="bg-[#1a1a1f] border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-3 w-72">
-            <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0"></div>
+            <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </div>
             <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-[11px] text-zinc-400 mt-0.5">操作已执行。</p></div>
         </div>
     </div>
@@ -319,7 +321,7 @@
             if (confirmCallback) confirmCallback();
         }
 
-        function logout(e) {
+        window.logout = function(e) {
             if(e) e.stopPropagation();
             localStorage.removeItem('activeUserObj'); 
             window.location.href = 'login.html'; 
@@ -367,30 +369,30 @@
         window.loadUsersFromCloud = async function() {
             if(!window.supabase) return;
             try {
-                const { data, error } = await window.supabase.from(window.DB_USERS_TABLE).select('*');
+                // ⚠️ 注意：这里去掉了所有的 perms 和 perms_json 字段！只拉最安全的列
+                const { data, error } = await window.supabase.from(window.DB_USERS_TABLE).select('en_name, cn_name, display_name, password, role');
                 if(error) throw error;
                 
                 globalUsersDB = {}; 
                 (data || []).forEach(row => {
-                    let permsArray = [];
-                    // 兼容处理：确保无论是字符串还是原生数组都能正确解析
-                    if (typeof row.perms === 'string') {
-                        try { permsArray = JSON.parse(row.perms); } catch(e) { permsArray = []; }
-                    } else if (Array.isArray(row.perms)) {
-                        permsArray = row.perms;
-                    } else if (row.perms) {
-                        try { permsArray = JSON.parse(row.perms); } catch(e) { permsArray = []; }
-                    }
+                    // 💡 从 role (身份描述) 反向推导权限，不再依赖数据库里没建的 perms 字段
+                    let derivedPerms = ['req'];
+                    if (row.role === '系统管理员') derivedPerms = ['req', 'design', 'admin'];
+                    else if (row.role === '执行设计师') derivedPerms = ['req', 'design'];
+                    
+                    let derivedColor = 'bg-zinc-800';
+                    if (row.role === '系统管理员') derivedColor = 'bg-fuchsia-700';
+                    else if (row.role === '执行设计师') derivedColor = 'bg-orange-600';
 
                     globalUsersDB[row.en_name] = {
                         enName: row.en_name, 
                         cnName: row.cn_name, 
                         displayName: row.display_name || row.cn_name,
                         password: row.password, 
-                        role: row.role, 
+                        role: row.role || '业务需求方', 
                         avatar: (row.display_name || row.cn_name || row.en_name || 'U').substring(0, 1).toUpperCase(), 
-                        color: 'bg-fuchsia-600',
-                        perms: permsArray
+                        color: derivedColor,
+                        perms: derivedPerms
                     };
                 });
 
@@ -523,11 +525,10 @@
 
             try {
                 if (editKey) {
-                    // 编辑模式：只传有的字段，将 perms_json 改为 perms
+                    // 编辑模式：只传核心字段，绝不碰 perms_json, perms, color, avatar
                     let updatePayload = {
                         cn_name: displayName,
                         display_name: displayName,
-                        perms: JSON.stringify(checkedPerms),
                         role: roleDesc
                     };
                     if (pwd) updatePayload.password = pwd;
@@ -536,7 +537,7 @@
                     if (error) throw error;
                     showToast('已更新', `成员 ${displayName} 权限与资料已保存至云端。`, 'success');
                 } else {
-                    // 新增模式
+                    // 新增模式：只传核心字段，绝不碰 perms_json, perms, color, avatar
                     if(globalUsersDB[enName]) throw new Error('该企微英文名在库中已存在！');
                     if(!pwd) throw new Error('新增用户必须设置初始密码！');
 
@@ -545,7 +546,6 @@
                         cn_name: displayName, 
                         display_name: displayName, 
                         password: pwd,
-                        perms: JSON.stringify(checkedPerms), 
                         role: roleDesc
                     };
                     const { error } = await window.supabase.from(window.DB_USERS_TABLE).insert([newRow]);
