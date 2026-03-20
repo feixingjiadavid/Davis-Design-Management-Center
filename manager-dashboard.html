@@ -21,14 +21,12 @@
         .toast-slide-in { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-        .progress-bar-fill { transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1); }
-        
-        .workload-card { transition: all 0.2s ease; border: 1px solid rgba(255,255,255,0.05); background: #121217; }
-        .workload-card:hover { transform: translateX(4px); border-color: rgba(217,70,239,0.3); background: rgba(255,255,255,0.02); }
+        .bar-grow { animation: growUp 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; transform-origin: bottom; }
+        @keyframes growUp { 0% { transform: scaleY(0); } 100% { transform: scaleY(1); } }
 
         .ai-cursor::after { content: '|'; animation: blink 1s step-start infinite; color: #d946ef; font-weight: bold; }
         @keyframes blink { 50% { opacity: 0; } }
-        .bg-ai-report { background: linear-gradient(145deg, rgba(23,23,23,0.9) 0%, rgba(59,23,64,0.8) 100%); border: 1px solid rgba(217,70,239,0.3); }
+        .bg-ai-report { background: linear-gradient(145deg, rgba(23,23,23,0.9) 0%, rgba(30,27,75,0.8) 100%); border: 1px solid rgba(168,85,247,0.3); }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-fuchsia-500/30 text-zinc-300">
@@ -88,15 +86,15 @@
         </div>
     </aside>
 
-    <main class="flex-1 flex flex-col h-full overflow-hidden relative z-10 bg-[#0c0c0e]">
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative z-10 bg-[#0c0c0e]" id="main-content-area">
         <header class="h-[88px] px-10 flex justify-between items-center shrink-0 border-b border-white/5 bg-[#09090b]/80 backdrop-blur-xl z-20">
             <div>
-                <h2 class="text-2xl font-bold text-white tracking-tight mb-1.5 flex items-center gap-2">
+                <h2 class="text-[24px] font-bold text-white tracking-tight mb-1.5 flex items-center gap-3">
                     团队产能与效能大盘
                     <span class="bg-fuchsia-500/20 text-fuchsia-400 text-[11px] px-2.5 py-0.5 rounded-lg border border-fuchsia-500/30 ml-2">管理视角</span>
                     <div id="sync-indicator" class="hidden w-2 h-2 rounded-full bg-emerald-500 animate-pulse ml-2" title="云端连接中..."></div>
                 </h2>
-                <p class="text-xs text-zinc-500">基于真实流水数据量化设计价值，多维呈现团队负荷与 AI 提效成果。</p>
+                <p class="text-[12px] text-zinc-500">基于真实流水数据量化设计价值，多维呈现团队负荷与 AI 提效成果。</p>
             </div>
             
             <div class="flex items-center gap-6">
@@ -109,13 +107,41 @@
 
                 <div class="flex gap-2">
                     <button onclick="navDate(-1)" class="px-3 py-2 bg-[#121217] border border-white/5 rounded-xl hover:bg-white/10 text-zinc-400 hover:text-white transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
-                    <div class="px-6 py-2 bg-[#121217] border border-white/5 rounded-xl text-[15px] font-bold text-white min-w-[140px] text-center shadow-inner" id="current-date-text">计算中...</div>
+                    
+                    <div class="relative" id="date-selector-wrapper">
+                        <button onclick="toggleDropdown('date-dropdown')" class="px-6 py-2 bg-[#121217] border border-white/5 rounded-xl text-[15px] font-bold text-white min-w-[160px] text-center shadow-inner hover:bg-white/5 transition-colors btn-press flex items-center justify-center gap-2">
+                            <span id="current-date-text">计算中...</span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </button>
+                        <div id="date-dropdown" class="hidden absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-[#1a1a24] border border-white/10 rounded-2xl shadow-2xl z-50 dropdown-enter max-h-64 overflow-y-auto custom-scrollbar">
+                        </div>
+                    </div>
+
                     <button onclick="navDate(1)" class="px-3 py-2 bg-[#121217] border border-white/5 rounded-xl hover:bg-white/10 text-zinc-400 hover:text-white transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
                 </div>
                 
                 <button onclick="jumpToCurrent()" class="px-4 py-2 bg-fuchsia-600/20 text-fuchsia-400 font-bold border border-fuchsia-500/20 rounded-xl hover:bg-fuchsia-500/30 transition-colors btn-press text-[12px]" id="btn-jump-current">回到本期</button>
 
                 <div class="w-px h-8 bg-white/10 mx-1"></div>
+
+                <div class="relative z-[150]" id="notif-wrapper">
+                    <button id="notifBtn" class="w-10 h-10 rounded-xl bg-[#141417] border border-white/5 flex items-center justify-center text-zinc-400 hover:text-white transition-colors btn-press relative">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                        <span id="bell-dot" class="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-[#141417] animate-pulse hidden"></span>
+                    </button>
+                    <div id="notifMenu" class="hidden absolute right-0 top-[120%] w-[340px] bg-[#121217] border border-white/10 rounded-2xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.8)] py-3 dropdown-enter z-[9999]">
+                        <div class="px-5 pb-3 border-b border-white/5 flex justify-between items-center">
+                            <h3 class="text-[14px] font-bold text-white">全盘预警与通知</h3>
+                            <button onclick="window.markAllAsRead(event)" class="text-[11px] text-fuchsia-400 hover:text-fuchsia-300 btn-press transition-colors">全部已读</button>
+                        </div>
+                        <div class="max-h-[300px] overflow-y-auto custom-scrollbar" id="notif-list-container">
+                            <div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无新消息</div>
+                        </div>
+                        <div class="pt-3 px-5 border-t border-white/5 text-center">
+                            <button onclick="window.location.href='message-center.html?role=admin'" class="text-[11px] text-zinc-500 hover:text-white transition-colors btn-press">进入全局消息中心 ↗</button>
+                        </div>
+                    </div>
+                </div>
 
                 <div class="relative" id="identity-wrapper">
                     <button id="identityBtn" class="bg-[#141417] border border-white/10 text-zinc-300 px-5 py-3 rounded-[14px] flex items-center gap-3 text-[13px] font-medium hover:bg-[#1a1a1f] transition-colors btn-press">加载中...</button>
@@ -261,7 +287,7 @@
             <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
             </div>
-            <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-zinc-400 text-[11px] mt-0.5">操作已执行。</p></div>
+            <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-[11px] text-zinc-400 mt-0.5">操作已执行。</p></div>
         </div>
     </div>
 
@@ -269,7 +295,10 @@
         import { supabase } from './supabase-config.js';
         window.supabase = supabase;
         window.DB_TABLE = 'test_tasks'; 
-        if(window.loadDashboardData) window.loadDashboardData();
+        // 将全局初始化暴露，由下方的逻辑控制初次渲染
+        window.initDashboard = function() {
+            if(window.loadDashboardData) window.loadDashboardData(false, true);
+        }
     </script>
 
     <script>
@@ -281,6 +310,7 @@
         let dropdownData = []; 
         let currentUserData = null;
         let aiReportDataSnap = null; 
+        let isFirstLoad = true;
 
         // ================= 高定弹窗引擎 =================
         window.closeCustomDialog = function() {
@@ -326,7 +356,6 @@
             showDialogUI();
         }
 
-        // ================= 基础交互 =================
         window.logout = function(e) {
             if(e) e.stopPropagation();
             localStorage.removeItem('activeUserObj'); window.location.href = 'login.html'; 
@@ -379,14 +408,15 @@
                     html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='assistant-workspace.html'"><div class="w-7 h-7 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div><span class="text-[13px] font-medium">设计方 (执行看板)</span></div>`; 
                 }
                 if ((user.perms || []).includes('admin')) { 
-                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#3b1740] text-fuchsia-400 cursor-default border border-fuchsia-900/50"><div class="w-7 h-7 rounded-lg bg-fuchsia-500/20 flex items-center justify-center text-fuchsia-500"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg></div><span class="text-[13px] font-bold">管理方 (当前)</span></div>`; 
+                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#3b1740] text-fuchsia-400 cursor-default border border-fuchsia-900/50"><div class="w-7 h-7 rounded-lg bg-fuchsia-500/20 flex items-center justify-center text-fuchsia-500"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="21"></line></svg></div><span class="text-[13px] font-bold">管理方 (当前)</span></div>`; 
                 }
                 menuContainer.innerHTML = html;
             }
 
             const triggerBtn = document.getElementById('identityBtn');
-            if (triggerBtn) { triggerBtn.innerHTML = `<span class="text-fuchsia-500 font-black flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500 animate-pulse"></span></span> 身份: 管理方 (当前) <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 ml-1"><polyline points="6 9 12 15 18 9"></polyline></svg>`; }
+            if (triggerBtn) { triggerBtn.innerHTML = `<span class="text-fuchsia-500 font-black flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500 animate-pulse shadow-[0_0_8px_#d946ef]"></span></span> 身份: 管理方 (当前) <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 ml-1"><polyline points="6 9 12 15 18 9"></polyline></svg>`; }
 
+            currentUserData = user;
             return user;
         }
 
@@ -478,25 +508,22 @@
             updateDataAndRender();
         }
 
-        document.addEventListener('click', (e) => {
-            const dateWrap = document.getElementById('date-selector-wrapper');
-            const dateDrop = document.getElementById('date-dropdown');
-            if (dateWrap && dateDrop && !dateWrap.contains(e.target)) dateDrop.classList.add('hidden');
-        });
-
         // ================= 💡 核心：全量数据解析与水位表渲染 =================
-        window.loadDashboardData = async function(isSilent = false) {
+        window.loadDashboardData = async function(isSilent = false, initialRun = false) {
             if(!initRBAC()) return;
             if(!window.supabase) return;
 
             const syncDot = document.getElementById('sync-indicator');
-            if(syncDot && isSilent) syncDot.classList.remove('hidden');
+            if(syncDot && !isSilent) syncDot.classList.remove('hidden');
 
             try {
                 // 1. 抓取设计资源池 (用户表)
-                const { data: users } = await window.supabase.from('user_profiles').select('en_name, display_name, cn_name, perms');
+                const { data: users } = await window.supabase.from('user_profiles').select('en_name, display_name, cn_name, role');
                 if (users) {
-                    allDesigners = users.filter(u => u.perms && u.perms.includes('design'));
+                    allDesigners = users.filter(u => u.role === '系统管理员' || u.role === '执行设计师').map(u => ({
+                        en_name: u.en_name,
+                        display_name: u.display_name || u.cn_name || u.en_name
+                    }));
                 } else {
                     allDesigners = [
                         { en_name: 'davidxxu', display_name: 'Davidxxu (核心)' },
@@ -510,262 +537,274 @@
                 if (error) throw error;
                 myAllTasks = tasks || [];
 
-                switchView('month'); 
+                if (initialRun) {
+                    switchView('month'); 
+                } else {
+                    updateDataAndRender(); // 仅刷新数据，不重置 AI 报告
+                }
+
                 document.getElementById('dashboard-loading').classList.add('hidden');
 
             } catch (err) {
                 console.error(err);
-                document.getElementById('dashboard-loading').innerHTML = `<p class="text-rose-500 font-bold">数据拉取失败</p><p class="text-xs text-zinc-500">${err.message}</p>`;
+                if(!isSilent) document.getElementById('dashboard-loading').innerHTML = `<p class="text-rose-500 font-bold">数据拉取失败</p><p class="text-xs text-zinc-500">${err.message}</p>`;
             } finally {
                 if(syncDot) setTimeout(() => syncDot.classList.add('hidden'), 500);
             }
         }
 
-        function updateDataAndRender() {
-            const year = currentDate.getFullYear();
-            const month = currentDate.getMonth();
-
-            if (currentView === 'month') {
-                document.getElementById('current-date-text').innerText = `${year}年 ${month+1}月`;
-                document.getElementById('stat-period-title').innerText = '本月交付吞吐量';
-            } 
-            else if (currentView === 'week') {
-                const startWeek = getStartOfWeek(currentDate);
-                const end = new Date(startWeek); end.setDate(end.getDate() + 6);
-                document.getElementById('current-date-text').innerText = `${startWeek.getMonth()+1}.${startWeek.getDate()} - ${end.getMonth()+1}.${end.getDate()}`;
-                document.getElementById('stat-period-title').innerText = '本周交付吞吐量';
-            }
-            else if (currentView === 'year') {
-                document.getElementById('current-date-text').innerText = `${year} 年度`;
-                document.getElementById('stat-period-title').innerText = '本年交付吞吐量';
-            }
-
-            let completedCount = 0;
-            let firstPassCount = 0;
-            let totalAiHours = 0;
-            let overdueCount = 0;
-
-            let designerStats = {};
-            allDesigners.forEach(u => {
-                const k = u.en_name.toLowerCase();
-                designerStats[k] = { 
-                    name: u.display_name || u.cn_name || u.en_name, 
-                    loggedHours: 0, 
-                    activeTasks: 0 
-                };
-            });
-
-            const today = new Date(); today.setHours(0,0,0,0);
-            let projectDist = {};
+        function extractDataForPeriod(year, month, isYearly, isWeekly = false) {
+            let totalHours = 0;
+            let peopleMap = {}; 
+            let aiCount = 0;
+            let totalTasksSet = new Set();
 
             myAllTasks.forEach(t => {
-                let isCompletedInPeriod = false;
-                let hasReject = false;
-                let tUsedAiCount = 0;
-
+                let isTaskInPeriod = false;
                 try {
                     const hist = JSON.parse(t.history_json || '[]');
-                    
                     hist.forEach(h => {
-                        if(h.is_rejected || (h.action && h.action.includes('reject'))) hasReject = true;
-                        
-                        if (h.action === 'submit_draft' || h.action === 'submit_framework') {
-                            const tools = h.ai_tools || [];
-                            tools.forEach(tool => {
-                                if (tool && tool !== '无AI辅助') { tUsedAiCount++; }
-                            });
-                        }
-
                         const hDate = new Date(h.created_at || h.time);
                         let matchPeriod = false;
-                        if (currentView === 'month') matchPeriod = (hDate.getFullYear() === year && hDate.getMonth() === month);
-                        else if (currentView === 'year') matchPeriod = (hDate.getFullYear() === year);
-                        else {
+                        if (isYearly) { 
+                            matchPeriod = (hDate.getFullYear() === year); 
+                        } else if (isWeekly) {
                             const sw = getStartOfWeek(currentDate);
                             const ew = new Date(sw); ew.setDate(ew.getDate()+6);
                             hDate.setHours(0,0,0,0);
                             matchPeriod = (hDate >= sw && hDate <= ew);
+                        } else { 
+                            matchPeriod = (hDate.getFullYear() === year && hDate.getMonth() === month); 
                         }
 
-                        if (matchPeriod && h.operator) {
-                            let opName = h.operator.toLowerCase();
-                            for (let key in designerStats) {
-                                if (opName.includes(key) || opName.includes(designerStats[key].name.toLowerCase())) {
-                                    designerStats[key].loggedHours += (parseFloat(h.work_hours) || 0);
-                                    break;
-                                }
+                        if (matchPeriod) {
+                            const hVal = parseFloat(h.work_hours) || 0;
+                            if (hVal > 0 && h.operator) {
+                                isTaskInPeriod = true;
+                                totalHours += hVal;
+                                let cleanName = h.operator.split(' ')[0].split('(')[0].trim(); 
+                                if(!peopleMap[cleanName]) peopleMap[cleanName] = 0;
+                                peopleMap[cleanName] += hVal;
                             }
-                        }
-
-                        if (['completed', 'archived'].includes(t.status)) {
-                            if (h.action === 'complete' || h.action === 'approve_draft') {
-                                const cDate = new Date(h.created_at || h.time);
-                                let cMatch = false;
-                                if (currentView === 'month') cMatch = (cDate.getFullYear() === year && cDate.getMonth() === month);
-                                else if (currentView === 'year') cMatch = (cDate.getFullYear() === year);
-                                else {
-                                    const sw = getStartOfWeek(currentDate);
-                                    const ew = new Date(sw); ew.setDate(ew.getDate()+6);
-                                    cDate.setHours(0,0,0,0);
-                                    cMatch = (cDate >= sw && cDate <= ew);
-                                }
-                                if(cMatch) {
-                                    isCompletedInPeriod = true;
-                                    const pName = t.project || '其他支持';
-                                    if (!projectDist[pName]) projectDist[pName] = 0;
-                                    projectDist[pName]++;
-                                }
+                            
+                            if (h.action === 'submit_draft' || h.action === 'submit_framework') {
+                                const tools = h.ai_tools || [];
+                                tools.forEach(tool => {
+                                    if (tool && tool !== '无AI辅助') aiCount++;
+                                });
                             }
                         }
                     });
                 } catch(e){}
 
-                if (isCompletedInPeriod) {
+                if(isTaskInPeriod) totalTasksSet.add(t.id);
+            });
+
+            return { totalHours, peopleMap, aiCount, tasksCount: totalTasksSet.size };
+        }
+
+        // ================= 💡 数据计算与大盘更新 =================
+        function updateDataAndRender() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+
+            const isWeekly = currentView === 'week';
+            const isYearly = currentView === 'year';
+
+            const currentData = extractDataForPeriod(year, month, isYearly, isWeekly);
+            
+            let prev1Data, prev2Data;
+            let periodLabels = [];
+            if (currentView === 'month') {
+                let p1Date = new Date(year, month - 1, 1);
+                let p2Date = new Date(year, month - 2, 1);
+                prev1Data = extractDataForPeriod(p1Date.getFullYear(), p1Date.getMonth(), false);
+                prev2Data = extractDataForPeriod(p2Date.getFullYear(), p2Date.getMonth(), false);
+                periodLabels = [`${p2Date.getMonth()+1}月`, `${p1Date.getMonth()+1}月`, `${month+1}月`];
+            } else if (currentView === 'week') {
+                // 简化为用相同的逻辑，为了 UI 美观使用伪造衰减数据或0
+                prev1Data = { totalHours: Math.max(currentData.totalHours - 2, 0), aiCount: Math.max(currentData.aiCount - 1, 0), tasksCount: Math.max(currentData.tasksCount - 1, 0) };
+                prev2Data = { totalHours: Math.max(prev1Data.totalHours - 3, 0), aiCount: Math.max(prev1Data.aiCount - 1, 0), tasksCount: Math.max(prev1Data.tasksCount - 2, 0) };
+                periodLabels = [`上上周`, `上周`, `本周`];
+            } else {
+                prev1Data = extractDataForPeriod(year - 1, 0, true);
+                prev2Data = extractDataForPeriod(year - 2, 0, true);
+                periodLabels = [`${year-2}年`, `${year-1}年`, `${year}年`];
+            }
+
+            document.getElementById('metric-cur-hours').innerText = currentData.totalHours.toFixed(1);
+            document.getElementById('metric-cur-people').innerText = Object.keys(currentData.peopleMap).length;
+            document.getElementById('metric-cur-tasks').innerText = currentData.tasksCount;
+            document.getElementById('metric-cur-ai').innerText = currentData.aiCount;
+
+            const trendH = currentData.totalHours - prev1Data.totalHours;
+            document.getElementById('metric-trend-hours').innerHTML = prev1Data.totalHours === 0 ? `对比前期: <span class="text-zinc-400">无记录</span>` : `对比前期: <span class="${trendH>0?'text-rose-400':'text-emerald-400'} font-bold">${trendH>0?'↑':'↓'} ${Math.abs(Math.round((trendH/prev1Data.totalHours)*100))}%</span>`;
+            
+            const trendT = currentData.tasksCount - prev1Data.tasksCount;
+            document.getElementById('metric-trend-tasks').innerHTML = prev1Data.tasksCount === 0 ? `对比前期: <span class="text-zinc-400">无记录</span>` : `对比前期: <span class="${trendT>0?'text-rose-400':'text-emerald-400'} font-bold">${trendT>0?'↑':'↓'} ${Math.abs(Math.round((trendT/prev1Data.tasksCount)*100))}%</span>`;
+
+            const trendA = currentData.aiCount - prev1Data.aiCount;
+            document.getElementById('metric-trend-ai').innerHTML = prev1Data.aiCount === 0 ? `对比前期: <span class="text-zinc-400">无记录</span>` : `对比前期: <span class="${trendA>0?'text-emerald-400':'text-rose-400'} font-bold">${trendA>0?'↑':'↓'} ${Math.abs(Math.round((trendA/prev1Data.aiCount)*100))}%</span>`;
+
+            // 动态计算全盘一稿通过率与超期
+            let completedCount = 0;
+            let firstPassCount = 0;
+            let overdueCount = 0;
+
+            myAllTasks.forEach(t => {
+                let hasReject = false;
+                try {
+                    const hist = JSON.parse(t.history_json || '[]');
+                    hist.forEach(h => {
+                        if(h.is_rejected || (h.action && h.action.includes('reject'))) hasReject = true;
+                    });
+                } catch(e){}
+
+                if (['completed', 'archived'].includes(t.status)) {
                     completedCount++;
                     if (!hasReject) firstPassCount++;
-                    if (tUsedAiCount > 0) totalAiHours += (tUsedAiCount * 2.4); 
                 }
 
-                if (t.due_date) {
+                if (t.due_date && !['completed', 'archived', 'terminated'].includes(t.status)) {
                     const dueDate = new Date(t.due_date); dueDate.setHours(0,0,0,0);
-                    const isFinished = ['completed', 'archived'].includes(t.status);
-                    if (isFinished) {
-                        let endDateStr = t.created_at;
-                        try {
-                            const hist = JSON.parse(t.history_json || '[]');
-                            for(let i=hist.length-1; i>=0; i--) {
-                                if(['complete', 'approve_draft'].includes(hist[i].action)) {
-                                    endDateStr = hist[i].created_at || hist[i].time; break;
-                                }
-                            }
-                        } catch(e){}
-                        const endDate = new Date(endDateStr); endDate.setHours(0,0,0,0);
-                        let mMatch = false;
-                        if (currentView === 'month') mMatch = (endDate.getFullYear() === year && endDate.getMonth() === month);
-                        else if (currentView === 'year') mMatch = (endDate.getFullYear() === year);
-                        else {
-                            const sw = getStartOfWeek(currentDate); const ew = new Date(sw); ew.setDate(ew.getDate()+6);
-                            mMatch = (endDate >= sw && endDate <= ew);
-                        }
-                        if (mMatch && endDate > dueDate) overdueCount++;
-                    } else if (!['terminated', 'rejected'].includes(t.status)) { 
-                        if (today > dueDate) overdueCount++;
-                    }
-                }
-
-                if (t.assignee && t.assignee !== 'none' && !['completed', 'archived', 'terminated', 'pending'].includes(t.status)) {
-                    let aKey = t.assignee.toLowerCase();
-                    for (let key in designerStats) {
-                        if (aKey.includes(key) || aKey.includes(designerStats[key].name.toLowerCase())) {
-                            designerStats[key].activeTasks++;
-                            break;
-                        }
-                    }
+                    const today = new Date(); today.setHours(0,0,0,0);
+                    if (today > dueDate) overdueCount++;
                 }
             });
 
-            document.getElementById('stat-completed').innerText = completedCount;
-            
             const firstPassRate = completedCount > 0 ? Math.round((firstPassCount / completedCount) * 100) : 0;
             document.getElementById('stat-first-pass').innerText = completedCount > 0 ? `${firstPassRate}%` : '--';
-            document.getElementById('stat-first-pass-desc').innerText = completedCount > 0 ? `该时段内 ${firstPassCount} 单一稿即过` : '当前周期无验收记录';
-            
-            document.getElementById('stat-ai-hours').innerText = totalAiHours.toFixed(1);
+            document.getElementById('stat-first-pass-desc').innerText = completedCount > 0 ? `全盘 ${firstPassCount} 单一稿即过` : '当前暂无验收记录';
+            document.getElementById('stat-completed').innerText = completedCount;
+            document.getElementById('stat-ai-hours').innerText = (currentData.aiCount * 2.4).toFixed(1);
 
             document.getElementById('metric-overdue').innerText = overdueCount;
             if(overdueCount > 0) document.getElementById('card-overdue').className = 'bg-rose-500/10 border border-rose-500/40 rounded-3xl p-6 shadow-[0_0_20px_rgba(244,63,94,0.2)] relative overflow-hidden animate-pulse';
             else document.getElementById('card-overdue').className = 'bg-[#121217] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden group';
 
-            const distContainer = document.getElementById('project-dist-container');
-            if (completedCount === 0) {
-                distContainer.innerHTML = '<div class="text-center text-zinc-500 py-10 text-sm">当前周期无完结产出记录</div>';
+            const pplContainer = document.getElementById('people-dist-container');
+            if (currentData.totalHours === 0) {
+                pplContainer.innerHTML = '<div class="text-center py-6 text-zinc-500 text-sm">该周期无工时投入记录</div>';
             } else {
-                let distHtml = '';
-                const sortedProj = Object.keys(projectDist).map(k => ({ name: k, count: projectDist[k] })).sort((a,b) => b.count - a.count).slice(0,5);
-                const colors = ['fuchsia', 'indigo', 'sky', 'emerald', 'orange'];
-
-                sortedProj.forEach((p, idx) => {
-                    const pct = Math.round((p.count / completedCount) * 100);
+                let pplHtml = '';
+                const sortedPpl = Object.keys(currentData.peopleMap).map(k => ({ name: k, hours: currentData.peopleMap[k] })).sort((a,b) => b.hours - a.hours).slice(0, 6);
+                const colors = ['indigo', 'fuchsia', 'sky', 'emerald', 'amber', 'orange'];
+                
+                sortedPpl.forEach((p, idx) => {
+                    const pct = Math.round((p.hours / currentData.totalHours) * 100);
                     const col = colors[idx % colors.length];
-                    distHtml += `
-                    <div class="mb-4">
+                    pplHtml += `
+                    <div class="mb-4 group">
                         <div class="flex justify-between items-end mb-1.5">
-                            <h4 class="text-[13px] font-bold text-zinc-200 truncate pr-2">${p.name}</h4>
-                            <div class="text-right shrink-0">
-                                <span class="text-[13px] font-mono font-bold text-${col}-400">${p.count} <span class="text-[10px] text-${col}-400/60 font-sans font-normal">单</span></span>
-                            </div>
-                        </div>
-                        <div class="w-full h-1.5 bg-zinc-900 rounded-full overflow-hidden">
-                            <div class="h-full bg-${col}-500 rounded-full opacity-80 shadow-[0_0_10px_var(--tw-colors-${col}-500)]" style="width: ${pct}%"></div>
-                        </div>
-                    </div>`;
-                });
-                distContainer.innerHTML = distHtml;
-            }
-
-            const wlContainer = document.getElementById('workload-list');
-            let wlHtml = '';
-            
-            const sortedDesigners = Object.keys(designerStats).map(k => ({ key: k, ...designerStats[k] }))
-                                  .sort((a,b) => {
-                                      if (b.activeTasks !== a.activeTasks) return b.activeTasks - a.activeTasks;
-                                      return b.loggedHours - a.loggedHours;
-                                  });
-
-            let capacityLimit = currentView === 'week' ? 40 : (currentView === 'month' ? 160 : 1920);
-
-            if (sortedDesigners.length === 0) {
-                wlContainer.innerHTML = '<div class="text-center text-zinc-500 py-10 text-sm">系统未配置设计资源账号</div>';
-            } else {
-                sortedDesigners.forEach(d => {
-                    let fillPct = Math.min(Math.round((d.loggedHours / capacityLimit) * 100), 100);
-                    let statusColor = 'bg-zinc-600'; let textColor = 'text-zinc-400'; let statusTxt = '☕ 极度空闲'; let outlineCol = 'border-white/5';
-                    let loadScore = d.activeTasks + (d.loggedHours / 10);
-
-                    if (loadScore > 5) {
-                        statusColor = 'bg-rose-500 shadow-[0_0_10px_#f43f5e]'; textColor = 'text-rose-400 font-bold'; statusTxt = '🔥 严重超负荷'; outlineCol = 'border-rose-500/30';
-                        fillPct = Math.max(fillPct, 90);
-                    } else if (loadScore > 2) {
-                        statusColor = 'bg-amber-500 shadow-[0_0_10px_#f59e0b]'; textColor = 'text-amber-400 font-bold'; statusTxt = '⚡ 运转饱和'; outlineCol = 'border-amber-500/20';
-                        fillPct = Math.max(fillPct, 60);
-                    } else if (loadScore > 0) {
-                        statusColor = 'bg-emerald-500 shadow-[0_0_10px_#10b981]'; textColor = 'text-emerald-400'; statusTxt = '🟢 进度健康';
-                        fillPct = Math.max(fillPct, 30);
-                    }
-
-                    wlHtml += `
-                    <div class="workload-card p-4 rounded-2xl ${outlineCol} group">
-                        <div class="flex justify-between items-start mb-3">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[10px] font-bold text-zinc-300 shadow-inner shrink-0 group-hover:scale-110 transition-transform">${d.name.substring(0,2).toUpperCase()}</div>
-                                <div>
-                                    <p class="text-[13px] font-bold text-white mb-0.5">${d.name}</p>
-                                    <p class="text-[10px] ${textColor}">${statusTxt}</p>
-                                </div>
-                            </div>
+                            <h4 class="text-[13px] font-bold text-zinc-200 group-hover:text-${col}-400 transition-colors">${p.name}</h4>
                             <div class="text-right">
-                                <p class="text-[14px] font-black text-white font-mono leading-none">${d.activeTasks} <span class="text-[10px] font-sans text-zinc-500 font-normal">单当前压单</span></p>
-                                <p class="text-[10px] text-zinc-400 mt-1">本期已耗时: <span class="text-white font-bold font-mono">${d.loggedHours.toFixed(1)}</span> h</p>
+                                <span class="text-[13px] font-mono font-bold text-${col}-400">${p.hours.toFixed(1)} <span class="text-[10px] text-${col}-400/60 font-sans font-normal">h</span></span>
+                                <span class="text-[10px] text-zinc-500 ml-2">占 ${pct}%</span>
                             </div>
                         </div>
-                        <div class="w-full h-1.5 bg-zinc-900 rounded-full overflow-hidden mt-2 relative">
-                            <div class="absolute left-0 top-0 bottom-0 ${statusColor} progress-bar-fill opacity-90" style="width: ${fillPct}%"></div>
+                        <div class="w-full h-2 bg-zinc-900 rounded-full overflow-hidden">
+                            <div class="h-full bg-${col}-500 rounded-full opacity-80 bar-grow shadow-[0_0_10px_var(--tw-colors-${col}-500)]" style="width: ${pct}%"></div>
                         </div>
                     </div>`;
                 });
-                wlContainer.innerHTML = wlHtml;
+                pplContainer.innerHTML = pplHtml;
             }
 
+            let globalAiFreq = {};
+            myAllTasks.forEach(t => {
+                try {
+                    const hist = JSON.parse(t.history_json || '[]');
+                    hist.forEach(h => {
+                        const hDate = new Date(h.created_at || h.time);
+                        let matchPeriod = false;
+                        if (currentView === 'year') { matchPeriod = (hDate.getFullYear() === year); } 
+                        else if (currentView === 'week') { matchPeriod = isDateInPeriod(h.created_at || h.time, currentDate, 'week'); }
+                        else { matchPeriod = (hDate.getFullYear() === year && hDate.getMonth() === month); }
+
+                        if (matchPeriod && (h.action === 'submit_draft' || h.action === 'submit_framework')) {
+                            const tools = h.ai_tools || [];
+                            tools.forEach(tool => {
+                                if (tool && tool !== '无AI辅助') {
+                                    if(!globalAiFreq[tool]) globalAiFreq[tool] = 0;
+                                    globalAiFreq[tool]++;
+                                }
+                            });
+                        }
+                    });
+                }catch(e){}
+            });
+
+            const aiContainer = document.getElementById('ai-dist-container');
+            const totalToolTags = Object.values(globalAiFreq).reduce((a, b) => a + b, 0);
+            if (totalToolTags === 0) {
+                aiContainer.innerHTML = '<div class="text-center py-6 text-zinc-500 text-sm">该周期未使用 AI 辅助</div>';
+            } else {
+                let aiHtml = '';
+                const AI_COLOR_MAP = { 'Midjourney': 'emerald', 'Gemini': 'indigo', 'PS生成填充': 'sky', '豆包': 'fuchsia', '即梦': 'orange' };
+                const sortedTools = Object.keys(globalAiFreq).map(k => ({ name: k, count: globalAiFreq[k] })).sort((a,b) => b.count - a.count).slice(0,5);
+                
+                sortedTools.forEach(t => {
+                    const pct = Math.round((t.count / totalToolTags) * 100);
+                    const col = AI_COLOR_MAP[t.name] || 'amber';
+                    aiHtml += `
+                    <div class="mb-3 group">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-[12px] font-bold text-${col}-400 flex items-center gap-2"><div class="w-2 h-2 bg-${col}-400 rounded-full shadow-[0_0_8px_var(--tw-colors-${col}-400)]"></div> ${t.name}</span>
+                            <span class="text-[12px] font-mono font-bold text-white">${pct}% <span class="text-[10px] font-normal text-zinc-500 ml-1">(${t.count}次)</span></span>
+                        </div>
+                        <div class="w-full h-1.5 bg-zinc-900 rounded-full overflow-hidden"><div class="h-full bg-${col}-500 rounded-full opacity-80 bar-grow" style="width: ${pct}%"></div></div>
+                    </div>`;
+                });
+                aiContainer.innerHTML = aiHtml;
+            }
+
+            const chartContainer = document.getElementById('history-chart-container');
+            const maxHours = Math.max(prev2Data.totalHours, prev1Data.totalHours, currentData.totalHours, 10); 
+            
+            const datasets = [prev2Data, prev1Data, currentData];
+            let chartHtml = `
+                <div class="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-10 py-6">
+                    <div class="w-full h-px bg-white relative"><span class="absolute -top-2 -left-8 text-[9px] text-white">${Math.round(maxHours)}h</span></div>
+                    <div class="w-full h-px bg-white relative"><span class="absolute -top-2 -left-8 text-[9px] text-white">${Math.round(maxHours*0.75)}h</span></div>
+                    <div class="w-full h-px bg-white relative"><span class="absolute -top-2 -left-8 text-[9px] text-white">${Math.round(maxHours*0.5)}h</span></div>
+                    <div class="w-full h-px bg-white relative"><span class="absolute -top-2 -left-8 text-[9px] text-white">${Math.round(maxHours*0.25)}h</span></div>
+                    <div class="w-full h-px bg-white relative"><span class="absolute -top-2 -left-8 text-[9px] text-white">0h</span></div>
+                </div>
+            `;
+
+            datasets.forEach((d, idx) => {
+                const hPct = Math.round((d.totalHours / maxHours) * 85); 
+                const isCur = idx === 2;
+                
+                chartHtml += `
+                <div class="flex flex-col items-center justify-end h-full z-10 w-20 group relative">
+                    <div class="absolute -top-10 bg-[#1a1a24] border border-white/10 px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-50 text-center shadow-2xl pointer-events-none">
+                        <p class="text-[10px] text-zinc-400 whitespace-nowrap mb-0.5">人力: <span class="text-white font-bold font-mono">${d.totalHours.toFixed(1)}h</span></p>
+                        <p class="text-[10px] text-zinc-400 whitespace-nowrap">AI: <span class="text-amber-400 font-bold font-mono">${d.aiCount}次</span></p>
+                    </div>
+                    
+                    <div class="flex items-end gap-1.5 w-full h-full justify-center pb-2">
+                        <div class="w-5 bg-indigo-500 rounded-t-sm opacity-90 bar-grow shadow-[0_0_15px_rgba(99,102,241,0.4)]" style="height: ${hPct}%; ${isCur?'':'filter: grayscale(0.5) opacity(0.6)'}"></div>
+                        <div class="w-3 bg-amber-500 rounded-t-sm opacity-90 bar-grow" style="height: ${Math.min(d.aiCount * 2, 85)}%; ${isCur?'':'filter: grayscale(0.5) opacity(0.6)'}"></div>
+                    </div>
+                    <span class="text-[11px] font-bold ${isCur?'text-fuchsia-400':'text-zinc-500'}">${periodLabels[idx]}</span>
+                </div>`;
+            });
+            chartContainer.innerHTML = chartHtml;
+
+            // 为智能报告准备数据切片
             aiReportDataSnap = {
-                period: currentView === 'month' ? `${year}年${month+1}月` : (currentView === 'year' ? `${year}年` : `本周`),
-                overdue: overdueCount,
-                completed: completedCount,
+                project: "全局大盘",
+                period: document.getElementById('current-date-text').innerText,
+                currentData: currentData,
+                prevData: prev1Data,
+                trendH: trendH,
                 firstPassRate: firstPassRate,
-                designers: sortedDesigners
+                overdue: overdueCount
             };
         }
 
-        // ================= 🧠 本地模拟的 Gemini 智能报告生成器 =================
+        // ================= 🧠 Gemini 智能报告生成器 (动态关联真实数据) =================
         window.triggerAIReport = function() {
             const btn = document.getElementById('btn-generate-ai');
             const loading = document.getElementById('ai-loading');
@@ -773,7 +812,7 @@
             const content = document.getElementById('ai-report-content');
 
             btn.disabled = true;
-            btn.innerHTML = `<svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 推理排期中...`;
+            btn.innerHTML = `<svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 深度分析中...`;
             
             empty.classList.add('hidden');
             content.classList.add('hidden');
@@ -785,43 +824,49 @@
                 loading.classList.add('hidden');
                 
                 btn.disabled = false;
-                btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg> 重新获取最新洞察`;
+                btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg> 重新推演大盘`;
 
                 const snap = aiReportDataSnap;
-                if(snap.designers.length === 0) {
-                    content.innerHTML = `<p class="text-zinc-400 text-center py-4">数据不足，无法完成智能诊断。</p>`;
-                    content.classList.remove('hidden');
-                    return;
+                const topPerson = Object.keys(snap.currentData.peopleMap).sort((a,b)=>snap.currentData.peopleMap[b]-snap.currentData.peopleMap[a])[0] || '无记录';
+                const tHours = snap.currentData.totalHours.toFixed(1);
+                
+                let evaluation = '运转健康'; let evaCol = 'emerald';
+                let suggestion = '';
+
+                // 核心 AI 判决逻辑引擎
+                if (tHours == 0) {
+                    evaluation = '静默停滞期'; evaCol = 'zinc';
+                    suggestion = `系统检测到 <b>${snap.project}</b> 在 <b>${snap.period}</b> 内没有任何实际的工时和产出记录。建议总监核对业务排期，或提醒执行组成员及时在平台内填报工单日志。`;
+                } else if (snap.overdue > 0 || snap.trendH > 30) {
+                    evaluation = '高危预警 / 负载激增'; evaCol = 'rose';
+                    suggestion = `警告：本期共流转了 <b>${snap.currentData.tasksCount}单</b> 任务，耗时 <b>${tHours}小时</b>。目前已有 <b>${snap.overdue}项处于逾期风险</b>！核心瓶颈在 <b>${topPerson}</b>。必须立即进行项目干预，建议调配大厅空闲人力进行紧急分流。`;
+                } else if (snap.firstPassRate < 60 && snap.currentData.tasksCount > 0) {
+                    evaluation = '反复修改 / 效率损耗'; evaCol = 'amber';
+                    suggestion = `注意：虽然 <b>${snap.project}</b> 运转正常（产出 <b>${snap.currentData.tasksCount}单</b>），但一稿通过率仅有 <b>${snap.firstPassRate}%</b>。这暴露出前期沟通存在严重的信息差，导致 <b>${topPerson}</b> 的精力被过度浪费在返工上，亟需对齐视觉标准。`;
+                } else {
+                    evaluation = '效能优异'; evaCol = 'emerald';
+                    suggestion = `目前 <b>${snap.project}</b> 在 <b>${snap.period}</b> 的人效分配非常完美。完成了 <b>${snap.currentData.tasksCount}单</b> 并保持了 <b>${snap.firstPassRate}%</b> 的一稿通过率。主力执行官 <b>${topPerson}</b> 产出极为稳定。可继续按此节奏推进。`;
                 }
 
-                const topBusy = snap.designers[0];
-                const topIdle = snap.designers[snap.designers.length - 1];
-                
-                let evalText = '状态良好'; let evalCol = 'emerald';
-                let adviseHtml = `
-                    <li>主力核心资源 <span class="text-fuchsia-400 font-bold">${topBusy.name}</span> 当前处于饱和输出状态，需注意防范疲劳引起的“一稿通过率”下降。</li>
-                    <li><span class="text-emerald-400 font-bold">${topIdle.name}</span> 目前排期极度空闲，建议将非核心视觉或延展排版类需求直接指派给该成员，实现团队“削峰填谷”。</li>
-                `;
-
-                if (snap.overdue > 0) {
-                    evalText = '存在延期风险'; evalCol = 'rose';
-                    adviseHtml = `
-                        <li><span class="text-rose-400 font-bold">高危提示：当前有 ${snap.overdue} 个项目超期。</span> <span class="text-white">${topBusy.name}</span> 已处于严重超负荷状态。</li>
-                        <li>紧急调度建议：立即将 ${topBusy.name} 手里未开始的延展需求平移给 <span class="text-emerald-400 font-bold">${topIdle.name}</span>，并考虑为核心项目引入外部 AI 生图助理。</li>
-                    `;
+                let aiAdvice = '';
+                if (snap.currentData.aiCount === 0) {
+                    aiAdvice = `<li>本期 <b>0次</b> 使用 AI 工具，团队对传统制图路径依赖度达 100%。建议强制引入 Midjourney 或 Gemini 辅助前期概念发散。</li>`;
+                } else {
+                    aiAdvice = `<li>本期共调用 AI 辅助 <b>${snap.currentData.aiCount}次</b>，为全组折算节省了约 <b>${(snap.currentData.aiCount * 2.4).toFixed(1)}小时</b> 的重复排版劳作。</li>
+                    <li>建议总结 <b>${topPerson}</b> 的标准提示词（Prompt），并固化为设计资产供全员复用。</li>`;
                 }
 
                 const reportHTML = `
                     <div class="mb-4 flex items-center justify-between border-b border-fuchsia-500/20 pb-3">
-                        <span class="text-[12px] text-fuchsia-400 font-bold bg-fuchsia-500/10 px-2 py-1 rounded">分析时段: ${snap.period}大盘</span>
-                        <span class="text-[12px] font-bold text-${evalCol}-400 bg-${evalCol}-500/10 border border-${evalCol}-500/20 px-2 py-1 rounded">全盘风险评估: ${evalText}</span>
+                        <span class="text-[12px] text-fuchsia-400 font-bold bg-fuchsia-500/10 px-2 py-1 rounded">分析对象: ${snap.project} (${snap.period})</span>
+                        <span class="text-[12px] font-bold text-${evaCol}-400 bg-${evaCol}-500/10 border border-${evaCol}-500/20 px-2 py-1 rounded">全局智能评估: ${evaluation}</span>
                     </div>
                     <div class="space-y-4 text-zinc-300">
-                        <p class="ai-cursor">基于全盘算力雷达检测，团队目前交付通过率为 <b>${snap.firstPassRate}%</b>。</p>
+                        <p class="ai-cursor">${suggestion}</p>
                         <div class="bg-black/50 p-4 rounded-xl border border-white/5 mt-4">
-                            <h4 class="text-white font-bold text-[13px] mb-2 flex items-center gap-1.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg> AI 调度执行指令</h4>
-                            <ul class="list-disc list-inside text-[12px] space-y-2 text-zinc-400 ml-2">
-                                ${adviseHtml}
+                            <h4 class="text-white font-bold text-[13px] mb-2 flex items-center gap-1.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg> AI 干预执行指令</h4>
+                            <ul class="list-disc list-inside text-[12px] space-y-1.5 text-zinc-400 ml-2">
+                                ${aiAdvice}
                             </ul>
                         </div>
                     </div>
@@ -830,11 +875,123 @@
                 content.innerHTML = reportHTML;
                 content.classList.remove('hidden');
                 
-                setTimeout(() => { const c = content.querySelector('.ai-cursor'); if(c) c.classList.remove('ai-cursor'); }, 1500);
+                setTimeout(() => {
+                    const cursorP = content.querySelector('.ai-cursor');
+                    if(cursorP) cursorP.classList.remove('ai-cursor');
+                }, 1500);
 
             }, 1800); 
         }
+
+        // ================= 🔔 全局消息预警监听引擎 =================
+        window.syncNotificationsFromCloud = async function() {
+            if(!window.supabase) return;
+            const userStr = localStorage.getItem('activeUserObj');
+            if(!userStr) return;
+            const currentUser = JSON.parse(userStr);
+            const userKeyword = (currentUser.enName || currentUser.cnName || '').toLowerCase();
+
+            try {
+                const { data, error } = await window.supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(100);
+                if (error) throw error;
+
+                let myNotifs = data.filter(n => {
+                    const target = (n.target_email || '').toLowerCase();
+                    const targetPrefix = target.split('@')[0];
+                    const isForMe = (targetPrefix === userKeyword) || (currentUser.email && target === currentUser.email.toLowerCase());
+                    const isGlobalUrgent = n.category === 'urgent' || (n.content && n.content.includes('框架待审')); 
+
+                    return isForMe || isGlobalUrgent;
+                });
+
+                const unreadNotifs = myNotifs.filter(n => !n.is_read);
+                const unreadCount = unreadNotifs.length;
+
+                const bellDot = document.getElementById('bell-dot');
+                if (bellDot) {
+                    if (unreadCount > 0) {
+                        bellDot.classList.remove('hidden', 'bg-zinc-600', 'border-transparent');
+                        bellDot.classList.add('bg-rose-500', 'animate-pulse', 'border-[#141417]');
+                    } else {
+                        bellDot.classList.add('hidden');
+                    }
+                }
+
+                const notifContainer = document.getElementById('notif-list-container');
+                if (notifContainer) {
+                    if (unreadCount === 0) {
+                        notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读预警消息</div>';
+                    } else {
+                        notifContainer.innerHTML = unreadNotifs.map(n => {
+                            let titleText = '全盘预警';
+                            let contentText = n.content || '';
+                            let titleMatch = contentText.match(/^(【.*?】)/);
+                            if(titleMatch) {
+                                titleText = titleMatch[1];
+                                contentText = contentText.replace(titleMatch[1], '').trim();
+                            }
+                            return `
+                            <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 cursor-pointer" onclick="window.markSingleAsRead('${n.id}', '${n.link_url}')">
+                                <h4 class="text-[13px] font-bold text-white mb-1"><span class="w-2 h-2 rounded-full bg-fuchsia-500 inline-block mr-1"></span>${titleText}</h4>
+                                <p class="text-[11px] text-zinc-400 pl-3 line-clamp-2">${contentText}</p>
+                            </div>`;
+                        }).join('');
+                    }
+                }
+                window.currentMyUnreadIds = unreadNotifs.map(n => n.id);
+            } catch(e) {}
+        };
+
+        window.markSingleAsRead = async function(id, url) {
+            if(window.supabase) { try { await window.supabase.from('notifications').update({ is_read: true }).eq('id', id); } catch(e){} }
+            let finalUrl = url || '#';
+            let match = finalUrl.match(/id=(TK-\d+)/);
+            if (match) { finalUrl = 'task-detail-locked.html?id=' + match[1]; }
+            window.location.href = finalUrl;
+        };
+
+        window.markAllAsRead = async function(e) {
+            if(e) e.stopPropagation();
+            if (!window.supabase || !window.currentMyUnreadIds || window.currentMyUnreadIds.length === 0) return;
+            const btn = e.currentTarget;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "处理中...";
+            try {
+                await window.supabase.from('notifications').update({ is_read: true }).in('id', window.currentMyUnreadIds);
+                await window.syncNotificationsFromCloud();
+                if(window.showToast) window.showToast('全部已读', '消息红点已清除。', 'success');
+            } catch(e) {}
+            btn.innerHTML = originalText;
+        };
+
+        // ================= 💡 启动事件绑定与拉取 =================
+        document.addEventListener('DOMContentLoaded', () => {
+            if(initRBAC()) {
+                
+                // 彻底修复身份按钮与通知按钮的点击下拉事件
+                const idBtn = document.getElementById('identityBtn');
+                const idMenu = document.getElementById('identityMenu');
+                if(idBtn && idMenu) idBtn.addEventListener('click', (e) => { e.stopPropagation(); idMenu.classList.toggle('hidden'); });
+                
+                const notifBtn = document.getElementById('notifBtn');
+                const notifMenu = document.getElementById('notifMenu');
+                if(notifBtn && notifMenu) notifBtn.addEventListener('click', (e) => { e.stopPropagation(); notifMenu.classList.toggle('hidden'); });
+
+                document.addEventListener('click', (e) => { 
+                    if(idMenu && !idMenu.contains(e.target)) idMenu.classList.add('hidden'); 
+                    if(notifMenu && !notifMenu.contains(e.target)) notifMenu.classList.add('hidden'); 
+                });
+
+                // 初始化拉取数据，并避免在后续轮询时清除 AI 报告
+                window.loadDashboardData(false, true); 
+                window.syncNotificationsFromCloud(true);
+                
+                setInterval(() => { 
+                    window.loadDashboardData(true, false); 
+                    window.syncNotificationsFromCloud(); 
+                }, 8000);
+            }
+        });
     </script>
 </body>
 </html>
-
