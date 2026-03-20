@@ -252,7 +252,7 @@
     <div id="action-toast" class="fixed top-8 right-8 z-[100000] hidden toast-slide-in">
         <div class="bg-[#1a1a1f] border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-3 w-72">
             <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0"></div>
-            <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-zinc-400 text-[11px] mt-0.5">操作已执行。</p></div>
+            <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-[11px] text-zinc-400 mt-0.5">操作已执行。</p></div>
         </div>
     </div>
 
@@ -265,7 +265,7 @@
 
     <script>
         const PAGE_TYPE = 'admin'; 
-        let globalUsersDB = {}; // 将同步云端数据至本地变量供快速筛选
+        let globalUsersDB = {}; 
 
         // ================= 弹窗引擎逻辑 =================
         let confirmCallback = null;
@@ -339,10 +339,10 @@
             const userStr = localStorage.getItem('activeUserObj');
             if (!userStr) { window.location.href = 'login.html'; return false; }
             const user = JSON.parse(userStr);
-            const enName = user.enName ? user.enName.toLowerCase() : '';
+            const enName = user.enName ? user.enName.toLowerCase().trim() : '';
 
-            // 🚀 核心修复：仅保留 davidxu 的超管访问权，剥离 davidxxu
-            if (enName !== 'davidxu') { 
+            // 🚀 核心修复：仅允许 davidxu 和 ponyxu 访问，屏蔽 davidxxu
+            if (enName !== 'davidxu' && enName !== 'ponyxu') { 
                 const mainArea = document.getElementById('main-content-area');
                 if (mainArea) mainArea.style.filter = 'blur(10px)';
                 customAlert('超级权限拦截', '组织架构管理属于系统高度机密，仅系统超级管理员拥有访问权限。为您退回大厅。', () => {
@@ -351,7 +351,6 @@
                 return false;
             }
 
-            // 动态生成头像与颜色（不再依赖数据库不存在的字段）
             const avatarTxt = (user.displayName || user.cnName || user.enName || 'U').substring(0, 1).toUpperCase();
             const avatarEl = document.getElementById('sidebar-avatar');
             if(avatarEl) { avatarEl.innerText = avatarTxt; avatarEl.className = `w-9 h-9 rounded-full bg-fuchsia-600 border border-white/20 flex items-center justify-center text-white font-bold text-sm shadow-lg shrink-0`; }
@@ -373,12 +372,25 @@
                 
                 globalUsersDB = {}; 
                 (data || []).forEach(row => {
+                    let permsArray = [];
+                    // 兼容处理：确保无论是字符串还是原生数组都能正确解析
+                    if (typeof row.perms === 'string') {
+                        try { permsArray = JSON.parse(row.perms); } catch(e) { permsArray = []; }
+                    } else if (Array.isArray(row.perms)) {
+                        permsArray = row.perms;
+                    } else if (row.perms) {
+                        try { permsArray = JSON.parse(row.perms); } catch(e) { permsArray = []; }
+                    }
+
                     globalUsersDB[row.en_name] = {
-                        enName: row.en_name, cnName: row.cn_name, displayName: row.display_name || row.cn_name,
-                        password: row.password, role: row.role, 
+                        enName: row.en_name, 
+                        cnName: row.cn_name, 
+                        displayName: row.display_name || row.cn_name,
+                        password: row.password, 
+                        role: row.role, 
                         avatar: (row.display_name || row.cn_name || row.en_name || 'U').substring(0, 1).toUpperCase(), 
                         color: 'bg-fuchsia-600',
-                        perms: JSON.parse(row.perms_json || '[]')
+                        perms: permsArray
                     };
                 });
 
@@ -511,11 +523,11 @@
 
             try {
                 if (editKey) {
-                    // 编辑模式：只传有的字段
+                    // 编辑模式：只传有的字段，将 perms_json 改为 perms
                     let updatePayload = {
                         cn_name: displayName,
                         display_name: displayName,
-                        perms_json: JSON.stringify(checkedPerms),
+                        perms: JSON.stringify(checkedPerms),
                         role: roleDesc
                     };
                     if (pwd) updatePayload.password = pwd;
@@ -533,7 +545,7 @@
                         cn_name: displayName, 
                         display_name: displayName, 
                         password: pwd,
-                        perms_json: JSON.stringify(checkedPerms), 
+                        perms: JSON.stringify(checkedPerms), 
                         role: roleDesc
                     };
                     const { error } = await window.supabase.from(window.DB_USERS_TABLE).insert([newRow]);
