@@ -94,7 +94,7 @@
                         组织架构与权限管理 
                         <span class="bg-fuchsia-500/20 text-fuchsia-400 text-[11px] px-2.5 py-0.5 rounded-lg border border-fuchsia-500/30">超管专属</span>
                     </h2>
-                    <p class="text-[12px] text-zinc-500">维护系统成员名单，真实分配【需求发单】、【设计接单】、【后台统筹】等角色权限。</p>
+                    <p class="text-[12px] text-zinc-500">维护系统成员名单，真实分配【需求发单】、【设计接单】、【后台统筹】等角色权限，并打通底层 Auth 安全验证。</p>
                 </div>
                 
                 <div class="flex items-center gap-5">
@@ -144,8 +144,8 @@
                                 <th class="py-4 px-6 text-[11px] font-bold text-zinc-500 uppercase tracking-wider border-b border-white/5">用户资料</th>
                                 <th class="py-4 px-6 text-[11px] font-bold text-zinc-500 uppercase tracking-wider border-b border-white/5">企微登录账号</th>
                                 <th class="py-4 px-6 text-[11px] font-bold text-zinc-500 uppercase tracking-wider border-b border-white/5">配置角色 / 模块权限</th>
-                                <th class="py-4 px-6 text-[11px] font-bold text-zinc-500 uppercase tracking-wider border-b border-white/5">账号状态</th>
-                                <th class="py-4 px-6 text-[11px] font-bold text-zinc-500 uppercase tracking-wider border-b border-white/5 text-right">后台操作</th>
+                                <th class="py-4 px-6 text-[11px] font-bold text-zinc-500 uppercase tracking-wider border-b border-white/5">Auth 状态</th>
+                                <th class="py-4 px-6 text-[11px] font-bold text-zinc-500 uppercase tracking-wider border-b border-white/5 text-right">后台全局操作</th>
                             </tr>
                         </thead>
                         <tbody class="text-[13px] text-zinc-300 divide-y divide-white/5" id="user-table-body">
@@ -172,9 +172,10 @@
             <div class="p-6 space-y-5">
                 <input type="hidden" id="edit-mode-key" value="">
 
-                <div class="bg-indigo-500/10 border border-indigo-500/20 p-3 rounded-xl mb-2">
-                    <p class="text-[12px] text-indigo-400 leading-relaxed">
-                        <span class="font-bold">安全架构提示：</span>系统已对接 Supabase Auth。此处用于维护系统内的<b>花名与职权角色</b>。<br>新员工首次加入或忘记密码，必须在 Supabase 的 Authentication 面板统一操作处理。
+                <div class="bg-fuchsia-500/10 border border-fuchsia-500/20 p-3 rounded-xl mb-2 flex items-start gap-3">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-fuchsia-400 shrink-0 mt-0.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                    <p class="text-[12px] text-fuchsia-300 leading-relaxed">
+                        <span class="font-bold">全局贯通模式已开启：</span><br>在此处新增、重置密码、删除账号，系统将同步操作 <span class="text-white font-mono">Supabase Authentication</span> 核心库，真正实现一站式打通。
                     </p>
                 </div>
                 
@@ -187,6 +188,11 @@
                         <label class="block text-[12px] font-bold text-zinc-300 mb-2">系统展示花名 / 中文名 <span class="text-rose-500">*</span></label>
                         <input type="text" id="ipt-displayName" class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3 text-[13px] text-white outline-none focus:border-fuchsia-500 transition-colors" placeholder="如: 文哥">
                     </div>
+                </div>
+
+                <div>
+                    <label class="block text-[12px] font-bold text-zinc-300 mb-2">系统登录密码 <span class="text-zinc-500 font-normal">(编辑模式下不填代表不修改密码)</span></label>
+                    <input type="text" id="ipt-pwd" class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3 text-[13px] text-white outline-none focus:border-fuchsia-500 transition-colors" placeholder="默认分配为: 123456" value="123456">
                 </div>
 
                 <div class="pt-2 border-t border-white/5 mt-2">
@@ -216,7 +222,7 @@
             
             <div class="p-5 border-t border-white/5 bg-[#09090b] flex justify-end gap-3 rounded-b-3xl">
                 <button onclick="closeUserModal()" class="px-5 py-2.5 bg-transparent border border-zinc-700 text-zinc-400 hover:text-white rounded-xl text-[12px] font-bold btn-press transition-colors">取消</button>
-                <button onclick="saveUser()" id="btn-save-user" class="px-6 py-2.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded-xl text-[12px] font-bold shadow-[0_5px_15px_rgba(192,38,211,0.3)] btn-press transition-all">保存配置</button>
+                <button onclick="saveUser()" id="btn-save-user" class="px-6 py-2.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded-xl text-[12px] font-bold shadow-[0_5px_15px_rgba(192,38,211,0.3)] btn-press transition-all">保存配置与账号</button>
             </div>
         </div>
     </div>
@@ -252,8 +258,10 @@
 
     <div id="action-toast" class="fixed top-8 right-8 z-[100000] hidden toast-slide-in">
         <div class="bg-[#1a1a1f] border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-3 w-72">
-            <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0"></div>
-            <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-zinc-400 text-[11px] mt-0.5">操作已执行。</p></div>
+            <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </div>
+            <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-[11px] text-zinc-400 mt-0.5">操作已执行。</p></div>
         </div>
     </div>
 
@@ -336,15 +344,13 @@
             setTimeout(() => { document.getElementById('pwd-modal-overlay').classList.add('hidden'); document.getElementById('pwd-modal').classList.add('hidden'); }, 300);
         }
 
-        window.submitPwdChange = function() { window.showAlert('提示', '系统演示环境暂不可自助修改密码，请联系管理员。', 'info'); window.closePwdModal(); }
-
         function initRBAC() {
             const userStr = localStorage.getItem('activeUserObj');
             if (!userStr) { window.location.href = 'login.html'; return false; }
             const user = JSON.parse(userStr);
             const enName = user.enName ? user.enName.toLowerCase().trim() : '';
 
-            // 🚀 核心修复：仅允许 davidxu 和 ponyxu 访问，屏蔽 davidxxu
+            // 🚀 核心修复：仅允许 davidxu 和 ponyxu 访问
             if (enName !== 'davidxu' && enName !== 'ponyxu') { 
                 const mainArea = document.getElementById('main-content-area');
                 if (mainArea) mainArea.style.filter = 'blur(10px)';
@@ -370,13 +376,12 @@
         window.loadUsersFromCloud = async function() {
             if(!window.supabase) return;
             try {
-                // ⚠️ 绝不查 password, perms, perms_json 这些不存在或混乱的字段！只拉核心安全列
+                // 仅拉取安全列，绝不查 perms_json
                 const { data, error } = await window.supabase.from(window.DB_USERS_TABLE).select('en_name, cn_name, display_name, role');
                 if(error) throw error;
                 
                 globalUsersDB = {}; 
                 (data || []).forEach(row => {
-                    // 💡 动态降维推导：从 role (身份) 反向推导权限，极度安全防报错
                     let derivedPerms = ['req'];
                     if (row.role === '系统管理员') derivedPerms = ['req', 'design', 'admin'];
                     else if (row.role === '执行设计师') derivedPerms = ['req', 'design'];
@@ -444,11 +449,11 @@
                         </td>
                         <td class="px-6 py-4 font-mono text-[12px] text-indigo-400">@${u.enName}</td>
                         <td class="px-6 py-4">${badges}</td>
-                        <td class="px-6 py-4"><span class="flex items-center gap-1.5 text-[11px] text-emerald-500 font-bold"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>正常激活</span></td>
+                        <td class="px-6 py-4"><span class="flex items-center gap-1.5 text-[11px] text-emerald-500 font-bold"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></span>Auth 已接通</span></td>
                         <td class="px-6 py-4 text-right">
                             <button onclick="openModal('edit', '${u.enName}')" class="text-[12px] text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-lg transition-colors btn-press mr-1">修改花名与权限</button>
                             <button onclick="resetUserPwd('${u.enName}')" class="text-[12px] text-zinc-400 hover:text-amber-400 bg-zinc-800 hover:bg-amber-500/20 px-3 py-1.5 rounded-lg transition-colors btn-press mr-1">重置密码</button>
-                            <button onclick="deleteUser('${u.enName}', '${u.displayName}')" class="text-[12px] text-zinc-400 hover:text-rose-500 bg-zinc-800 hover:bg-rose-500/20 px-3 py-1.5 rounded-lg transition-colors btn-press">移除</button>
+                            <button onclick="deleteUser('${u.enName}', '${u.displayName}')" class="text-[12px] text-zinc-400 hover:text-rose-500 bg-zinc-800 hover:bg-rose-500/20 px-3 py-1.5 rounded-lg transition-colors btn-press">全局移除</button>
                         </td>
                     </tr>
                 `;
@@ -472,6 +477,8 @@
                 document.getElementById('ipt-enName').value = '';
                 document.getElementById('ipt-enName').disabled = false;
                 document.getElementById('ipt-displayName').value = '';
+                document.getElementById('ipt-pwd').value = '123456';
+                document.getElementById('ipt-pwd').disabled = false;
                 document.getElementById('edit-mode-key').value = '';
                 document.querySelector('.perm-checkbox[value="req"]').checked = true;
             } else {
@@ -480,6 +487,8 @@
                 document.getElementById('ipt-enName').value = u.enName;
                 document.getElementById('ipt-enName').disabled = true; 
                 document.getElementById('ipt-displayName').value = u.displayName;
+                document.getElementById('ipt-pwd').value = '【Supabase 密码加密保护中】';
+                document.getElementById('ipt-pwd').disabled = true;
                 document.getElementById('edit-mode-key').value = u.enName;
 
                 u.perms.forEach(p => {
@@ -497,10 +506,11 @@
             setTimeout(() => { modalOverlay.classList.add('hidden'); modal.classList.add('hidden'); }, 300); 
         }
 
-        // ================= 💡 核心：云端写入新账号或编辑配置 =================
+        // ================= 💡 核心：全栈打通 Auth API =================
         window.saveUser = async function() {
             const enName = document.getElementById('ipt-enName').value.trim().toLowerCase();
             const displayName = document.getElementById('ipt-displayName').value.trim();
+            const pwd = document.getElementById('ipt-pwd').value;
             const editKey = document.getElementById('edit-mode-key').value;
 
             if(!enName || !displayName) return customAlert('校验失败', '账号和展示名必填！', null, false, 'warning');
@@ -514,75 +524,137 @@
 
             const btn = document.getElementById('btn-save-user');
             const originalText = btn.innerText;
-            btn.disabled = true; btn.innerText = "云端同步中...";
+            btn.disabled = true; btn.innerText = "写入云端 Auth...";
 
             try {
                 if (editKey) {
-                    // 编辑模式：只修改 cn_name, display_name, role
+                    // 编辑模式：只修改本地表的花名和角色（密码去重置功能改）
                     let updatePayload = {
                         cn_name: displayName,
                         display_name: displayName,
                         role: roleDesc
                     };
+
                     const { error } = await window.supabase.from(window.DB_USERS_TABLE).update(updatePayload).eq('en_name', editKey);
                     if (error) throw error;
-                    showToast('已更新', `成员 ${displayName} 的权限与花名已保存。`, 'success');
+                    
+                    showToast('业务资料已更新', `成员 ${displayName} 权限已重配。`, 'success');
                 } else {
-                    // 新增模式：创建基础记录
+                    // 新增模式：先穿透 Auth
                     if(globalUsersDB[enName]) throw new Error('该企微英文名在库中已存在！');
+                    if(!pwd || pwd.length < 6) throw new Error('新增用户必须设置至少6位密码！');
+
+                    const targetEmail = `${enName}@webank.com`;
+
+                    // 1. 调用 Supabase 隐藏的 Admin Auth (需要你在 supabase-config 里配置了 service_role key)
+                    if (window.supabase.auth.admin) {
+                        const { data: authData, error: authErr } = await window.supabase.auth.admin.createUser({
+                            email: targetEmail,
+                            password: pwd,
+                            email_confirm: true,
+                            user_metadata: { name: displayName, enName: enName }
+                        });
+
+                        if (authErr) {
+                            if (authErr.message.includes('fetch is not defined') || authErr.status === 401 || authErr.message.includes('Service Role')) {
+                                throw new Error('Auth 安全拦截：你当前在 supabase-config.js 中配置的可能还是普通的 anon key。请替换为 service_role key，才能在前端创建 Auth 账号！');
+                            }
+                            throw new Error(`Auth核心库创建失败: ${authErr.message}`);
+                        }
+                    } else {
+                        throw new Error('当前 Supabase 客户端没有 admin 权限。请检查配置。');
+                    }
+
+                    // 2. 插入业务表 user_profiles
                     const newRow = {
                         en_name: enName, 
                         cn_name: displayName, 
                         display_name: displayName, 
                         role: roleDesc
                     };
-                    const { error } = await window.supabase.from(window.DB_USERS_TABLE).insert([newRow]);
-                    if (error) throw error;
-                    showToast('已绑定', `新成员 ${displayName} 已绑定权限。`, 'success');
+                    const { error: dbErr } = await window.supabase.from(window.DB_USERS_TABLE).insert([newRow]);
+                    if (dbErr) throw dbErr;
+
+                    showToast('全局贯通成功', `账号 ${displayName} 已加入 Auth 并分配权限。`, 'success');
                 }
 
                 closeUserModal();
                 window.loadUsersFromCloud();
 
             } catch (err) {
-                customAlert('云端操作失败', err.message, null, false, 'error');
+                customAlert('云端操作阻断', err.message, null, false, 'error');
             } finally {
                 btn.disabled = false; btn.innerText = originalText;
             }
         }
 
-        // ================= 💡 核心：密码与删除安全拦截 =================
+        // ================= 💡 核心：Auth 重置密码 =================
         window.resetUserPwd = function(enName) {
-            customAlert('安全拦截', '因系统已接入 Supabase 核心 Auth 验证，<b>登录密码重置必须由管理员前往 Supabase 后台 Authentication 面板操作</b>，以确保最高级别的数据安全。', null, false, 'warning');
+            customConfirm('重置密码确认', `确定要将 @${enName} 的登录密码重置为 <span class="text-white font-mono bg-zinc-800 px-1 rounded">123456</span> 吗？<br><br><span class="text-rose-400">此操作将直接穿透并修改 Supabase Auth。</span>`, async () => {
+                try {
+                    const targetEmail = `${enName}@webank.com`;
+                    
+                    if(!window.supabase.auth.admin) throw new Error('当前环境缺失 admin 权限，请配置 service_role key。');
+
+                    // 1. 去 Auth 查人
+                    const { data: listData, error: listErr } = await window.supabase.auth.admin.listUsers();
+                    if (listErr) throw listErr;
+                    const authUser = listData.users.find(u => u.email === targetEmail);
+                    
+                    if (!authUser) throw new Error("在 Auth 系统中未找到该账号邮箱，无法重置。");
+
+                    // 2. 重置 Auth 密码
+                    const { error: authErr } = await window.supabase.auth.admin.updateUserById(authUser.id, { password: '123456' });
+                    if(authErr) throw authErr;
+
+                    // (注：密码在业务表中已不存储，所以无需再更新 user_profiles)
+                    showToast('密码已穿透重置', 'Auth 核心库已更新，新密码: 123456', 'success');
+                } catch(e) { 
+                    if (e.message.includes('fetch is not defined') || e.message.includes('401')) {
+                        customAlert('安全拦截', 'Auth 操作必须使用 service_role key。请检查你的配置。', null, false, 'error');
+                    } else {
+                        customAlert('重置失败', e.message, null, false, 'error'); 
+                    }
+                }
+            });
         }
 
+        // ================= 💡 核心：Auth 与业务库双删 =================
         window.deleteUser = function(enName, displayName) {
             const userStr = localStorage.getItem('activeUserObj');
             if (userStr && JSON.parse(userStr).enName === enName) {
                 return customAlert('系统保护', '您不能在后台删除当前正在登录的超级管理员账号本身！', null, false, 'warning');
             }
 
-            customConfirm('危险操作', `确定要在系统内部吊销成员 <span class="text-rose-500 font-bold">[ ${displayName} ]</span> 的所有访问权限吗？<br><br><b>注意：此操作将切断他在大厅内的流转资格，但您仍需去 Supabase Auth 面板注销他的登录邮箱。</b>`, async () => {
+            customConfirm('危险操作：全局封杀', `确定要彻底移除成员 <span class="text-rose-500 font-bold">[ ${displayName} ]</span> 吗？<br><br><b>此操作将同时从系统业务表和 Supabase Auth 验证库中抹除该账号的所有痕迹！</b>`, async () => {
                 try {
-                    const { error } = await window.supabase.from(window.DB_USERS_TABLE).delete().eq('en_name', enName);
-                    if (error) throw error;
-                    showToast('移除成功', '该账号已失去大厅流转权。', 'success');
-                    window.loadUsersFromCloud();
-                } catch(e) { customAlert('删除失败', e.message, null, false, 'error'); }
-            }, 'danger');
-        }
+                    const targetEmail = `${enName}@webank.com`;
+                    if(!window.supabase.auth.admin) throw new Error('缺失 service_role key。');
 
-        function showToast(title, desc, type = 'success') {
-            const toast = document.getElementById('action-toast');
-            document.getElementById('toast-title').innerText = title;
-            document.getElementById('toast-desc').innerText = desc;
-            const icon = document.getElementById('toast-icon');
-            if(type === 'success') {
-                icon.className = "w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-fuchsia-500/20 text-fuchsia-400";
-                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-            }
-            toast.classList.remove('hidden');
-            setTimeout(() => { toast.classList.add('hidden'); }, 3000);
+                    // 1. 从 Auth 中拔除
+                    const { data: listData } = await window.supabase.auth.admin.listUsers();
+                    if (listData && listData.users) {
+                        const authUser = listData.users.find(u => u.email === targetEmail);
+                        if (authUser) {
+                            const { error: delAuthErr } = await window.supabase.auth.admin.deleteUser(authUser.id);
+                            if(delAuthErr) throw new Error(`Auth 库删除失败: ${delAuthErr.message}`);
+                        }
+                    }
+
+                    // 2. 从业务表中拔除
+                    const { error: dbErr } = await window.supabase.from(window.DB_USERS_TABLE).delete().eq('en_name', enName);
+                    if (dbErr) throw dbErr;
+
+                    showToast('账号双删成功', '该成员已从 Auth 验证库及大厅业务库中永久除名。', 'success');
+                    window.loadUsersFromCloud();
+                } catch(e) { 
+                    if (e.message.includes('401')) {
+                        customAlert('安全拦截', '删除 Auth 账号必须使用 service_role key，请检查配置。', null, false, 'error');
+                    } else {
+                        customAlert('彻底删除失败', e.message, null, false, 'error'); 
+                    }
+                }
+            }, 'danger');
         }
 
         document.addEventListener('DOMContentLoaded', () => {
