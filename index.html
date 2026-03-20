@@ -112,7 +112,7 @@
             
             <div class="flex items-center gap-5 relative">
                 
-                <button id="clear-db-btn" onclick="clearTestData()" class="hidden bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-500 px-4 py-3 rounded-[14px] text-[13px] font-bold transition-all btn-press items-center gap-1.5" title="仅清空测试单据">
+                <button id="clear-db-btn" onclick="clearTestData()" class="hidden bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-500 px-4 py-3 rounded-[14px] text-[13px] font-bold transition-all btn-press items-center gap-1.5" title="仅清空提单数据，不影响账号">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                     清空测试数据
                 </button>
@@ -378,8 +378,6 @@
                     if (targetUser) {
                         targetEmail = targetUser.email;
                         targetUserId = targetUser.id;
-                    } else {
-                        targetUserId = allUsers[0].id; // 兜底防报错
                     }
                 }
 
@@ -499,7 +497,7 @@
             const enName = user.enName ? user.enName.toLowerCase() : '';
 
             // 新增超级管理员权限
-            if (enName === 'davidxxu' || enName === 'davidxu') {
+            if (enName === 'davidxu') {
                 user.perms = ['req', 'design', 'admin'];
             }
 
@@ -513,8 +511,8 @@
 
             updateGreeting(user);
 
-            // 清除其他人测试权限，只保留 davidxxu/davidxu 和 ponyxu
-            const testUsers = ['ponyxu', 'davidxu', 'davidxxu'];
+            // 清除其他人测试权限，只保留 davidxu 和 ponyxu
+            const testUsers = ['ponyxu', 'davidxu'];
             const isTestUser = testUsers.includes(enName) || testUsers.includes(user.displayName) || testUsers.includes(user.cnName);
             if(isTestUser) {
                 const clrBtn = document.getElementById('clear-db-btn');
@@ -545,7 +543,7 @@
             window.showConfirm("清空测试数据", "⚠️ 提示：为了保护真实业务，此操作将<b>只清空测试账号（如 davidxu, ponyxu, 小戴维斯）产生的需求数据</b>，不会影响其他人的正式数据！<br><br>确定要继续吗？", async () => {
                 try {
                     // 仅清理测试账号创建的单据
-                    const testCreators = ['davidxu', 'davidxxu', 'ponyxu', '小戴维斯'];
+                    const testCreators = ['davidxu', 'ponyxu', '小戴维斯'];
                     const { error } = await window.supabase.from(window.DB_TABLE).delete().in('creator', testCreators);
                     if (error) throw error;
                     window.showToast('已清空', '测试单据已精准清理，正式数据安全保留！', 'success');
@@ -608,7 +606,7 @@
             const isOwner = creator === currentUser.displayName || creator === currentUser.cnName || creator === currentUser.enName || creator === currentUserEn;
             
             let isJudy = currentUserEn === 'judyzzhang';
-            let isSuperAdmin = currentUserEn === 'davidxxu' || currentUserEn === 'davidxu'; 
+            let isSuperAdmin = currentUserEn === 'davidxu'; 
             
             if(!isOwner && !isSuperAdmin && !(isJudy && ['pending_approval', 'reviewing', 'completed', 'archived', 'terminated'].includes(task.status))) return null;
 
@@ -739,7 +737,7 @@
             if(!currentUser) return;
             const currentUserEn = currentUser.enName ? currentUser.enName.toLowerCase() : '';
             const cNames = [currentUser.displayName, currentUser.cnName, currentUser.enName, currentUserEn].filter(Boolean).map(n => n.toLowerCase());
-            const isSuperAdmin = currentUserEn === 'davidxxu' || currentUserEn === 'davidxu';
+            const isSuperAdmin = currentUserEn === 'davidxu';
             
             if (!isSilent) window.renderDraftToUI(); 
             const spinner = document.getElementById('loading-spinner');
