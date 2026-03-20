@@ -241,9 +241,9 @@
                 <button onclick="closePwdModal()" class="text-zinc-500 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-full p-1 transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
             </div>
             <div class="space-y-4">
-                <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">当前密码</label><input type="password" id="old-pwd" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-fuchsia-500 transition-colors"></div>
-                <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">新密码</label><input type="password" id="new-pwd" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-fuchsia-500 transition-colors"></div>
-                <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">确认新密码</label><input type="password" id="new-pwd-confirm" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-fuchsia-500 transition-colors"></div>
+                <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">当前密码</label><input type="password" id="old-pwd" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-fuchsia-500 transition-colors" placeholder="输入原密码"></div>
+                <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">新密码</label><input type="password" id="new-pwd" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-fuchsia-500 transition-colors" placeholder="输入新密码"></div>
+                <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">确认新密码</label><input type="password" id="new-pwd-confirm" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-fuchsia-500 transition-colors" placeholder="再次输入新密码"></div>
             </div>
             <button onclick="alert('系统演示环境暂不可自助修改密码'); closePwdModal();" class="w-full mt-6 py-3.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded-xl text-sm font-bold shadow-[0_5px_15px_rgba(217,70,239,0.3)] transition-all btn-press">确认修改并重新登录</button>
         </div>
@@ -251,9 +251,7 @@
 
     <div id="action-toast" class="fixed top-8 right-8 z-[100000] hidden toast-slide-in">
         <div class="bg-[#1a1a1f] border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-3 w-72">
-            <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            </div>
+            <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0"></div>
             <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-zinc-400 text-[11px] mt-0.5">操作已执行。</p></div>
         </div>
     </div>
@@ -267,7 +265,7 @@
 
     <script>
         const PAGE_TYPE = 'admin'; 
-        let globalUsersDB = {}; 
+        let globalUsersDB = {}; // 将同步云端数据至本地变量供快速筛选
 
         // ================= 弹窗引擎逻辑 =================
         let confirmCallback = null;
@@ -353,8 +351,11 @@
                 return false;
             }
 
+            // 动态生成头像与颜色（不再依赖数据库不存在的字段）
+            const avatarTxt = (user.displayName || user.cnName || user.enName || 'U').substring(0, 1).toUpperCase();
             const avatarEl = document.getElementById('sidebar-avatar');
-            if(avatarEl) { avatarEl.innerText = user.avatar || '?'; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-fuchsia-600'} border border-white/20 flex items-center justify-center text-white font-bold text-sm shadow-lg shrink-0`; }
+            if(avatarEl) { avatarEl.innerText = avatarTxt; avatarEl.className = `w-9 h-9 rounded-full bg-fuchsia-600 border border-white/20 flex items-center justify-center text-white font-bold text-sm shadow-lg shrink-0`; }
+            
             if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.cnName || user.enName;
             if(document.getElementById('sidebar-role')) document.getElementById('sidebar-role').innerHTML = `<span class="text-fuchsia-400 font-bold">当前视角: 管理方</span>`;
 
@@ -373,8 +374,10 @@
                 globalUsersDB = {}; 
                 (data || []).forEach(row => {
                     globalUsersDB[row.en_name] = {
-                        enName: row.en_name, cnName: row.cn_name, displayName: row.cn_name,
-                        password: row.password, role: row.role, avatar: row.avatar, color: row.color,
+                        enName: row.en_name, cnName: row.cn_name, displayName: row.display_name || row.cn_name,
+                        password: row.password, role: row.role, 
+                        avatar: (row.display_name || row.cn_name || row.en_name || 'U').substring(0, 1).toUpperCase(), 
+                        color: 'bg-fuchsia-600',
                         perms: JSON.parse(row.perms_json || '[]')
                     };
                 });
@@ -383,7 +386,7 @@
                 renderTableUI();
             } catch(e) {
                 console.error(e);
-                if (e.message.includes("relation") && e.message.includes("does not exist")) {
+                if (e.message && e.message.includes("relation") && e.message.includes("does not exist")) {
                     document.getElementById('table-loading').innerHTML = `<p class="text-rose-500 font-bold">云端数据表尚未建立</p><p class="text-xs text-zinc-500 max-w-sm mt-2 text-center">请先在 Supabase 后台新建表 \`user_profiles\`。具体字段配置请参考使用说明。</p>`;
                 } else {
                     document.getElementById('table-loading').innerHTML = `<p class="text-rose-500 font-bold">数据拉取失败</p><p class="text-xs text-zinc-500">${e.message}</p>`;
@@ -486,7 +489,7 @@
             setTimeout(() => { modalOverlay.classList.add('hidden'); modal.classList.add('hidden'); }, 300); 
         }
 
-        // ================= 💡 核心：云端写入新账号或编辑配置 =================
+        // ================= 💡 核心：云端写入新账号或编辑配置 (移除了不存在的字段) =================
         window.saveUser = async function() {
             const enName = document.getElementById('ipt-enName').value.trim().toLowerCase();
             const displayName = document.getElementById('ipt-displayName').value.trim();
@@ -498,9 +501,9 @@
             const checkedPerms = Array.from(document.querySelectorAll('.perm-checkbox:checked')).map(cb => cb.value);
             if(checkedPerms.length === 0) return customAlert('校验失败', '必须至少勾选一个系统模块权限！', null, false, 'warning');
 
-            let roleDesc = '业务需求方'; let color = 'bg-zinc-800';
-            if(checkedPerms.includes('admin')) { roleDesc = '系统管理员'; color = 'bg-fuchsia-700'; }
-            else if(checkedPerms.includes('design')) { roleDesc = '执行设计师'; color = 'bg-orange-600'; }
+            let roleDesc = '业务需求方';
+            if(checkedPerms.includes('admin')) { roleDesc = '系统管理员'; }
+            else if(checkedPerms.includes('design')) { roleDesc = '执行设计师'; }
 
             const btn = document.getElementById('btn-save-user');
             const originalText = btn.innerText;
@@ -508,12 +511,12 @@
 
             try {
                 if (editKey) {
+                    // 编辑模式：只传有的字段
                     let updatePayload = {
                         cn_name: displayName,
                         display_name: displayName,
                         perms_json: JSON.stringify(checkedPerms),
-                        role: roleDesc,
-                        color: color
+                        role: roleDesc
                     };
                     if (pwd) updatePayload.password = pwd;
 
@@ -521,13 +524,17 @@
                     if (error) throw error;
                     showToast('已更新', `成员 ${displayName} 权限与资料已保存至云端。`, 'success');
                 } else {
+                    // 新增模式
                     if(globalUsersDB[enName]) throw new Error('该企微英文名在库中已存在！');
                     if(!pwd) throw new Error('新增用户必须设置初始密码！');
 
                     const newRow = {
-                        en_name: enName, cn_name: displayName, display_name: displayName, password: pwd,
-                        perms_json: JSON.stringify(checkedPerms), role: roleDesc,
-                        avatar: displayName.substring(0, 1).toUpperCase(), color: color
+                        en_name: enName, 
+                        cn_name: displayName, 
+                        display_name: displayName, 
+                        password: pwd,
+                        perms_json: JSON.stringify(checkedPerms), 
+                        role: roleDesc
                     };
                     const { error } = await window.supabase.from(window.DB_USERS_TABLE).insert([newRow]);
                     if (error) throw error;
