@@ -284,10 +284,35 @@
         
         window.submitPwdChange = function() { window.showAlert('提示', '系统演示环境暂不可自助修改密码，请联系管理员。', 'info'); window.closePwdModal(); }
 
+        window.showToast = function(title, desc, type = 'success') {
+            const toast = document.getElementById('action-toast');
+            document.getElementById('toast-title').innerText = title;
+            document.getElementById('toast-desc').innerText = desc;
+            const icon = document.getElementById('toast-icon');
+            if(type === 'success') {
+                icon.className = "w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0";
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+            } else if(type === 'info') {
+                icon.className = "w-8 h-8 rounded-full bg-fuchsia-500/20 text-fuchsia-400 flex items-center justify-center shrink-0";
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+            } else {
+                icon.className = "w-8 h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0";
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+            }
+            toast.classList.remove('hidden');
+            setTimeout(() => { toast.classList.add('hidden'); }, 3000);
+        }
+
         function initRBAC() {
             const userStr = localStorage.getItem('activeUserObj');
             if (!userStr) { window.location.href = 'login.html'; return false; }
             const user = JSON.parse(userStr);
+            const enName = user.enName ? user.enName.toLowerCase() : '';
+
+            // 🚀 核心修复：为 davidxu 注入无上权限！
+            if (enName === 'davidxu') {
+                user.perms = ['req', 'design', 'admin'];
+            }
 
             if (!(user.perms || []).includes(PAGE_TYPE)) {
                 window.showAlert("权限拦截", "您没有总监控制台访问权限，为您退回大厅。", "danger");
@@ -388,7 +413,7 @@
                             }
 
                             tasksHtml += `
-                            <div class="bg-[#18181b] border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-colors cursor-pointer" onclick="window.location.href='task-detail-requester.html?id=${t.id}'">
+                            <div class="bg-[#18181b] border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-colors cursor-pointer" onclick="window.location.href='task-detail-locked.html?id=${t.id}'">
                                 <div class="flex justify-between items-center mb-4">
                                     <div class="flex items-center gap-3">
                                         <span class="text-[10px] font-mono font-bold bg-white/5 px-2 py-0.5 rounded border border-white/10 text-zinc-400">${t.id}</span>
@@ -449,117 +474,102 @@
             }
         }
 
-        // ================= 🔔 全局消息通知 =================
-        window.syncNotificationsFromCloud = async function() {
+        // ================= 🔔 全局消息通知（真实 Supabase 连接） =================
+        window.syncNotificationsFromCloud = async function(isSilent = true) {
             if(!window.supabase) return;
             const userStr = localStorage.getItem('activeUserObj');
             if(!userStr) return;
             const currentUser = JSON.parse(userStr);
+            const userKeyword = (currentUser.enName || currentUser.cnName || '').toLowerCase();
 
             try {
-                const { data, error } = await window.supabase.from('test_tasks').select('id, creator, assignee, status, history_json').order('created_at', { ascending: false }).limit(100);
-                if(error) throw error;
+                const { data, error } = await window.supabase.from('notifications')
+                    .select('*').order('created_at', { ascending: false }).limit(100);
+                if (error) throw error;
 
-                let knownHistories = JSON.parse(localStorage.getItem('known_histories_admin') || '{}');
-                let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
-                let hasNew = false;
+                // 管理端：不过滤专属某人的，只看所有重要更新或针对自己的消息！
+                let myNotifs = data.filter(n => {
+                    const target = (n.target_email || '').toLowerCase();
+                    const targetPrefix = target.split('@')[0];
+                    
+                    // 管理方看全盘或者针对自己的
+                    const isForMe = (targetPrefix === userKeyword) || (currentUser.email && target === currentUser.email.toLowerCase());
+                    const isGlobalUrgent = n.category === 'urgent' || (n.content && n.content.includes('框架待审')); // 领导关心框架审核和紧急催办
 
-                (data || []).forEach(task => {
-                    let historyArr = [];
-                    try { historyArr = JSON.parse(task.history_json || '[]'); } catch(e){}
-
-                    const knownLen = knownHistories[task.id] || 0;
-                    if (historyArr.length > knownLen) {
-                        for(let i = knownLen; i < historyArr.length; i++) {
-                            const newEvent = historyArr[i];
-                            const opEnName = currentUser.enName || '';
-                            const opDispName = currentUser.displayName || '';
-                            if (newEvent.operator && (newEvent.operator.includes(opEnName) || newEvent.operator.includes(opDispName))) continue;
-                            
-                            sysNotifs.push({
-                                id: new Date().getTime() + Math.random(),
-                                taskId: task.id,
-                                title: `🚨 [${task.id}] 监控节点变化`,
-                                desc: `${newEvent.operator || '系统'} 操作: ${newEvent.action}.`,
-                                role: 'admin', 
-                                read: false,
-                                time: new Date().toISOString()
-                            });
-                            hasNew = true;
-                        }
-                        knownHistories[task.id] = historyArr.length;
-                    }
+                    return isForMe || isGlobalUrgent;
                 });
 
-                if (hasNew) {
-                    localStorage.setItem('known_histories_admin', JSON.stringify(knownHistories));
-                    localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs));
+                const unreadNotifs = myNotifs.filter(n => !n.is_read);
+                const unreadCount = unreadNotifs.length;
+
+                let prevUnreadCount = parseInt(localStorage.getItem('prevUnreadCount_admin_' + userKeyword) || '0');
+                if (isSilent && unreadCount > prevUnreadCount) {
+                    const newCount = unreadCount - prevUnreadCount;
+                    if(window.showToast) window.showToast('🔔 收到新消息', `您有 ${newCount} 条总监预警动态，请点击右上角铃铛查看。`, 'info');
                 }
-                window.loadNotifications();
+                localStorage.setItem('prevUnreadCount_admin_' + userKeyword, unreadCount.toString());
+                
+                const bellDot = document.getElementById('bell-dot');
+                if (bellDot) {
+                    if (unreadCount > 0) {
+                        bellDot.classList.remove('hidden', 'bg-zinc-600', 'border-transparent');
+                        bellDot.classList.add('bg-rose-500', 'animate-pulse', 'border-[#141417]');
+                    } else {
+                        bellDot.classList.add('hidden');
+                    }
+                }
+
+                const notifContainer = document.getElementById('notif-list-container');
+                if (notifContainer) {
+                    if (unreadCount === 0) {
+                        notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读预警消息</div>';
+                    } else {
+                        notifContainer.innerHTML = unreadNotifs.map(n => {
+                            let titleText = '全盘预警';
+                            let contentText = n.content || '';
+                            let titleMatch = contentText.match(/^(【.*?】)/);
+                            if(titleMatch) {
+                                titleText = titleMatch[1];
+                                contentText = contentText.replace(titleMatch[1], '').trim();
+                            }
+                            
+                            return `
+                            <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 cursor-pointer" onclick="window.markSingleAsRead('${n.id}', '${n.link_url}')">
+                                <h4 class="text-[13px] font-bold text-white mb-1"><span class="w-2 h-2 rounded-full bg-fuchsia-500 inline-block mr-1"></span>${titleText}</h4>
+                                <p class="text-[11px] text-zinc-400 pl-3 line-clamp-2">${contentText}</p>
+                            </div>`;
+                        }).join('');
+                    }
+                }
+                window.currentMyUnreadIds = unreadNotifs.map(n => n.id);
+            } catch(e) { console.error("通知同步失败", e); }
+        };
+
+        window.markSingleAsRead = async function(id, url) {
+            if(window.supabase) { 
+                try { await window.supabase.from('notifications').update({ is_read: true }).eq('id', id); } catch(e){} 
+            }
+            let finalUrl = url || '#';
+            let match = finalUrl.match(/id=(TK-\d+)/);
+            if (match) {
+                finalUrl = 'task-detail-locked.html?id=' + match[1]; 
+            }
+            window.location.href = finalUrl;
+        };
+
+        window.markAllAsRead = async function(e) {
+            if(e) e.stopPropagation();
+            if (!window.supabase || !window.currentMyUnreadIds || window.currentMyUnreadIds.length === 0) return;
+            const btn = e.currentTarget;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "处理中...";
+            try {
+                await window.supabase.from('notifications').update({ is_read: true }).in('id', window.currentMyUnreadIds);
+                await window.syncNotificationsFromCloud(true);
+                if(window.showToast) window.showToast('全部已读', '消息红点已清除。', 'success');
             } catch(e) {}
-        }
-
-        window.loadNotifications = function() {
-            const userStr = localStorage.getItem('activeUserObj');
-            if(!userStr) return;
-            
-            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
-            let myNotifs = sysNotifs.filter(n => n.role === 'admin');
-            myNotifs.sort((a, b) => b.id - a.id);
-
-            const unreadCount = myNotifs.filter(n => !n.read).length;
-            const bellDot = document.getElementById('bell-dot');
-            const notifContainer = document.getElementById('notif-list-container');
-
-            if (bellDot) {
-                if (unreadCount > 0) {
-                    bellDot.classList.remove('hidden', 'bg-zinc-600', 'border-transparent');
-                    bellDot.classList.add('bg-rose-500', 'animate-pulse', 'border-[#141417]');
-                } else {
-                    bellDot.classList.add('hidden');
-                }
-            }
-
-            if (notifContainer) {
-                if (myNotifs.length === 0) {
-                    notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">全盘监控暂无异常</div>';
-                } else {
-                    let html = '';
-                    myNotifs.forEach(n => {
-                        const dot = n.read ? '' : '<span class="w-2 h-2 rounded-full bg-rose-500 shrink-0 shadow-[0_0_8px_rgba(244,63,94,0.8)]"></span>';
-                        const opacity = n.read ? 'opacity-50' : '';
-                        const dateStr = new Date(n.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                        html += `
-                            <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer ${opacity}" onclick="window.markSingleAsRead(${n.id}, '${n.taskId}')">
-                                <div class="flex justify-between items-start mb-1">
-                                    <h4 class="text-[13px] font-bold text-white flex items-center gap-2">${n.title} ${dot}</h4>
-                                    <span class="text-[10px] text-zinc-500">${dateStr}</span>
-                                </div>
-                                <p class="text-[11px] text-zinc-400 leading-relaxed">${n.desc}</p>
-                            </div>
-                        `;
-                    });
-                    notifContainer.innerHTML = html;
-                }
-            }
-        }
-
-        window.markSingleAsRead = function(id, taskId) {
-            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
-            let target = sysNotifs.find(n => n.id === id);
-            if(target) { target.read = true; localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs)); }
-            if (taskId && taskId !== 'KANBAN') window.location.href = `task-detail-locked.html?id=${taskId}`;
-            else window.loadNotifications();
-        }
-
-        window.markAllAsRead = function(event) {
-            if(event) event.stopPropagation();
-            let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
-            sysNotifs.forEach(n => { if (n.role === 'admin') n.read = true; });
-            localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs));
-            window.loadNotifications();
-            window.showToast('监控清空', '所有未读预警已阅。', 'success');
-        }
+            btn.innerHTML = originalText;
+        };
 
         document.addEventListener('DOMContentLoaded', () => {
             if(initRBAC()) {
@@ -576,9 +586,9 @@
                     if(notifMenu && !notifMenu.contains(e.target)) notifMenu.classList.add('hidden'); 
                 });
 
-                window.loadNotifications();
-                window.loadDashboardData();
-                setInterval(() => { window.loadDashboardData(true); window.syncNotificationsFromCloud(); }, 8000);
+                window.loadDashboardData(false);
+                window.syncNotificationsFromCloud(true);
+                setInterval(() => { window.loadDashboardData(true); window.syncNotificationsFromCloud(true); }, 8000);
             }
         });
 
