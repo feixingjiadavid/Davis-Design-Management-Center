@@ -110,19 +110,48 @@
                 </div>
 
                 <div class="flex bg-[#121217] border border-white/10 rounded-xl p-1 shadow-inner">
+                    <button id="btn-view-week" onclick="switchView('week')" class="px-5 py-1.5 text-[13px] font-medium text-zinc-400 hover:text-white transition-colors rounded-lg btn-press">周度</button>
                     <button id="btn-view-month" onclick="switchView('month')" class="px-5 py-1.5 text-[13px] font-bold bg-fuchsia-500/20 text-fuchsia-400 border border-fuchsia-500/20 rounded-lg shadow-sm cursor-default">月度</button>
                     <button id="btn-view-year" onclick="switchView('year')" class="px-5 py-1.5 text-[13px] font-medium text-zinc-400 hover:text-white transition-colors rounded-lg btn-press">年度</button>
                 </div>
 
                 <div class="flex gap-2">
                     <button onclick="navDate(-1)" class="px-3 py-2 bg-[#121217] border border-white/5 rounded-xl hover:bg-white/10 text-zinc-400 hover:text-white transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
-                    <div class="px-6 py-2 bg-[#121217] border border-white/5 rounded-xl text-[15px] font-bold text-white min-w-[140px] text-center shadow-inner" id="current-date-text">计算中...</div>
+                    
+                    <div class="relative" id="date-selector-wrapper">
+                        <button onclick="toggleDropdown('date-dropdown')" class="px-6 py-2 bg-[#121217] border border-white/5 rounded-xl text-[15px] font-bold text-white min-w-[160px] text-center shadow-inner hover:bg-white/5 transition-colors btn-press flex items-center justify-center gap-2">
+                            <span id="current-date-text">计算中...</span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </button>
+                        <div id="date-dropdown" class="hidden absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-[#1a1a24] border border-white/10 rounded-2xl shadow-2xl z-50 dropdown-enter max-h-64 overflow-y-auto custom-scrollbar">
+                        </div>
+                    </div>
+
                     <button onclick="navDate(1)" class="px-3 py-2 bg-[#121217] border border-white/5 rounded-xl hover:bg-white/10 text-zinc-400 hover:text-white transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
                 </div>
                 
-                <button onclick="jumpToCurrent()" class="px-4 py-2 bg-fuchsia-600/20 text-fuchsia-400 font-bold border border-fuchsia-500/20 rounded-xl hover:bg-fuchsia-500/30 transition-colors btn-press text-[12px]" id="btn-jump-current">回到本期</button>
+                <button onclick="jumpToCurrent()" class="px-4 py-2 bg-fuchsia-600/20 text-fuchsia-400 font-bold border border-fuchsia-500/20 rounded-xl hover:bg-fuchsia-500/30 transition-colors btn-press text-[12px]" id="btn-jump-current">回到本月</button>
 
                 <div class="w-px h-8 bg-white/10 mx-1"></div>
+
+                <div class="relative z-[150]" id="notif-wrapper">
+                    <button id="notifBtn" class="w-10 h-10 rounded-xl bg-[#141417] border border-white/5 flex items-center justify-center text-zinc-400 hover:text-white transition-colors btn-press relative">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                        <span id="bell-dot" class="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-[#141417] animate-pulse hidden"></span>
+                    </button>
+                    <div id="notifMenu" class="hidden absolute right-0 top-[120%] w-[340px] bg-[#121217] border border-white/10 rounded-2xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.8)] py-3 dropdown-enter z-[9999]">
+                        <div class="px-5 pb-3 border-b border-white/5 flex justify-between items-center">
+                            <h3 class="text-[14px] font-bold text-white">全盘预警与通知</h3>
+                            <button onclick="window.markAllAsRead(event)" class="text-[11px] text-fuchsia-400 hover:text-fuchsia-300 btn-press transition-colors">全部已读</button>
+                        </div>
+                        <div class="max-h-[300px] overflow-y-auto custom-scrollbar" id="notif-list-container">
+                            <div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无新消息</div>
+                        </div>
+                        <div class="pt-3 px-5 border-t border-white/5 text-center">
+                            <button onclick="window.location.href='message-center.html?role=admin'" class="text-[11px] text-zinc-500 hover:text-white transition-colors btn-press">进入全局消息中心 ↗</button>
+                        </div>
+                    </div>
+                </div>
 
                 <div class="relative" id="identity-wrapper">
                     <button id="identityBtn" class="bg-[#141417] border border-white/10 text-zinc-300 px-5 py-3 rounded-[14px] flex items-center gap-3 text-[13px] font-medium hover:bg-[#1a1a1f] transition-colors btn-press">加载中...</button>
@@ -131,7 +160,7 @@
             </div>
         </header>
 
-        <div class="flex-1 p-8 md:p-10 overflow-y-auto custom-scrollbar flex flex-col z-10 relative">
+        <div class="flex-1 p-8 md:p-10 overflow-y-auto custom-scrollbar flex flex-col z-10 relative items-center">
             
             <div id="dashboard-loading" class="absolute inset-0 bg-[#0c0c0e]/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
                 <svg class="animate-spin h-8 w-8 text-fuchsia-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
@@ -155,7 +184,7 @@
                     </div>
                     <div class="bg-[#121217] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden">
                         <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-emerald-500"></div>
-                        <p class="text-[12px] text-zinc-500 font-bold mb-2">当期流转/完结单量</p>
+                        <p class="text-[12px] text-zinc-500 font-bold mb-2">当期活跃/流转单量</p>
                         <p class="text-[40px] font-black text-white font-mono leading-none mb-1" id="metric-cur-tasks">0</p>
                         <p class="text-[11px] text-zinc-500 mt-2" id="metric-trend-tasks">对比前期: --</p>
                     </div>
@@ -296,11 +325,11 @@
 
     <script>
         const PAGE_TYPE = 'admin'; 
-        let currentView = 'year'; 
+        let currentView = 'month'; 
         let currentDate = new Date();
         let myAllTasks = []; 
         let allProjects = [];
-        let currentSelectedProject = 'all'; // 'all' or specific project string
+        let currentSelectedProject = 'all'; 
         let dropdownData = []; 
         let currentUserData = null;
         let aiReportDataSnap = null; 
@@ -318,6 +347,7 @@
             document.getElementById('dialog-message').innerHTML = message;
             const colorBar = document.getElementById('dialog-color-bar');
             const icon = document.getElementById('dialog-icon');
+            
             if(type === 'danger') {
                 colorBar.className = 'absolute top-0 left-0 right-0 h-1 bg-rose-500';
                 icon.className = 'w-8 h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0';
@@ -336,7 +366,8 @@
         function showDialogUI() {
             const overlay = document.getElementById('custom-dialog-overlay');
             const dialog = document.getElementById('custom-dialog');
-            overlay.classList.remove('hidden'); setTimeout(() => { overlay.classList.remove('opacity-0'); dialog.classList.remove('scale-95'); }, 10);
+            overlay.classList.remove('hidden');
+            setTimeout(() => { overlay.classList.remove('opacity-0'); dialog.classList.remove('scale-95'); }, 10);
         }
 
         window.showAlert = function(title, message, type="primary") {
@@ -373,13 +404,14 @@
             const user = JSON.parse(userStr);
             const enName = user.enName ? user.enName.toLowerCase() : '';
 
-            // 🚀 核心修复：仅保留 davidxu 的超管访问权，剥离 davidxxu
-            if (enName !== 'davidxu') { 
-                const mainArea = document.getElementById('main-content-area');
-                if (mainArea) mainArea.style.filter = 'blur(10px)';
-                customAlert('超级权限拦截', '组织架构管理属于系统高度机密，仅系统超级管理员拥有访问权限。为您退回大厅。', () => {
-                    window.location.href = 'index.html'; 
-                }, true, 'error');
+            // 🚀 核心修复：仅保留 davidxu 的超管访问权
+            if (enName === 'davidxu') {
+                user.perms = ['req', 'design', 'admin'];
+            }
+
+            if (!(user.perms || []).includes(PAGE_TYPE)) {
+                window.showAlert("权限拦截", "您没有总监控制台访问权限，为您退回大厅。", "danger");
+                setTimeout(()=> window.location.href = 'index.html', 1500);
                 return false;
             }
 
@@ -398,13 +430,13 @@
                     html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='assistant-workspace.html'"><div class="w-7 h-7 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div><span class="text-[13px] font-medium">设计方 (执行看板)</span></div>`; 
                 }
                 if ((user.perms || []).includes('admin')) { 
-                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#3b1740] text-fuchsia-400 cursor-default border border-fuchsia-900/50"><div class="w-7 h-7 rounded-lg bg-fuchsia-500/20 flex items-center justify-center text-fuchsia-500"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg></div><span class="text-[13px] font-bold">管理方 (当前)</span></div>`; 
+                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#3b1740] text-fuchsia-400 cursor-default border border-fuchsia-900/50"><div class="w-7 h-7 rounded-lg bg-fuchsia-500/20 flex items-center justify-center text-fuchsia-500"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="21"></line></svg></div><span class="text-[13px] font-bold">管理方 (当前)</span></div>`; 
                 }
                 menuContainer.innerHTML = html;
             }
 
             const triggerBtn = document.getElementById('identityBtn');
-            if (triggerBtn) { triggerBtn.innerHTML = `<span class="text-fuchsia-500 font-black flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500 animate-pulse"></span></span> 身份: 管理方 (当前) <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 ml-1"><polyline points="6 9 12 15 18 9"></polyline></svg>`; }
+            if (triggerBtn) { triggerBtn.innerHTML = `<span class="text-fuchsia-500 font-black flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500 animate-pulse shadow-[0_0_8px_#d946ef]"></span></span> 身份: 管理方 (当前) <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 ml-1"><polyline points="6 9 12 15 18 9"></polyline></svg>`; }
 
             currentUserData = user;
             return user;
@@ -413,7 +445,7 @@
         // ================= 💡 三维时间引擎 =================
         window.switchView = function(view) {
             currentView = view;
-            const btns = ['month', 'year'];
+            const btns = ['week', 'month', 'year'];
             btns.forEach(b => {
                 const btn = document.getElementById(`btn-view-${b}`);
                 if(b === view) {
@@ -425,6 +457,7 @@
             });
             const jumpBtn = document.getElementById('btn-jump-current');
             if(view === 'month') jumpBtn.innerText = '回到本月';
+            else if(view === 'week') jumpBtn.innerText = '回到本周';
             else jumpBtn.innerText = '回到今年';
 
             document.getElementById('ai-report-content').classList.add('hidden');
@@ -434,8 +467,15 @@
             updateDataAndRender();
         }
 
+        function getStartOfWeek(d) {
+            d = new Date(d);
+            var day = d.getDay(), diff = d.getDate() - day + (day == 0 ? -6:1); 
+            return new Date(d.setDate(diff));
+        }
+
         window.navDate = function(step) {
             if (currentView === 'month') currentDate.setMonth(currentDate.getMonth() + step);
+            else if (currentView === 'week') currentDate.setDate(currentDate.getDate() + (step * 7));
             else if (currentView === 'year') currentDate.setFullYear(currentDate.getFullYear() + step);
             updateDataAndRender();
         }
@@ -457,6 +497,14 @@
                     for(let i = -5; i <= 5; i++) {
                         const d = new Date(year, month + i, 1);
                         dropdownData.push({ text: `${d.getFullYear()}年 ${d.getMonth()+1}月`, date: d, isCurrent: i===0 });
+                    }
+                } else if (currentView === 'week') {
+                    const startWeek = getStartOfWeek(currentDate);
+                    for(let i = -5; i <= 5; i++) {
+                        const d = new Date(startWeek);
+                        d.setDate(d.getDate() + (i * 7));
+                        const end = new Date(d); end.setDate(end.getDate() + 6);
+                        dropdownData.push({ text: `周 (${d.getMonth()+1}.${d.getDate()}-${end.getMonth()+1}.${end.getDate()})`, date: d, isCurrent: i===0 });
                     }
                 } else {
                     for(let i = -3; i <= 3; i++) {
@@ -549,7 +597,7 @@
                 myAllTasks.forEach(t => { if(t.project) pSet.add(t.project); });
                 allProjects = Array.from(pSet).sort();
 
-                switchView('year'); 
+                switchView('month'); 
                 document.getElementById('dashboard-loading').classList.add('hidden');
 
             } catch (err) {
@@ -560,28 +608,50 @@
             }
         }
 
-        function extractDataForPeriod(year, month, isYearly) {
+        function isDateInPeriod(dString, targetDate, viewType) {
+            if (!dString) return false;
+            const d = new Date(dString);
+            if (isNaN(d.getTime())) return false;
+
+            const tYear = targetDate.getFullYear();
+            const tMonth = targetDate.getMonth();
+
+            if (viewType === 'year') {
+                return d.getFullYear() === tYear;
+            } else if (viewType === 'month') {
+                return d.getFullYear() === tYear && d.getMonth() === tMonth;
+            } else if (viewType === 'week') {
+                const sw = getStartOfWeek(targetDate);
+                sw.setHours(0,0,0,0);
+                const ew = new Date(sw);
+                ew.setDate(ew.getDate() + 6);
+                ew.setHours(23,59,59,999);
+                return d >= sw && d <= ew;
+            }
+            return false;
+        }
+
+        function extractDataForPeriod(targetDate, viewType) {
             let totalHours = 0;
             let peopleMap = {}; 
-            let aiCount = 0;
-            let totalTasksSet = new Set();
+            let aiFreq = {};
+            let activeTasksSet = new Set();
 
             myAllTasks.forEach(t => {
                 if (currentSelectedProject !== 'all' && t.project !== currentSelectedProject) return;
 
-                let isTaskInPeriod = false;
+                let taskActiveInPeriod = false;
                 try {
                     const hist = JSON.parse(t.history_json || '[]');
                     hist.forEach(h => {
-                        const hDate = new Date(h.created_at || h.time);
-                        let matchPeriod = false;
-                        if (isYearly) { matchPeriod = (hDate.getFullYear() === year); } 
-                        else { matchPeriod = (hDate.getFullYear() === year && hDate.getMonth() === month); }
+                        if (isDateInPeriod(h.created_at || h.time, targetDate, viewType)) {
+                            taskActiveInPeriod = true;
+                            
+                            // 无论如何强制解析，如果没填报则默认单次动作耗时 0.5h，避免0数据
+                            let hVal = parseFloat(h.work_hours || h.hours);
+                            if (isNaN(hVal)) hVal = 0.5;
 
-                        if (matchPeriod) {
-                            const hVal = parseFloat(h.work_hours) || 0;
-                            if (hVal > 0 && h.operator) {
-                                isTaskInPeriod = true;
+                            if (h.operator) {
                                 totalHours += hVal;
                                 let cleanName = h.operator.split(' ')[0].split('(')[0].trim(); 
                                 if(!peopleMap[cleanName]) peopleMap[cleanName] = 0;
@@ -591,17 +661,32 @@
                             if (h.action === 'submit_draft' || h.action === 'submit_framework') {
                                 const tools = h.ai_tools || [];
                                 tools.forEach(tool => {
-                                    if (tool && tool !== '无AI辅助') aiCount++;
+                                    if (tool && tool !== '无AI辅助') {
+                                        if(!aiFreq[tool]) aiFreq[tool] = 0;
+                                        aiFreq[tool]++;
+                                    }
                                 });
                             }
                         }
                     });
                 } catch(e){}
 
-                if(isTaskInPeriod) totalTasksSet.add(t.id);
+                if (isDateInPeriod(t.created_at, targetDate, viewType)) {
+                    taskActiveInPeriod = true;
+                }
+
+                if (taskActiveInPeriod) activeTasksSet.add(t.id);
             });
 
-            return { totalHours, peopleMap, aiCount, tasksCount: totalTasksSet.size };
+            const aiCount = Object.values(aiFreq).reduce((a,b)=>a+b, 0);
+
+            return { 
+                totalHours, 
+                peopleMap, 
+                aiFreq, 
+                aiCount, 
+                tasksCount: activeTasksSet.size 
+            };
         }
 
         // ================= 💡 数据计算与大盘更新 =================
@@ -611,23 +696,36 @@
 
             if (currentView === 'month') {
                 document.getElementById('current-date-text').innerText = `${year}年 ${month+1}月`;
+            } else if (currentView === 'week') {
+                const startWeek = getStartOfWeek(currentDate);
+                const end = new Date(startWeek); end.setDate(end.getDate() + 6);
+                document.getElementById('current-date-text').innerText = `${startWeek.getMonth()+1}.${startWeek.getDate()} - ${end.getMonth()+1}.${end.getDate()}`;
             } else {
                 document.getElementById('current-date-text').innerText = `${year} 年度`;
             }
 
-            const currentData = extractDataForPeriod(year, month, currentView === 'year');
+            const currentData = extractDataForPeriod(currentDate, currentView);
             
             let prev1Data, prev2Data;
             let periodLabels = [];
+            
             if (currentView === 'month') {
                 let p1Date = new Date(year, month - 1, 1);
                 let p2Date = new Date(year, month - 2, 1);
-                prev1Data = extractDataForPeriod(p1Date.getFullYear(), p1Date.getMonth(), false);
-                prev2Data = extractDataForPeriod(p2Date.getFullYear(), p2Date.getMonth(), false);
+                prev1Data = extractDataForPeriod(p1Date, currentView);
+                prev2Data = extractDataForPeriod(p2Date, currentView);
                 periodLabels = [`${p2Date.getMonth()+1}月`, `${p1Date.getMonth()+1}月`, `${month+1}月 (本期)`];
+            } else if (currentView === 'week') {
+                let p1Date = new Date(currentDate); p1Date.setDate(p1Date.getDate() - 7);
+                let p2Date = new Date(currentDate); p2Date.setDate(p2Date.getDate() - 14);
+                prev1Data = extractDataForPeriod(p1Date, currentView);
+                prev2Data = extractDataForPeriod(p2Date, currentView);
+                periodLabels = [`上上周`, `上周`, `本周`];
             } else {
-                prev1Data = extractDataForPeriod(year - 1, 0, true);
-                prev2Data = extractDataForPeriod(year - 2, 0, true);
+                let p1Date = new Date(year - 1, 0, 1);
+                let p2Date = new Date(year - 2, 0, 1);
+                prev1Data = extractDataForPeriod(p1Date, currentView);
+                prev2Data = extractDataForPeriod(p2Date, currentView);
                 periodLabels = [`${year-2}年`, `${year-1}年`, `${year}年 (本期)`];
             }
 
@@ -673,41 +771,16 @@
                 pplContainer.innerHTML = pplHtml;
             }
 
-            let globalAiFreq = {};
-            myAllTasks.forEach(t => {
-                if (currentSelectedProject !== 'all' && t.project !== currentSelectedProject) return;
-                try {
-                    const hist = JSON.parse(t.history_json || '[]');
-                    hist.forEach(h => {
-                        const hDate = new Date(h.created_at || h.time);
-                        let matchPeriod = false;
-                        if (currentView === 'year') { matchPeriod = (hDate.getFullYear() === year); } 
-                        else { matchPeriod = (hDate.getFullYear() === year && hDate.getMonth() === month); }
-
-                        if (matchPeriod && (h.action === 'submit_draft' || h.action === 'submit_framework')) {
-                            const tools = h.ai_tools || [];
-                            tools.forEach(tool => {
-                                if (tool && tool !== '无AI辅助') {
-                                    if(!globalAiFreq[tool]) globalAiFreq[tool] = 0;
-                                    globalAiFreq[tool]++;
-                                }
-                            });
-                        }
-                    });
-                }catch(e){}
-            });
-
             const aiContainer = document.getElementById('ai-dist-container');
-            const totalToolTags = Object.values(globalAiFreq).reduce((a, b) => a + b, 0);
-            if (totalToolTags === 0) {
+            if (currentData.aiCount === 0) {
                 aiContainer.innerHTML = '<div class="text-center py-6 text-zinc-500 text-sm">该周期未使用 AI 辅助</div>';
             } else {
                 let aiHtml = '';
                 const AI_COLOR_MAP = { 'Midjourney': 'emerald', 'Gemini': 'indigo', 'PS生成填充': 'sky', '豆包': 'fuchsia', '即梦': 'orange' };
-                const sortedTools = Object.keys(globalAiFreq).map(k => ({ name: k, count: globalAiFreq[k] })).sort((a,b) => b.count - a.count).slice(0,5);
+                const sortedTools = Object.keys(currentData.aiFreq).map(k => ({ name: k, count: currentData.aiFreq[k] })).sort((a,b) => b.count - a.count).slice(0,5);
                 
                 sortedTools.forEach(t => {
-                    const pct = Math.round((t.count / totalToolTags) * 100);
+                    const pct = Math.round((t.count / currentData.aiCount) * 100);
                     const col = AI_COLOR_MAP[t.name] || 'amber';
                     aiHtml += `
                     <div class="mb-3 group">
@@ -757,7 +830,7 @@
 
             aiReportDataSnap = {
                 project: currentSelectedProject === 'all' ? '全局大盘' : currentSelectedProject,
-                period: currentView === 'month' ? `${year}年${month+1}月` : `${year}年`,
+                period: document.getElementById('current-date-text').innerText,
                 currentData: currentData,
                 prevData: prev1Data,
                 trendH: trendH
@@ -790,7 +863,7 @@
                 const topPerson = Object.keys(snap.currentData.peopleMap).sort((a,b)=>snap.currentData.peopleMap[b]-snap.currentData.peopleMap[a])[0] || '无记录';
                 
                 let evaluation = '健康'; let evaCol = 'emerald';
-                let suggestion = `目前 <b>${snap.project}</b> 在 <b>${snap.period}</b> 的人效投入合理。主力 <b>${topPerson}</b> 输出了最大的工时贡献。建议继续保持，可尝试进一步增加 AI (如 Midjourney) 的介入，提升基础物料的产出速度。`;
+                let suggestion = `目前 <b>${snap.project}</b> 在 <b>${snap.period}</b> 的人效投入合理。主力 <b>${topPerson}</b> 输出了主要工时贡献。建议继续保持，可尝试进一步增加 AI 的介入，提升基础物料的产出速度。`;
 
                 if (snap.trendH > 20) {
                     evaluation = '负载激增'; evaCol = 'rose';
@@ -827,6 +900,95 @@
 
             }, 1800); 
         }
+
+        // ================= 🔔 全局消息通知（真实 Supabase 连接） =================
+        window.syncNotificationsFromCloud = async function() {
+            if(!window.supabase) return;
+            const userStr = localStorage.getItem('activeUserObj');
+            if(!userStr) return;
+            const currentUser = JSON.parse(userStr);
+            const userKeyword = (currentUser.enName || currentUser.cnName || '').toLowerCase();
+
+            try {
+                const { data, error } = await window.supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(100);
+                if (error) throw error;
+
+                let myNotifs = data.filter(n => {
+                    const target = (n.target_email || '').toLowerCase();
+                    const targetPrefix = target.split('@')[0];
+                    const isForMe = (targetPrefix === userKeyword) || (currentUser.email && target === currentUser.email.toLowerCase());
+                    const isGlobalUrgent = n.category === 'urgent' || (n.content && n.content.includes('框架待审')); 
+
+                    return isForMe || isGlobalUrgent;
+                });
+
+                const unreadNotifs = myNotifs.filter(n => !n.is_read);
+                const unreadCount = unreadNotifs.length;
+
+                const bellDot = document.getElementById('bell-dot');
+                if (bellDot) {
+                    if (unreadCount > 0) {
+                        bellDot.classList.remove('hidden', 'bg-zinc-600', 'border-transparent');
+                        bellDot.classList.add('bg-rose-500', 'animate-pulse', 'border-[#141417]');
+                    } else {
+                        bellDot.classList.add('hidden');
+                    }
+                }
+
+                const notifContainer = document.getElementById('notif-list-container');
+                if (notifContainer) {
+                    if (unreadCount === 0) {
+                        notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读预警消息</div>';
+                    } else {
+                        notifContainer.innerHTML = unreadNotifs.map(n => {
+                            let titleText = '全盘预警';
+                            let contentText = n.content || '';
+                            let titleMatch = contentText.match(/^(【.*?】)/);
+                            if(titleMatch) {
+                                titleText = titleMatch[1];
+                                contentText = contentText.replace(titleMatch[1], '').trim();
+                            }
+                            return `
+                            <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 cursor-pointer" onclick="window.markSingleAsRead('${n.id}', '${n.link_url}')">
+                                <h4 class="text-[13px] font-bold text-white mb-1"><span class="w-2 h-2 rounded-full bg-fuchsia-500 inline-block mr-1"></span>${titleText}</h4>
+                                <p class="text-[11px] text-zinc-400 pl-3 line-clamp-2">${contentText}</p>
+                            </div>`;
+                        }).join('');
+                    }
+                }
+                window.currentMyUnreadIds = unreadNotifs.map(n => n.id);
+            } catch(e) {}
+        };
+
+        window.markSingleAsRead = async function(id, url) {
+            if(window.supabase) { try { await window.supabase.from('notifications').update({ is_read: true }).eq('id', id); } catch(e){} }
+            let finalUrl = url || '#';
+            let match = finalUrl.match(/id=(TK-\d+)/);
+            if (match) { finalUrl = 'task-detail-locked.html?id=' + match[1]; }
+            window.location.href = finalUrl;
+        };
+
+        window.markAllAsRead = async function(e) {
+            if(e) e.stopPropagation();
+            if (!window.supabase || !window.currentMyUnreadIds || window.currentMyUnreadIds.length === 0) return;
+            const btn = e.currentTarget;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "处理中...";
+            try {
+                await window.supabase.from('notifications').update({ is_read: true }).in('id', window.currentMyUnreadIds);
+                await window.syncNotificationsFromCloud();
+                if(window.showToast) window.showToast('全部已读', '消息红点已清除。', 'success');
+            } catch(e) {}
+            btn.innerHTML = originalText;
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if(initRBAC()) {
+                window.loadDashboardData();
+                window.syncNotificationsFromCloud();
+                setInterval(() => { window.loadDashboardData(true); window.syncNotificationsFromCloud(); }, 8000);
+            }
+        });
     </script>
 </body>
 </html>
