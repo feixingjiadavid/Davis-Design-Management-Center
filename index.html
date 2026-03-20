@@ -378,8 +378,6 @@
                     if (targetUser) {
                         targetEmail = targetUser.email;
                         targetUserId = targetUser.id;
-                    } else {
-                        targetUserId = allUsers[0].id; // 兜底防报错
                     }
                 }
 
@@ -545,15 +543,14 @@
                     const btn = document.getElementById('dialog-confirm-btn');
                     if(btn) { btn.innerText = "清理中..."; btn.disabled = true; }
 
-                    // 1. 先查出所有任务的 creator
                     const { data: tasks, error: fetchErr } = await window.supabase.from(window.DB_TABLE).select('id, creator');
                     if (fetchErr) throw fetchErr;
 
-                    // 2. 在前端精准筛选出属于测试人员的单据 ID
                     const testKeywords = ['davidxu', 'ponyxu', '小戴维斯'];
                     const idsToDelete = tasks.filter(t => {
-                        const c = (t.creator || '').toLowerCase();
-                        return testKeywords.some(k => c.includes(k.toLowerCase()));
+                        const c = (t.creator || '').toLowerCase().replace(/\s+/g, '');
+                        if (c.includes('davidxxu') || c.includes('文哥')) return false;
+                        return testKeywords.some(k => c.includes(k));
                     }).map(t => t.id);
 
                     if (idsToDelete.length === 0) {
@@ -562,7 +559,6 @@
                         return;
                     }
 
-                    // 3. 根据 ID 列表批量安全删除
                     const { error: deleteErr } = await window.supabase.from(window.DB_TABLE).delete().in('id', idsToDelete);
                     if (deleteErr) throw deleteErr;
 
@@ -1049,42 +1045,8 @@
 
             const { error } = await window.supabase.from(window.DB_TABLE).insert([taskData]);
 
-            // 🚀 核心：指派通知逻辑 
             if (!error && assigneeVal !== 'none') {
-                try {
-                    let tEmail = '';
-                    let tUserId = null;
-
-                    const { data: allUsers } = await window.supabase.from('users').select('id, email, name, enName');
-                    if (allUsers && allUsers.length > 0) {
-                        const targetUser = allUsers.find(u => 
-                            (u.email && u.email.toLowerCase().includes(assigneeVal.toLowerCase())) ||
-                            (u.name && u.name.toLowerCase().includes(assigneeVal.toLowerCase())) ||
-                            (u.enName && u.enName.toLowerCase().includes(assigneeVal.toLowerCase())) ||
-                            assigneeVal.toLowerCase().includes((u.enName||'').toLowerCase())
-                        );
-                        if (targetUser) {
-                            tEmail = targetUser.email;
-                            tUserId = targetUser.id;
-                        } else {
-                            tUserId = allUsers[0].id; // 兜底防止外键崩溃
-                        }
-                    }
-
-                    if (!tEmail) {
-                        if (/^[a-zA-Z]+$/.test(assigneeVal)) tEmail = assigneeVal.toLowerCase() + '@webank.com';
-                        else tEmail = 'davidxu@webank.com'; 
-                    }
-
-                    await window.supabase.from('notifications').insert([{
-                        user_id: tUserId, 
-                        content: `【新需求指派】${creatorDisplay} 指派了新需求给你：《${shortTitle}》`, 
-                        link_url: `task-detail-designer.html?id=${newId}`, 
-                        target_email: tEmail, 
-                        sender_name: creatorDisplay, 
-                        is_read: false
-                    }]);
-                } catch(e) { console.error("通知写入异常", e); }
+                await window.insertDbNotification(assigneeVal, `【新需求指派】${creatorDisplay} 指派了新需求给你：《${shortTitle}》`, `task-detail-designer.html?id=${newId}`);
             }
 
             btn.innerText = originalText;
@@ -1272,7 +1234,6 @@
     </script>
 
     <script>
-        // 1. 修复左下角“读取中”的 Bug
         setTimeout(() => {
             const roleEl = document.getElementById('sidebar-role');
             if(roleEl && roleEl.innerText.includes('读取中')) {
@@ -1280,7 +1241,6 @@
             }
         }, 1000);
 
-        // 2. 无缝植入真实的云端铃铛监听引擎 (严格身份过滤)
         window.syncNotificationsFromCloud = async function(isSilent = true) {
             if(!window.supabase) return;
             const userStr = localStorage.getItem('activeUserObj');
@@ -1296,11 +1256,14 @@
                 // 过滤出属于当前用户的消息
                 let myNotifs = data.filter(n => {
                     const target = (n.target_email || '').toLowerCase();
-                    const isForMe = target.includes(userKeyword) || (currentUser.email && target.includes(currentUser.email.toLowerCase()));
+                    const targetPrefix = target.split('@')[0];
+                    
+                    // 严格绝对匹配前缀，防止 davidxxu 和 davidxu 相互包含串线
+                    const isForMe = (targetPrefix === userKeyword) || (currentUser.email && target === currentUser.email.toLowerCase());
                     if (!isForMe) return false;
 
                     const content = n.content || '';
-                    // 💡 核心隔离：需求方(index)只看属于需求方的消息！设计师和领导的消息统统屏蔽！
+                    // 💡 核心隔离：需求方只看需求方的专属消息
                     if (content.includes('指派了新需求') || content.includes('框架待审') || (content.includes('打回') && !content.includes('退回'))) {
                         return false; 
                     }
@@ -1364,7 +1327,7 @@
                 try { await window.supabase.from('notifications').update({ is_read: true }).eq('id', id); } catch(e){} 
             }
             
-            // 💡 强制将跳转链接替换为需求方专用的详情页！
+            // 强制将跳转链接替换为需求方专用的详情页！
             let finalUrl = url || '#';
             let match = finalUrl.match(/id=(TK-\d+)/);
             if (match) {
