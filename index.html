@@ -86,7 +86,7 @@
                 <div id="sidebar-avatar" class="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-lg">?</div>
                 <div class="min-w-0 flex-1">
                     <p id="sidebar-name" class="text-[13px] font-bold text-white mb-0.5 truncate">加载中...</p>
-                    <p id="sidebar-role" class="text-[10px] text-zinc-500 truncate"><span class="text-indigo-400 font-bold">当前视角: 需求方</span></p>
+                    <p id="sidebar-role" class="text-[10px] text-zinc-500 truncate">读取中</p>
                 </div>
             </div>
             <div class="flex items-center gap-1 shrink-0 ml-2">
@@ -348,6 +348,11 @@
         window.supabase = supabase;
         window.DB_TABLE = 'test_tasks'; 
         window.LIGHT_FIELDS = 'id, title, status, project, due_date, creator, created_at, summary_desc, assignee, history_json';
+        
+        if(window.SysNotification) {
+            window.SysNotification.init();
+        }
+
         if(window.loadTasksFromCloud) window.loadTasksFromCloud();
     </script>
 
@@ -355,7 +360,7 @@
         const PAGE_TYPE = 'req'; 
         let currentUploadedFileData = null;
 
-        // 🚀 系统级通知写入引擎（暴力强写 DB 确保稳定触发 Webhook）
+        // 🚀 系统级通知写入引擎与发信中枢
         window.insertDbNotification = async function(targetIdentifier, content, link_url) {
             if (!window.supabase || !targetIdentifier) return;
             try {
@@ -378,14 +383,14 @@
 
                 if (!targetEmail) {
                     if (/^[a-zA-Z]+$/.test(targetIdentifier)) targetEmail = targetIdentifier.toLowerCase() + '@webank.com';
-                    else targetEmail = 'davidxxu@webank.com'; 
+                    else targetEmail = 'davidxu@webank.com'; 
                 }
 
                 const userStr = localStorage.getItem('activeUserObj');
                 const currentUser = userStr ? JSON.parse(userStr) : {};
                 const senderName = currentUser.enName || currentUser.displayName || 'System';
 
-                // 🚨 构造要插入的数据，绝不能包含没有建表的字段（如 category）
+                // 1. 强制写入数据库（绝对不能有category等未建表的字段）
                 let insertPayload = {
                     content: content, 
                     link_url: link_url, 
@@ -396,8 +401,18 @@
                 if(targetUserId) insertPayload.user_id = targetUserId; 
 
                 const { error } = await window.supabase.from('notifications').insert([insertPayload]);
-                
-                if (error) console.error("🚨 通知写入数据库失败:", error.message);
+                if (error) console.error("🚨 写入数据库失败:", error.message);
+
+                // 2. 触发实时邮件发送机制！
+                if(window.SysNotification && window.SysNotification.sendNotice) {
+                    await window.SysNotification.sendNotice({
+                        targetId: targetUserId || '00000000-0000-0000-0000-000000000000',
+                        targetEmail: targetEmail,
+                        content: content,
+                        category: 'new',
+                        url: link_url
+                    });
+                }
             } catch(e) { console.error("通知执行异常", e); }
         };
 
@@ -478,19 +493,28 @@
             const user = JSON.parse(userStr);
             const enName = user.enName ? user.enName.toLowerCase() : '';
 
+            if (enName === 'davidxu') {
+                user.perms = ['req', 'design', 'admin'];
+            }
+
             if (!(user.perms || []).includes(PAGE_TYPE)) { window.showAlert("权限错误", "无权限访问此页面", "danger"); setTimeout(window.logout, 1500); return false; }
 
             const avatarEl = document.getElementById('sidebar-avatar');
             if(avatarEl) { avatarEl.innerText = user.avatar || '?'; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-indigo-600'} border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg shrink-0`; }
             if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.cnName || user.enName;
             
+            if(document.getElementById('sidebar-role')) document.getElementById('sidebar-role').innerHTML = `<span class="text-indigo-400 font-bold">当前视角: 需求方</span>`;
+
             updateGreeting(user);
 
-            const testUsers = ['ponyxu', 'davidxxu', 'yoshyliu', 'judyzzhang', '小戴维斯'];
+            const testUsers = ['ponyxu', 'davidxu'];
             const isTestUser = testUsers.includes(enName) || testUsers.includes(user.displayName) || testUsers.includes(user.cnName);
             if(isTestUser) {
                 const clrBtn = document.getElementById('clear-db-btn');
                 if(clrBtn) { clrBtn.classList.remove('hidden'); clrBtn.classList.add('flex'); }
+            } else {
+                const clrBtn = document.getElementById('clear-db-btn');
+                if(clrBtn) { clrBtn.classList.add('hidden'); clrBtn.classList.remove('flex'); }
             }
 
             const menuContainer = document.getElementById('dynamic-identity-list');
@@ -575,7 +599,7 @@
             const isOwner = creator === currentUser.displayName || creator === currentUser.cnName || creator === currentUser.enName || creator === currentUserEn;
             
             let isJudy = currentUserEn === 'judyzzhang';
-            let isSuperAdmin = currentUserEn === 'davidxxu'; 
+            let isSuperAdmin = currentUserEn === 'davidxu'; 
             
             if(!isOwner && !isSuperAdmin && !(isJudy && ['pending_approval', 'reviewing', 'completed', 'archived', 'terminated'].includes(task.status))) return null;
 
@@ -706,7 +730,7 @@
             if(!currentUser) return;
             const currentUserEn = currentUser.enName ? currentUser.enName.toLowerCase() : '';
             const cNames = [currentUser.displayName, currentUser.cnName, currentUser.enName, currentUserEn].filter(Boolean).map(n => n.toLowerCase());
-            const isSuperAdmin = currentUserEn === 'davidxxu' || currentUserEn === 'judyzzhang';
+            const isSuperAdmin = currentUserEn === 'davidxu';
             
             if (!isSilent) window.renderDraftToUI(); 
             const spinner = document.getElementById('loading-spinner');
@@ -938,7 +962,6 @@
             }, "danger");
         }
 
-        // 💡 🚀 系统直接写入 Supabase Notifications 表的兜底发信方法！
         window.submitNewReq = async function() {
             if(!window.supabase) return window.showAlert("系统错误", "云端服务仍在初始化，请稍等！", "danger");
 
@@ -999,42 +1022,9 @@
 
             const { error } = await window.supabase.from(window.DB_TABLE).insert([taskData]);
 
-            // 🚀 核心：直接向 notifications 表强插记录，100% 激活邮件 webhook！
+            // 🚀 核心：指派通知逻辑 
             if (!error && assigneeVal !== 'none') {
-                try {
-                    let tEmail = '';
-                    let tUserId = null;
-
-                    const { data: allUsers } = await window.supabase.from('users').select('id, email, name, enName');
-                    if (allUsers && allUsers.length > 0) {
-                        const targetUser = allUsers.find(u => 
-                            (u.email && u.email.toLowerCase().includes(assigneeVal.toLowerCase())) ||
-                            (u.name && u.name.toLowerCase().includes(assigneeVal.toLowerCase())) ||
-                            (u.enName && u.enName.toLowerCase().includes(assigneeVal.toLowerCase())) ||
-                            assigneeVal.toLowerCase().includes((u.enName||'').toLowerCase())
-                        );
-                        if (targetUser) {
-                            tEmail = targetUser.email;
-                            tUserId = targetUser.id;
-                        } else {
-                            tUserId = allUsers[0].id; // 兜底防止外键崩溃
-                        }
-                    }
-
-                    if (!tEmail) {
-                        if (/^[a-zA-Z]+$/.test(assigneeVal)) tEmail = assigneeVal.toLowerCase() + '@webank.com';
-                        else tEmail = 'davidxxu@webank.com'; 
-                    }
-
-                    await window.supabase.from('notifications').insert([{
-                        user_id: tUserId, 
-                        content: `【新需求指派】${creatorDisplay} 指派了新需求给你：《${shortTitle}》`, 
-                        link_url: `task-detail-designer.html?id=${newId}`, 
-                        target_email: tEmail, 
-                        sender_name: creatorDisplay, 
-                        is_read: false
-                    }]);
-                } catch(e) { console.error("通知写入异常", e); }
+                await window.insertDbNotification(assigneeVal, `【新需求指派】${creatorDisplay} 指派了新需求给你：《${shortTitle}》`, `task-detail-designer.html?id=${newId}`);
             }
 
             btn.innerText = originalText;
