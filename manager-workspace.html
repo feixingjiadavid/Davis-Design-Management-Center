@@ -289,7 +289,7 @@
             const user = JSON.parse(userStr);
             const enName = user.enName ? user.enName.toLowerCase().trim() : '';
 
-            // 🚀 全局兜底：确保 davidxu / davidxxu / ponyxu 都有超级权限
+            // 💡 终极兜底提权：无视任何本地缓存的缺失，硬核给超级管理员、测试员、领导赋权！
             if (['davidxxu', 'davidxu', 'ponyxu'].includes(enName)) {
                 user.perms = ['req', 'design', 'admin'];
             } else if (enName === 'judyzzhang') {
@@ -304,9 +304,11 @@
                 return false;
             }
 
+            const avatarTxt = (user.displayName || user.name || user.cnName || user.enName || 'U').substring(0, 1).toUpperCase();
             const avatarEl = document.getElementById('sidebar-avatar');
-            if(avatarEl) { avatarEl.innerText = user.avatar || '?'; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-fuchsia-600'} border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg shrink-0`; }
-            if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.cnName || user.enName;
+            if(avatarEl) { avatarEl.innerText = avatarTxt; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-fuchsia-600'} border border-white/20 flex items-center justify-center text-white font-bold text-sm shadow-lg shrink-0`; }
+            
+            if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.cnName || user.name || user.enName;
             if(document.getElementById('sidebar-role')) document.getElementById('sidebar-role').innerHTML = `<span class="text-fuchsia-400 font-bold">当前视角: 管理方</span>`;
             
             const menuContainer = document.getElementById('dynamic-identity-list');
@@ -336,7 +338,7 @@
             if(!window.supabase) return;
 
             const syncDot = document.getElementById('sync-indicator');
-            if(syncDot && isSilent) syncDot.classList.remove('hidden');
+            if(syncDot && !isSilent) syncDot.classList.remove('hidden');
 
             try {
                 // 1. 获取全量流转中工单
@@ -346,7 +348,7 @@
                 const ongoingTasks = (tasks || []).filter(t => !['completed', 'archived', 'terminated'].includes(t.status));
                 const pendingTasks = ongoingTasks.filter(t => ['pending', 'pending_accept', 'pending_approval', 'reviewing'].includes(t.status));
 
-                // 2. 动态抓取真实设计师名单
+                // 2. 动态抓取真实设计师名单，完全匹配 users 表的结构
                 let designersMap = {};
 
                 try {
@@ -358,8 +360,8 @@
                             else if (Array.isArray(u.perms)) p = u.perms;
 
                             if(p.includes('design') || p.includes('admin')) {
-                                const key = (u.enName || u.email.split('@')[0]).toLowerCase();
-                                if(!designersMap[key]) {
+                                const key = (u.enName || (u.email ? u.email.split('@')[0] : '')).toLowerCase();
+                                if(key && !designersMap[key]) {
                                     designersMap[key] = { 
                                         display: u.name || u.enName, 
                                         count: 0, 
@@ -388,6 +390,7 @@
                                 case 'pending': sColor = 'sky'; sText = '待接单'; btnHtml = `<button class="text-sky-400 bg-sky-500/10 px-3 py-1 rounded text-[11px] font-bold">待响应</button>`; break;
                                 case 'pending_accept': sColor = 'amber'; sText = '待确认接单'; btnHtml = `<button class="text-amber-400 bg-amber-500/10 px-3 py-1 rounded text-[11px] font-bold">待接单</button>`; break;
                                 case 'processing': sColor = 'orange'; sText = '制作中'; btnHtml = `<button class="text-orange-400 bg-orange-500/10 px-3 py-1 rounded text-[11px] font-bold">查看进度</button>`; break;
+                                // 跳转到详情页
                                 case 'pending_approval': sColor = 'amber'; sText = '框架审批中'; btnHtml = `<button onclick="event.stopPropagation(); window.location.href='task-detail-requester.html?id=${t.id}'" class="text-white bg-amber-600 hover:bg-amber-500 px-3 py-1 rounded text-[11px] font-bold transition-colors shadow-lg">去审批</button>`; break;
                                 case 'reviewing': sColor = 'emerald'; sText = '待甲方验收'; btnHtml = `<button class="text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded text-[11px] font-bold">甲方验收中</button>`; break;
                                 case 'rejected': sColor = 'rose'; sText = '打回修改中'; btnHtml = `<button class="text-rose-400 bg-rose-500/10 px-3 py-1 rounded text-[11px] font-bold">督办催稿</button>`; break;
@@ -512,17 +515,15 @@
                 const notifContainer = document.getElementById('notif-list-container');
                 if (notifContainer) {
                     if (unreadCount === 0) {
-                        notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读消息</div>';
+                        notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读预警消息</div>';
                     } else {
                         notifContainer.innerHTML = unreadNotifs.map(n => {
-                            let titleText = '系统通知';
+                            let titleText = '全盘预警';
                             let contentText = n.content || '';
                             let titleMatch = contentText.match(/^(【.*?】)/);
                             if(titleMatch) {
                                 titleText = titleMatch[1];
                                 contentText = contentText.replace(titleMatch[1], '').trim();
-                            } else if(n.category === 'urgent') {
-                                titleText = '🚨 紧急催办';
                             }
                             
                             return `
@@ -542,12 +543,10 @@
             if(window.supabase) { 
                 try { await window.supabase.from('notifications').update({ is_read: true }).eq('id', id); } catch(e){} 
             }
-            
-            // 💡 强制将跳转链接替换为需求方专用的详情页！
             let finalUrl = url || '#';
             let match = finalUrl.match(/id=(TK-\d+)/);
             if (match) {
-                finalUrl = 'task-detail-requester.html?id=' + match[1];
+                finalUrl = 'task-detail-requester.html?id=' + match[1]; 
             }
             window.location.href = finalUrl;
         };
