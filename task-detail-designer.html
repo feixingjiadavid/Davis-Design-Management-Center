@@ -236,7 +236,7 @@
     <div id="action-toast" class="fixed top-8 right-8 z-[1000] hidden toast-slide-in">
         <div class="bg-[#1a1a1f] border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-3 w-72">
             <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0"></div>
-            <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-zinc-400 text-[11px] mt-0.5">操作已执行。</p></div>
+            <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-[11px] text-zinc-400 mt-0.5">操作已执行。</p></div>
         </div>
     </div>
 
@@ -300,7 +300,6 @@
             setTimeout(() => clearInterval(checkAndLoad), 5000); 
         }
 
-        // 💡 提取精确的真实版本号逻辑
         function getNextVersionNumber(historyArr) {
             let count = 0;
             historyArr.forEach(h => {
@@ -308,13 +307,16 @@
                     count++;
                 }
             });
-            return count + 1; // 下一个版本即为 count + 1
+            return count + 1;
         }
 
-        // 🚀 全局通用邮件派发工厂
-        async function sendNotificationEmail(targetIdentifier, content, category = 'update') {
-            if (!window.SysNotification || !targetIdentifier) return;
+        // 🚀 核心修复：全局通用通知派发工厂 (双路并发：存入DB铃铛 + 发送邮件)
+        window.insertDbNotification = async function(targetIdentifier, content, link_url, category = 'update') {
+            if (!window.supabase || !targetIdentifier) return;
             try {
+                let targetEmail = '';
+                let targetUserId = null;
+
                 const { data: allUsers } = await window.supabase.from('users').select('id, email, name, enName');
                 if (allUsers) {
                     const targetUser = allUsers.find(u => 
@@ -322,18 +324,40 @@
                         (u.name && u.name.toLowerCase().includes(targetIdentifier.toLowerCase())) ||
                         (u.enName && u.enName.toLowerCase().includes(targetIdentifier.toLowerCase()))
                     );
-                    
                     if (targetUser) {
-                        await window.SysNotification.sendNotice({
-                            targetId: targetUser.id,
-                            targetEmail: targetUser.email,
-                            content: content,
-                            category: category,
-                            url: `task-detail-designer.html?id=${currentTaskId}` // 引导回去看
-                        });
+                        targetEmail = targetUser.email;
+                        targetUserId = targetUser.id;
                     }
                 }
-            } catch(e) { console.error("发送邮件通知失败:", e); }
+
+                if (!targetEmail) targetEmail = targetIdentifier.toLowerCase() + '@webank.com';
+
+                const senderName = currentUser.displayName || currentUser.cnName || currentUser.enName || '系统';
+
+                // 1. 强制写入数据库，点亮目标人的网页红点铃铛
+                let insertPayload = {
+                    content: content, 
+                    link_url: link_url, 
+                    target_email: targetEmail, 
+                    sender_name: senderName, 
+                    is_read: false
+                };
+                if(targetUserId) insertPayload.user_id = targetUserId; 
+
+                const { error } = await window.supabase.from('notifications').insert([insertPayload]);
+                if (error) console.error("写入DB铃铛失败:", error.message);
+                
+                // 2. 触发外部系统邮件 (如果配置了 SysNotification)
+                if (!error && window.SysNotification && targetUserId) {
+                    await window.SysNotification.sendNotice({
+                        targetId: targetUserId,
+                        targetEmail: targetEmail,
+                        content: content,
+                        category: category,
+                        url: link_url
+                    });
+                }
+            } catch(e) { console.error("通知派发异常:", e); }
         }
 
         async function fetchTaskData() {
@@ -347,7 +371,7 @@
                 renderStaticInfo();
                 renderVersionHistory(); 
                 renderSmartDesignerPanel();
-                renderResourceSummary(); // 💡 渲染右侧资源汇总大盘
+                renderResourceSummary(); 
                 renderTimeline();
 
             } catch(e) { console.error(e); showToast("数据加载失败", e.message, "error"); }
@@ -469,7 +493,6 @@
                 let toolsArr = sub.ai_tools || [];
                 let toolsTxt = toolsArr.length > 0 ? toolsArr.join('、') : '纯手绘 / 未填';
 
-                // 💡 新增：动态生成源文件下载链接
                 let sourceLinkHtml = '';
                 if (sub.source_link) {
                     let href = sub.source_link.trim();
@@ -525,8 +548,16 @@
             container.innerHTML = html;
         }
 
+        // ================= 💡 智能 Action Panel =================
         function renderSmartDesignerPanel() {
             const status = globalTaskData.status;
+            const enName = currentUser.enName.toLowerCase();
+            const dispName = currentUser.displayName || currentUser.cnName || currentUser.enName;
+            
+            const isCreator = (dispName === globalTaskData.creator || enName === (globalTaskData.creator || '').toLowerCase());
+            const isLeader = enName === 'judyzzhang';
+            const isSuperAdmin = enName === 'davidxxu' || enName === 'davidxu';
+            
             const hBadge = document.getElementById('header-status-badge');
             const pnl = document.getElementById('smart-action-panel');
             const dGlow = document.getElementById('dynamic-glow');
@@ -538,7 +569,6 @@
             let pnlHtml = '';
             let pnlClasses = 'bg-[#121217] border border-white/5 rounded-3xl p-7 shadow-2xl relative overflow-hidden transition-all duration-300';
             
-            // 💡 修复：使用精确计数算法获取版本号
             const preciseVersionNum = getNextVersionNumber(globalHistoryArr);
             document.getElementById('upload-version-tag').innerText = `(将记录为 v-${preciseVersionNum})`;
 
@@ -641,7 +671,7 @@
                 upArea.classList.add('hidden'); 
                 
                 let urgeFn = status === 'pending_approval' ? 'urgeLeader(this)' : 'urgeRequester(this)';
-                let urgeText = status === 'pending_approval' ? '🚀 发送邮件催办丹楠姐审批' : '🚀 发送邮件催办甲方验收';
+                let urgeText = status === 'pending_approval' ? '🚀 发送铃铛及邮件催办审批' : '🚀 发送铃铛及邮件催办验收';
 
                 pnlClasses = 'bg-[#18181b] border border-zinc-700 rounded-3xl p-7 shadow-2xl relative overflow-hidden';
                 pnlHtml = `
@@ -679,33 +709,33 @@
             pnl.innerHTML = pnlHtml;
         }
 
-        // ================= 🚀 催办自动发系统邮件逻辑 =================
+        // ================= 🚀 催办：双路触发铃铛和邮件 =================
         window.urgeLeader = async function(btn) {
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<svg class="animate-spin h-3.5 w-3.5 mr-2 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 发送警报邮件中...';
+            btn.innerHTML = '<svg class="animate-spin h-3.5 w-3.5 mr-2 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle></svg> 发送警报中...';
             btn.disabled = true;
 
             if (globalTaskData) {
-                await sendNotificationEmail('judyzzhang', `🚨 催办强提醒：设计师已提交框架，等待您的火速审批：《${globalTaskData.title || currentTaskId}》。`, 'urgent');
+                // 1. 触发铃铛和邮件！通知领导去 manager-workspace
+                await insertDbNotification('judyzzhang', `🚨 催办强提醒：设计师已提交框架，等待您的火速审批：《${globalTaskData.title || currentTaskId}》。`, `manager-workspace.html?id=${currentTaskId}`, 'urgent');
             }
 
-            btn.innerHTML = '✓ 已发送系统邮件催办提醒';
+            btn.innerHTML = '✓ 已触发系统警报催办';
             btn.className = "w-full py-3.5 bg-zinc-800 border border-zinc-700 text-zinc-500 rounded-xl text-[13px] font-bold cursor-not-allowed mb-3";
-            showToast('已提醒', '系统催办提醒邮件已发送给丹楠姐', 'success');
+            showToast('已提醒', '系统催办提醒已发送给丹楠姐 (铃铛+邮件)', 'success');
         }
 
         window.urgeRequester = async function(btn) {
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<svg class="animate-spin h-3.5 w-3.5 mr-2 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 发送警报邮件中...';
+            btn.innerHTML = '<svg class="animate-spin h-3.5 w-3.5 mr-2 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle></svg> 发送警报中...';
             btn.disabled = true;
 
             if (globalTaskData && globalTaskData.creator) {
-                await sendNotificationEmail(globalTaskData.creator, `🚨 催办强提醒：设计师交付了最终稿件，等待您的火速验收：《${globalTaskData.title || currentTaskId}》。`, 'urgent');
+                // 1. 触发铃铛和邮件！通知甲方去 task-detail-requester
+                await insertDbNotification(globalTaskData.creator, `🚨 催办强提醒：设计师交付了最终稿件，等待您的火速验收：《${globalTaskData.title || currentTaskId}》。`, `task-detail-requester.html?id=${currentTaskId}`, 'urgent');
             }
 
-            btn.innerHTML = '✓ 已发送系统邮件催办提醒';
+            btn.innerHTML = '✓ 已触发系统警报催办';
             btn.className = "w-full py-3.5 bg-zinc-800 border border-zinc-700 text-zinc-500 rounded-xl text-[13px] font-bold cursor-not-allowed mb-3";
-            showToast('已提醒', '系统催办提醒邮件已发送给甲方', 'success');
+            showToast('已提醒', '系统催办提醒已发送给甲方 (铃铛+邮件)', 'success');
         }
 
         function renderTimeline() {
@@ -791,17 +821,6 @@
             }
         }
         
-        window.openPreview = function(src) {
-            const finalSrc = src || localPreviewUrl;
-            if(!finalSrc) return;
-            document.getElementById('modal-image').src = finalSrc;
-            const modal = document.getElementById('image-preview-modal');
-            modal.classList.remove('hidden'); void modal.offsetWidth; modal.style.display = 'flex'; setTimeout(() => modal.classList.add('visible'), 10);
-        }
-        window.closePreview = function() {
-            const modal = document.getElementById('image-preview-modal');
-            modal.classList.remove('visible'); setTimeout(() => { modal.style.display = 'none'; modal.classList.add('hidden'); }, 300);
-        }
         window.resetUpload = function(e) {
             e.stopPropagation(); document.getElementById('design-upload').value = '';
             tempFileBlob = null; if(localPreviewUrl) { URL.revokeObjectURL(localPreviewUrl); localPreviewUrl = null; }
@@ -821,7 +840,7 @@
             setTimeout(() => { acceptOverlay.classList.add('hidden'); acceptModal.classList.add('hidden'); rejectOverlay.classList.add('hidden'); rejectModal.classList.add('hidden'); }, 300);
         }
 
-        // ================= 🚀 核心写入与发邮件动作 =================
+        // ================= 🚀 核心写入动作 (并自动派发铃铛与邮件) =================
 
         window.submitAccept = async function() {
             const fwDate = document.getElementById('framework-date').value;
@@ -832,7 +851,6 @@
             if (window.supabase) {
                 const summary = `排期中，预计 ${fwDate} 上传框架方案`;
                 
-                // 💡 在历史中写入“接单”记录
                 let hist = [...globalHistoryArr];
                 hist.push({
                     action: 'accept', operator: `${currentUser.displayName || currentUser.enName} (设计师)`, time: new Date().toISOString(),
@@ -845,9 +863,9 @@
                 
                 if (error) { btn.disabled = false; btn.innerText = "保存排期并接单"; return alert("云端更新失败：" + error.message); }
 
-                // 🚀 发送接单通知邮件
+                // 🚀 双路触发：给甲方铃铛和邮件
                 if (globalTaskData && globalTaskData.creator) {
-                    await sendNotificationEmail(globalTaskData.creator, `【已接单】设计师 ${currentUser.displayName || currentUser.enName} 已接手你的需求：《${globalTaskData.title}》，预计交稿：${fwDate}。`);
+                    await insertDbNotification(globalTaskData.creator, `【已接单】设计师 ${currentUser.displayName || currentUser.enName} 已接手你的需求：《${globalTaskData.title}》，预计交稿：${fwDate}。`, `task-detail-requester.html?id=${currentTaskId}`, 'update');
                 }
             }
             closeActionModals(); showToast('✅ 接单成功', '任务已分配给您并进入制作池。', 'success');
@@ -875,13 +893,13 @@
                 
                 if (error) { btn.disabled = false; btn.innerText = "确认退回"; return alert("云端更新失败：" + error.message); }
 
-                // 🚀 发送退单通知邮件
+                // 🚀 双路触发：给甲方发紧急退回通知
                 if (globalTaskData && globalTaskData.creator) {
-                    await sendNotificationEmail(globalTaskData.creator, `【需求被退回】设计师因需求不清晰退回了你的单子：《${globalTaskData.title}》，原因：${reason}。`, 'urgent');
+                    await insertDbNotification(globalTaskData.creator, `【需求被退回】设计师因需求不清晰退回了你的单子：《${globalTaskData.title}》，原因：${reason}。`, `task-detail-requester.html?id=${currentTaskId}`, 'urgent');
                 }
             }
             closeActionModals(); showToast('已退回', '该需求已退回给甲方。', 'info');
-            setTimeout(() => { window.location.href = 'manager-workspace.html'; }, 1000);
+            setTimeout(() => { window.location.href = 'assistant-workspace.html'; }, 1000);
         }
 
         window.submitDesignWork = async function() {
@@ -933,7 +951,6 @@
             const manualAI = document.getElementById('ai-tool-manual')?.value.trim();
             if (manualAI) checkedAIs.push(manualAI);
 
-            // 💡 修复：使用精确版本号
             const preciseVersionNum = getNextVersionNumber(globalHistoryArr);
 
             const actionType = currentUploadPhase === 'framework' ? 'submit_framework' : 'submit_draft';
@@ -969,12 +986,12 @@
 
                 if (error) { btn.disabled = false; btn.innerHTML = btnOriginalText; return alert("状态更新失败：" + error.message); }
 
-                // 🚀 发送完工通知邮件
+                // 🚀 双路触发：根据提交节点，给领导或甲方发送消息和铃铛！
                 if (actionType === 'submit_framework') {
-                    await sendNotificationEmail('judyzzhang', `【框架待审】设计师 ${currentUser.displayName || currentUser.enName} 上传了中期方案：《${globalTaskData.title}》，请您火速审批把关。`);
+                    await insertDbNotification('judyzzhang', `【框架待审】设计师 ${currentUser.displayName || currentUser.enName} 上传了中期方案：《${globalTaskData.title}》，请您火速审批把关。`, `manager-workspace.html?id=${currentTaskId}`, 'urgent');
                 } else if (actionType === 'submit_draft') {
                     if (globalTaskData.creator) {
-                        await sendNotificationEmail(globalTaskData.creator, `【正稿待收】设计师 ${currentUser.displayName || currentUser.enName} 交付了正式设计稿：《${globalTaskData.title}》，请您火速验收。`);
+                        await insertDbNotification(globalTaskData.creator, `【正稿待收】设计师 ${currentUser.displayName || currentUser.enName} 交付了正式设计稿：《${globalTaskData.title}》，请您火速验收。`, `task-detail-requester.html?id=${currentTaskId}`, 'urgent');
                     }
                 }
             }
@@ -982,6 +999,31 @@
             showToast('推送成功', `该节点产出已流转至下一步。`, 'success');
             setTimeout(() => { window.location.href = 'assistant-workspace.html'; }, 1500);
         }
+        
+        // 铃铛自身点击跳转修复
+        window.markSingleAsRead = async function(id, url) {
+            if(window.supabase) { try { await window.supabase.from('notifications').update({ is_read: true }).eq('id', id); } catch(e){} }
+            let finalUrl = url || '#';
+            let match = finalUrl.match(/id=(TK-\d+)/);
+            // 确保设计师看到铃铛，点击跳转到设计师的详情页
+            if (match) { finalUrl = 'task-detail-designer.html?id=' + match[1]; }
+            window.location.href = finalUrl;
+        };
+
+        window.markAllAsRead = async function(e) {
+            if(e) e.stopPropagation();
+            if (!window.supabase || !window.currentMyUnreadIds || window.currentMyUnreadIds.length === 0) return;
+            const btn = e.currentTarget;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "处理中...";
+            try {
+                await window.supabase.from('notifications').update({ is_read: true }).in('id', window.currentMyUnreadIds);
+                // 这边设计师没有轮询机制，直接刷新页面重载通知即可
+                window.location.reload();
+            } catch(e) {}
+            btn.innerHTML = originalText;
+        };
+
     </script>
 </body>
 </html>
