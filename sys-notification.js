@@ -1,9 +1,11 @@
 /**
  * Davis Design Management Center - 系统通知增强版
  * 修复了加载顺序冲突和用户信息丢失的问题
+ * 新增：完整的小铃铛（站内信）数据流转机制
  */
 const SysNotification = {
     currentUser: null,
+
     async init() {
         // 1. 确保 supabase 已就绪
         if (!window.supabase) {
@@ -22,6 +24,10 @@ const SysNotification = {
             this.injectStyles();     
             this.startListening();   
             this.applyPermissions(); 
+            
+            // 【新增】初始化时自动拉取未读消息数并更新页面铃铛
+            this.updateBellCount();
+
             console.log("✅ 系统插件就绪:", user.email);
         } catch (err) {
             console.error("❌ 初始化失败:", err);
@@ -32,7 +38,11 @@ const SysNotification = {
         window.supabase.channel('global-notif')
             .on('postgres_changes', { 
                 event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${this.currentUser.id}` 
-            }, payload => this.showPopup(payload.new))
+            }, payload => {
+                this.showPopup(payload.new);
+                // 【新增】收到新消息时，实时更新铃铛数字
+                this.updateBellCount();
+            })
             .subscribe();
     },
 
@@ -64,7 +74,8 @@ const SysNotification = {
             sender_name: sender, 
             content: content,
             category: category || 'info', 
-            link_url: url
+            link_url: url,
+            is_read: false // 【新增】确保新建的通知默认是未读状态
         }]);
     },
 
@@ -92,10 +103,91 @@ const SysNotification = {
         container.id = 'sys-toast-container';
         document.body.appendChild(container);
         return container;
+    },
+
+    // ================= 【以下为打通铃铛新增的核心方法】 =================
+
+    // 1. 获取未读消息数量
+    async getUnreadCount() {
+        if (!this.currentUser) return 0;
+        const { count, error } = await window.supabase
+            .from('notifications')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', this.currentUser.id)
+            .eq('is_read', false);
+
+        if (error) {
+            console.error("获取未读消息数失败:", error);
+            return 0;
+        }
+        return count || 0;
+    },
+
+    // 2. 更新页面上的铃铛UI红点/数字
+    async updateBellCount() {
+        const count = await this.getUnreadCount();
+        // 自动寻找页面中 class 为 bell-badge 或 id 为 notification-badge 的元素
+        const badges = document.querySelectorAll('.bell-badge, #notification-badge');
+        badges.forEach(badge => {
+            if (count > 0) {
+                badge.style.display = 'inline-block';
+                badge.textContent = count > 99 ? '99+' : count;
+            } else {
+                badge.style.display = 'none';
+                badge.textContent = '0';
+            }
+        });
+    },
+
+    // 3. 获取当前用户的通知列表数据（用于点击铃铛后渲染列表）
+    async getNotifications(limit = 20) {
+        if (!this.currentUser) return [];
+        const { data, error } = await window.supabase
+            .from('notifications')
+            .select('*')
+            .eq('user_id', this.currentUser.id)
+            .order('created_at', { ascending: false })
+            .limit(limit);
+
+        if (error) {
+            console.error("获取通知列表失败:", error);
+            return [];
+        }
+        return data;
+    },
+
+    // 4. 将单条消息标记为已读
+    async markAsRead(notificationId) {
+        const { error } = await window.supabase
+            .from('notifications')
+            .update({ is_read: true })
+            .eq('id', notificationId);
+
+        if (!error) {
+            this.updateBellCount(); // 标记已读后自动刷新铃铛数字
+        } else {
+            console.error("标记已读失败:", error);
+        }
+    },
+
+    // 5. 将当前用户的所有消息标记为已读
+    async markAllAsRead() {
+        if (!this.currentUser) return;
+        const { error } = await window.supabase
+            .from('notifications')
+            .update({ is_read: true })
+            .eq('user_id', this.currentUser.id)
+            .eq('is_read', false);
+
+        if (!error) {
+            this.updateBellCount(); // 刷新数字为 0
+        } else {
+            console.error("全部标记已读失败:", error);
+        }
     }
 };
 
-// 只有在非模块环境下才自动启动，模块环境下由 Index.html 启动
+// 只有在非模块环境下才自动启动，模块环境下由 Index.html 或其他页面启动
 if (typeof window !== 'undefined') {
     window.SysNotification = SysNotification;
 }
