@@ -114,6 +114,9 @@
         let currentRole = 'req'; 
         let themeColor = 'indigo'; 
 
+        // 💡 增加全局 Hash 记录，防止轮询时打断用户滚动
+        let lastNotifHash = '';
+
         window.initPage = function() {
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.has('role')) currentRole = urlParams.get('role');
@@ -122,7 +125,7 @@
             if (!userStr) { window.location.href = 'login.html'; return; }
             const user = JSON.parse(userStr);
 
-            // 💡 核心：根据不同身份动态渲染对应的颜色和菜单
+            // 根据不同身份动态渲染对应的颜色和菜单
             if (currentRole === 'admin') {
                 themeColor = 'fuchsia';
                 document.getElementById('body-container').classList.add('selection:bg-fuchsia-500/30');
@@ -212,16 +215,22 @@
             if(avatarEl) { avatarEl.innerText = user.avatar || '?'; }
             if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.name || user.cnName || user.enName;
             
-            loadMsgs();
+            // 初始化拉取一次
+            window.loadMsgs(false);
+
+            // 💡 核心修复1：为系统注入“心跳”，每 8 秒静默轮询，彻底告别系统“死机”
+            setInterval(() => {
+                window.loadMsgs(true);
+            }, 8000);
         }
 
-        // 🚀 核心更新：上帝视角无盲区查库
-        window.loadMsgs = async function() {
+        // 🚀 核心修复2：上帝视角无盲区查库 + 精准三端隔离 + 防滚动条乱跳
+        window.loadMsgs = async function(isSilent = false) {
             const container = document.getElementById('msg-list-container');
             const badge = document.getElementById('unread-badge');
 
             if(!window.supabase) {
-                container.innerHTML = '<div class="text-center py-20 text-zinc-500">云端数据库未连接，请刷新重试</div>';
+                if(!isSilent) container.innerHTML = '<div class="text-center py-20 text-zinc-500">云端数据库未连接，请刷新重试</div>';
                 return;
             }
 
@@ -232,7 +241,6 @@
             const isAdmin = (currentUser.perms || []).includes('admin');
 
             try {
-                // 取最近的记录
                 const { data, error } = await window.supabase.from('notifications')
                     .select('*')
                     .order('created_at', { ascending: false })
@@ -240,20 +248,49 @@
                 
                 if (error) throw error;
 
-                // 💡 核心：上帝视角拦截器！超管能看到别人催单楠姐的、退回的、交付的所有关键节点！
+                // 💡 核心修复3：精准多角色隔离规则同步
                 let myNotifs = data.filter(n => {
-                    const target = (n.target_email || '').toLowerCase();
-                    const targetPrefix = target.split('@')[0];
+                    const contentStr = n.content || '';
+                    let toUser = ''; 
+                    let toMatch = contentStr.match(/\[to:(.*?)\]/i);
                     
-                    const isForMe = (targetPrefix === userKeyword) || (currentUser.email && target === currentUser.email.toLowerCase());
-                    
-                    const isGlobalUrgent = isAdmin && (
-                        targetPrefix === 'judyzzhang' || 
-                        (n.content && (n.content.includes('审') || n.content.includes('催') || n.content.includes('退回') || n.content.includes('交付')))
-                    );
+                    if(toMatch) { 
+                        toUser = toMatch[1].trim().toLowerCase(); 
+                    } else { 
+                        const target = (n.target_email || '').toLowerCase(); 
+                        toUser = target.split('@')[0]; 
+                    }
 
-                    return isForMe || isGlobalUrgent;
+                    const isForMe = (toUser === userKeyword) || (currentUser.email && (n.target_email||'').toLowerCase() === currentUser.email.toLowerCase()) || (currentUser.id && n.user_id === currentUser.id);
+
+                    if (currentRole === 'req') {
+                        if (!isForMe) return false;
+                        if (contentStr.includes('指派了新需求') || contentStr.includes('框架待审') || (contentStr.includes('打回') && !contentStr.includes('退回'))) return false;
+                        return true;
+                    } 
+                    else if (currentRole === 'design') {
+                        if (!isForMe) return false;
+                        if (contentStr.includes('已接手你的需求') || contentStr.includes('上传了中期方案') || contentStr.includes('交付了正式设计稿')) return false;
+                        return true;
+                    } 
+                    else if (currentRole === 'admin') {
+                        const isGlobalUrgent = isAdmin && (
+                            toUser === 'judyzzhang' || 
+                            contentStr.includes('🚨') ||
+                            contentStr.includes('催办') ||
+                            contentStr.includes('待审') ||
+                            contentStr.includes('打回') ||
+                            contentStr.includes('交付')
+                        );
+                        return isForMe || isGlobalUrgent;
+                    }
+                    return isForMe;
                 });
+
+                // 💡 核心修复4：极客级 Hash 防抖。比对内容，没有新消息或已读状态改变就直接返回，不重绘 DOM
+                const newHash = myNotifs.map(n => n.id + '_' + n.is_read).join(',');
+                if (isSilent && newHash === lastNotifHash) return;
+                lastNotifHash = newHash;
 
                 const unreadCount = myNotifs.filter(n => !n.is_read).length;
                 if(unreadCount > 0) {
@@ -268,7 +305,7 @@
                         <div class="text-center py-24 opacity-50 flex flex-col items-center">
                             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-zinc-500 mb-4"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
                             <p class="text-[14px] font-medium text-zinc-400">消息列表空空如也</p>
-                            <p class="text-[11px] text-zinc-500 mt-2">没有任何新的通知或动态</p>
+                            <p class="text-[11px] text-zinc-500 mt-2">没有任何属于您的通知或动态</p>
                         </div>`;
                     return;
                 }
@@ -324,7 +361,7 @@
 
             } catch(e) {
                 console.error("加载消息失败:", e);
-                container.innerHTML = '<div class="text-center py-20 text-zinc-500">拉取云端数据失败，请刷新重试</div>';
+                if(!isSilent) container.innerHTML = '<div class="text-center py-20 text-zinc-500">拉取云端数据失败，请刷新重试</div>';
             }
         }
 
@@ -340,7 +377,8 @@
                     .update({ is_read: true })
                     .in('id', window.currentMyUnreadIds);
                 
-                await window.loadMsgs(); // 重新拉取
+                lastNotifHash = ''; // 清空 Hash 强制重绘
+                await window.loadMsgs(false); // 重新拉取
             } catch(e) { console.error(e); }
             
             btnNode.innerHTML = originalText;
