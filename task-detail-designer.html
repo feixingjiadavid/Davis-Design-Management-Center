@@ -332,7 +332,7 @@
 
                 if (!targetEmail) targetEmail = targetIdentifier.toLowerCase() + '@webank.com';
 
-                const senderName = currentUser.displayName || currentUser.cnName || currentUser.enName || '系统';
+                const senderName = currentUser.displayName || currentUser.name || currentUser.cnName || currentUser.enName || '系统';
 
                 // 1. 强制写入数据库，点亮目标人的网页红点铃铛
                 let insertPayload = {
@@ -556,7 +556,7 @@
             
             const isCreator = (dispName === globalTaskData.creator || enName === (globalTaskData.creator || '').toLowerCase());
             const isLeader = enName === 'judyzzhang';
-            const isSuperAdmin = enName === 'davidxxu' || enName === 'davidxu';
+            const isSuperAdmin = enName === 'davidxxu' || enName === 'davidxu' || enName === 'ponyxu';
             
             const hBadge = document.getElementById('header-status-badge');
             const pnl = document.getElementById('smart-action-panel');
@@ -715,8 +715,8 @@
             btn.disabled = true;
 
             if (globalTaskData) {
-                // 1. 触发铃铛和邮件！通知领导去 manager-workspace
-                await insertDbNotification('judyzzhang', `🚨 催办强提醒：设计师已提交框架，等待您的火速审批：《${globalTaskData.title || currentTaskId}》。`, `manager-workspace.html?id=${currentTaskId}`, 'urgent');
+                // 1. 触发铃铛和邮件！通知领导去 task-detail-requester (大厅跳转)
+                await insertDbNotification('judyzzhang', `🚨 催办强提醒：设计师已提交框架，等待您的火速审批：《${globalTaskData.title || currentTaskId}》。`, `task-detail-requester.html?id=${currentTaskId}`, 'urgent');
             }
 
             btn.innerHTML = '✓ 已触发系统警报催办';
@@ -963,7 +963,7 @@
                 ai_tools: checkedAIs,
                 created_at: new Date().toISOString(),
                 action: actionType,
-                operator: currentUser.displayName || currentUser.enName
+                operator: currentUser.displayName || currentUser.cnName || currentUser.name || currentUser.enName
             };
             globalHistoryArr.push(newHistoryRecord);
 
@@ -988,7 +988,7 @@
 
                 // 🚀 双路触发：根据提交节点，给领导或甲方发送消息和铃铛！
                 if (actionType === 'submit_framework') {
-                    await insertDbNotification('judyzzhang', `【框架待审】设计师 ${currentUser.displayName || currentUser.enName} 上传了中期方案：《${globalTaskData.title}》，请您火速审批把关。`, `manager-workspace.html?id=${currentTaskId}`, 'urgent');
+                    await insertDbNotification('judyzzhang', `【框架待审】设计师 ${currentUser.displayName || currentUser.enName} 上传了中期方案：《${globalTaskData.title}》，请您火速审批把关。`, `task-detail-requester.html?id=${currentTaskId}`, 'urgent');
                 } else if (actionType === 'submit_draft') {
                     if (globalTaskData.creator) {
                         await insertDbNotification(globalTaskData.creator, `【正稿待收】设计师 ${currentUser.displayName || currentUser.enName} 交付了正式设计稿：《${globalTaskData.title}》，请您火速验收。`, `task-detail-requester.html?id=${currentTaskId}`, 'urgent');
@@ -1000,30 +1000,6 @@
             setTimeout(() => { window.location.href = 'assistant-workspace.html'; }, 1500);
         }
         
-        // 铃铛自身点击跳转修复
-        window.markSingleAsRead = async function(id, url) {
-            if(window.supabase) { try { await window.supabase.from('notifications').update({ is_read: true }).eq('id', id); } catch(e){} }
-            let finalUrl = url || '#';
-            let match = finalUrl.match(/id=(TK-\d+)/);
-            // 确保设计师看到铃铛，点击跳转到设计师的详情页
-            if (match) { finalUrl = 'task-detail-designer.html?id=' + match[1]; }
-            window.location.href = finalUrl;
-        };
-
-        window.markAllAsRead = async function(e) {
-            if(e) e.stopPropagation();
-            if (!window.supabase || !window.currentMyUnreadIds || window.currentMyUnreadIds.length === 0) return;
-            const btn = e.currentTarget;
-            const originalText = btn.innerHTML;
-            btn.innerHTML = "处理中...";
-            try {
-                await window.supabase.from('notifications').update({ is_read: true }).in('id', window.currentMyUnreadIds);
-                // 这边设计师没有轮询机制，直接刷新页面重载通知即可
-                window.location.reload();
-            } catch(e) {}
-            btn.innerHTML = originalText;
-        };
-
     </script>
 </body>
 </html>
