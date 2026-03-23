@@ -129,7 +129,7 @@
                     </button>
                     <div id="notifMenu" class="hidden absolute right-0 top-[120%] w-[340px] bg-[#121217] border border-white/10 rounded-2xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.8)] py-3 dropdown-enter z-[9999]">
                         <div class="px-5 pb-3 border-b border-white/5 flex justify-between items-center">
-                            <h3 class="text-[14px] font-bold text-white">消息通知</h3>
+                            <h3 class="text-[14px] font-bold text-white">系统通知</h3>
                             <button onclick="window.markAllAsRead(event)" class="text-[11px] text-indigo-400 hover:text-indigo-300 btn-press transition-colors">全部标为已读</button>
                         </div>
                         <div id="notif-list-container" class="max-h-[300px] overflow-y-auto custom-scrollbar">
@@ -140,6 +140,7 @@
                         </div>
                     </div>
                 </div>
+
                 <div class="relative" id="identity-wrapper">
                     <button id="identityBtn" class="bg-[#141417] border border-white/10 text-zinc-300 px-5 py-3 rounded-[14px] flex items-center gap-3 text-[13px] font-medium hover:bg-[#1a1a1f] transition-colors btn-press">
                         身份加载中...
@@ -359,62 +360,34 @@
         const PAGE_TYPE = 'req'; 
         let currentUploadedFileData = null;
 
-        // 🚀 系统级通知写入引擎（使用 null 兜底，防止外键报错）
+        // 💡 核心修复2：利用用户自己的 SysNotification 执行发送，不再手工写库
         window.insertDbNotification = async function(targetIdentifier, content, link_url, category = 'new') {
-            if (!window.supabase || !targetIdentifier) return;
+            if (!window.SysNotification || !targetIdentifier) return;
             try {
-                let targetEmail = '';
-                let targetUserId = null; 
+                let targetEmail = targetIdentifier + '@webank.com'; // 默认回退邮箱
+                let targetUserId = null;
 
-                const { data: allUsers } = await window.supabase.from('users').select('id, email, name, enName');
-                if (allUsers && allUsers.length > 0) {
-                    const targetUser = allUsers.find(u => 
-                        (u.email && u.email.toLowerCase().includes(targetIdentifier.toLowerCase())) ||
-                        (u.name && u.name.toLowerCase().includes(targetIdentifier.toLowerCase())) ||
-                        (u.enName && u.enName.toLowerCase().includes(targetIdentifier.toLowerCase())) ||
-                        targetIdentifier.toLowerCase().includes((u.enName||'').toLowerCase())
-                    );
-                    if (targetUser) {
-                        targetEmail = targetUser.email;
-                        targetUserId = targetUser.id;
+                if (window.supabase) {
+                    const { data: usersData } = await window.supabase.from('users').select('id, email, name, enName');
+                    if (usersData) {
+                        const u = usersData.find(x => 
+                            (x.enName||'').toLowerCase() === targetIdentifier.toLowerCase() || 
+                            (x.name||'').toLowerCase() === targetIdentifier.toLowerCase() ||
+                            targetIdentifier.toLowerCase().includes((x.enName||'').toLowerCase())
+                        );
+                        if (u) { targetUserId = u.id; targetEmail = u.email || targetEmail; }
                     }
                 }
 
-                if (!targetEmail) {
-                    if (/^[a-zA-Z]+$/.test(targetIdentifier)) targetEmail = targetIdentifier.toLowerCase() + '@webank.com';
-                    else targetEmail = 'davidxxu@webank.com'; 
-                }
-
-                const userStr = localStorage.getItem('activeUserObj');
-                const currentUser = userStr ? JSON.parse(userStr) : {};
-                const senderName = currentUser.enName || currentUser.displayName || 'System';
-
-                let insertPayload = {
-                    content: content, 
-                    link_url: link_url, 
-                    target_email: targetEmail, 
-                    sender_name: senderName, 
-                    is_read: false,
-                    category: category
-                };
-                if(targetUserId) insertPayload.user_id = targetUserId; 
-
-                const { error } = await window.supabase.from('notifications').insert([insertPayload]);
-                
-                if (error) {
-                    console.error("🚨 写入数据库失败:", error.message);
-                } else {
-                    if(window.SysNotification && window.SysNotification.sendNotice) {
-                        await window.SysNotification.sendNotice({
-                            targetId: targetUserId || '00000000-0000-0000-0000-000000000000',
-                            targetEmail: targetEmail,
-                            content: content,
-                            category: category,
-                            url: link_url
-                        });
-                    }
-                }
-            } catch(e) { console.error("通知执行异常", e); }
+                // 统一收口到 sys-notification.js，避免跨端调用错乱
+                await window.SysNotification.sendNotice({
+                    targetId: targetUserId,
+                    targetEmail: targetEmail,
+                    content: content,
+                    category: category,
+                    url: link_url
+                });
+            } catch(e) { console.error("通知派发异常:", e); }
         };
 
         window.closeCustomDialog = function() {
@@ -440,8 +413,8 @@
                 icon.className = 'w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0';
                 icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
             } else {
-                colorBar.className = 'absolute top-0 left-0 right-0 h-1 bg-sky-500';
-                icon.className = 'w-8 h-8 rounded-full bg-sky-500/20 text-sky-400 flex items-center justify-center shrink-0';
+                colorBar.className = 'absolute top-0 left-0 right-0 h-1 bg-indigo-500';
+                icon.className = 'w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0';
                 icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
             }
         }
@@ -456,7 +429,7 @@
         window.showAlert = function(title, message, type="primary") {
             setupDialog(title, message, type);
             const btnContainer = document.getElementById('dialog-buttons');
-            let btnColor = type === 'danger' ? 'bg-rose-600 hover:bg-rose-500' : (type === 'success' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-sky-600 hover:bg-sky-500');
+            let btnColor = type === 'danger' ? 'bg-rose-600 hover:bg-rose-500' : (type === 'success' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-indigo-600 hover:bg-indigo-500');
             btnContainer.innerHTML = `<button onclick="closeCustomDialog()" class="w-full py-2.5 ${btnColor} text-white rounded-xl text-[13px] font-bold shadow-lg transition-all btn-press">我知道了</button>`;
             showDialogUI();
         }
@@ -464,7 +437,7 @@
         window.showConfirm = function(title, message, onConfirm, type="primary") {
             setupDialog(title, message, type);
             const btnContainer = document.getElementById('dialog-buttons');
-            let btnColor = type === 'danger' ? 'bg-rose-600 hover:bg-rose-500' : (type === 'success' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-sky-600 hover:bg-sky-500');
+            let btnColor = type === 'danger' ? 'bg-rose-600 hover:bg-rose-500' : (type === 'success' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-indigo-600 hover:bg-indigo-500');
             btnContainer.innerHTML = `
                 <button onclick="closeCustomDialog()" class="flex-1 py-2.5 bg-transparent border border-zinc-700 text-zinc-400 hover:text-white rounded-xl text-[13px] font-bold transition-colors btn-press">取消</button>
                 <button id="dialog-confirm-btn" class="flex-1 py-2.5 ${btnColor} text-white rounded-xl text-[13px] font-bold shadow-lg transition-all btn-press">确认执行</button>
@@ -534,9 +507,10 @@
             return user;
         }
 
+        // 💡 核心修复1：将 飞行家戴维 和 测试 补充到删除校验名单
         window.clearTestData = async function() {
             if(!window.supabase) return;
-            window.showConfirm("清空测试数据", "⚠️ 提示：为了保护真实业务，此操作将<b>只清空测试账号（如 davidxu, ponyxu, 小戴维斯）产生的需求数据</b>，不会影响其他人的正式数据！<br><br>确定要继续吗？", async () => {
+            window.showConfirm("清空测试数据", "⚠️ 提示：为了保护真实业务，此操作将<b>只清空测试账号（如 davidxu, ponyxu, 飞行家戴维）产生的需求数据</b>，不会影响其他人的正式数据！<br><br>确定要继续吗？", async () => {
                 try {
                     const btn = document.getElementById('dialog-confirm-btn');
                     if(btn) { btn.innerText = "清理中..."; btn.disabled = true; }
@@ -544,7 +518,7 @@
                     const { data: tasks, error: fetchErr } = await window.supabase.from(window.DB_TABLE).select('id, creator');
                     if (fetchErr) throw fetchErr;
 
-                    const testKeywords = ['davidxu', 'ponyxu', '小戴维斯'];
+                    const testKeywords = ['davidxu', 'ponyxu', '小戴维斯', '飞行家戴维', '测试'];
                     const idsToDelete = tasks.filter(t => {
                         const c = (t.creator || '').toLowerCase().replace(/\s+/g, '');
                         if (c.includes('davidxxu') || c.includes('文哥')) return false;
@@ -620,7 +594,7 @@
             const isOwner = creator === currentUser.displayName || creator === currentUser.cnName || creator === currentUser.enName || creator === currentUserEn;
             
             let isJudy = currentUserEn === 'judyzzhang';
-            let isSuperAdmin = currentUserEn === 'davidxxu' || currentUserEn === 'davidxu'; 
+            let isSuperAdmin = currentUserEn === 'davidxu'; 
             
             if(!isOwner && !isSuperAdmin && !(isJudy && ['pending_approval', 'reviewing', 'completed', 'archived', 'terminated'].includes(task.status))) return null;
 
@@ -751,7 +725,7 @@
             if(!currentUser) return;
             const currentUserEn = currentUser.enName ? currentUser.enName.toLowerCase() : '';
             const cNames = [currentUser.displayName, currentUser.cnName, currentUser.enName, currentUserEn].filter(Boolean).map(n => n.toLowerCase());
-            const isSuperAdmin = currentUserEn === 'davidxu' || currentUserEn === 'davidxxu';
+            const isSuperAdmin = currentUserEn === 'davidxu';
             
             if (!isSilent) window.renderDraftToUI(); 
             const spinner = document.getElementById('loading-spinner');
@@ -1043,9 +1017,20 @@
 
             const { error } = await window.supabase.from(window.DB_TABLE).insert([taskData]);
 
-            if (!error && assigneeVal !== 'none') {
-                // 💡 这里的 insertDbNotification 会安全发信且不会因为找不到 User_id 导致页面报错中断
-                await window.insertDbNotification(assigneeVal, `【新需求指派】${creatorDisplay} 指派了新需求给你：《${shortTitle}》`, `task-detail-designer.html?id=${newId}`, 'new');
+            // 💡 这里的 sendNotice 会安全发信且不手动干扰数据库 user_id 限制
+            if (!error && assigneeVal !== 'none' && window.SysNotification) {
+                let targetEmail = assigneeVal + '@webank.com';
+                let targetUserId = null;
+                const { data: uData } = await window.supabase.from('users').select('id, email, enName').ilike('enName', `${assigneeVal}%`);
+                if (uData && uData.length > 0) { targetUserId = uData[0].id; targetEmail = uData[0].email; }
+
+                await window.SysNotification.sendNotice({
+                    targetId: targetUserId || '00000000-0000-0000-0000-000000000000',
+                    targetEmail: targetEmail,
+                    content: `【新需求指派】${creatorDisplay} 指派了新需求给你：《${shortTitle}》`,
+                    category: 'new',
+                    url: `task-detail-designer.html?id=${newId}`
+                });
             }
 
             btn.innerText = originalText;
@@ -1252,12 +1237,21 @@
                     .select('*').order('created_at', { ascending: false }).limit(100);
                 if (error) throw error;
 
-                // 过滤出属于当前用户的消息
+                // 💡 核心修复3：多维度名字模糊匹配，防漏单
                 let myNotifs = data.filter(n => {
                     const target = (n.target_email || '').toLowerCase();
                     const targetPrefix = target.split('@')[0];
                     
-                    const isForMe = (targetPrefix === userKeyword) || (currentUser.email && target === currentUser.email.toLowerCase()) || (currentUser.id && n.user_id === currentUser.id);
+                    const myNames = [
+                        userKeyword,
+                        (currentUser.displayName || '').toLowerCase(),
+                        (currentUser.name || '').toLowerCase()
+                    ].filter(Boolean);
+
+                    const isForMe = myNames.some(name => targetPrefix.includes(name) || targetPrefix === name) ||
+                                    (currentUser.email && target === currentUser.email.toLowerCase()) ||
+                                    (currentUser.id && n.user_id === currentUser.id);
+
                     if (!isForMe) return false;
 
                     const content = n.content || '';
