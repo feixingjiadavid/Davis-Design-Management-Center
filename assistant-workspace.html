@@ -319,12 +319,12 @@
     <script>
         const PAGE_TYPE = 'design'; 
 
-        // 🚀 系统级通知写入引擎（暴力写库防失败兜底版）
+        // 🚀 系统级通知写入引擎（安全对接 SysNotification）
         window.insertDbNotification = async function(targetIdentifier, content, link_url) {
-            if (!window.supabase || !targetIdentifier) return;
+            if (!window.SysNotification || !targetIdentifier) return;
             try {
                 let targetEmail = '';
-                let targetUserId = null;
+                let targetUserId = '00000000-0000-0000-0000-000000000000'; 
 
                 const { data: allUsers } = await window.supabase.from('users').select('id, email, name, enName');
                 if (allUsers && allUsers.length > 0) {
@@ -337,8 +337,6 @@
                     if (targetUser) {
                         targetEmail = targetUser.email;
                         targetUserId = targetUser.id;
-                    } else {
-                        targetUserId = allUsers[0].id; // 借用首个有效ID防崩溃
                     }
                 }
 
@@ -347,16 +345,14 @@
                     else targetEmail = 'davidxxu@webank.com'; 
                 }
 
-                const userStr = localStorage.getItem('activeUserObj');
-                const currentUser = userStr ? JSON.parse(userStr) : {};
-                const senderName = currentUser.enName || currentUser.displayName || 'System';
-
-                const { error } = await window.supabase.from('notifications').insert([{
-                    user_id: targetUserId, content: content, link_url: link_url, target_email: targetEmail, sender_name: senderName, is_read: false, category: 'update'
-                }]);
-                
-                if (error) console.error("🚨 写入数据库失败:", error.message);
-            } catch(e) { console.error("通知执行异常", e); }
+                await window.SysNotification.sendNotice({
+                    targetId: targetUserId,
+                    targetEmail: targetEmail,
+                    content: content,
+                    category: 'update',
+                    url: link_url
+                });
+            } catch(e) { console.error("发送通知异常", e); }
         };
 
         // ================= 高定弹窗引擎 =================
@@ -750,7 +746,7 @@
                     });
                 }
 
-                // 💡 在渲染完数据后，触发全局通知同步引擎！
+                // 💡 渲染完数据后，触发全局通知引擎同步
                 await window.syncNotificationsFromCloud(data, isSilent);
 
             } catch(e) { console.error(e); } finally {
@@ -865,191 +861,133 @@
             setTimeout(async () => { await window.loadTasksFromCloud(); }, 800);
         }
 
-        // ================= 🚀 全局跨角色实时消息引擎 (Universal Notification Engine) =================
+        // ================= 🚀 全局跨角色实时消息引擎 (基于 Supabase Notifications) =================
         window.syncNotificationsFromCloud = async function(tasksData = null, isSilent = false) {
             if(!window.supabase) return;
             const userStr = localStorage.getItem('activeUserObj');
             if(!userStr) return;
             const currentUser = JSON.parse(userStr);
-            const currentUserEn = currentUser.enName ? currentUser.enName.toLowerCase() : '';
-            const isLeader = currentUserEn === 'judyzzhang' || currentUserEn === 'davidxxu';
-            const hasDesignPerm = (currentUser.perms || []).includes('design');
+            const userKeyword = (currentUser.enName || currentUser.cnName || '').toLowerCase();
 
             try {
-                let tasks = tasksData;
-                if (!tasks) {
-                    const { data, error } = await window.supabase.from(window.DB_TABLE).select('id, title, creator, assignee, status, history_json').order('created_at', { ascending: false }).limit(200);
-                    if(error) throw error;
-                    tasks = data;
-                }
+                // 直接从统一的新通知库拉取，彻底解决催办不亮红点的问题
+                const { data, error } = await window.supabase.from('notifications')
+                    .select('*').order('created_at', { ascending: false }).limit(100);
+                if (error) throw error;
 
-                let myUnreadNotifs = [];
-                let readReceipts = JSON.parse(localStorage.getItem('read_receipts_design_' + currentUserEn) || '{}');
-                let sysNotifs = JSON.parse(localStorage.getItem('sys_notifications') || '[]');
-                let sysNotifsUpdated = false;
-                let newlyFoundCount = 0;
+                // 精准筛选只属于当前设计师的消息
+                let myNotifs = data.filter(n => {
+                    const target = (n.target_email || '').toLowerCase();
+                    const targetPrefix = target.split('@')[0];
+                    const isForMe = (targetPrefix === userKeyword) || (currentUser.email && target === currentUser.email.toLowerCase());
+                    if (!isForMe) return false;
 
-                (tasks || []).forEach(task => {
-                    const creatorStr = (task.creator || '').toLowerCase();
-                    const isMyCreation = creatorStr.includes((currentUser.displayName||'').toLowerCase()) || creatorStr.includes((currentUser.cnName||'').toLowerCase()) || creatorStr.includes(currentUserEn);
-                    const isMyAssignment = (task.assignee || '').toLowerCase() === currentUserEn;
-                    const isUnassigned = (task.assignee || '').toLowerCase() === 'none';
-                    
-                    const isConcerned = isMyCreation || isMyAssignment || isLeader || (isUnassigned && hasDesignPerm && task.status === 'pending');
-
-                    if (!isConcerned) return; 
-
-                    let historyArr = [];
-                    try { historyArr = JSON.parse(task.history_json || '[]'); } catch(e){}
-
-                    historyArr.forEach((h, index) => {
-                        const eventId = `${task.id}_${index}`; 
-
-                        // 💡 核心隔离：过滤掉属于需求方和领导的消息（设计师工作台不该看这些）
-                        if (h.action === 'accept' || h.action === 'submit_framework' || h.action === 'submit_draft') {
-                            return; // 这些是给甲方/领导看的，设计师自己跳过
-                        }
-
-                        if (readReceipts[eventId]) {
-                            let existing = sysNotifs.find(n => n.eventId === eventId && n.role === PAGE_TYPE);
-                            if (existing && !existing.read) {
-                                existing.read = true;
-                                sysNotifsUpdated = true;
-                            }
-                            return; 
-                        }
-
-                        const op = (h.operator || '').toLowerCase();
-                        if (op.includes(currentUserEn) || op.includes((currentUser.displayName||'').toLowerCase()) || op.includes((currentUser.cnName||'').toLowerCase())) {
-                            readReceipts[eventId] = true;
-                            return;
-                        }
-
-                        if (!window.currentUnreadNotifs || !window.currentUnreadNotifs.find(n => n.eventId === eventId)) {
-                            newlyFoundCount++;
-                        }
-
-                        let actionText = h.action || '更新了状态';
-                        let iconDot = 'bg-sky-500';
-                        if(h.action === 'approve_framework') { actionText = '通过了框架审批'; iconDot = 'bg-emerald-500'; }
-                        if(h.is_rejected || h.action === 'reject') { actionText = '打回了该需求'; iconDot = 'bg-rose-500'; }
-                        if(h.action === 'complete') { actionText = '验收通过并完结了工单'; iconDot = 'bg-emerald-500'; }
-                        if(h.action === 'transfer') { actionText = '转移了需求执行人'; iconDot = 'bg-orange-500'; }
-                        if(h.action === 'create') { actionText = '向大厅发起了新需求'; iconDot = 'bg-indigo-500'; }
-
-                        myUnreadNotifs.push({
-                            eventId: eventId,
-                            taskId: task.id,
-                            title: `[${task.id}] ${actionText}`,
-                            desc: `${h.operator || '系统'} : ${h.reply || h.desc || '请及时跟进处理'}`,
-                            time: h.time || h.created_at || new Date().toISOString(),
-                            iconDot: iconDot
-                        });
-
-                        if (!sysNotifs.find(n => n.eventId === eventId && n.role === PAGE_TYPE)) {
-                            sysNotifs.push({
-                                id: new Date().getTime() + Math.random(),
-                                eventId: eventId,
-                                taskId: task.id,
-                                title: `[${task.id}] ${actionText}`,
-                                desc: `${h.operator || '系统'} : ${h.reply || h.desc || '请及时跟进处理'}`,
-                                role: PAGE_TYPE, 
-                                read: false,
-                                time: h.time || h.created_at || new Date().toISOString()
-                            });
-                            sysNotifsUpdated = true;
-                        }
-                    });
+                    const content = n.content || '';
+                    // 💡 100%保留的核心隔离：过滤掉属于需求方和领导的消息
+                    if (content.includes('已接手你的需求') || content.includes('上传了中期方案') || content.includes('交付了正式设计稿')) {
+                        return false; 
+                    }
+                    return true;
                 });
 
-                localStorage.setItem('read_receipts_design_' + currentUserEn, JSON.stringify(readReceipts));
-                if (sysNotifsUpdated) {
-                    localStorage.setItem('sys_notifications', JSON.stringify(sysNotifs));
-                }
+                const unreadNotifs = myNotifs.filter(n => !n.is_read);
+                const unreadCount = unreadNotifs.length;
 
-                myUnreadNotifs.sort((a, b) => new Date(b.time) - new Date(a.time));
+                // 新消息系统级 Toast 提醒
+                let prevUnreadCount = parseInt(localStorage.getItem('prevUnreadCount_design_' + userKeyword) || '0');
+                if (isSilent && unreadCount > prevUnreadCount) {
+                    const newCount = unreadCount - prevUnreadCount;
+                    if(window.showToast) window.showToast('🔔 收到新消息', `您有 ${newCount} 条新通知，请点击右上角铃铛查看。`, 'info');
+                }
+                localStorage.setItem('prevUnreadCount_design_' + userKeyword, unreadCount.toString());
                 
-                if (isSilent && newlyFoundCount > 0) {
-                    window.showToast('🔔 收到新消息', `您有 ${newlyFoundCount} 条新动态，请点击右上角铃铛查看。`, 'info');
+                // 顶部铃铛红点控制
+                const bellDot = document.getElementById('bell-dot');
+                if (bellDot) {
+                    if (unreadCount > 0) {
+                        bellDot.classList.remove('hidden', 'bg-zinc-600', 'border-transparent');
+                        bellDot.classList.add('bg-rose-500', 'animate-pulse', 'border-[#141417]');
+                    } else {
+                        bellDot.classList.add('hidden');
+                    }
                 }
 
-                window.currentUnreadNotifs = myUnreadNotifs; 
-                window.renderNotificationsUI();
+                // 铃铛下拉列表精准渲染，保留原版所有 UI 判断和颜色区分
+                const notifContainer = document.getElementById('notif-list-container');
+                if (notifContainer) {
+                    if (unreadCount === 0) {
+                        notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读消息，工作都在掌控中</div>';
+                    } else {
+                        let html = '';
+                        unreadNotifs.forEach(n => {
+                            let titleText = '系统通知';
+                            let contentText = n.content || '';
+                            let iconDot = 'bg-sky-500';
+                            
+                            // 保留原汁原味的颜色标识逻辑
+                            let titleMatch = contentText.match(/^(【.*?】)/);
+                            if(titleMatch) {
+                                titleText = titleMatch[1];
+                                contentText = contentText.replace(titleMatch[1], '').trim();
+                            } else if(n.category === 'urgent' || contentText.includes('催办') || contentText.includes('🚨')) {
+                                titleText = '🚨 紧急催办';
+                                iconDot = 'bg-rose-500';
+                            }
 
-            } catch(e) { console.error("消息引擎同步失败:", e); }
-        }
-
-        window.renderNotificationsUI = function() {
-            const notifs = window.currentUnreadNotifs || [];
-            const unreadCount = notifs.length;
-            const bellDot = document.getElementById('bell-dot');
-            const notifContainer = document.getElementById('notif-list-container');
-
-            if (bellDot) {
-                if (unreadCount > 0) {
-                    bellDot.classList.remove('hidden', 'bg-zinc-600', 'border-transparent');
-                    bellDot.classList.add('bg-rose-500', 'animate-pulse', 'border-[#141417]');
-                } else {
-                    bellDot.classList.add('hidden');
-                }
-            }
-
-            if (notifContainer) {
-                if (unreadCount === 0) {
-                    notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读消息，工作都在掌控中</div>';
-                } else {
-                    let html = '';
-                    notifs.forEach(n => {
-                        const dateStr = new Date(n.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                        html += `
-                            <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer group" onclick="window.markSingleAsRead('${n.eventId}', '${n.taskId}')">
+                            if (contentText.includes('审批通过') || contentText.includes('验收满意')) iconDot = 'bg-emerald-500';
+                            if (contentText.includes('打回')) iconDot = 'bg-rose-500';
+                            if (contentText.includes('指派了新需求')) iconDot = 'bg-indigo-500';
+                            if (n.category === 'transfer' || contentText.includes('转交')) iconDot = 'bg-orange-500';
+                            
+                            const dateStr = new Date(n.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                            
+                            html += `
+                            <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer group" onclick="window.markSingleAsRead('${n.id}', '${n.link_url}')">
                                 <div class="flex justify-between items-start mb-1">
-                                    <h4 class="text-[13px] font-bold text-white flex items-center gap-2 group-hover:text-sky-400 transition-colors">
-                                        <span class="w-2 h-2 rounded-full ${n.iconDot} shrink-0 shadow-[0_0_8px_currentColor]"></span>
-                                        ${n.title}
+                                    <h4 class="text-[13px] font-bold text-white flex items-center gap-2 group-hover:text-orange-400 transition-colors">
+                                        <span class="w-2 h-2 rounded-full ${iconDot} shrink-0 shadow-[0_0_8px_currentColor]"></span>
+                                        ${titleText}
                                     </h4>
                                     <span class="text-[10px] text-zinc-500">${dateStr}</span>
                                 </div>
-                                <p class="text-[11px] text-zinc-400 leading-relaxed pl-4 line-clamp-2">${n.desc}</p>
-                            </div>
-                        `;
-                    });
-                    notifContainer.innerHTML = html;
+                                <p class="text-[11px] text-zinc-400 leading-relaxed pl-4 line-clamp-2">${n.sender_name || '系统'} : ${contentText}</p>
+                            </div>`;
+                        });
+                        notifContainer.innerHTML = html;
+                    }
                 }
+                window.currentMyUnreadIds = unreadNotifs.map(n => n.id);
+            } catch(e) { console.error("消息同步失败", e); }
+        };
+
+        // 强隔离路由控制
+        window.markSingleAsRead = async function(id, url) {
+            if(window.supabase) { 
+                try { await window.supabase.from('notifications').update({ is_read: true }).eq('id', id); } catch(e){} 
             }
+            
+            // 💡 强制跳转为设计师专属详情页，杜绝越权访问
+            let finalUrl = url || '#';
+            let match = finalUrl.match(/id=(TK-\d+)/);
+            if (match) {
+                finalUrl = 'task-detail-designer.html?id=' + match[1];
+            }
+            window.location.href = finalUrl;
         }
 
-        window.markSingleAsRead = function(eventId, taskId) {
-            const userStr = localStorage.getItem('activeUserObj');
-            if(!userStr) return;
-            const currentUserEn = JSON.parse(userStr).enName.toLowerCase();
-            let readReceipts = JSON.parse(localStorage.getItem('read_receipts_design_' + currentUserEn) || '{}');
-            
-            readReceipts[eventId] = true;
-            localStorage.setItem('read_receipts_design_' + currentUserEn, JSON.stringify(readReceipts));
-            
-            window.currentUnreadNotifs = window.currentUnreadNotifs.filter(n => n.eventId !== eventId);
-            window.renderNotificationsUI(); 
-            
-            // 💡 强制跳转为设计师详情页
-            window.location.href = `task-detail-designer.html?id=${taskId}`;
-        }
-
-        window.markAllAsRead = function(event) {
+        window.markAllAsRead = async function(event) {
             if(event) event.stopPropagation();
-            const userStr = localStorage.getItem('activeUserObj');
-            if(!userStr) return;
-            const currentUserEn = JSON.parse(userStr).enName.toLowerCase();
-            let readReceipts = JSON.parse(localStorage.getItem('read_receipts_design_' + currentUserEn) || '{}');
+            if (!window.supabase || !window.currentMyUnreadIds || window.currentMyUnreadIds.length === 0) return;
             
-            const notifs = window.currentUnreadNotifs || [];
-            notifs.forEach(n => { readReceipts[n.eventId] = true; });
-            
-            localStorage.setItem('read_receipts_design_' + currentUserEn, JSON.stringify(readReceipts));
-            window.currentUnreadNotifs = [];
-            window.renderNotificationsUI();
-            
-            if(window.showToast) window.showToast('全部已读', '收件箱已清空。', 'success');
+            const btn = event.currentTarget;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "处理中...";
+            try {
+                await window.supabase.from('notifications').update({ is_read: true }).in('id', window.currentMyUnreadIds);
+                await window.syncNotificationsFromCloud(null, true);
+                if(window.showToast) window.showToast('全部已读', '收件箱已清空。', 'success');
+            } catch(e) {}
+            btn.innerHTML = originalText;
         }
 
         document.addEventListener('DOMContentLoaded', () => {
