@@ -17,17 +17,22 @@
         .btn-press:active { transform: scale(0.95); }
         .drag-active { border-color: #f97316 !important; background-color: rgba(249, 115, 22, 0.05) !important; }
         .ai-tool-cb:checked + div { background-color: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.3); color: #34d399; font-weight: 600; }
+        
         .toast-slide-in { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        
         .modal-enter { animation: modalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes modalFadeIn { 0% { opacity: 0; transform: scale(0.97) translateY(10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
+
         #image-preview-modal { display: none; position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.9); backdrop-filter: blur(5px); z-index: 999999; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s ease; }
         #image-preview-modal.visible { display: flex; opacity: 1; }
         .timeline-line { position: absolute; left: 11px; top: 24px; bottom: -8px; width: 2px; background-color: rgba(255,255,255,0.05); z-index: 0; }
+        
         .glow-bg { position: absolute; top: -20%; left: -10%; w-[600px]; h-[600px]; border-radius: 50%; filter: blur(150px); pointer-events: none; z-index: 0; transition: background-color 0.5s ease; }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-orange-500/30 text-zinc-300">
+
     <div class="absolute inset-0 bg-[#09090b] z-0 pointer-events-none"></div>
     <div id="dynamic-glow" class="glow-bg bg-orange-900/10"></div>
 
@@ -40,11 +45,14 @@
                 <h1 class="text-[15px] font-bold text-white tracking-wide">方案流转中心</h1>
             </div>
         </div>
+
         <div class="flex-1 overflow-y-auto p-5 space-y-2">
             <button onclick="window.location.href='assistant-workspace.html'" class="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-white/10 text-white hover:bg-white/20 transition-all btn-press shadow-sm">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg><span class="font-bold text-[14px]">返回执行看板</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+                <span class="font-bold text-[14px]">返回执行看板</span>
             </button>
         </div>
+
         <div class="px-5 py-5 mt-auto border-t border-white/5 bg-[#09090b] shrink-0 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div id="sidebar-avatar" class="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg">?</div>
@@ -57,7 +65,9 @@
         <header class="px-10 py-6 border-b border-white/5 bg-[#09090b]/80 backdrop-blur-xl shrink-0 flex items-center justify-between">
             <div>
                 <div class="flex items-center gap-4">
-                    <div id="header-id-badge" class="bg-zinc-800 border border-zinc-700 px-3 py-1.5 rounded-lg flex items-center gap-2"><span class="text-zinc-300 font-mono text-sm font-bold" id="req-id">读取中...</span></div>
+                    <div id="header-id-badge" class="bg-zinc-800 border border-zinc-700 px-3 py-1.5 rounded-lg flex items-center gap-2">
+                        <span class="text-zinc-300 font-mono text-sm font-bold" id="req-id">读取中...</span>
+                    </div>
                     <h2 class="text-[22px] font-bold text-white tracking-tight" id="req-title-display">正在同步需求数据...</h2>
                     <span id="header-status-badge" class="hidden px-2.5 py-1 rounded text-[11px] font-bold flex items-center gap-1.5 transition-colors">状态读取中</span>
                 </div>
@@ -69,6 +79,7 @@
 
         <div class="flex-1 overflow-y-auto custom-scrollbar p-10 flex justify-center scroll-smooth" id="main-scroll-area">
             <div class="w-full max-w-[1400px] flex gap-10 items-start">
+                
                 <div class="flex-1 flex flex-col gap-6 min-w-0 pb-10">
                     <div class="bg-[#121217] border border-white/5 rounded-2xl p-8 relative overflow-hidden transition-opacity opacity-70 hover:opacity-100">
                         <div class="absolute right-0 top-0 bg-white/5 text-zinc-500 text-[10px] font-bold px-3 py-1 rounded-bl-xl">1. 甲方提单需求</div>
@@ -81,14 +92,17 @@
                         <h3 class="text-sm font-bold text-white mb-3">📋 详细描述</h3>
                         <div class="text-[13px] text-zinc-400 leading-relaxed bg-[#09090b] border border-white/5 p-5 rounded-xl min-h-[60px]" id="req-desc-display">数据读取中...</div>
                         <div class="mt-4 space-y-3">
-                            <div id="dt-link-container" class="hidden text-[12px] bg-[#09090b] border border-white/5 p-3 rounded-xl flex items-center gap-2"><span class="text-zinc-500">🔗 参考链接：</span><span id="dt-link" class="truncate text-sky-400"></span></div>
+                            <div id="dt-link-container" class="hidden text-[12px] bg-[#09090b] border border-white/5 p-3 rounded-xl flex items-center gap-2">
+                                <span class="text-zinc-500">🔗 参考链接：</span><span id="dt-link" class="truncate text-sky-400"></span>
+                            </div>
                             <div id="attachment-container"></div>
                         </div>
                     </div>
 
                     <div id="version-history-block" class="hidden mt-4">
                         <h3 class="text-[16px] font-bold text-white mb-4 flex items-center gap-2">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>历史交付版本库
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                            历史交付版本库
                         </h3>
                         <div id="version-history-container" class="space-y-4"></div>
                     </div>
@@ -96,7 +110,8 @@
                     <div id="reject-feedback-block" class="hidden bg-rose-950/20 border border-rose-500/30 rounded-2xl p-6 relative overflow-hidden shadow-[0_0_30px_rgba(244,63,94,0.05)] mt-4">
                         <div class="absolute left-0 top-0 bottom-0 w-1 bg-rose-500"></div>
                         <h3 class="text-[14px] font-bold text-rose-400 mb-3 flex items-center gap-2" id="reject-feedback-title">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>最新反馈意见
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                            最新反馈意见
                         </h3>
                         <p class="text-[13px] text-zinc-300 leading-relaxed whitespace-pre-wrap" id="reject-feedback-text">读取中...</p>
                     </div>
@@ -124,10 +139,12 @@
                                     </div>
                                 </div>
                             </div>
+
                             <div id="source-link-input-group" class="hidden">
                                 <label class="block text-[12px] font-bold text-zinc-300 mb-2">2. 源文件网盘链接 <span class="text-zinc-500 font-normal">(建议填写)</span></label>
                                 <input type="url" id="source-link" class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3 text-[13px] text-white outline-none focus:border-orange-500 transition-colors" placeholder="交正稿时请将源文件传至网盘后粘贴分享链接">
                             </div>
+
                             <div>
                                 <label class="block text-[12px] font-bold text-zinc-300 mb-2">3. 交付/修改说明回复</label>
                                 <textarea id="delivery-desc" class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3 text-[13px] text-white outline-none focus:border-orange-500 transition-colors h-20 resize-none custom-scrollbar" placeholder="例如：已按要求调亮了主色调，并提交了最终版本..."></textarea>
@@ -137,7 +154,8 @@
 
                     <div id="readonly-preview-area" class="hidden bg-[#121217] border border-white/5 rounded-2xl p-8 relative overflow-hidden shadow-2xl">
                         <h3 class="text-[15px] font-bold text-white mb-4 flex items-center gap-2" id="readonly-preview-title">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>当前提交方案预览
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                            当前提交方案预览
                         </h3>
                         <div class="w-full aspect-[16/9] bg-[#09090b] rounded-xl border border-white/10 overflow-hidden relative shadow-inner p-2 flex items-center justify-center">
                             <img id="readonly-preview-img" src="" class="max-w-full max-h-full object-contain cursor-pointer transition-transform hover:scale-[1.02]" onclick="openPreview(this.src)" title="点击全屏查看">
@@ -147,18 +165,24 @@
                             <p class="text-[12px] text-zinc-200 leading-relaxed whitespace-pre-wrap" id="readonly-preview-desc">--</p>
                         </div>
                     </div>
+
                 </div>
 
                 <div class="w-[380px] shrink-0 flex flex-col gap-6 sticky top-0 pb-10">
                     <div id="smart-action-panel" class="bg-[#121217] border border-white/5 rounded-3xl p-7 shadow-2xl relative overflow-hidden transition-all duration-300">
                         <div class="text-center py-6 text-zinc-500 text-sm">面板初始化中...</div>
                     </div>
+
                     <div id="resource-summary-panel" class="hidden bg-[#121217] border border-white/5 rounded-3xl p-7 shadow-xl"></div>
+
                     <div class="bg-[#121217] border border-white/5 rounded-3xl p-7 flex flex-col shadow-xl">
                         <h3 class="text-[14px] font-bold text-white mb-6 border-b border-white/5 pb-4">全量流转生命周期日志</h3>
-                        <div class="relative space-y-6 flex-1" id="task-timeline-container"><div class="text-center py-4 text-zinc-500 text-xs">轨迹读取中...</div></div>
+                        <div class="relative space-y-6 flex-1" id="task-timeline-container">
+                            <div class="text-center py-4 text-zinc-500 text-xs">轨迹读取中...</div>
+                        </div>
                     </div>
                 </div>
+
             </div>
         </div>
     </main>
@@ -256,7 +280,7 @@
             return count + 1;
         }
 
-        // 🚀🚀🚀 核心重构：最强防崩铃铛写入法 (把收件人包装成标签存入 content)
+        // 🚀 核心修复：终极防崩写入法 (标签埋点)
         window.insertDbNotification = async function(targetIdentifier, content, link_url, category = 'update') {
             if (!window.supabase || !targetIdentifier) return;
             try {
@@ -271,19 +295,20 @@
                     if (targetUser) { targetUserId = targetUser.id; targetEmail = targetUser.email; }
                 }
 
-                // 💡 绝技：不依赖数据库的 target_email 字段，直接把收件人标记在内容里！
+                // 强制将收件人名称埋入文本内容 [TO:judyzzhang] 规避数据库无字段报错！
+                const finalContent = `[TO:${targetIdentifier.toLowerCase()}] ${content}`;
+                
                 let insertPayload = {
-                    content: `[TO:${targetIdentifier.toLowerCase()}] ${content}`, 
+                    content: finalContent, 
                     link_url: link_url, 
                     is_read: false
                 };
-                // 为了兼容可能有 user_id 的表
-                if(targetUserId) insertPayload.user_id = targetUserId; 
-
+                
+                // 尝试写入，如果报错就直接弹窗提示，不让它默默死掉
                 const { error } = await window.supabase.from('notifications').insert([insertPayload]);
                 if (error) {
                     console.error("写入DB铃铛失败:", error);
-                    alert("⚠️ 铃铛通知写入失败：" + error.message + "\n(请检查您的 notifications 数据库表结构)");
+                    alert("⚠️ 铃铛通知写入失败：" + error.message);
                 }
                 
                 if (!error && window.SysNotification && targetUserId) {
@@ -370,6 +395,7 @@
                     submissions.push({ ...h, fate, fateReason });
                 }
             }
+
             if(submissions.length === 0) { block.classList.add('hidden'); return; }
             block.classList.remove('hidden');
             let html = '';
@@ -409,9 +435,16 @@
             container.innerHTML = html;
         }
 
+        // 🚀 核心修复：找回 pnl 定义，确保界面不报错白屏！
         function renderSmartDesignerPanel() {
             const status = globalTaskData.status;
+            
+            // 下面这四行是修复你截图 3 那个 "pnl is not defined" 的关键！
+            const pnl = document.getElementById('smart-action-panel');
+            const hBadge = document.getElementById('header-status-badge');
+            const dGlow = document.getElementById('dynamic-glow');
             const upArea = document.getElementById('designer-upload-area');
+            
             const fbBlock = document.getElementById('reject-feedback-block');
             let sCol = '', sText = '', sIcon = '';
             let pnlHtml = ''; let pnlClasses = 'bg-[#121217] border border-white/5 rounded-3xl p-7 shadow-2xl relative overflow-hidden transition-all duration-300';
@@ -519,19 +552,18 @@
                 `;
             }
 
-            document.getElementById('header-status-badge').innerHTML = `${sIcon} ${sText}`;
-            document.getElementById('header-status-badge').className = `bg-${sCol}-500/20 text-${sCol}-400 border border-${sCol}-500/30 px-3 py-1.5 rounded-lg text-[12px] font-bold flex items-center gap-1.5 shadow-[0_0_10px_rgba(var(--tw-colors-${sCol}-500),0.2)]`;
-            document.getElementById('header-status-badge').classList.remove('hidden');
-            document.getElementById('dynamic-glow').className = `glow-bg bg-${sCol}-900/10`;
+            hBadge.innerHTML = `${sIcon} ${sText}`;
+            hBadge.className = `bg-${sCol}-500/20 text-${sCol}-400 border border-${sCol}-500/30 px-3 py-1.5 rounded-lg text-[12px] font-bold flex items-center gap-1.5 shadow-[0_0_10px_rgba(var(--tw-colors-${sCol}-500),0.2)]`;
+            hBadge.classList.remove('hidden');
+            dGlow.className = `glow-bg bg-${sCol}-900/10`;
             pnl.className = pnlClasses; pnl.innerHTML = pnlHtml;
         }
 
-        // 🚀 催办：强制写 judyzzhang
+        // 🚀 修改回 judyzzhang ！！！
         window.urgeLeader = async function(btn) {
             btn.innerHTML = '<svg class="animate-spin h-3.5 w-3.5 mr-2 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle></svg> 发送警报中...';
             btn.disabled = true;
             if (globalTaskData) {
-                // 💡 核心修复：直接传给唯一的主管账号 'judyzzhang'
                 await insertDbNotification('judyzzhang', `🚨 催办强提醒：设计师已提交框架，等待您的火速审批：《${globalTaskData.title || currentTaskId}》。`, `manager-workspace.html?id=${currentTaskId}`, 'urgent');
             }
             btn.innerHTML = '✓ 已触发系统警报催办';
@@ -714,7 +746,7 @@
                 const { error } = await window.supabase.from(window.DB_TABLE).update({ status: nextStatus, summary_desc: summaryStr, design_img_url: fallbackImg, source_file_link: sourceLink || globalTaskData.source_file_link, history_json: JSON.stringify(globalHistoryArr) }).eq('id', currentTaskId);
                 if (error) { btn.disabled = false; btn.innerHTML = btnOriginalText; return alert("状态更新失败：" + error.message); }
 
-                // 🚀 双路触发：强制发给 judyzzhang 或者 creator
+                // 🚀 双路触发：修改回 judyzzhang ！！！
                 if (actionType === 'submit_framework') {
                     await insertDbNotification('judyzzhang', `【框架待审】设计师 ${currentUser.displayName || currentUser.enName} 上传了中期方案：《${globalTaskData.title}》，请您火速审批把关。`, `manager-workspace.html?id=${currentTaskId}`, 'urgent');
                 } else if (actionType === 'submit_draft') {
