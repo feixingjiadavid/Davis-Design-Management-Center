@@ -22,6 +22,8 @@
         #image-preview-modal { display: none; position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.9); backdrop-filter: blur(5px); z-index: 999999; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s ease; }
         #image-preview-modal.visible { display: flex; opacity: 1; }
         .glow-bg { position: absolute; top: -20%; left: -10%; w-[600px]; h-[600px]; border-radius: 50%; filter: blur(150px); pointer-events: none; z-index: 0; transition: background-color 0.5s ease; }
+        .dropdown-enter { animation: dropIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; transform-origin: top right; }
+        @keyframes dropIn { 0% { opacity: 0; transform: scale(0.95) translateY(-10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-indigo-500/30 text-zinc-300">
@@ -67,6 +69,25 @@
                 </div>
             </div>
             <div class="flex items-center gap-5 relative">
+                
+                <div class="relative z-[120]" id="notif-wrapper">
+                    <button id="notifBtn" class="w-11 h-11 rounded-2xl bg-[#141417] border border-white/5 flex items-center justify-center text-zinc-400 hover:text-white transition-colors btn-press relative">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                        <span id="bell-dot" class="absolute top-2.5 right-2.5 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-[#141417] animate-pulse hidden"></span>
+                    </button>
+                    <div id="notifMenu" class="hidden absolute right-0 top-[120%] w-[340px] bg-[#121217] border border-white/10 rounded-2xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.8)] py-3 dropdown-enter z-[9999]">
+                        <div class="px-5 pb-3 border-b border-white/5 flex justify-between items-center">
+                            <h3 class="text-[14px] font-bold text-white">消息通知</h3>
+                            <button onclick="window.markAllAsRead(event)" class="text-[11px] text-indigo-400 hover:text-indigo-300 btn-press transition-colors">全部已读</button>
+                        </div>
+                        <div class="max-h-[300px] overflow-y-auto custom-scrollbar" id="notif-list-container">
+                            <div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无新消息</div>
+                        </div>
+                        <div class="pt-3 px-5 border-t border-white/5 text-center">
+                            <button onclick="window.location.href='message-center.html?role=req'" class="text-[11px] text-zinc-500 hover:text-white transition-colors btn-press">查看全部历史消息 ↗</button>
+                        </div>
+                    </div>
+                </div>
                 <span class="text-indigo-400 font-bold flex items-center gap-1.5 text-[13px] bg-indigo-500/10 px-3 py-1.5 rounded-lg border border-indigo-500/20" id="header-identity-tag">识别身份中...</span>
             </div>
         </header>
@@ -176,7 +197,7 @@
     <div id="action-toast" class="fixed top-8 right-8 z-[1000] hidden toast-slide-in">
         <div class="bg-[#1a1a1f] border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-3 w-72">
             <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0"></div>
-            <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-zinc-400 text-[11px] mt-0.5">操作已执行。</p></div>
+            <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-[11px] text-zinc-400 mt-0.5">操作已执行。</p></div>
         </div>
     </div>
 
@@ -196,7 +217,7 @@
     </script>
 
     <script>
-        // ================= 高级弹窗引擎 =================
+        // ================= 高定级弹窗引擎 =================
         window.closeCustomDialog = function() {
             const overlay = document.getElementById('custom-dialog-overlay');
             const dialog = document.getElementById('custom-dialog');
@@ -333,6 +354,48 @@
                 if(window.supabase) { clearInterval(checkAndLoad); fetchTaskData(); }
             }, 100);
             setTimeout(() => clearInterval(checkAndLoad), 5000); 
+        }
+
+        // 🚀 终极防崩写入法 (替换了旧的 SysNotification.sendNotice 直调)
+        window.insertDbNotification = async function(targetEnName, content, link_url, category = 'update') {
+            if (!window.supabase || !targetEnName) return;
+            try {
+                // 去 users 表里把这个人的唯一系统 ID 找出来
+                const { data: targetUsers, error: uErr } = await window.supabase.from('users')
+                    .select('id, email, name, enName')
+                    .eq('enName', targetEnName.toLowerCase());
+
+                let targetUserId = '00000000-0000-0000-0000-000000000000';
+                let targetEmail = targetEnName + '@webank.com';
+
+                if (!uErr && targetUsers && targetUsers.length > 0) {
+                    const targetUser = targetUsers[0];
+                    targetUserId = targetUser.id;
+                    targetEmail = targetUser.email || targetEmail;
+                }
+
+                const senderName = currentUser.displayName || currentUser.name || currentUser.cnName || currentUser.enName || '系统';
+
+                let insertPayload = {
+                    user_id: targetUserId,   // 防止外键报错
+                    content: content, 
+                    link_url: link_url, 
+                    target_email: targetEmail,
+                    sender_name: senderName,
+                    is_read: false
+                };
+
+                const { error: nErr } = await window.supabase.from('notifications').insert([insertPayload]);
+                
+                if (nErr) console.error("数据库写入铃铛报错:", nErr);
+                
+                // 触发右下角 Toast 或邮件
+                if (window.SysNotification) {
+                    await window.SysNotification.sendNotice({
+                        targetId: targetUserId, targetEmail: targetEmail, content: content, category: category, url: link_url
+                    });
+                }
+            } catch(e) { console.error("通知派发异常:", e); }
         }
 
         async function fetchTaskData() {
@@ -739,50 +802,24 @@
             
             if(error) { showAlert("错误", "云端状态更新失败：" + error.message, "danger"); return false; }
             
-            // 💡 智能判断并发送邮件：不管是谁点了什么按钮，自动识别上游或下游进行推送
             try {
-                if (window.SysNotification && globalTaskData) {
+                if (globalTaskData) {
                     const act = actionPayload.action;
                     let notifyRole = ''; 
                     let content = '';
 
-                    // 1. 如果是你(甲方或领导)操作了，给设计师发邮件
                     if (act === 'approve_framework') { notifyRole = 'assignee'; content = `【审核通过】领导已同意大方向：《${globalTaskData.title}》，请继续推进正稿。`; }
                     else if (act.startsWith('reject_')) { notifyRole = 'assignee'; content = `【打回修改】你的设计单《${globalTaskData.title}》已被打回，请立刻查看修改意见。`; }
                     else if (act === 'complete') { notifyRole = 'assignee'; content = `【验收完结】恭喜！你的设计单《${globalTaskData.title}》已被甲方满意验收，任务闭环。`; }
                     else if (act === 'terminate') { notifyRole = 'assignee'; content = `【任务终止】注意：单据《${globalTaskData.title}》已被强行终止并废弃。`; }
-                    
-                    // 2. 如果未来设计师端在这个页面操作了，给上游(发单人或领导)发邮件
-                    else if (act === 'accept') { notifyRole = 'creator'; content = `【已接单】设计师 ${actionPayload.operator} 已接手你的需求：《${globalTaskData.title}》。`; }
-                    else if (act === 'submit_framework') { notifyRole = 'leader'; content = `【框架待审】设计师 ${actionPayload.operator} 上传了中期方案：《${globalTaskData.title}》，请您火速审批把关。`; }
-                    else if (act === 'submit_draft') { notifyRole = 'creator'; content = `【正稿待收】设计师 ${actionPayload.operator} 交付了正式设计稿：《${globalTaskData.title}》，请您火速验收。`; }
 
-                    // 如果匹配到了发送规则
                     if (notifyRole && content) {
                         let targetIdentifier = '';
-                        if (notifyRole === 'creator') targetIdentifier = globalTaskData.creator;
-                        else if (notifyRole === 'assignee') targetIdentifier = globalTaskData.assignee;
-                        else if (notifyRole === 'leader') targetIdentifier = 'judyzzhang'; // 给丹楠姐发
+                        if (notifyRole === 'assignee') targetIdentifier = globalTaskData.assignee;
 
                         if (targetIdentifier && targetIdentifier !== 'none') {
-                            const { data: allUsers } = await window.supabase.from('users').select('*');
-                            if (allUsers) {
-                                const targetUser = allUsers.find(u => 
-                                    (u.email && u.email.toLowerCase().includes(targetIdentifier.toLowerCase())) ||
-                                    (u.name && u.name.toLowerCase().includes(targetIdentifier.toLowerCase())) ||
-                                    (u.enName && u.enName.toLowerCase().includes(targetIdentifier.toLowerCase()))
-                                );
-                                
-                                if (targetUser) {
-                                    await window.SysNotification.sendNotice({
-                                        targetId: targetUser.id,
-                                        targetEmail: targetUser.email,
-                                        content: content,
-                                        category: 'update',
-                                        url: `task-detail-designer.html?id=${currentTaskId}` 
-                                    });
-                                }
-                            }
+                            // 调用新版安全的 insertDbNotification
+                            await window.insertDbNotification(targetIdentifier, content, `task-detail-designer.html?id=${currentTaskId}`, 'update');
                         }
                     }
                 }
@@ -800,7 +837,6 @@
             }, "danger");
         }
 
-        // ================= 🚀🚀🚀 终极加强：催办直接发邮件 🚀🚀🚀 =================
         window.actionUrge = async function(btn) {
             const originalText = btn.innerHTML;
             btn.innerHTML = '<svg class="animate-spin h-3.5 w-3.5 mr-2 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 发送警报邮件中...';
@@ -812,7 +848,6 @@
                 const title = globalTaskData.title || currentTaskId;
                 const status = globalTaskData.status;
 
-                // 智能判断你要催谁
                 if (status === 'processing' || status === 'rejected') {
                     targetIdentifier = globalTaskData.assignee;
                     content = `🚨 催办强提醒：甲方很着急！请加快设计单《${title}》的制作进度。`;
@@ -824,26 +859,8 @@
                     content = `🚨 催办强提醒：系统提醒您及时跟进单据《${title}》的验收或处理。`;
                 }
 
-                // 找到该人的邮箱并发信
-                if (targetIdentifier && window.SysNotification) {
-                    const { data: allUsers } = await window.supabase.from('users').select('id, email, name, enName');
-                    if (allUsers) {
-                        const targetUser = allUsers.find(u => 
-                            (u.email && u.email.toLowerCase().includes(targetIdentifier.toLowerCase())) ||
-                            (u.name && u.name.toLowerCase().includes(targetIdentifier.toLowerCase())) ||
-                            (u.enName && u.enName.toLowerCase().includes(targetIdentifier.toLowerCase()))
-                        );
-                        
-                        if (targetUser) {
-                            await window.SysNotification.sendNotice({
-                                targetId: targetUser.id,
-                                targetEmail: targetUser.email,
-                                content: content,
-                                category: 'urgent',
-                                url: `task-detail-designer.html?id=${currentTaskId}`
-                            });
-                        }
-                    }
+                if (targetIdentifier) {
+                    await window.insertDbNotification(targetIdentifier, content, `task-detail-designer.html?id=${currentTaskId}`, 'urgent');
                 }
             } catch(e) { console.error(e); }
 
@@ -926,6 +943,132 @@
                 }
             }, "danger");
         }
+    </script>
+
+    <script>
+        window.syncNotificationsFromCloud = async function(isSilent = true) {
+            if(!window.supabase) return;
+            const userStr = localStorage.getItem('activeUserObj');
+            if(!userStr) return;
+            const currentUser = JSON.parse(userStr);
+            const userKeyword = (currentUser.enName || currentUser.cnName || '').toLowerCase();
+
+            try {
+                const { data, error } = await window.supabase.from('notifications')
+                    .select('*').order('created_at', { ascending: false }).limit(100);
+                if (error) throw error;
+
+                // 过滤出属于需求方/领导的消息
+                let myNotifs = data.filter(n => {
+                    const target = (n.target_email || '').toLowerCase();
+                    const targetPrefix = target.split('@')[0];
+                    const isForMe = (targetPrefix === userKeyword) || (currentUser.email && target === currentUser.email.toLowerCase());
+                    if (!isForMe) return false;
+
+                    const content = n.content || '';
+                    // 💡 需求方权限隔离
+                    if (content.includes('指派了新需求') || content.includes('框架待审') || (content.includes('打回') && !content.includes('退回'))) {
+                        return false; 
+                    }
+                    return true;
+                });
+
+                const unreadNotifs = myNotifs.filter(n => !n.is_read);
+                const unreadCount = unreadNotifs.length;
+
+                let prevUnreadCount = parseInt(localStorage.getItem('prevUnreadCount_req_' + userKeyword) || '0');
+                if (isSilent && unreadCount > prevUnreadCount) {
+                    const newCount = unreadCount - prevUnreadCount;
+                    if(window.showToast) window.showToast('🔔 收到新消息', `您有 ${newCount} 条需求动态，请点击右上角铃铛查看。`, 'info');
+                }
+                localStorage.setItem('prevUnreadCount_req_' + userKeyword, unreadCount.toString());
+                
+                const bellDot = document.getElementById('bell-dot');
+                if (bellDot) {
+                    if (unreadCount > 0) {
+                        bellDot.classList.remove('hidden', 'bg-zinc-600', 'border-transparent');
+                        bellDot.classList.add('bg-rose-500', 'animate-pulse', 'border-[#141417]');
+                    } else {
+                        bellDot.classList.add('hidden');
+                    }
+                }
+
+                const notifContainer = document.getElementById('notif-list-container');
+                if (notifContainer) {
+                    if (unreadCount === 0) {
+                        notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读消息</div>';
+                    } else {
+                        notifContainer.innerHTML = unreadNotifs.map(n => {
+                            let titleText = '系统通知';
+                            let contentText = n.content || '';
+                            let titleMatch = contentText.match(/^(【.*?】)/);
+                            if(titleMatch) {
+                                titleText = titleMatch[1];
+                                contentText = contentText.replace(titleMatch[1], '').trim();
+                            } else if(n.category === 'urgent') {
+                                titleText = '🚨 紧急催办';
+                            }
+                            
+                            return `
+                            <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 cursor-pointer" onclick="window.markSingleAsRead('${n.id}', '${n.link_url}')">
+                                <h4 class="text-[13px] font-bold text-white mb-1"><span class="w-2 h-2 rounded-full bg-indigo-500 inline-block mr-1"></span>${titleText}</h4>
+                                <p class="text-[11px] text-zinc-400 pl-3 line-clamp-2">${contentText}</p>
+                            </div>`;
+                        }).join('');
+                    }
+                }
+                window.currentMyUnreadIds = unreadNotifs.map(n => n.id);
+            } catch(e) { console.error("通知同步失败", e); }
+        };
+
+        window.toggleNotificationPanel = async function() {
+            const dropdown = document.getElementById('notifMenu');
+            if(dropdown) {
+                dropdown.classList.toggle('hidden');
+                if (!dropdown.classList.contains('hidden')) {
+                    await window.syncNotificationsFromCloud(true);
+                }
+            }
+        }
+
+        window.markSingleAsRead = async function(id, url) {
+            if(window.supabase) { 
+                try { await window.supabase.from('notifications').update({ is_read: true }).eq('id', id); } catch(e){} 
+            }
+            let finalUrl = url || '#';
+            let match = finalUrl.match(/id=(TK-\d+)/);
+            if (match) {
+                finalUrl = 'task-detail-requester.html?id=' + match[1];
+            }
+            window.location.href = finalUrl;
+        };
+
+        window.markAllAsRead = async function(event) {
+            if(event) event.stopPropagation();
+            if (!window.supabase || !window.currentMyUnreadIds || window.currentMyUnreadIds.length === 0) return;
+            const btn = event.currentTarget;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "处理中...";
+            try {
+                await window.supabase.from('notifications').update({ is_read: true }).in('id', window.currentMyUnreadIds);
+                await window.syncNotificationsFromCloud(true);
+                if(window.showToast) window.showToast('全部已读', '消息红点已清除。', 'success');
+            } catch(e) {}
+            btn.innerHTML = originalText;
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const notifBtn = document.getElementById('notifBtn');
+            const notifMenu = document.getElementById('notifMenu');
+            if(notifBtn && notifMenu) notifBtn.addEventListener('click', (e) => { e.stopPropagation(); notifMenu.classList.toggle('hidden'); });
+
+            document.addEventListener('click', (e) => { 
+                if(notifMenu && !notifMenu.contains(e.target) && !notifBtn.contains(e.target)) notifMenu.classList.add('hidden'); 
+            });
+
+            setTimeout(() => { window.syncNotificationsFromCloud(true); }, 1500);
+            setInterval(() => { window.syncNotificationsFromCloud(true); }, 8000);
+        });
     </script>
 </body>
 </html>
