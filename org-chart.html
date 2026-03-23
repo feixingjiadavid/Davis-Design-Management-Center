@@ -76,7 +76,7 @@
                 </div>
             </div>
             <div class="flex items-center gap-1 shrink-0 ml-2">
-                <button onclick="window.openPwdModal()" class="p-1.5 text-zinc-500 hover:text-fuchsia-400 hover:bg-fuchsia-500/10 rounded-lg transition-colors btn-press cursor-pointer pointer-events-auto relative z-50" title="修改登录密码">
+                <button onclick="window.openPwdModal()" class="p-1.5 text-zinc-500 hover:text-white hover:bg-white/10 rounded-lg transition-colors btn-press cursor-pointer pointer-events-auto relative z-50" title="修改登录密码">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
                 </button>
                 <button onclick="window.logout(event)" class="p-1.5 text-zinc-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors btn-press cursor-pointer pointer-events-auto relative z-50" title="退出登录">
@@ -86,8 +86,8 @@
         </div>
     </aside>
 
-    <main class="flex-1 flex flex-col h-full overflow-hidden relative z-10" id="main-content-area">
-        <header class="px-10 py-6 border-b border-white/5 bg-[#09090b]/80 backdrop-blur-xl shrink-0 relative z-[999]">
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative z-10 bg-[#0c0c0e]" id="main-content-area">
+        <header class="px-10 py-6 border-b border-white/5 bg-[#09090b]/80 backdrop-blur-xl shrink-0 flex items-center justify-between">
             <div class="flex justify-between items-start w-full">
                 <div>
                     <h2 class="text-[24px] font-bold text-white tracking-tight mb-1.5 flex items-center gap-3">
@@ -243,7 +243,7 @@
         <div id="pwd-modal" class="hidden w-full max-w-sm bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 p-6 relative">
             <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-fuchsia-500 to-indigo-500 rounded-t-3xl"></div>
             <div class="flex justify-between items-center mb-6 mt-2">
-                <h2 class="text-[16px] font-bold text-white flex items-center gap-2"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-fuchsia-500"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg> 修改登录密码</h2>
+                <h2 class="text-[16px] font-bold text-white flex items-center gap-2"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg> 修改登录密码</h2>
                 <button onclick="closePwdModal()" class="text-zinc-500 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-full p-1 transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
             </div>
             <div class="space-y-4">
@@ -266,7 +266,13 @@
         import { supabase } from './supabase-config.js';
         window.supabase = supabase;
         window.DB_USERS_TABLE = 'users'; 
-        if(window.loadUsersFromCloud) window.loadUsersFromCloud();
+        
+        // 💡 修复：确保 supabase 挂载后再拉取数据
+        window.initAndLoad = function() {
+            if(window.supabase) window.loadUsersFromCloud();
+            else setTimeout(window.initAndLoad, 100);
+        };
+        window.initAndLoad();
     </script>
 
     <script>
@@ -341,7 +347,7 @@
             setTimeout(() => { document.getElementById('pwd-modal-overlay').classList.add('hidden'); document.getElementById('pwd-modal').classList.add('hidden'); }, 300);
         }
 
-        window.submitPwdChange = function() { window.showAlert('提示', '系统演示环境暂不可自助修改密码，请联系管理员。', 'info'); window.closePwdModal(); }
+        window.submitPwdChange = function() { customAlert('提示', '系统演示环境暂不可自助修改密码，请联系管理员。', null, false, 'info'); window.closePwdModal(); }
 
         function initRBAC() {
             const userStr = localStorage.getItem('activeUserObj');
@@ -349,7 +355,6 @@
             const user = JSON.parse(userStr);
             const enName = user.enName ? user.enName.toLowerCase().trim() : '';
 
-            // 🚀 核心修复：放开全部权限，允许 davidxu / davidxxu / ponyxu 三人访问
             if (enName !== 'davidxu' && enName !== 'davidxxu' && enName !== 'ponyxu') { 
                 const mainArea = document.getElementById('main-content-area');
                 if (mainArea) mainArea.style.filter = 'blur(10px)';
@@ -361,8 +366,7 @@
 
             const avatarTxt = (user.displayName || user.name || user.cnName || user.enName || 'U').substring(0, 1).toUpperCase();
             const avatarEl = document.getElementById('sidebar-avatar');
-            if(avatarEl) { avatarEl.innerText = avatarTxt; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-fuchsia-600'} border border-white/20 flex items-center justify-center text-white font-bold text-sm shadow-lg shrink-0`; }
-            
+            if(avatarEl) { avatarEl.innerText = avatarTxt; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-fuchsia-600'} border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg shrink-0`; }
             if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.name || user.cnName || user.enName;
             if(document.getElementById('sidebar-role')) document.getElementById('sidebar-role').innerHTML = `<span class="text-fuchsia-400 font-bold">当前视角: 管理方</span>`;
 
@@ -371,11 +375,11 @@
             return true;
         }
 
-        // ================= 💡 核心：仅查真实字段 (users) =================
+        // ================= 💡 核心数据拉取 =================
         window.loadUsersFromCloud = async function() {
-            if(!window.supabase) return;
+            if(!initRBAC()) return;
             try {
-                // ⚠️ 数据库只有: id, email, enName, name, perms。绝不查 role 等不存在的字段
+                // ⚠️ 只查真实列，严防报错
                 const { data, error } = await window.supabase.from(window.DB_USERS_TABLE).select('id, email, enName, name, perms');
                 if(error) throw error;
                 
@@ -390,7 +394,6 @@
                         permsArray = ['req'];
                     }
 
-                    // 动态推导角色
                     let roleText = '业务需求方';
                     let derivedColor = 'bg-zinc-800';
                     if (permsArray.includes('admin')) { roleText = '系统管理员'; derivedColor = 'bg-fuchsia-700'; }
@@ -513,7 +516,6 @@
             setTimeout(() => { modalOverlay.classList.add('hidden'); modal.classList.add('hidden'); }, 300); 
         }
 
-        // ================= 💡 核心：完美复刻注册页逻辑 (无多余字段) =================
         window.saveUser = async function() {
             const enName = document.getElementById('ipt-enName').value.trim().toLowerCase();
             const displayName = document.getElementById('ipt-displayName').value.trim();
@@ -525,7 +527,6 @@
             const checkedPerms = Array.from(document.querySelectorAll('.perm-checkbox:checked')).map(cb => cb.value);
             if(checkedPerms.length === 0) return customAlert('校验失败', '必须至少勾选一个系统模块权限！', null, false, 'warning');
 
-            // 动态计算角色描述，完全对应你的 register 注册页
             let roleDesc = '行政 / 业务岗'; let color = 'bg-zinc-800';
             if (enName === 'judyzzhang') { roleDesc = '部门领导'; color = 'bg-rose-700'; } 
             else if (checkedPerms.includes('admin')) { roleDesc = '系统管理员'; color = 'bg-indigo-600'; }
@@ -539,7 +540,6 @@
 
             try {
                 if (editKey) {
-                    // 编辑模式：只修改 name 和 perms，完全不碰 Auth 和 password
                     let updatePayload = {
                         name: displayName,
                         perms: JSON.stringify(checkedPerms)
@@ -549,13 +549,11 @@
                     
                     showToast('业务资料已更新', `成员 ${displayName} 的权限与花名已保存。`, 'success');
                 } else {
-                    // 新增模式：完美复刻你提供的 register 页面逻辑
                     if(globalUsersDB[enName]) throw new Error('该企微英文名在库中已存在！');
                     if(!pwd || pwd.length < 6) throw new Error('新增用户必须设置至少6位密码！');
 
                     const realEmail = `${enName}@webank.com`;
 
-                    // 1. 调用 Supabase auth.signUp 注册账号（即使在管理员状态下也会注册成功）
                     const { data: authData, error: authErr } = await window.supabase.auth.signUp({
                         email: realEmail,
                         password: pwd,
@@ -574,7 +572,6 @@
 
                     if (authErr) throw new Error(`账号注册失败: ${authErr.message.includes('already registered') ? "该企微账号已被注册！" : authErr.message}`);
 
-                    // 2. 插入我们的业务表 users，严格对齐那4个列
                     const newRow = {
                         enName: enName, 
                         name: displayName, 
@@ -583,7 +580,6 @@
                     };
                     const { error: dbErr } = await window.supabase.from(window.DB_USERS_TABLE).insert([newRow]);
                     
-                    // 注意：如果注册用户失败，或者已存在，这不影响后续流程
                     if (dbErr && !dbErr.message.includes('duplicate')) throw dbErr;
 
                     showToast('账号创建成功', `新成员 ${displayName} 已分配权限并入库。`, 'success');
@@ -599,7 +595,6 @@
             }
         }
 
-        // ================= 💡 核心：仅在业务表内移除 =================
         window.deleteUser = function(enName, displayName) {
             const userStr = localStorage.getItem('activeUserObj');
             if (userStr && JSON.parse(userStr).enName === enName) {
@@ -614,7 +609,7 @@
                     showToast('移除成功', '该账号已从大厅业务库中移除。', 'success');
                     window.loadUsersFromCloud();
                 } catch(e) { customAlert('移除失败', e.message, null, false, 'error'); }
-            }, 'danger');
+            });
         }
 
         function showToast(title, desc, type = 'success') {
@@ -629,10 +624,6 @@
             toast.classList.remove('hidden');
             setTimeout(() => { toast.classList.add('hidden'); }, 3000);
         }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            if(initRBAC()) setTimeout(()=> { if(window.supabase===undefined) document.getElementById('table-loading').classList.add('hidden'); }, 3000); 
-        });
     </script>
 </body>
 </html>
