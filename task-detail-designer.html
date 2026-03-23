@@ -24,19 +24,17 @@
         .modal-enter { animation: modalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes modalFadeIn { 0% { opacity: 0; transform: scale(0.97) translateY(10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
 
-        /* 预览弹窗 */
         #image-preview-modal { display: none; position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.9); backdrop-filter: blur(5px); z-index: 999999; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s ease; }
         #image-preview-modal.visible { display: flex; opacity: 1; }
         .timeline-line { position: absolute; left: 11px; top: 24px; bottom: -8px; width: 2px; background-color: rgba(255,255,255,0.05); z-index: 0; }
         
-        /* 动态背景光晕 */
         .glow-bg { position: absolute; top: -20%; left: -10%; w-[600px]; h-[600px]; border-radius: 50%; filter: blur(150px); pointer-events: none; z-index: 0; transition: background-color 0.5s ease; }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-orange-500/30 text-zinc-300">
 
     <div class="absolute inset-0 bg-[#09090b] z-0 pointer-events-none"></div>
-    <div id="dynamic-glow" class="glow-bg w-[600px] h-[600px] bg-orange-900/10"></div>
+    <div id="dynamic-glow" class="glow-bg bg-orange-900/10"></div>
 
     <aside class="w-[240px] border-r border-white/5 flex flex-col z-10 bg-[#09090b] shrink-0 h-full">
         <div class="p-7 border-b border-white/5 shrink-0">
@@ -83,7 +81,6 @@
             <div class="w-full max-w-[1400px] flex gap-10 items-start">
                 
                 <div class="flex-1 flex flex-col gap-6 min-w-0 pb-10">
-                    
                     <div class="bg-[#121217] border border-white/5 rounded-2xl p-8 relative overflow-hidden transition-opacity opacity-70 hover:opacity-100">
                         <div class="absolute right-0 top-0 bg-white/5 text-zinc-500 text-[10px] font-bold px-3 py-1 rounded-bl-xl">1. 甲方提单需求</div>
                         <div class="grid grid-cols-4 gap-4 mb-6 pb-6 border-b border-white/5">
@@ -107,8 +104,7 @@
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
                             历史交付版本库
                         </h3>
-                        <div id="version-history-container" class="space-y-4">
-                            </div>
+                        <div id="version-history-container" class="space-y-4"></div>
                     </div>
 
                     <div id="reject-feedback-block" class="hidden bg-rose-950/20 border border-rose-500/30 rounded-2xl p-6 relative overflow-hidden shadow-[0_0_30px_rgba(244,63,94,0.05)] mt-4">
@@ -178,8 +174,7 @@
                         <div class="text-center py-6 text-zinc-500 text-sm">面板初始化中...</div>
                     </div>
 
-                    <div id="resource-summary-panel" class="hidden bg-[#121217] border border-white/5 rounded-3xl p-7 shadow-xl">
-                        </div>
+                    <div id="resource-summary-panel" class="hidden bg-[#121217] border border-white/5 rounded-3xl p-7 shadow-xl"></div>
 
                     <div class="bg-[#121217] border border-white/5 rounded-3xl p-7 flex flex-col shadow-xl">
                         <h3 class="text-[14px] font-bold text-white mb-6 border-b border-white/5 pb-4">全量流转生命周期日志</h3>
@@ -189,7 +184,6 @@
                     </div>
 
                 </div>
-
             </div>
         </div>
     </main>
@@ -247,11 +241,9 @@
         window.supabase = supabase;
         window.DB_TABLE = 'test_tasks';
 
-        // 初始化发件引擎
         if(window.SysNotification) {
             window.SysNotification.init();
         }
-
         if(window.initApp) window.initApp();
     </script>
 
@@ -303,14 +295,12 @@
         function getNextVersionNumber(historyArr) {
             let count = 0;
             historyArr.forEach(h => {
-                if (h.action === 'submit_framework' || h.action === 'submit_draft') {
-                    count++;
-                }
+                if (h.action === 'submit_framework' || h.action === 'submit_draft') count++;
             });
             return count + 1;
         }
 
-        // 🚀 核心修复：全局通用通知派发工厂 (双路并发：存入DB铃铛 + 发送邮件)
+        // 🚀 核心修复：收件人硬编码为 judyzzheng
         window.insertDbNotification = async function(targetIdentifier, content, link_url, category = 'update') {
             if (!window.supabase || !targetIdentifier) return;
             try {
@@ -334,7 +324,6 @@
 
                 const senderName = currentUser.displayName || currentUser.name || currentUser.cnName || currentUser.enName || '系统';
 
-                // 1. 强制写入数据库，点亮目标人的网页红点铃铛
                 let insertPayload = {
                     content: content, 
                     link_url: link_url, 
@@ -347,14 +336,9 @@
                 const { error } = await window.supabase.from('notifications').insert([insertPayload]);
                 if (error) console.error("写入DB铃铛失败:", error.message);
                 
-                // 2. 触发外部系统邮件 (如果配置了 SysNotification)
                 if (!error && window.SysNotification && targetUserId) {
                     await window.SysNotification.sendNotice({
-                        targetId: targetUserId,
-                        targetEmail: targetEmail,
-                        content: content,
-                        category: category,
-                        url: link_url
+                        targetId: targetUserId, targetEmail: targetEmail, content: content, category: category, url: link_url
                     });
                 }
             } catch(e) { console.error("通知派发异常:", e); }
@@ -405,16 +389,12 @@
             const a = document.createElement('a'); a.href = dataBase64; a.download = name; a.click();
         }
 
-        // ================= 💡 全新右侧资源统筹大盘 =================
         function renderResourceSummary() {
             let stats = {};
-            
-            // 遍历并归总所有历史工时和工具
             globalHistoryArr.forEach(h => {
                 if (h.action === 'submit_framework' || h.action === 'submit_draft') {
                     let op = h.operator || '未知设计师';
                     if (!stats[op]) stats[op] = { hours: 0, tools: new Set() };
-                    
                     stats[op].hours += parseFloat(h.work_hours || 0);
                     if (h.ai_tools && Array.isArray(h.ai_tools)) {
                         h.ai_tools.forEach(t => stats[op].tools.add(t));
@@ -444,48 +424,33 @@
                 }
                 html += `</div>`;
             }
-            
             panel.innerHTML = html;
             panel.classList.remove('hidden');
         }
 
-        // ================= 💡 全新核心：版本历史画廊引擎 (增加提取按钮) =================
         function renderVersionHistory() {
             const container = document.getElementById('version-history-container');
             const block = document.getElementById('version-history-block');
             
             let submissions = [];
-            
             for(let i=0; i<globalHistoryArr.length; i++) {
                 let h = globalHistoryArr[i];
                 if(h.action === 'submit_framework' || h.action === 'submit_draft') {
-                    let fate = 'pending'; 
-                    let fateReason = '';
-                    
+                    let fate = 'pending'; let fateReason = '';
                     for(let j = i + 1; j < globalHistoryArr.length; j++) {
                         let nextH = globalHistoryArr[j];
-                        if (nextH.action.startsWith('reject_') || nextH.is_rejected) {
-                            fate = 'rejected'; fateReason = nextH.reply || nextH.desc; break;
-                        }
-                        if (nextH.action.startsWith('approve_') || nextH.action === 'complete' || (nextH.reply && !nextH.is_rejected)) {
-                            fate = 'approved'; fateReason = nextH.reply; break;
-                        }
-                        if (nextH.action.startsWith('submit_')) {
-                            break;
-                        }
+                        if (nextH.action.startsWith('reject_') || nextH.is_rejected) { fate = 'rejected'; fateReason = nextH.reply || nextH.desc; break; }
+                        if (nextH.action.startsWith('approve_') || nextH.action === 'complete' || (nextH.reply && !nextH.is_rejected)) { fate = 'approved'; fateReason = nextH.reply; break; }
+                        if (nextH.action.startsWith('submit_')) break;
                     }
                     submissions.push({ ...h, fate, fateReason });
                 }
             }
 
-            if(submissions.length === 0) {
-                block.classList.add('hidden');
-                return;
-            }
-
+            if(submissions.length === 0) { block.classList.add('hidden'); return; }
             block.classList.remove('hidden');
-            let html = '';
             
+            let html = '';
             [...submissions].reverse().forEach((sub) => {
                 let badgeCol = sub.fate === 'approved' ? 'emerald' : (sub.fate === 'rejected' ? 'rose' : 'amber');
                 let badgeTxt = sub.fate === 'approved' ? '已过审 / 验收' : (sub.fate === 'rejected' ? '被打回' : '等待审核中');
@@ -497,71 +462,41 @@
                 if (sub.source_link) {
                     let href = sub.source_link.trim();
                     if(!href.match(/^https?:\/\//i) && !href.startsWith('//')) href = 'http://' + href;
-                    sourceLinkHtml = `
-                        <a href="${href}" target="_blank" class="mt-3 inline-flex items-center gap-1.5 text-[11px] text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1.5 rounded-lg hover:bg-indigo-500/20 transition-colors w-fit btn-press">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-                            提取提交的源文件
-                        </a>
-                    `;
+                    sourceLinkHtml = `<a href="${href}" target="_blank" class="mt-3 inline-flex items-center gap-1.5 text-[11px] text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1.5 rounded-lg hover:bg-indigo-500/20 transition-colors w-fit btn-press"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg> 提取提交的源文件</a>`;
                 }
 
                 html += `
                     <div class="bg-[#16161d] border border-white/5 rounded-2xl p-5 relative overflow-hidden flex gap-6 hover:border-${badgeCol}-500/30 transition-colors group shadow-md">
                         <div class="absolute right-0 top-0 bg-${badgeCol}-500/10 text-${badgeCol}-500 text-[10px] font-bold px-3 py-1 rounded-bl-xl border-b border-l border-${badgeCol}-500/20">${badgeTxt}</div>
-                        
                         <div class="w-[280px] aspect-video bg-[#09090b] rounded-xl border border-white/10 overflow-hidden relative shadow-inner p-1 flex items-center justify-center shrink-0 cursor-pointer" onclick="openPreview('${sub.img_url}')">
                             <img src="${sub.img_url}" class="max-w-full max-h-full object-contain group-hover:scale-[1.02] transition-transform">
                             <div class="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded backdrop-blur-sm pointer-events-none">点击看大图</div>
                         </div>
-                        
                         <div class="flex-1 flex flex-col justify-center space-y-3">
                             <div>
-                                <h4 class="text-[15px] font-bold text-white mb-1 flex items-center gap-2">
-                                    ${typeTxt} <span class="bg-white/10 px-2 py-0.5 rounded text-[11px] font-mono text-zinc-300 shadow-sm">${sub.version || 'v-X'}</span>
-                                </h4>
+                                <h4 class="text-[15px] font-bold text-white mb-1 flex items-center gap-2">${typeTxt} <span class="bg-white/10 px-2 py-0.5 rounded text-[11px] font-mono text-zinc-300 shadow-sm">${sub.version || 'v-X'}</span></h4>
                                 <p class="text-[11px] text-zinc-500">执行人: <span class="text-orange-400 font-bold">${sub.operator || '未知'}</span> <span class="mx-2">|</span> 提交时间: ${new Date(sub.created_at || sub.time).toLocaleString()}</p>
                             </div>
-                            
                             <div class="grid grid-cols-2 gap-4 bg-white/5 p-3 rounded-xl border border-white/5">
-                                <div>
-                                    <p class="text-[10px] text-zinc-500 mb-1 flex items-center gap-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> 消耗工时</p>
-                                    <p class="text-[14px] font-black text-white font-mono">${sub.work_hours || 0} <span class="text-[10px] text-zinc-500 font-normal">小时</span></p>
-                                </div>
-                                <div>
-                                    <p class="text-[10px] text-zinc-500 mb-1 flex items-center gap-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg> 借助工具</p>
-                                    <p class="text-[12px] font-bold text-emerald-400 truncate" title="${toolsTxt}">${toolsTxt}</p>
-                                </div>
+                                <div><p class="text-[10px] text-zinc-500 mb-1 flex items-center gap-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> 消耗工时</p><p class="text-[14px] font-black text-white font-mono">${sub.work_hours || 0} <span class="text-[10px] text-zinc-500 font-normal">小时</span></p></div>
+                                <div><p class="text-[10px] text-zinc-500 mb-1 flex items-center gap-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg> 借助工具</p><p class="text-[12px] font-bold text-emerald-400 truncate" title="${toolsTxt}">${toolsTxt}</p></div>
                             </div>
-                            
-                            <div class="text-[12px] text-zinc-400 bg-[#09090b] p-3 rounded-lg border border-white/5">
-                                <span class="font-bold text-zinc-300">📝 交付说明:</span> ${sub.desc || '未填写'}
-                            </div>
-
+                            <div class="text-[12px] text-zinc-400 bg-[#09090b] p-3 rounded-lg border border-white/5"><span class="font-bold text-zinc-300">📝 交付说明:</span> ${sub.desc || '未填写'}</div>
                             ${sourceLinkHtml}
-                            
                             ${sub.fate === 'rejected' ? `<div class="text-[12px] text-rose-400 bg-rose-500/10 p-3 rounded-lg border border-rose-500/20"><span class="font-bold">💥 被驳回原因:</span> ${sub.fateReason || '无详细意见'}</div>` : ''}
                             ${sub.fate === 'approved' ? `<div class="text-[12px] text-emerald-400 bg-emerald-500/10 p-3 rounded-lg border border-emerald-500/20"><span class="font-bold">✅ 过审意见:</span> ${sub.fateReason || '直接通过'}</div>` : ''}
                         </div>
-                    </div>
-                `;
+                    </div>`;
             });
             container.innerHTML = html;
         }
 
-        // ================= 💡 智能 Action Panel =================
         function renderSmartDesignerPanel() {
             const status = globalTaskData.status;
-            const enName = currentUser.enName.toLowerCase();
-            const dispName = currentUser.displayName || currentUser.cnName || currentUser.enName;
-            
-            const isCreator = (dispName === globalTaskData.creator || enName === (globalTaskData.creator || '').toLowerCase());
-            const isLeader = enName === 'judyzzhang';
-            const isSuperAdmin = enName === 'davidxxu' || enName === 'davidxu' || enName === 'ponyxu';
             
             const hBadge = document.getElementById('header-status-badge');
             const pnl = document.getElementById('smart-action-panel');
             const dGlow = document.getElementById('dynamic-glow');
-            
             const upArea = document.getElementById('designer-upload-area');
             const fbBlock = document.getElementById('reject-feedback-block');
 
@@ -572,9 +507,7 @@
             const preciseVersionNum = getNextVersionNumber(globalHistoryArr);
             document.getElementById('upload-version-tag').innerText = `(将记录为 v-${preciseVersionNum})`;
 
-            let rejectFeedback = '';
-            let rejectAction = '';
-            let hasLeaderApproved = false;
+            let rejectFeedback = ''; let rejectAction = ''; let hasLeaderApproved = false;
 
             for(let i = globalHistoryArr.length - 1; i >= 0; i--) {
                 const h = globalHistoryArr[i];
@@ -585,9 +518,7 @@
             if (status === 'pending' || status === 'pending_accept') {
                 sCol = 'sky'; sText = '需求待评估接单';
                 sIcon = `<svg class="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
-                
                 upArea.classList.add('hidden');
-                
                 pnlClasses = 'bg-gradient-to-b from-[#0a1e29] to-[#121217] border border-sky-500/30 rounded-3xl p-7 shadow-[0_20px_40px_-10px_rgba(56,189,248,0.15)] relative overflow-hidden';
                 pnlHtml = `
                     <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-sky-500"></div>
@@ -600,17 +531,11 @@
                         <button onclick="openRejectModal()" class="w-full py-3.5 bg-rose-600/10 hover:bg-rose-500 hover:text-white border border-rose-500/30 text-rose-500 rounded-xl text-[13px] font-bold btn-press transition-all flex items-center justify-center gap-2">
                             需求模糊无法执行，退回大厅
                         </button>
-                    </div>
-                `;
-            
+                    </div>`;
             } else if (status === 'processing' || status === 'rejected') {
                 const isReject = status === 'rejected';
-                
-                if (hasLeaderApproved || rejectAction === 'reject_draft' || (status === 'processing' && globalTaskData.design_img_url && !rejectFeedback)) {
-                    currentUploadPhase = 'draft';
-                } else {
-                    currentUploadPhase = 'framework';
-                }
+                if (hasLeaderApproved || rejectAction === 'reject_draft' || (status === 'processing' && globalTaskData.design_img_url && !rejectFeedback)) { currentUploadPhase = 'draft'; } 
+                else { currentUploadPhase = 'framework'; }
 
                 sCol = isReject ? 'rose' : 'orange'; 
                 sText = isReject ? '根据打回意见修改中' : (currentUploadPhase === 'draft' ? '绘制最终正式稿中' : '绘制初版框架中');
@@ -634,7 +559,6 @@
                 }
 
                 pnlClasses = `bg-gradient-to-b from-[#1a110a] to-[#121217] border border-${sCol}-500/30 rounded-3xl p-7 shadow-[0_20px_40px_-10px_rgba(var(--tw-colors-${sCol}-500),0.15)] relative overflow-hidden`;
-                
                 pnlHtml = `
                     <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-${sCol}-500"></div>
                     <h3 class="text-[16px] font-bold text-white mb-6 border-b border-white/5 pb-4">效能填报记录</h3>
@@ -660,14 +584,10 @@
                         <button onclick="submitDesignWork()" class="w-full py-4 bg-${sCol}-600 hover:bg-${sCol}-500 text-white rounded-xl text-[14px] font-bold shadow-lg btn-press flex items-center justify-center gap-2 transition-all" id="btn-submit-design">
                             🚀 ${currentUploadPhase === 'draft' ? '提交正稿给甲方验收' : '推送框架给主管审批'}
                         </button>
-                    </div>
-                `;
-
+                    </div>`;
             } else if (status === 'pending_approval' || status === 'reviewing') {
-                sCol = 'emerald'; 
-                sText = status === 'pending_approval' ? '待主管审批框架' : '待甲方验收正稿';
+                sCol = 'emerald'; sText = status === 'pending_approval' ? '待主管审批框架' : '待甲方验收正稿';
                 sIcon = `<svg class="animate-pulse h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" stroke="currentColor" d="M5 13l4 4L19 7"></path></svg>`;
-                
                 upArea.classList.add('hidden'); 
                 
                 let urgeFn = status === 'pending_approval' ? 'urgeLeader(this)' : 'urgeRequester(this)';
@@ -684,13 +604,10 @@
                     <button onclick="${urgeFn}" class="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-[13px] font-bold transition-all btn-press mb-3 shadow-[0_0_15px_rgba(249,115,22,0.3)]">${urgeText}</button>
                     <button onclick="window.location.href='assistant-workspace.html'" class="w-full py-3 bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white rounded-xl text-[12px] font-bold transition-all btn-press">返回执行看板</button>
                 `;
-
             } else {
                 sCol = status==='terminated'?'rose':'zinc'; sText = status==='terminated'?'已强行终止 (废弃)':'任务已圆满结项';
                 sIcon = status==='terminated'?`<svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`:`<svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-                
                 upArea.classList.add('hidden'); 
-                
                 pnlClasses = 'bg-[#121217] border border-white/10 rounded-3xl p-7 shadow-xl relative overflow-hidden opacity-80';
                 pnlHtml = `
                     <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-${sCol}-500"></div>
@@ -704,19 +621,18 @@
             hBadge.className = `bg-${sCol}-500/20 text-${sCol}-400 border border-${sCol}-500/30 px-3 py-1.5 rounded-lg text-[12px] font-bold flex items-center gap-1.5 shadow-[0_0_10px_rgba(var(--tw-colors-${sCol}-500),0.2)]`;
             hBadge.classList.remove('hidden');
             dGlow.className = `glow-bg bg-${sCol}-900/10`;
-            
             pnl.className = pnlClasses;
             pnl.innerHTML = pnlHtml;
         }
 
-        // ================= 🚀 催办：双路触发铃铛和邮件 =================
+        // ================= 🚀 催办：双路触发铃铛和邮件 (修正 judyzzheng) =================
         window.urgeLeader = async function(btn) {
             btn.innerHTML = '<svg class="animate-spin h-3.5 w-3.5 mr-2 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle></svg> 发送警报中...';
             btn.disabled = true;
 
             if (globalTaskData) {
-                // 1. 触发铃铛和邮件！通知领导去 task-detail-requester (大厅跳转)
-                await insertDbNotification('judyzzhang', `🚨 催办强提醒：设计师已提交框架，等待您的火速审批：《${globalTaskData.title || currentTaskId}》。`, `task-detail-requester.html?id=${currentTaskId}`, 'urgent');
+                // 💡 核心修复：向 judyzzheng 发送通知！
+                await insertDbNotification('judyzzheng', `🚨 催办强提醒：设计师已提交框架，等待您的火速审批：《${globalTaskData.title || currentTaskId}》。`, `manager-workspace.html?id=${currentTaskId}`, 'urgent');
             }
 
             btn.innerHTML = '✓ 已触发系统警报催办';
@@ -729,7 +645,6 @@
             btn.disabled = true;
 
             if (globalTaskData && globalTaskData.creator) {
-                // 1. 触发铃铛和邮件！通知甲方去 task-detail-requester
                 await insertDbNotification(globalTaskData.creator, `🚨 催办强提醒：设计师交付了最终稿件，等待您的火速验收：《${globalTaskData.title || currentTaskId}》。`, `task-detail-requester.html?id=${currentTaskId}`, 'urgent');
             }
 
@@ -751,6 +666,7 @@
                     else if(h.action === 'complete') { dotColor = 'emerald'; actionTxt = '甲方验收成功完结'; }
                     else if(h.action === 'terminate') { dotColor = 'rose'; actionTxt = '任务被强行终止'; subTxt = h.reply || ''; }
                     else if(h.action === 'transfer') { dotColor = 'orange'; actionTxt = '任务发生转单'; subTxt = h.reply || ''; }
+                    else if(h.action === 'accept') { dotColor = 'sky'; actionTxt = '设计师接单并给出排期'; subTxt = h.reply || ''; }
                     
                     html += `
                     <div class="relative flex gap-4 z-10 pb-6 group">
@@ -767,7 +683,6 @@
             document.getElementById('task-timeline-container').innerHTML = html;
         }
 
-        // ================= 图片上传引擎 (含 Base64 降级防崩机制) =================
         function compressImage(file, maxWidth = 1600, quality = 0.7) {
             return new Promise((resolve) => {
                 const reader = new FileReader();
@@ -827,21 +742,6 @@
             document.getElementById('upload-placeholder').classList.remove('hidden'); document.getElementById('upload-preview').classList.add('hidden');
         }
 
-        // ================= 弹窗控制 =================
-        const acceptOverlay = document.getElementById('accept-modal-overlay');
-        const acceptModal = document.getElementById('accept-modal');
-        const rejectOverlay = document.getElementById('reject-modal-overlay');
-        const rejectModal = document.getElementById('reject-modal');
-
-        window.openAcceptModal = function() { acceptOverlay.classList.remove('hidden'); setTimeout(() => { acceptOverlay.classList.remove('opacity-0'); acceptModal.classList.remove('hidden'); }, 10); }
-        window.openRejectModal = function() { rejectOverlay.classList.remove('hidden'); setTimeout(() => { rejectOverlay.classList.remove('opacity-0'); rejectModal.classList.remove('hidden'); }, 10); }
-        window.closeActionModals = function() {
-            acceptOverlay.classList.add('opacity-0'); rejectOverlay.classList.add('opacity-0');
-            setTimeout(() => { acceptOverlay.classList.add('hidden'); acceptModal.classList.add('hidden'); rejectOverlay.classList.add('hidden'); rejectModal.classList.add('hidden'); }, 300);
-        }
-
-        // ================= 🚀 核心写入动作 (并自动派发铃铛与邮件) =================
-
         window.submitAccept = async function() {
             const fwDate = document.getElementById('framework-date').value;
             if(!fwDate) return alert("请填写预计交框架方案的时间！");
@@ -863,7 +763,6 @@
                 
                 if (error) { btn.disabled = false; btn.innerText = "保存排期并接单"; return alert("云端更新失败：" + error.message); }
 
-                // 🚀 双路触发：给甲方铃铛和邮件
                 if (globalTaskData && globalTaskData.creator) {
                     await insertDbNotification(globalTaskData.creator, `【已接单】设计师 ${currentUser.displayName || currentUser.enName} 已接手你的需求：《${globalTaskData.title}》，预计交稿：${fwDate}。`, `task-detail-requester.html?id=${currentTaskId}`, 'update');
                 }
@@ -893,7 +792,6 @@
                 
                 if (error) { btn.disabled = false; btn.innerText = "确认退回"; return alert("云端更新失败：" + error.message); }
 
-                // 🚀 双路触发：给甲方发紧急退回通知
                 if (globalTaskData && globalTaskData.creator) {
                     await insertDbNotification(globalTaskData.creator, `【需求被退回】设计师因需求不清晰退回了你的单子：《${globalTaskData.title}》，原因：${reason}。`, `task-detail-requester.html?id=${currentTaskId}`, 'urgent');
                 }
@@ -963,7 +861,7 @@
                 ai_tools: checkedAIs,
                 created_at: new Date().toISOString(),
                 action: actionType,
-                operator: currentUser.displayName || currentUser.cnName || currentUser.name || currentUser.enName
+                operator: currentUser.displayName || currentUser.enName
             };
             globalHistoryArr.push(newHistoryRecord);
 
@@ -986,9 +884,9 @@
 
                 if (error) { btn.disabled = false; btn.innerHTML = btnOriginalText; return alert("状态更新失败：" + error.message); }
 
-                // 🚀 双路触发：根据提交节点，给领导或甲方发送消息和铃铛！
+                // 🚀 双路触发：给 judyzzheng 或甲方发消息！
                 if (actionType === 'submit_framework') {
-                    await insertDbNotification('judyzzhang', `【框架待审】设计师 ${currentUser.displayName || currentUser.enName} 上传了中期方案：《${globalTaskData.title}》，请您火速审批把关。`, `task-detail-requester.html?id=${currentTaskId}`, 'urgent');
+                    await insertDbNotification('judyzzheng', `【框架待审】设计师 ${currentUser.displayName || currentUser.enName} 上传了中期方案：《${globalTaskData.title}》，请您火速审批把关。`, `manager-workspace.html?id=${currentTaskId}`, 'urgent');
                 } else if (actionType === 'submit_draft') {
                     if (globalTaskData.creator) {
                         await insertDbNotification(globalTaskData.creator, `【正稿待收】设计师 ${currentUser.displayName || currentUser.enName} 交付了正式设计稿：《${globalTaskData.title}》，请您火速验收。`, `task-detail-requester.html?id=${currentTaskId}`, 'urgent');
@@ -999,7 +897,6 @@
             showToast('推送成功', `该节点产出已流转至下一步。`, 'success');
             setTimeout(() => { window.location.href = 'assistant-workspace.html'; }, 1500);
         }
-        
     </script>
 </body>
 </html>
