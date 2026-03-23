@@ -86,7 +86,7 @@
                     <span class="bg-fuchsia-500/20 text-fuchsia-400 text-[11px] px-2.5 py-0.5 rounded-lg border border-fuchsia-500/30 ml-2">管理视角</span>
                     <div id="sync-indicator" class="hidden w-2 h-2 rounded-full bg-emerald-500 animate-pulse ml-2" title="云端连接中..."></div>
                 </h2>
-                <p class="text-xs text-zinc-500">掌握全盘进度，合理调配全职设计与行政组的效能。</p>
+                <p class="text-xs text-zinc-500">掌握全盘进度，对设计方向进行审批把关与效能调度。</p>
             </div>
             
             <div class="flex items-center gap-5 relative">
@@ -120,316 +120,488 @@
             </div>
         </header>
 
-        <div class="flex-1 p-8 md:p-10 overflow-y-hidden flex flex-col z-10 relative">
-            
-            <div id="dashboard-loading" class="absolute inset-0 bg-[#0c0c0e]/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
-                <svg class="animate-spin h-8 w-8 text-fuchsia-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                <p class="text-xs text-zinc-500 font-bold tracking-widest uppercase">SYNCING GLOBAL DATA...</p>
+        <div class="flex-1 p-8 md:p-10 overflow-y-hidden flex justify-center">
+            <div class="flex gap-10 h-full items-start w-full max-w-[1400px]">
+                
+                <div class="flex-1 flex flex-col gap-6 min-w-0 pb-10 overflow-y-auto custom-scrollbar pr-4">
+                    <div class="bg-[#121217] border border-white/5 rounded-2xl p-8 relative overflow-hidden transition-opacity opacity-70 hover:opacity-100">
+                        <div class="absolute right-0 top-0 bg-white/5 text-zinc-500 text-[10px] font-bold px-3 py-1 rounded-bl-xl border-l border-b border-white/5">1. 甲方提单需求</div>
+                        <div class="grid grid-cols-4 gap-4 mb-6 pb-6 border-b border-white/5">
+                            <div><p class="text-[11px] text-zinc-500 mb-1">归属项目</p><p class="text-[13px] font-bold text-zinc-300 truncate" id="dt-project">--</p></div>
+                            <div><p class="text-[11px] text-zinc-500 mb-1">期望交付日</p><p class="text-[13px] font-bold text-sky-400" id="dt-date">--</p></div>
+                            <div><p class="text-[11px] text-zinc-500 mb-1">发起人</p><p class="text-[13px] font-bold text-zinc-300" id="dt-creator">--</p></div>
+                            <div><p class="text-[11px] text-zinc-500 mb-1">执行人</p><p class="text-[13px] font-bold text-orange-400" id="dt-assignee">--</p></div>
+                        </div>
+                        <h3 class="text-sm font-bold text-white mb-3">📋 详细描述</h3>
+                        <div class="text-[13px] text-zinc-400 leading-relaxed bg-[#09090b] border border-white/5 p-5 rounded-xl min-h-[60px]" id="req-desc-display">数据读取中...</div>
+                        <div class="mt-4 space-y-3">
+                            <div id="dt-link-container" class="hidden text-[12px] bg-[#09090b] border border-white/5 p-3 rounded-xl flex items-center gap-2"><span class="text-zinc-500">🔗 参考链接：</span><span id="dt-link" class="truncate text-sky-400"></span></div>
+                            <div id="attachment-container"></div>
+                        </div>
+                    </div>
+
+                    <div id="version-history-block" class="hidden mt-4">
+                        <h3 class="text-[16px] font-bold text-white mb-4 flex items-center gap-2">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>历史流转版本库
+                        </h3>
+                        <div id="version-history-container" class="space-y-4"></div>
+                    </div>
+                </div>
+
+                <div class="w-[380px] shrink-0 flex flex-col gap-6 sticky top-0 pb-10">
+                    <div id="smart-action-panel" class="bg-[#121217] border border-white/5 rounded-3xl p-7 shadow-2xl relative overflow-hidden transition-all duration-300">
+                        <div class="text-center py-6 text-zinc-500 text-sm">面板初始化中...</div>
+                    </div>
+                    
+                    <div class="bg-[#121217] border border-white/5 rounded-3xl p-7 flex flex-col shadow-xl">
+                        <h3 class="text-[14px] font-bold text-white mb-6 border-b border-white/5 pb-4">全量流转生命周期日志</h3>
+                        <div class="relative space-y-6 flex-1" id="task-timeline-container"><div class="text-center py-4 text-zinc-500 text-xs">轨迹读取中...</div></div>
+                    </div>
+                </div>
+
             </div>
-
-            <div class="flex gap-6 mb-8">
-                <div class="bg-[#16161d] border border-white/5 rounded-3xl p-5 flex items-center gap-5 min-w-[240px] shadow-lg">
-                    <div class="w-14 h-14 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                    </div>
-                    <div>
-                        <p class="text-[12px] text-zinc-500 font-bold mb-1">进行中项目</p>
-                        <p class="text-[32px] font-black text-emerald-400 font-mono leading-none" id="stat-ongoing">0</p>
-                    </div>
-                </div>
-
-                <div class="bg-[#16161d] border border-white/5 rounded-3xl p-5 flex items-center gap-5 min-w-[240px] shadow-lg">
-                    <div class="w-14 h-14 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                    </div>
-                    <div>
-                        <p class="text-[12px] text-zinc-500 font-bold mb-1">待响应/审批数</p>
-                        <p class="text-[32px] font-black text-amber-400 font-mono leading-none" id="stat-pending">0</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="flex-1 flex gap-10 min-h-0">
-                <div class="flex-[2] flex flex-col">
-                    <h3 class="text-[14px] font-bold text-emerald-400 flex items-center gap-2 mb-4">
-                        <span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></span>
-                        已分派流转中工单
-                    </h3>
-                    <div class="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-4" id="tasks-container"></div>
-                </div>
-
-                <div class="flex-[1] flex flex-col">
-                    <div class="bg-[#121217] border border-white/5 rounded-3xl p-6 h-full flex flex-col shadow-2xl">
-                        <h3 class="text-[15px] font-bold text-white mb-6">实时资源池监控 <span class="text-xs text-zinc-500 font-normal ml-1">(基于进行中工单)</span></h3>
-                        <div class="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2" id="resource-pool"></div>
-                    </div>
-                </div>
-            </div>
-
         </div>
     </main>
 
-    <div id="pwd-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closePwdModal()">
-        <div id="pwd-modal" class="hidden w-full max-w-sm bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 p-6 relative">
-            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-fuchsia-500 to-indigo-500 rounded-t-3xl"></div>
-            <div class="flex justify-between items-center mb-6 mt-2">
-                <h2 class="text-[16px] font-bold text-white flex items-center gap-2"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-fuchsia-500"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg> 修改登录密码</h2>
-                <button onclick="window.closePwdModal()" class="text-zinc-500 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-full p-1 transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+    <div id="approve-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closeActionModals()">
+        <div id="approve-modal" class="hidden w-full max-w-lg bg-[#121217] border border-emerald-500/30 rounded-3xl shadow-[0_20px_50px_-10px_rgba(16,185,129,0.2)] flex flex-col scale-95 transition-transform duration-300 p-6 relative">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-teal-500 rounded-t-3xl"></div>
+            <div class="flex justify-between items-center mb-4 mt-2">
+                <h2 class="text-[16px] font-bold text-white">同意框架并推进设计</h2>
+                <button onclick="closeActionModals()" class="text-zinc-500 hover:text-white bg-zinc-800 rounded-full p-1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
             </div>
-            <div class="space-y-4">
-                <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">当前密码</label><input type="password" id="old-pwd" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-fuchsia-500 transition-colors" placeholder="输入原密码"></div>
-                <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">新密码</label><input type="password" id="new-pwd" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-fuchsia-500 transition-colors" placeholder="输入新密码"></div>
-                <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">确认新密码</label><input type="password" id="new-pwd-confirm" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-fuchsia-500 transition-colors" placeholder="再次输入新密码"></div>
-            </div>
-            <button onclick="window.submitPwdChange()" class="w-full mt-6 py-3.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded-xl text-sm font-bold shadow-[0_5px_15px_rgba(217,70,239,0.3)] transition-all btn-press">确认修改并重新登录</button>
+            <textarea id="approve-notes" class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-emerald-500 h-24 resize-none mb-4 custom-scrollbar" placeholder="写点鼓励的话，或附加细微调整意见 (选填)..."></textarea>
+            <button id="btn-approve-submit" onclick="submitApprove()" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[13px] font-bold btn-press transition-all">确认通过方向</button>
         </div>
     </div>
 
-    <div id="custom-dialog-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[999999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center">
-        <div id="custom-dialog" class="w-full max-w-sm bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 p-6 relative overflow-hidden">
-            <div id="dialog-color-bar" class="absolute top-0 left-0 right-0 h-1 bg-fuchsia-500"></div>
-            <div class="flex items-center gap-3 mb-3 mt-2">
-                <div id="dialog-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0"></div>
-                <h2 id="dialog-title" class="text-[16px] font-bold text-white">提示</h2>
+    <div id="reject-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closeActionModals()">
+        <div id="reject-modal" class="hidden w-full max-w-lg bg-[#121217] border border-rose-500/30 rounded-3xl shadow-[0_20px_50px_-10px_rgba(244,63,94,0.2)] flex flex-col scale-95 transition-transform duration-300 p-6 relative">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-500 to-orange-500 rounded-t-3xl"></div>
+            <div class="flex justify-between items-center mb-4 mt-2">
+                <h2 class="text-[16px] font-bold text-white" id="reject-title">打回要求重修</h2>
+                <button onclick="closeActionModals()" class="text-zinc-500 hover:text-white bg-zinc-800 rounded-full p-1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
             </div>
-            <p id="dialog-message" class="text-[13px] text-zinc-400 leading-relaxed mb-6">内容</p>
-            <div class="flex gap-3 justify-end w-full mt-auto" id="dialog-buttons"></div>
+            <textarea id="reject-reason" class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-rose-500 h-24 resize-none mb-4 custom-scrollbar" placeholder="请详细指出不满意的地方，打回原因将作为关键修改依据永久记录进历史流水账..."></textarea>
+            <button id="btn-reject-submit" onclick="submitReject()" class="w-full py-3.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-[13px] font-bold btn-press transition-all">确认打回修改</button>
         </div>
     </div>
 
-    <div id="action-toast" class="fixed top-8 right-8 z-[100000] hidden toast-slide-in">
+    <div id="image-preview-modal" onclick="closePreview()">
+        <div class="w-full h-full flex items-center justify-center relative p-8">
+            <button onclick="closePreview()" class="absolute top-8 right-8 text-white/50 hover:text-white bg-white/10 hover:bg-rose-500 rounded-full p-2 transition-all btn-press z-50"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            <img id="modal-image" src="" alt="全屏预览图" class="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-[0_0_50px_rgba(0,0,0,0.8)]" onclick="event.stopPropagation()">
+        </div>
+    </div>
+
+    <div id="action-toast" class="fixed top-8 right-8 z-[1000] hidden toast-slide-in">
         <div class="bg-[#1a1a1f] border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-3 w-72">
-            <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            </div>
+            <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0"></div>
             <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-[11px] text-zinc-400 mt-0.5">操作已执行。</p></div>
         </div>
     </div>
 
+    <script src="sys-notification.js"></script>
     <script type="module">
         import { supabase } from './supabase-config.js';
         window.supabase = supabase;
-        window.DB_TABLE = 'test_tasks'; 
-        if(window.loadDashboardData) window.loadDashboardData();
+        window.DB_TABLE = 'test_tasks';
+        if(window.SysNotification) window.SysNotification.init();
+        if(window.initApp) window.initApp();
     </script>
-
     <script>
-        const PAGE_TYPE = 'admin'; 
-
-        // ================= 高定弹窗引擎 =================
-        window.closeCustomDialog = function() {
-            const overlay = document.getElementById('custom-dialog-overlay');
-            const dialog = document.getElementById('custom-dialog');
-            overlay.classList.add('opacity-0'); dialog.classList.add('scale-95');
-            setTimeout(() => { overlay.classList.add('hidden'); }, 300);
-        }
-
-        function setupDialog(title, message, type) {
-            document.getElementById('dialog-title').innerText = title;
-            document.getElementById('dialog-message').innerHTML = message;
-            const colorBar = document.getElementById('dialog-color-bar');
-            const icon = document.getElementById('dialog-icon');
-            
-            if(type === 'danger') {
-                colorBar.className = 'absolute top-0 left-0 right-0 h-1 bg-rose-500';
-                icon.className = 'w-8 h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0';
-                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
-            } else if(type === 'success') {
-                colorBar.className = 'absolute top-0 left-0 right-0 h-1 bg-emerald-500';
-                icon.className = 'w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0';
+        const safeSetTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.innerText = txt; };
+        function showToast(title, desc, type = 'success') {
+            const toast = document.getElementById('action-toast');
+            document.getElementById('toast-title').innerText = title; document.getElementById('toast-desc').innerText = desc;
+            const icon = document.getElementById('toast-icon');
+            if(type === 'success') {
+                icon.className = "w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0";
                 icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-            } else {
-                colorBar.className = 'absolute top-0 left-0 right-0 h-1 bg-fuchsia-500';
-                icon.className = 'w-8 h-8 rounded-full bg-fuchsia-500/20 text-fuchsia-400 flex items-center justify-center shrink-0';
+            } else if(type === 'info') {
+                icon.className = "w-8 h-8 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center shrink-0";
                 icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+            } else {
+                icon.className = "w-8 h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0";
+                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
             }
+            toast.classList.remove('hidden'); setTimeout(() => { toast.classList.add('hidden'); }, 3000);
         }
 
-        function showDialogUI() {
-            const overlay = document.getElementById('custom-dialog-overlay');
-            const dialog = document.getElementById('custom-dialog');
-            overlay.classList.remove('hidden');
-            setTimeout(() => { overlay.classList.remove('opacity-0'); dialog.classList.remove('scale-95'); }, 10);
-        }
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentTaskId = urlParams.get('id');
+        let globalTaskData = null; let globalHistoryArr = []; let currentUser = null; let isRequesterMode = false;
 
-        window.showAlert = function(title, message, type="primary") {
-            setupDialog(title, message, type);
-            const btnContainer = document.getElementById('dialog-buttons');
-            let btnColor = type === 'danger' ? 'bg-rose-600 hover:bg-rose-500' : (type === 'success' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-fuchsia-600 hover:bg-fuchsia-500');
-            btnContainer.innerHTML = `<button onclick="closeCustomDialog()" class="w-full py-2.5 ${btnColor} text-white rounded-xl text-[13px] font-bold shadow-lg transition-all btn-press">我知道了</button>`;
-            showDialogUI();
-        }
-
-        window.logout = function(e) { e.stopPropagation(); localStorage.removeItem('activeUserObj'); window.location.href = 'login.html'; }
-        window.openPwdModal = function() { document.getElementById('pwd-modal-overlay').classList.remove('hidden'); setTimeout(() => { document.getElementById('pwd-modal-overlay').classList.remove('opacity-0'); document.getElementById('pwd-modal').classList.remove('hidden', 'scale-95'); }, 10); }
-        window.closePwdModal = function() { document.getElementById('pwd-modal-overlay').classList.add('opacity-0'); document.getElementById('pwd-modal').classList.add('scale-95'); setTimeout(() => { document.getElementById('pwd-modal-overlay').classList.add('hidden'); document.getElementById('pwd-modal').classList.add('hidden'); }, 300); }
-        window.submitPwdChange = function() { window.showAlert('提示', '系统演示环境暂不可自助修改密码，请联系管理员。', 'info'); window.closePwdModal(); }
-
-        function initRBAC() {
+        window.initApp = async function() {
             const userStr = localStorage.getItem('activeUserObj');
-            if (!userStr) { window.location.href = 'login.html'; return false; }
-            const user = JSON.parse(userStr);
-            const enName = user.enName ? user.enName.toLowerCase().trim() : '';
-
-            // 💡 超管与领导授权
-            if (['davidxxu', 'davidxu', 'ponyxu'].includes(enName)) {
-                user.perms = ['req', 'design', 'admin'];
-            } else if (enName === 'judyzzhang') {
-                if (!user.perms) user.perms = [];
-                if (!user.perms.includes('admin')) user.perms.push('admin');
-                if (!user.perms.includes('req')) user.perms.push('req');
-            }
-
-            if (!(user.perms || []).includes('admin')) {
-                window.showAlert("权限拦截", "您没有总监控制台访问权限，为您退回大厅。", "danger");
-                setTimeout(()=> window.location.href = 'index.html', 1500);
-                return false;
-            }
-
-            const avatarTxt = (user.displayName || user.name || user.cnName || user.enName || 'U').substring(0, 1).toUpperCase();
-            const avatarEl = document.getElementById('sidebar-avatar');
-            if(avatarEl) { avatarEl.innerText = avatarTxt; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-fuchsia-600'} border border-white/20 flex items-center justify-center text-white font-bold text-sm shadow-lg shrink-0`; }
+            if (!userStr) { window.location.href = 'login.html'; return; }
+            currentUser = JSON.parse(userStr);
+            document.getElementById('sidebar-avatar').innerText = currentUser.avatar || '?';
+            document.getElementById('sidebar-name').innerText = currentUser.displayName || currentUser.cnName || currentUser.enName;
+            if(!currentTaskId) { alert("非法访问：未找到需求单号！"); window.location.href = 'manager-dashboard.html'; return; }
             
-            if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.name || user.cnName || user.enName;
-            if(document.getElementById('sidebar-role')) document.getElementById('sidebar-role').innerHTML = `<span class="text-fuchsia-400 font-bold">当前视角: 管理方</span>`;
-            
-            const menuContainer = document.getElementById('dynamic-identity-list');
-            if (menuContainer) {
-                let html = '';
-                if ((user.perms || []).includes('req')) { 
-                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='index.html'"><div class="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div><span class="text-[13px] font-medium">需求方 (去发单/验收)</span></div>`; 
-                }
-                if ((user.perms || []).includes('design')) { 
-                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='assistant-workspace.html'"><div class="w-7 h-7 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div><span class="text-[13px] font-medium">设计方 (执行看板)</span></div>`; 
-                }
-                if ((user.perms || []).includes('admin')) { 
-                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#3b1740] text-fuchsia-400 cursor-default border border-fuchsia-900/50"><div class="w-7 h-7 rounded-lg bg-fuchsia-500/20 flex items-center justify-center text-fuchsia-500"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="21"></line></svg></div><span class="text-[13px] font-bold">管理方 (当前)</span></div>`; 
-                }
-                menuContainer.innerHTML = html;
-            }
-
-            const triggerBtn = document.getElementById('identityBtn');
-            if (triggerBtn) { triggerBtn.innerHTML = `<span class="text-fuchsia-500 font-black flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500 animate-pulse shadow-[0_0_8px_#d946ef]"></span></span> 身份: 管理方 (当前) <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 ml-1"><polyline points="6 9 12 15 18 9"></polyline></svg>`; }
-
-            return user;
+            const checkAndLoad = setInterval(() => { if(window.supabase) { clearInterval(checkAndLoad); fetchTaskData(); } }, 100);
+            setTimeout(() => clearInterval(checkAndLoad), 5000); 
         }
 
-        window.loadDashboardData = async function(isSilent = false) {
-            if(!initRBAC()) return;
-            if(!window.supabase) return;
+        // 🚀 核心修复：防报错写入法 (无视数据库字段是否存在)
+        window.insertDbNotification = async function(targetIdentifier, content, link_url, category = 'update') {
+            if (!window.supabase || !targetIdentifier) return;
+            try {
+                let targetUserId = null; let targetEmail = '';
+                const { data: allUsers } = await window.supabase.from('users').select('id, email, enName, name');
+                if (allUsers) {
+                    const targetUser = allUsers.find(u => 
+                        (u.enName && u.enName.toLowerCase() === targetIdentifier.toLowerCase()) ||
+                        (u.email && u.email.toLowerCase().includes(targetIdentifier.toLowerCase())) ||
+                        (u.name && u.name.includes(targetIdentifier))
+                    );
+                    if (targetUser) { targetUserId = targetUser.id; targetEmail = targetUser.email; }
+                }
 
-            const syncDot = document.getElementById('sync-indicator');
-            if(syncDot && !isSilent) syncDot.classList.remove('hidden');
+                const finalContent = `[TO:${targetIdentifier.toLowerCase()}] ${content}`;
+                let insertPayload = { content: finalContent, link_url: link_url, is_read: false };
+                
+                let res = await window.supabase.from('notifications').insert([insertPayload]);
+                if (res.error) {
+                    res = await window.supabase.from('notifications').insert([{ content: finalContent, link_url: link_url, is_read: false }]);
+                }
+                
+                if (window.SysNotification && targetUserId) {
+                    await window.SysNotification.sendNotice({
+                        targetId: targetUserId, targetEmail: targetEmail || targetIdentifier, content: content, category: category, url: link_url
+                    });
+                }
+            } catch(e) { console.error("通知派发异常:", e); }
+        }
+
+        async function fetchTaskData() {
+            try {
+                const { data, error } = await window.supabase.from(window.DB_TABLE).select('*').eq('id', currentTaskId).single();
+                if(error || !data) { alert("需求不存在或已删除！"); window.location.href = 'manager-dashboard.html'; return; }
+                globalTaskData = data;
+                try { globalHistoryArr = JSON.parse(data.history_json || '[]'); } catch(e) { globalHistoryArr = []; }
+                
+                renderStaticInfo(); renderVersionHistory(); renderSmartActionPanel(); renderTimeline();
+            } catch(e) { console.error(e); showToast("数据加载失败", e.message, "error"); }
+        }
+
+        function renderStaticInfo() {
+            const d = globalTaskData;
+            safeSetTxt('req-id', d.id || '--'); safeSetTxt('req-title-display', d.title || '无标题');
+            safeSetTxt('dt-project', d.project || '--'); safeSetTxt('dt-date', d.due_date || '--');
+            safeSetTxt('dt-creator', d.creator || '未知'); safeSetTxt('dt-assignee', (d.assignee && d.assignee !== 'none') ? d.assignee : '暂未分配');
+            document.getElementById('req-desc-display').innerHTML = (d.full_desc || '暂无描述').replace(/\n/g, '<br>');
+            if(d.link) {
+                document.getElementById('dt-link-container').classList.remove('hidden');
+                document.getElementById('dt-link').innerHTML = `<a href="${d.link}" target="_blank" class="text-sky-400 hover:underline break-all">${d.link}</a>`;
+            }
+            if(d.file_name && d.file_data) {
+                document.getElementById('attachment-container').innerHTML = `<button onclick="window.downloadAttachment('${d.file_name}', '${d.file_data}')" class="mt-4 text-[11px] bg-white/5 text-indigo-300 px-3 py-1.5 rounded-lg border border-white/10 hover:bg-white/10 flex items-center gap-1.5 btn-press"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg> 下载甲方源文件：${d.file_name}</button>`;
+            }
+        }
+
+        window.downloadAttachment = function(name, dataBase64) { const a = document.createElement('a'); a.href = dataBase64; a.download = name; a.click(); }
+
+        function renderVersionHistory() {
+            const container = document.getElementById('version-history-container');
+            const block = document.getElementById('version-history-block');
+            let submissions = [];
+            for(let i=0; i<globalHistoryArr.length; i++) {
+                let h = globalHistoryArr[i];
+                if(h.action === 'submit_framework' || h.action === 'submit_draft') {
+                    let fate = 'pending'; let fateReason = '';
+                    for(let j = i + 1; j < globalHistoryArr.length; j++) {
+                        let nextH = globalHistoryArr[j];
+                        if (nextH.action.startsWith('reject_') || nextH.is_rejected) { fate = 'rejected'; fateReason = nextH.reply || nextH.desc; break; }
+                        if (nextH.action.startsWith('approve_') || nextH.action === 'complete' || (nextH.reply && !nextH.is_rejected)) { fate = 'approved'; fateReason = nextH.reply; break; }
+                        if (nextH.action.startsWith('submit_')) { break; }
+                    }
+                    submissions.push({ ...h, fate, fateReason });
+                }
+            }
+            if(submissions.length === 0) { block.classList.add('hidden'); return; }
+            block.classList.remove('hidden');
+            let html = '';
+            [...submissions].reverse().forEach((sub) => {
+                let badgeCol = sub.fate === 'approved' ? 'emerald' : (sub.fate === 'rejected' ? 'rose' : 'amber');
+                let badgeTxt = sub.fate === 'approved' ? '已过审 / 验收' : (sub.fate === 'rejected' ? '被打回' : '等待审核中');
+                let typeTxt = sub.action === 'submit_framework' ? '框架方案' : '正式定稿';
+                let toolsTxt = (sub.ai_tools || []).length > 0 ? sub.ai_tools.join('、') : '纯手绘 / 未填';
+                let sourceLinkHtml = '';
+                if (sub.source_link) {
+                    let href = sub.source_link.trim(); if(!href.match(/^https?:\/\//i) && !href.startsWith('//')) href = 'http://' + href;
+                    sourceLinkHtml = `<a href="${href}" target="_blank" class="mt-3 inline-flex items-center gap-1.5 text-[11px] text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1.5 rounded-lg hover:bg-indigo-500/20 transition-colors w-fit btn-press"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg> 提取源文件</a>`;
+                }
+                html += `
+                    <div class="bg-[#16161d] border border-white/5 rounded-2xl p-5 relative overflow-hidden flex gap-6 hover:border-${badgeCol}-500/30 transition-colors group shadow-md">
+                        <div class="absolute right-0 top-0 bg-${badgeCol}-500/10 text-${badgeCol}-500 text-[10px] font-bold px-3 py-1 rounded-bl-xl border-b border-l border-${badgeCol}-500/20">${badgeTxt}</div>
+                        <div class="w-[280px] aspect-video bg-[#09090b] rounded-xl border border-white/10 overflow-hidden relative shadow-inner p-1 flex items-center justify-center shrink-0 cursor-pointer" onclick="openPreview('${sub.img_url}')">
+                            <img src="${sub.img_url}" class="max-w-full max-h-full object-contain group-hover:scale-[1.02] transition-transform">
+                            <div class="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded backdrop-blur-sm pointer-events-none">点击看大图</div>
+                        </div>
+                        <div class="flex-1 flex flex-col justify-center space-y-3">
+                            <div>
+                                <h4 class="text-[15px] font-bold text-white mb-1 flex items-center gap-2">${typeTxt} <span class="bg-white/10 px-2 py-0.5 rounded text-[11px] font-mono text-zinc-300 shadow-sm">${sub.version || 'v-X'}</span></h4>
+                                <p class="text-[11px] text-zinc-500">执行人: <span class="text-orange-400 font-bold">${sub.operator || '未知'}</span> <span class="mx-2">|</span> 提交时间: ${new Date(sub.created_at || sub.time).toLocaleString()}</p>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4 bg-white/5 p-3 rounded-xl border border-white/5">
+                                <div><p class="text-[10px] text-zinc-500 mb-1 flex items-center gap-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> 消耗工时</p><p class="text-[14px] font-black text-white font-mono">${sub.work_hours || 0} <span class="text-[10px] text-zinc-500 font-normal">小时</span></p></div>
+                                <div><p class="text-[10px] text-zinc-500 mb-1 flex items-center gap-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg> 借助工具</p><p class="text-[12px] font-bold text-emerald-400 truncate" title="${toolsTxt}">${toolsTxt}</p></div>
+                            </div>
+                            <div class="text-[12px] text-zinc-400 bg-[#09090b] p-3 rounded-lg border border-white/5"><span class="font-bold text-zinc-300">📝 交付说明:</span> ${sub.desc || '未填写'}</div>
+                            ${sourceLinkHtml}
+                            ${sub.fate === 'rejected' ? `<div class="text-[12px] text-rose-400 bg-rose-500/10 p-3 rounded-lg border border-rose-500/20"><span class="font-bold">💥 被驳回原因:</span> ${sub.fateReason || '无详细意见'}</div>` : ''}
+                            ${sub.fate === 'approved' ? `<div class="text-[12px] text-emerald-400 bg-emerald-500/10 p-3 rounded-lg border border-emerald-500/20"><span class="font-bold">✅ 过审意见:</span> ${sub.fateReason || '直接通过'}</div>` : ''}
+                        </div>
+                    </div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        // 🚀 核心：真正的领导审批面板逻辑
+        function renderSmartActionPanel() {
+            const status = globalTaskData.status;
+            const enName = currentUser.enName ? currentUser.enName.toLowerCase() : '';
+            const dispName = currentUser.displayName || currentUser.name || currentUser.cnName || currentUser.enName;
+            
+            const isLeader = enName === 'judyzzhang';
+            const isSuperAdmin = ['davidxxu', 'davidxu', 'ponyxu'].includes(enName);
+            
+            const pnl = document.getElementById('smart-action-panel');
+            let pnlHtml = ''; let pnlClasses = 'bg-[#121217] border border-white/5 rounded-3xl p-7 shadow-2xl relative overflow-hidden transition-all duration-300';
+
+            if (status === 'pending' || status === 'pending_accept') {
+                if(isSuperAdmin || isLeader) {
+                    pnlClasses = 'bg-[#121217] border border-white/5 rounded-3xl p-7 shadow-2xl relative overflow-hidden';
+                    pnlHtml = `
+                        <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-sky-500/50"></div>
+                        <h3 class="text-[16px] font-bold text-sky-400 mb-2">等待设计接单确认</h3>
+                        <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">系统正在统筹分配中，作为主管您可以强制撤销本需求。</p>
+                        <button onclick="actionCancel()" class="w-full py-3.5 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/30 rounded-xl text-[13px] font-bold btn-press transition-all">强制撤销该需求</button>
+                    `;
+                } else {
+                    pnlHtml = `<div class="text-center py-6 text-zinc-500 text-sm">此阶段只需等待设计排期。</div>`;
+                }
+            } else if (status === 'processing') {
+                pnlClasses = 'bg-[#18181b] border border-orange-500/20 rounded-3xl p-7 shadow-2xl relative overflow-hidden';
+                pnlHtml = `
+                    <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-orange-500"></div>
+                    <div class="w-14 h-14 bg-orange-500/10 text-orange-500 rounded-full flex items-center justify-center mb-5"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div>
+                    <h3 class="text-[16px] font-bold text-white mb-3">设计师爆肝作图中</h3>
+                    <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">设计师 ${globalTaskData.assignee || ''} 已接手该单，正在根据需求产出图纸。</p>
+                    <button onclick="actionUrge(this)" class="w-full py-3.5 bg-[#1a1a24] hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white rounded-xl text-[13px] font-bold transition-all btn-press flex items-center justify-center gap-2"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>发送催办提醒</button>
+                `;
+            } else if (status === 'pending_approval') {
+                // 💡 丹楠姐和超管都能看到审批按钮！
+                if(isLeader || isSuperAdmin) {
+                    pnlClasses = 'bg-gradient-to-b from-[#291b0c] to-[#121217] border border-amber-500/40 rounded-3xl p-7 shadow-[0_20px_40px_-10px_rgba(245,158,11,0.2)] relative overflow-hidden';
+                    pnlHtml = `
+                        <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-amber-500"></div>
+                        <h3 class="text-[16px] font-bold text-amber-500 mb-2 flex items-center gap-2">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                            框架大方向审批
+                        </h3>
+                        <p class="text-[12px] text-amber-500/80 leading-relaxed mb-6">作为主管，请对左侧画廊中最新提交的设计框架进行大方向把关。通过后设计师将继续推进正稿；若方向偏离请及时打回。</p>
+                        <div class="space-y-4">
+                            <button onclick="openActionModal('approve')" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[13px] font-bold shadow-[0_5px_15px_rgba(16,185,129,0.3)] btn-press transition-all flex items-center justify-center gap-2">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg> 同意并推进正稿
+                            </button>
+                            <button onclick="isRequesterMode=false; openActionModal('reject')" class="w-full py-3.5 bg-rose-600/10 hover:bg-rose-500 hover:text-white text-rose-500 border border-rose-500/30 rounded-xl text-[13px] font-bold btn-press transition-all flex items-center justify-center gap-2">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> 偏离需求，打回重画
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    pnlClasses = 'bg-[#18181b] border border-zinc-700 rounded-3xl p-7 shadow-2xl relative overflow-hidden';
+                    pnlHtml = `
+                        <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-zinc-500"></div>
+                        <h3 class="text-[16px] font-bold text-white mb-3">框架方案审核中</h3>
+                        <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">设计已提交中期框架方案，正在等待主管审批把关结果。</p>
+                        <button onclick="actionUrge(this)" class="w-full py-3.5 bg-[#1a1a24] hover:bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white rounded-xl text-[13px] font-bold transition-all btn-press">发送邮件催办主管审批</button>
+                    `;
+                }
+            } else if (status === 'reviewing') {
+                pnlClasses = 'bg-[#18181b] border border-zinc-700 rounded-3xl p-7 shadow-2xl relative overflow-hidden';
+                pnlHtml = `
+                    <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-zinc-500"></div>
+                    <h3 class="text-[16px] font-bold text-white mb-3">正式稿验收中</h3>
+                    <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">正式稿已送达，等待发起人 ${globalTaskData.creator} 验收。</p>
+                    <button onclick="actionUrge(this)" class="w-full py-3.5 bg-[#1a1a24] hover:bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white rounded-xl text-[13px] font-bold transition-all btn-press">发铃铛及邮件催促发起人验收</button>
+                `;
+            } else if (status === 'rejected') {
+                pnlClasses = 'bg-[#18181b] border border-zinc-700 rounded-3xl p-7 shadow-2xl relative overflow-hidden';
+                pnlHtml = `
+                    <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-rose-500"></div>
+                    <div class="w-14 h-14 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center mb-5"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></div>
+                    <h3 class="text-[16px] font-bold text-white mb-3">方案已被打回重修</h3>
+                    <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">当前设计存在不符预期的地方已被驳回，请留意下方时间轴中指出的打回意见。目前正在等待设计师重新提交新版本。</p>
+                    <button onclick="actionUrge(this)" class="w-full py-3.5 bg-[#1a1a24] hover:bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white rounded-xl text-[13px] font-bold transition-all btn-press">催促设计尽快重传</button>
+                `;
+            } else {
+                pnlClasses = 'bg-[#121217] border border-white/10 rounded-3xl p-7 shadow-xl relative overflow-hidden opacity-60';
+                pnlHtml = `
+                    <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-zinc-500"></div>
+                    <h3 class="text-[16px] font-bold text-white mb-3">任务已闭环</h3>
+                    <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">该需求的所有生命周期已完成。若需下载源文件请点击左侧画廊中对应版本的提取按钮。</p>
+                `;
+            }
+
+            pnl.className = pnlClasses; pnl.innerHTML = pnlHtml;
+        }
+
+        window.openPreview = function(srcUrl) {
+            if(!srcUrl) return; 
+            document.getElementById('modal-image').src = srcUrl;
+            const modal = document.getElementById('image-preview-modal');
+            modal.classList.remove('hidden'); void modal.offsetWidth; modal.style.display = 'flex'; setTimeout(() => modal.classList.add('visible'), 10);
+        }
+        window.closePreview = function() {
+            const modal = document.getElementById('image-preview-modal');
+            modal.classList.remove('visible'); setTimeout(() => { modal.style.display = 'none'; modal.classList.add('hidden'); }, 300);
+        }
+
+        const approveOverlay = document.getElementById('approve-modal-overlay'); const approveModal = document.getElementById('approve-modal');
+        const rejectOverlay = document.getElementById('reject-modal-overlay'); const rejectModal = document.getElementById('reject-modal');
+
+        window.openActionModal = function(type) {
+            if(type === 'approve') { approveOverlay.classList.remove('hidden'); setTimeout(() => { approveOverlay.classList.remove('opacity-0'); approveModal.classList.remove('hidden'); }, 10); } 
+            else if (type === 'reject') { rejectOverlay.classList.remove('hidden'); setTimeout(() => { rejectOverlay.classList.remove('opacity-0'); rejectModal.classList.remove('hidden'); }, 10); }
+        }
+        window.closeActionModals = function() {
+            approveOverlay.classList.add('opacity-0'); rejectOverlay.classList.add('opacity-0');
+            setTimeout(() => { approveOverlay.classList.add('hidden'); approveModal.classList.add('hidden'); rejectOverlay.classList.add('hidden'); rejectModal.classList.add('hidden'); }, 300);
+        }
+
+        async function updateSupabaseState(newStatus, newSummary, actionPayload) {
+            globalHistoryArr.push(actionPayload);
+            const { error } = await window.supabase.from(window.DB_TABLE).update({
+                status: newStatus, summary_desc: newSummary, history_json: JSON.stringify(globalHistoryArr)
+            }).eq('id', currentTaskId);
+            
+            if(error) { window.showAlert("错误", "云端状态更新失败：" + error.message, "danger"); return false; }
+            
+            try {
+                if (globalTaskData) {
+                    const act = actionPayload.action;
+                    let notifyRole = ''; let content = ''; let targetUrl = `task-detail-designer.html?id=${currentTaskId}`; 
+                    if (act === 'approve_framework') { notifyRole = 'assignee'; content = `【审核通过】领导已同意大方向：《${globalTaskData.title}》，请继续推进正稿。`; }
+                    else if (act.startsWith('reject_')) { notifyRole = 'assignee'; content = `【打回修改】你的设计单《${globalTaskData.title}》已被打回，请立刻查看修改意见。`; }
+                    
+                    if (notifyRole && content && globalTaskData.assignee) {
+                        await window.insertDbNotification(globalTaskData.assignee, content, targetUrl, 'update');
+                    }
+                }
+            } catch(err) {}
+            return true;
+        }
+
+        window.submitApprove = async function() {
+            const notes = document.getElementById('approve-notes').value.trim();
+            const btn = document.getElementById('btn-approve-submit'); btn.disabled = true; btn.innerText = "写入同步中...";
+
+            const payload = {
+                action: 'approve_framework', operator: '丹楠姐 (领导)', time: new Date().toISOString(),
+                reply: notes || '大方向没问题，同意推进正稿。', is_rejected: false, reply_by: '丹楠姐 (领导)'
+            };
+
+            if(await updateSupabaseState('processing', notes ? `领导框架已过审：${notes}` : `领导已通过框架，继续制作正稿。`, payload)) {
+                closeActionModals(); showToast('审批通过', '任务已流转回设计师推进正稿。', 'success');
+                setTimeout(() => window.location.reload(), 1500);
+            } else { btn.disabled = false; btn.innerText = "确认通过方向"; }
+        }
+
+        window.submitReject = async function() {
+            const reason = document.getElementById('reject-reason').value.trim();
+            if(!reason) return window.showAlert("提示", "为了设计师修改清晰，打回原因必填！", "danger");
+            
+            const btn = document.getElementById('btn-reject-submit'); btn.disabled = true; btn.innerText = "写入同步中...";
+
+            const dispName = currentUser.displayName || currentUser.enName;
+            const roleStr = isRequesterMode ? `${dispName} (需求方)` : '丹楠姐 (领导)';
+            const actionStr = isRequesterMode ? 'reject_draft' : 'reject_framework';
+
+            const payload = {
+                action: actionStr, operator: roleStr, time: new Date().toISOString(),
+                reply: reason, is_rejected: true, reply_by: roleStr
+            };
+
+            const summaryStr = isRequesterMode ? `甲方打回正式稿：${reason}` : `领导将框架打回：${reason}`;
+
+            if(await updateSupabaseState('rejected', summaryStr, payload)) {
+                closeActionModals(); showToast('已打回', '该任务已被打回修改池。', 'info');
+                setTimeout(() => window.location.reload(), 1500);
+            } else { btn.disabled = false; btn.innerText = "确认打回修改"; }
+        }
+
+        window.actionCancel = async function() { 
+            window.showConfirm("确认撤销", "确定要强制撤销该需求单吗？该操作会将记录彻底删除。", async () => {
+                const { error } = await window.supabase.from(window.DB_TABLE).delete().eq('id', currentTaskId);
+                if(error) return window.showAlert("撤销失败", error.message, "danger");
+                showToast('已撤销', `需求单已安全删除。`, 'info');
+                setTimeout(() => window.location.href='manager-dashboard.html', 1000); 
+            }, "danger");
+        }
+
+        window.actionUrge = async function(btn) {
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<svg class="animate-spin h-3.5 w-3.5 mr-2 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle></svg> 发送警报中...';
+            btn.disabled = true;
 
             try {
-                const { data: tasks, error } = await window.supabase.from(window.DB_TABLE).select('id, title, status, creator, assignee, due_date, history_json').order('created_at', { ascending: false });
-                if (error) throw error;
+                let targetIdentifier = ''; let content = ''; let targetUrl = '';
+                const title = globalTaskData.title || currentTaskId;
+                const status = globalTaskData.status;
 
-                const ongoingTasks = (tasks || []).filter(t => !['completed', 'archived', 'terminated'].includes(t.status));
-                const pendingTasks = ongoingTasks.filter(t => ['pending', 'pending_accept', 'pending_approval', 'reviewing'].includes(t.status));
-
-                let designersMap = {};
-                try {
-                    const { data: users } = await window.supabase.from('users').select('enName, name, email, perms');
-                    if (users) {
-                        users.forEach(u => {
-                            let p = [];
-                            if (typeof u.perms === 'string') try { p = JSON.parse(u.perms); } catch(e){}
-                            else if (Array.isArray(u.perms)) p = u.perms;
-
-                            if(p.includes('design') || p.includes('admin')) {
-                                const key = (u.enName || (u.email ? u.email.split('@')[0] : '')).toLowerCase();
-                                if(key && !designersMap[key]) { designersMap[key] = { display: u.name || u.enName, count: 0, hours: 0 }; }
-                            }
-                        });
-                    }
-                } catch(e){}
-
-                if(!isSilent) {
-                    document.getElementById('stat-ongoing').innerText = ongoingTasks.length;
-                    document.getElementById('stat-pending').innerText = pendingTasks.length;
-                    
-                    const tasksC = document.getElementById('tasks-container');
-                    let tasksHtml = '';
-                    
-                    if (ongoingTasks.length === 0) {
-                        tasksHtml = `<div class="text-center py-10 opacity-50"><p class="text-zinc-500 text-sm">全盘目前无进行中的工单</p></div>`;
-                    } else {
-                        ongoingTasks.forEach(t => {
-                            let sColor, sText, btnHtml;
-                            switch(t.status) {
-                                case 'pending': sColor = 'sky'; sText = '待接单'; btnHtml = `<button class="text-sky-400 bg-sky-500/10 px-3 py-1 rounded text-[11px] font-bold">待响应</button>`; break;
-                                case 'pending_accept': sColor = 'amber'; sText = '待确认接单'; btnHtml = `<button class="text-amber-400 bg-amber-500/10 px-3 py-1 rounded text-[11px] font-bold">待接单</button>`; break;
-                                case 'processing': sColor = 'orange'; sText = '制作中'; btnHtml = `<button class="text-orange-400 bg-orange-500/10 px-3 py-1 rounded text-[11px] font-bold">查看进度</button>`; break;
-                                case 'pending_approval': sColor = 'amber'; sText = '框架审批中'; btnHtml = `<button onclick="event.stopPropagation(); window.location.href='task-detail-requester.html?id=${t.id}'" class="text-white bg-amber-600 hover:bg-amber-500 px-3 py-1 rounded text-[11px] font-bold transition-colors shadow-lg">去审批</button>`; break;
-                                case 'reviewing': sColor = 'emerald'; sText = '待甲方验收'; btnHtml = `<button class="text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded text-[11px] font-bold">甲方验收中</button>`; break;
-                                case 'rejected': sColor = 'rose'; sText = '打回修改中'; btnHtml = `<button class="text-rose-400 bg-rose-500/10 px-3 py-1 rounded text-[11px] font-bold">督办催稿</button>`; break;
-                                default: sColor = 'zinc'; sText = '未知状态'; btnHtml = '';
-                            }
-
-                            if (t.assignee && t.assignee !== 'none' && t.status !== 'pending') {
-                                const assKey = t.assignee.toLowerCase();
-                                if(!designersMap[assKey]) designersMap[assKey] = { display: t.assignee, count: 0, hours: 0 };
-                                designersMap[assKey].count += 1; designersMap[assKey].hours += 4.5;
-                            }
-
-                            tasksHtml += `
-                            <div class="bg-[#18181b] border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-colors cursor-pointer" onclick="window.location.href='task-detail-requester.html?id=${t.id}'">
-                                <div class="flex justify-between items-center mb-4">
-                                    <div class="flex items-center gap-3">
-                                        <span class="text-[10px] font-mono font-bold bg-white/5 px-2 py-0.5 rounded border border-white/10 text-zinc-400">${t.id}</span>
-                                        <span class="text-[14px] font-bold text-white">${t.title}</span>
-                                    </div>
-                                    ${btnHtml}
-                                </div>
-                                <div class="flex justify-between items-center text-[12px] text-zinc-500">
-                                    <div class="flex items-center gap-4">
-                                        <span class="flex items-center gap-1.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> 委派: ${t.assignee === 'none' ? '暂未分配' : t.assignee}</span>
-                                    </div>
-                                    <span>期望交付: ${t.due_date || '未定'}</span>
-                                </div>
-                            </div>`;
-                        });
-                    }
-                    tasksC.innerHTML = tasksHtml;
+                if (status === 'processing' || status === 'rejected') {
+                    targetIdentifier = globalTaskData.assignee; content = `🚨 催办强提醒：甲方很着急！请加快设计单《${title}》的制作进度。`; targetUrl = `task-detail-designer.html?id=${currentTaskId}`;
+                } else if (status === 'pending_approval') {
+                    targetIdentifier = 'judyzzhang'; content = `🚨 催办强提醒：设计师已提交框架，等待您的火速审批：《${title}》。`; targetUrl = `manager-workspace.html?id=${currentTaskId}`;
+                } else if (status === 'reviewing' || status === 'pending') {
+                    targetIdentifier = globalTaskData.creator; content = `🚨 催办强提醒：系统提醒您及时跟进单据《${title}》的验收或处理。`; targetUrl = `task-detail-requester.html?id=${currentTaskId}`;
                 }
 
-                if(!isSilent) {
-                    const poolContainer = document.getElementById('resource-pool');
-                    let poolHtml = '';
-                    const sortedDesigners = Object.keys(designersMap).sort((a,b) => designersMap[b].count - designersMap[a].count);
-                    
-                    sortedDesigners.forEach(key => {
-                        const data = designersMap[key];
-                        const statusColor = data.count === 0 ? 'text-zinc-500' : (data.count > 2 ? 'text-rose-500' : 'text-emerald-500');
-                        const statusText = data.count === 0 ? '空闲' : (data.count > 2 ? '高负荷' : '适中');
-                        const opacity = data.count === 0 ? 'opacity-60' : 'opacity-100';
-
-                        poolHtml += `
-                        <div class="flex items-center justify-between py-3 border-b border-white/5 last:border-0 ${opacity}">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[10px] font-bold text-zinc-300 shadow-inner shrink-0">${data.display.substring(0,2).toUpperCase()}</div>
-                                <div><p class="text-[13px] font-bold text-zinc-200 flex items-center gap-2">${data.display} <span class="text-[10px] text-zinc-500 bg-white/5 px-1.5 rounded border border-white/10 font-normal">${data.count} 单</span></p></div>
-                            </div>
-                            <div class="text-right shrink-0">
-                                <p class="text-[12px] font-bold ${statusColor} mb-0.5">${statusText}</p>
-                                <p class="text-[10px] text-zinc-600 font-mono">${data.hours.toFixed(1)}h 预估</p>
-                            </div>
-                        </div>`;
-                    });
-                    poolContainer.innerHTML = poolHtml;
+                if (targetIdentifier && targetIdentifier !== 'none') {
+                    await window.insertDbNotification(targetIdentifier, content, targetUrl, 'urgent');
                 }
+            } catch(e) { console.error(e); }
 
-                document.getElementById('dashboard-loading').classList.add('hidden');
-
-            } catch (err) {
-                console.error(err);
-            } finally {
-                if(syncDot) setTimeout(() => syncDot.classList.add('hidden'), 500);
-            }
+            btn.innerHTML = '✓ 已发送警报通知(铃铛+邮件)';
+            btn.className = "w-full py-3.5 bg-zinc-800 border border-zinc-700 text-zinc-500 rounded-xl text-[13px] font-bold cursor-not-allowed";
+            showToast('催办成功', '已向对方发送系统强提醒！', 'success');
         }
 
-        // ================= 🔔 强力提取系统：通过内容内嵌文本路由 =================
+        function renderTimeline() {
+            let html = '';
+            if (globalHistoryArr && globalHistoryArr.length > 0) {
+                let revHistory = [...globalHistoryArr].reverse();
+                revHistory.forEach(h => {
+                    let dotColor = 'zinc', actionTxt = h.action, subTxt = '';
+                    if(h.is_rejected) { dotColor = 'rose'; actionTxt = '被打回修改'; subTxt = `原因: ${h.reply || h.desc || ''}`; }
+                    else if(h.action === 'approve_framework') { dotColor = 'emerald'; actionTxt = '领导审批通过'; subTxt = h.reply || '同意'; }
+                    else if(h.action === 'submit_draft') { dotColor = 'sky'; actionTxt = '设计师上传了正稿版本 ' + h.version; }
+                    else if(h.action === 'submit_framework') { dotColor = 'amber'; actionTxt = '设计师上传了框架版本 ' + h.version; }
+                    else if(h.action === 'complete') { dotColor = 'emerald'; actionTxt = '甲方验收成功完结'; }
+                    else if(h.action === 'terminate') { dotColor = 'rose'; actionTxt = '任务被强行终止'; subTxt = h.reply || ''; }
+                    else if(h.action === 'transfer') { dotColor = 'orange'; actionTxt = '任务发生转单'; subTxt = h.reply || ''; }
+                    else if(h.action === 'accept') { dotColor = 'sky'; actionTxt = '设计师接单并给出排期'; subTxt = h.reply || ''; }
+                    
+                    html += `
+                    <div class="relative flex gap-4 z-10 pb-6 group">
+                       <div class="timeline-line group-last:hidden"></div>
+                       <div class="w-5 h-5 rounded-full bg-[#121217] border-[2px] border-${dotColor}-500 flex items-center justify-center shrink-0 z-10 mt-0.5 shadow-[0_0_8px_rgba(var(--tw-colors-${dotColor}-500),0.3)]"><div class="w-1.5 h-1.5 bg-${dotColor}-500 rounded-full"></div></div>
+                       <div class="w-full pr-2 z-10">
+                           <p class="text-[12px] font-bold text-zinc-300 flex justify-between">${actionTxt} <span class="text-[9px] text-zinc-600 font-mono font-normal">${new Date(h.created_at || h.time).toLocaleDateString()}</span></p>
+                           ${subTxt ? `<p class="text-[10px] text-zinc-500 mt-1 line-clamp-2">${subTxt}</p>` : ''}
+                       </div>
+                    </div>`;
+                });
+            }
+            html += `<div class="text-[10px] text-zinc-600 font-mono pl-9 mt-2">-- 需求创建起点 --</div>`;
+            document.getElementById('task-timeline-container').innerHTML = html;
+        }
+
+        // ================= 🔔 全局消息通知引擎 =================
         window.syncNotificationsFromCloud = async function(isSilent = true) {
             if(!window.supabase) return;
             const userStr = localStorage.getItem('activeUserObj');
@@ -439,36 +611,18 @@
             const isAdmin = (currentUser.perms || []).includes('admin');
 
             try {
-                const { data, error } = await window.supabase.from('notifications')
-                    .select('*').order('created_at', { ascending: false }).limit(100);
+                const { data, error } = await window.supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(100);
                 if (error) throw error;
 
                 let myNotifs = data.filter(n => {
                     const contentStr = (n.content || '').toLowerCase();
-                    
-                    // 💡 暴力路由解析法：直接找内容里有没有 [TO:xxx] 标签
-                    let toUser = '';
-                    let toMatch = contentStr.match(/\[to:(.*?)\]/i);
-                    if(toMatch) {
-                        toUser = toMatch[1].trim();
-                    } else {
-                        // 老版本兼容逻辑
-                        const target = (n.target_email || '').toLowerCase();
-                        toUser = target.split('@')[0];
-                    }
+                    let toUser = ''; let toMatch = contentStr.match(/\[to:(.*?)\]/i);
+                    if(toMatch) { toUser = toMatch[1].trim(); } else { const target = (n.target_email || '').toLowerCase(); toUser = target.split('@')[0]; }
 
-                    // 是否点名发给我？
                     const isForMe = (toUser === userKeyword) || (currentUser.id && n.user_id === currentUser.id);
 
-                    // 💡 超管/领导上帝视角：无论点名谁，只要是重要事件或发给 judyzzhang 的，统统截获
-                    const isGlobalUrgent = isAdmin && (
-                        toUser === 'judyzzhang' || 
-                        contentStr.includes('🚨') ||
-                        contentStr.includes('催办') ||
-                        contentStr.includes('待审') ||
-                        contentStr.includes('打回') ||
-                        contentStr.includes('交付')
-                    );
+                    // 超管上帝视角
+                    const isGlobalUrgent = isAdmin && (toUser === 'judyzzhang' || contentStr.includes('🚨') || contentStr.includes('催办') || contentStr.includes('待审') || contentStr.includes('打回') || contentStr.includes('交付'));
 
                     return isForMe || isGlobalUrgent;
                 });
@@ -485,12 +639,8 @@
                 
                 const bellDot = document.getElementById('bell-dot');
                 if (bellDot) {
-                    if (unreadCount > 0) {
-                        bellDot.classList.remove('hidden', 'bg-zinc-600', 'border-transparent');
-                        bellDot.classList.add('bg-rose-500', 'animate-pulse', 'border-[#141417]');
-                    } else {
-                        bellDot.classList.add('hidden');
-                    }
+                    if (unreadCount > 0) { bellDot.classList.remove('hidden', 'bg-zinc-600', 'border-transparent'); bellDot.classList.add('bg-rose-500', 'animate-pulse', 'border-[#141417]'); } 
+                    else { bellDot.classList.add('hidden'); }
                 }
 
                 const notifContainer = document.getElementById('notif-list-container');
@@ -499,19 +649,11 @@
                         notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读预警消息</div>';
                     } else {
                         notifContainer.innerHTML = unreadNotifs.map(n => {
-                            let titleText = '系统通知';
-                            let contentText = n.content || '';
-
-                            // 清洗掉 [TO:xxx] 标签不让用户看到
+                            let titleText = '系统通知'; let contentText = n.content || '';
                             contentText = contentText.replace(/\[TO:.*?\]\s*/i, '');
-
                             let titleMatch = contentText.match(/^(【.*?】)/);
-                            if(titleMatch) {
-                                titleText = titleMatch[1];
-                                contentText = contentText.replace(titleMatch[1], '').trim();
-                            } else if(contentText.includes('🚨')) {
-                                titleText = '🚨 紧急催办';
-                            }
+                            if(titleMatch) { titleText = titleMatch[1]; contentText = contentText.replace(titleMatch[1], '').trim(); } 
+                            else if(contentText.includes('🚨')) { titleText = '🚨 紧急催办'; }
                             
                             return `
                             <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 cursor-pointer" onclick="window.markSingleAsRead('${n.id}', '${n.link_url}')">
@@ -529,7 +671,7 @@
             if(window.supabase) { try { await window.supabase.from('notifications').update({ is_read: true }).eq('id', id); } catch(e){} }
             let finalUrl = url || '#';
             let match = finalUrl.match(/id=(TK-\d+)/);
-            if (match) { finalUrl = 'task-detail-requester.html?id=' + match[1]; }
+            if (match) { finalUrl = 'manager-workspace.html?id=' + match[1]; }
             window.location.href = finalUrl;
         };
 
@@ -559,9 +701,9 @@
                     if(notifMenu && !notifMenu.contains(e.target)) notifMenu.classList.add('hidden'); 
                 });
 
-                window.loadDashboardData(false);
+                window.initApp(); 
                 window.syncNotificationsFromCloud(true);
-                setInterval(() => { window.loadDashboardData(true); window.syncNotificationsFromCloud(true); }, 8000);
+                setInterval(() => { window.syncNotificationsFromCloud(true); }, 8000);
             }
         });
     </script>
