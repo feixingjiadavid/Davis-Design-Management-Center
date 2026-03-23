@@ -129,7 +129,7 @@
                     </button>
                     <div id="notifMenu" class="hidden absolute right-0 top-[120%] w-[340px] bg-[#121217] border border-white/10 rounded-2xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.8)] py-3 dropdown-enter z-[9999]">
                         <div class="px-5 pb-3 border-b border-white/5 flex justify-between items-center">
-                            <h3 class="text-[14px] font-bold text-white">系统通知</h3>
+                            <h3 class="text-[14px] font-bold text-white">消息通知</h3>
                             <button onclick="window.markAllAsRead(event)" class="text-[11px] text-indigo-400 hover:text-indigo-300 btn-press transition-colors">全部标为已读</button>
                         </div>
                         <div id="notif-list-container" class="max-h-[300px] overflow-y-auto custom-scrollbar">
@@ -341,18 +341,12 @@
         </div>
     </div>
 
-    <script src="sys-notification.js"></script>
-
     <script type="module">
         import { supabase } from './supabase-config.js';
         window.supabase = supabase;
         window.DB_TABLE = 'test_tasks'; 
         window.LIGHT_FIELDS = 'id, title, status, project, due_date, creator, created_at, summary_desc, assignee, history_json';
         
-        if(window.SysNotification) {
-            window.SysNotification.init();
-        }
-
         if(window.loadTasksFromCloud) window.loadTasksFromCloud();
     </script>
 
@@ -360,36 +354,7 @@
         const PAGE_TYPE = 'req'; 
         let currentUploadedFileData = null;
 
-        // 💡 核心修复2：利用用户自己的 SysNotification 执行发送，不再手工写库
-        window.insertDbNotification = async function(targetIdentifier, content, link_url, category = 'new') {
-            if (!window.SysNotification || !targetIdentifier) return;
-            try {
-                let targetEmail = targetIdentifier + '@webank.com'; // 默认回退邮箱
-                let targetUserId = null;
-
-                if (window.supabase) {
-                    const { data: usersData } = await window.supabase.from('users').select('id, email, name, enName');
-                    if (usersData) {
-                        const u = usersData.find(x => 
-                            (x.enName||'').toLowerCase() === targetIdentifier.toLowerCase() || 
-                            (x.name||'').toLowerCase() === targetIdentifier.toLowerCase() ||
-                            targetIdentifier.toLowerCase().includes((x.enName||'').toLowerCase())
-                        );
-                        if (u) { targetUserId = u.id; targetEmail = u.email || targetEmail; }
-                    }
-                }
-
-                // 统一收口到 sys-notification.js，避免跨端调用错乱
-                await window.SysNotification.sendNotice({
-                    targetId: targetUserId,
-                    targetEmail: targetEmail,
-                    content: content,
-                    category: category,
-                    url: link_url
-                });
-            } catch(e) { console.error("通知派发异常:", e); }
-        };
-
+        // ================= UI与弹窗功能 =================
         window.closeCustomDialog = function() {
             const overlay = document.getElementById('custom-dialog-overlay');
             const dialog = document.getElementById('custom-dialog');
@@ -413,8 +378,8 @@
                 icon.className = 'w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0';
                 icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
             } else {
-                colorBar.className = 'absolute top-0 left-0 right-0 h-1 bg-indigo-500';
-                icon.className = 'w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0';
+                colorBar.className = 'absolute top-0 left-0 right-0 h-1 bg-sky-500';
+                icon.className = 'w-8 h-8 rounded-full bg-sky-500/20 text-sky-400 flex items-center justify-center shrink-0';
                 icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
             }
         }
@@ -507,10 +472,10 @@
             return user;
         }
 
-        // 💡 核心修复1：将 飞行家戴维 和 测试 补充到删除校验名单
+        // 💡 修复清空测试数据 Bug
         window.clearTestData = async function() {
             if(!window.supabase) return;
-            window.showConfirm("清空测试数据", "⚠️ 提示：为了保护真实业务，此操作将<b>只清空测试账号（如 davidxu, ponyxu, 飞行家戴维）产生的需求数据</b>，不会影响其他人的正式数据！<br><br>确定要继续吗？", async () => {
+            window.showConfirm("清空测试数据", "⚠️ 提示：为了保护真实业务，此操作将<b>只清空测试账号（如 davidxu, ponyxu, 飞行家戴维, 测试）产生的需求数据</b>，不会影响其他人的正式数据！<br><br>确定要继续吗？", async () => {
                 try {
                     const btn = document.getElementById('dialog-confirm-btn');
                     if(btn) { btn.innerText = "清理中..."; btn.disabled = true; }
@@ -594,7 +559,7 @@
             const isOwner = creator === currentUser.displayName || creator === currentUser.cnName || creator === currentUser.enName || creator === currentUserEn;
             
             let isJudy = currentUserEn === 'judyzzhang';
-            let isSuperAdmin = currentUserEn === 'davidxu'; 
+            let isSuperAdmin = currentUserEn === 'davidxxu' || currentUserEn === 'davidxu'; 
             
             if(!isOwner && !isSuperAdmin && !(isJudy && ['pending_approval', 'reviewing', 'completed', 'archived', 'terminated'].includes(task.status))) return null;
 
@@ -725,7 +690,7 @@
             if(!currentUser) return;
             const currentUserEn = currentUser.enName ? currentUser.enName.toLowerCase() : '';
             const cNames = [currentUser.displayName, currentUser.cnName, currentUser.enName, currentUserEn].filter(Boolean).map(n => n.toLowerCase());
-            const isSuperAdmin = currentUserEn === 'davidxu';
+            const isSuperAdmin = currentUserEn === 'davidxu' || currentUserEn === 'davidxxu';
             
             if (!isSilent) window.renderDraftToUI(); 
             const spinner = document.getElementById('loading-spinner');
@@ -957,6 +922,7 @@
             }, "danger");
         }
 
+        // 💡 修改建单时不再强制依赖 db_notifications，利用 history_json 解析引擎自动触发！
         window.submitNewReq = async function() {
             if(!window.supabase) return window.showAlert("系统错误", "云端服务仍在初始化，请稍等！", "danger");
 
@@ -1016,22 +982,6 @@
             };
 
             const { error } = await window.supabase.from(window.DB_TABLE).insert([taskData]);
-
-            // 💡 这里的 sendNotice 会安全发信且不手动干扰数据库 user_id 限制
-            if (!error && assigneeVal !== 'none' && window.SysNotification) {
-                let targetEmail = assigneeVal + '@webank.com';
-                let targetUserId = null;
-                const { data: uData } = await window.supabase.from('users').select('id, email, enName').ilike('enName', `${assigneeVal}%`);
-                if (uData && uData.length > 0) { targetUserId = uData[0].id; targetEmail = uData[0].email; }
-
-                await window.SysNotification.sendNotice({
-                    targetId: targetUserId || '00000000-0000-0000-0000-000000000000',
-                    targetEmail: targetEmail,
-                    content: `【新需求指派】${creatorDisplay} 指派了新需求给你：《${shortTitle}》`,
-                    category: 'new',
-                    url: `task-detail-designer.html?id=${newId}`
-                });
-            }
 
             btn.innerText = originalText;
             btn.disabled = false;
@@ -1230,48 +1180,74 @@
             const userStr = localStorage.getItem('activeUserObj');
             if(!userStr) return;
             const currentUser = JSON.parse(userStr);
-            const userKeyword = (currentUser.enName || currentUser.cnName || '').toLowerCase();
+            const myName = (currentUser.displayName || currentUser.cnName || currentUser.enName || '').toLowerCase();
 
             try {
-                const { data, error } = await window.supabase.from('notifications')
-                    .select('*').order('created_at', { ascending: false }).limit(100);
+                // 直接拉取所有工单数据，通过内部流转历史(history_json)智能生成通知！脱离死板数据库束缚！
+                const { data: tasks, error } = await window.supabase.from(window.DB_TABLE)
+                    .select('id, title, creator, history_json')
+                    .order('created_at', { ascending: false });
+                
                 if (error) throw error;
 
-                // 💡 核心修复3：多维度名字模糊匹配，防漏单
-                let myNotifs = data.filter(n => {
-                    const target = (n.target_email || '').toLowerCase();
-                    const targetPrefix = target.split('@')[0];
-                    
-                    const myNames = [
-                        userKeyword,
-                        (currentUser.displayName || '').toLowerCase(),
-                        (currentUser.name || '').toLowerCase()
-                    ].filter(Boolean);
+                let myNotifs = [];
 
-                    const isForMe = myNames.some(name => targetPrefix.includes(name) || targetPrefix === name) ||
-                                    (currentUser.email && target === currentUser.email.toLowerCase()) ||
-                                    (currentUser.id && n.user_id === currentUser.id);
+                tasks.forEach(task => {
+                    const creatorStr = (task.creator || '').toLowerCase();
+                    // 需求方：只监听属于自己的工单的动态
+                    if (!creatorStr.includes(myName) && !myName.includes(creatorStr)) return;
 
-                    if (!isForMe) return false;
+                    let hist = [];
+                    try { hist = JSON.parse(task.history_json || '[]'); } catch(e){}
 
-                    const content = n.content || '';
-                    if (content.includes('指派了新需求') || content.includes('框架待审') || (content.includes('打回') && !content.includes('退回'))) {
-                        return false; 
-                    }
-                    return true;
+                    hist.forEach((h, index) => {
+                        let title = '', content = '', icon = 'bg-indigo-500';
+                        
+                        // 智能解析：将别人的动作转化为给我的提醒！
+                        if (h.action === 'accept') {
+                            title = '✅ 设计已接单'; content = `${h.operator} 已接手并排期：《${task.title}》`; icon = 'bg-sky-500';
+                        } else if (h.action === 'submit_framework') {
+                            title = '👀 框架方案已提'; content = `设计师提交了中期方案，正等待主管把关：《${task.title}》`; icon = 'bg-amber-500';
+                        } else if (h.action === 'submit_draft') {
+                            title = '🎁 正稿待验收'; content = `设计师交付了正式稿，请火速前往验收：《${task.title}》`; icon = 'bg-emerald-500';
+                        } else if (h.action === 'reject_framework') {
+                            title = '💥 框架被打回'; content = `主管打回了设计方案，设计师正在重修：《${task.title}》`; icon = 'bg-rose-500';
+                        } else if (h.action === 'urge_req') {
+                            title = '🚨 紧急催办'; content = `系统提醒您及时跟进单据验收：《${task.title}》`; icon = 'bg-rose-500';
+                        } else if (h.action === 'transfer') {
+                            title = '🔄 任务转移'; content = `设计师发生了转单或退回动作：《${task.title}》`; icon = 'bg-orange-500';
+                        }
+
+                        if (title) {
+                            myNotifs.push({
+                                id: `${task.id}_${index}`, // 唯一标识
+                                taskId: task.id,
+                                title: title,
+                                content: content,
+                                time: h.time || h.created_at || new Date().toISOString(),
+                                icon: icon
+                            });
+                        }
+                    });
                 });
 
-                const unreadNotifs = myNotifs.filter(n => !n.is_read);
+                // 按时间倒序
+                myNotifs.sort((a, b) => new Date(b.time) - new Date(a.time));
+
+                // 读写本地已读记录，完美替代云端已读表
+                let readReceipts = JSON.parse(localStorage.getItem('notif_read_req_' + myName) || '[]');
+                const unreadNotifs = myNotifs.filter(n => !readReceipts.includes(n.id));
                 const unreadCount = unreadNotifs.length;
 
-                let prevUnreadCount = parseInt(localStorage.getItem('prevUnreadCount_req_' + userKeyword) || '0');
+                // 弹窗提醒防抖
+                let prevUnreadCount = parseInt(localStorage.getItem('prevUnreadCount_req_' + myName) || '0');
                 if (isSilent && unreadCount > prevUnreadCount) {
                     const newCount = unreadCount - prevUnreadCount;
                     if(window.showToast) window.showToast('🔔 收到新消息', `您有 ${newCount} 条需求动态，请点击右上角铃铛查看。`, 'info');
                 }
-                localStorage.setItem('prevUnreadCount_req_' + userKeyword, unreadCount.toString());
-                
-                // 点亮或熄灭右上角的铃铛红点
+                localStorage.setItem('prevUnreadCount_req_' + myName, unreadCount.toString());
+
+                // 铃铛红点UI
                 const bellDot = document.getElementById('bell-dot');
                 if (bellDot) {
                     if (unreadCount > 0) {
@@ -1282,27 +1258,21 @@
                     }
                 }
 
-                // 渲染铃铛下拉框
+                // 渲染下拉列表
                 const notifContainer = document.getElementById('notif-list-container');
                 if (notifContainer) {
                     if (unreadCount === 0) {
                         notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读消息</div>';
                     } else {
                         notifContainer.innerHTML = unreadNotifs.map(n => {
-                            let titleText = '系统通知';
-                            let contentText = n.content || '';
-                            let titleMatch = contentText.match(/^(【.*?】)/);
-                            if(titleMatch) {
-                                titleText = titleMatch[1];
-                                contentText = contentText.replace(titleMatch[1], '').trim();
-                            } else if(n.category === 'urgent') {
-                                titleText = '🚨 紧急催办';
-                            }
-                            
+                            const dateStr = new Date(n.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                             return `
-                            <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 cursor-pointer" onclick="window.markSingleAsRead('${n.id}', '${n.link_url}')">
-                                <h4 class="text-[13px] font-bold text-white mb-1"><span class="w-2 h-2 rounded-full bg-indigo-500 inline-block mr-1"></span>${titleText}</h4>
-                                <p class="text-[11px] text-zinc-400 pl-3 line-clamp-2">${contentText}</p>
+                            <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors" onclick="window.markSingleAsRead('${n.id}', '${n.taskId}')">
+                                <div class="flex justify-between items-start mb-1">
+                                    <h4 class="text-[13px] font-bold text-white flex items-center gap-2"><span class="w-2 h-2 rounded-full ${n.icon} shrink-0 shadow-[0_0_8px_currentColor]"></span>${n.title}</h4>
+                                    <span class="text-[10px] text-zinc-500">${dateStr}</span>
+                                </div>
+                                <p class="text-[11px] text-zinc-400 pl-4 line-clamp-2">${n.content}</p>
                             </div>`;
                         }).join('');
                     }
@@ -1321,35 +1291,39 @@
             }
         }
 
-        window.markSingleAsRead = async function(id, url) {
-            if(window.supabase) { 
-                try { await window.supabase.from('notifications').update({ is_read: true }).eq('id', id); } catch(e){} 
-            }
+        window.markSingleAsRead = function(id, taskId) {
+            const userStr = localStorage.getItem('activeUserObj');
+            if(!userStr) return;
+            const currentUser = JSON.parse(userStr);
+            const myName = (currentUser.displayName || currentUser.cnName || currentUser.enName || '').toLowerCase();
             
-            let finalUrl = url || '#';
-            let match = finalUrl.match(/id=(TK-\d+)/);
-            if (match) {
-                finalUrl = 'task-detail-requester.html?id=' + match[1];
+            let readReceipts = JSON.parse(localStorage.getItem('notif_read_req_' + myName) || '[]');
+            if (!readReceipts.includes(id)) {
+                readReceipts.push(id);
+                localStorage.setItem('notif_read_req_' + myName, JSON.stringify(readReceipts));
             }
+            window.location.href = 'task-detail-requester.html?id=' + taskId;
+        };
 
-            if (finalUrl !== '#') {
-                window.location.href = finalUrl; 
-            } else {
-                await window.syncNotificationsFromCloud(true); 
-            }
-        }
+        window.markAllAsRead = function(event) {
+            if(event) event.stopPropagation();
+            if (!window.currentMyUnreadIds || window.currentMyUnreadIds.length === 0) return;
+            const userStr = localStorage.getItem('activeUserObj');
+            if(!userStr) return;
+            const currentUser = JSON.parse(userStr);
+            const myName = (currentUser.displayName || currentUser.cnName || currentUser.enName || '').toLowerCase();
 
-        window.markAllAsRead = async function(e) {
-            if(e) e.stopPropagation();
-            if (!window.supabase || !window.currentMyUnreadIds || window.currentMyUnreadIds.length === 0) return;
-            const btn = e.currentTarget;
+            const btn = event.currentTarget;
             const originalText = btn.innerHTML;
             btn.innerHTML = "处理中...";
-            try {
-                await window.supabase.from('notifications').update({ is_read: true }).in('id', window.currentMyUnreadIds);
-                await window.syncNotificationsFromCloud(true);
-                if(window.showToast) window.showToast('全部已读', '消息红点已清除。', 'success');
-            } catch(e) {}
+
+            let readReceipts = JSON.parse(localStorage.getItem('notif_read_req_' + myName) || '[]');
+            readReceipts = [...new Set([...readReceipts, ...window.currentMyUnreadIds])];
+            localStorage.setItem('notif_read_req_' + myName, JSON.stringify(readReceipts));
+            
+            window.syncNotificationsFromCloud(true);
+            if(window.showToast) window.showToast('全部已读', '消息红点已清除。', 'success');
+            
             btn.innerHTML = originalText;
         };
 
