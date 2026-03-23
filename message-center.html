@@ -218,13 +218,13 @@
             // 初始化拉取一次
             window.loadMsgs(false);
 
-            // 💡 核心修复1：为系统注入“心跳”，每 8 秒静默轮询，彻底告别系统“死机”
+            // 为系统注入“心跳”，每 8 秒静默轮询，彻底告别系统“死机”
             setInterval(() => {
                 window.loadMsgs(true);
             }, 8000);
         }
 
-        // 🚀 核心修复2：上帝视角无盲区查库 + 精准三端隔离 + 防滚动条乱跳
+        // 💡 彻底修复版：上帝视角无盲区查库 + 精准三端隔离 + 防滚动条乱跳
         window.loadMsgs = async function(isSilent = false) {
             const container = document.getElementById('msg-list-container');
             const badge = document.getElementById('unread-badge');
@@ -237,62 +237,99 @@
             const userStr = localStorage.getItem('activeUserObj');
             if (!userStr) return;
             const currentUser = JSON.parse(userStr);
-            const userKeyword = (currentUser.enName || currentUser.cnName || currentUser.name || '').toLowerCase();
+            // 自动收集用户的各个马甲
+            const myIdentities = [
+                (currentUser.enName || '').toLowerCase(),
+                (currentUser.displayName || '').toLowerCase(),
+                (currentUser.cnName || '').toLowerCase()
+            ].filter(Boolean);
+
             const isAdmin = (currentUser.perms || []).includes('admin');
 
             try {
-                const { data, error } = await window.supabase.from('notifications')
-                    .select('*')
-                    .order('created_at', { ascending: false })
-                    .limit(200);
+                // 彻底抛弃 notifications 表，直连任务表读取轨迹！
+                const { data: tasks, error } = await window.supabase.from('test_tasks')
+                    .select('id, title, creator, assignee, history_json')
+                    .order('created_at', { ascending: false });
                 
                 if (error) throw error;
 
-                // 💡 核心修复3：精准多角色隔离规则同步
-                let myNotifs = data.filter(n => {
-                    const contentStr = n.content || '';
-                    let toUser = ''; 
-                    let toMatch = contentStr.match(/\[to:(.*?)\]/i);
+                let myNotifs = [];
+
+                tasks.forEach(task => {
+                    const taskCreator = (task.creator || '').toLowerCase();
+                    const taskAssignee = (task.assignee || '').toLowerCase();
                     
-                    if(toMatch) { 
-                        toUser = toMatch[1].trim().toLowerCase(); 
-                    } else { 
-                        const target = (n.target_email || '').toLowerCase(); 
-                        toUser = target.split('@')[0]; 
-                    }
+                    const isMyCreation = myIdentities.some(id => taskCreator.includes(id) || id.includes(taskCreator));
+                    const isMyAssignment = myIdentities.some(id => taskAssignee.includes(id) || id.includes(taskAssignee));
+                    
+                    let hist = [];
+                    try { hist = JSON.parse(task.history_json || '[]'); } catch(e){}
 
-                    const isForMe = (toUser === userKeyword) || (currentUser.email && (n.target_email||'').toLowerCase() === currentUser.email.toLowerCase()) || (currentUser.id && n.user_id === currentUser.id);
+                    hist.forEach((h, index) => {
+                        const op = (h.operator || '').toLowerCase();
+                        const isDoneByMe = myIdentities.some(id => op.includes(id) || id.includes(op));
+                        
+                        // 自己操作产生的结果不通知自己
+                        if (isDoneByMe) return;
 
-                    if (currentRole === 'req') {
-                        if (!isForMe) return false;
-                        if (contentStr.includes('指派了新需求') || contentStr.includes('框架待审') || (contentStr.includes('打回') && !contentStr.includes('退回'))) return false;
-                        return true;
-                    } 
-                    else if (currentRole === 'design') {
-                        if (!isForMe) return false;
-                        if (contentStr.includes('已接手你的需求') || contentStr.includes('上传了中期方案') || contentStr.includes('交付了正式设计稿')) return false;
-                        return true;
-                    } 
-                    else if (currentRole === 'admin') {
-                        const isGlobalUrgent = isAdmin && (
-                            toUser === 'judyzzhang' || 
-                            contentStr.includes('🚨') ||
-                            contentStr.includes('催办') ||
-                            contentStr.includes('待审') ||
-                            contentStr.includes('打回') ||
-                            contentStr.includes('交付')
-                        );
-                        return isForMe || isGlobalUrgent;
-                    }
-                    return isForMe;
+                        let title = ''; let icon = 'bg-sky-500';
+                        
+                        // 1. 需求方视角过滤
+                        if (currentRole === 'req' && isMyCreation) {
+                            if (h.action === 'accept') { title = '✅ 设计已接单'; icon = 'bg-sky-500'; }
+                            else if (h.action === 'submit_framework') { title = '👀 框架方案已提'; icon = 'bg-amber-500'; }
+                            else if (h.action === 'submit_draft') { title = '🎁 正稿待验收'; icon = 'bg-emerald-500'; }
+                            else if (h.action === 'reject_framework') { title = '💥 框架被打回'; icon = 'bg-rose-500'; }
+                            else if (h.action && h.action.includes('urge') && op.includes('设计')) { title = '🚨 紧急提醒'; icon = 'bg-rose-500'; }
+                            else if (h.action === 'transfer') { title = '🔄 任务转移'; icon = 'bg-orange-500'; }
+                        }
+                        // 2. 设计师视角过滤
+                        else if (currentRole === 'design' && isMyAssignment) {
+                            if (h.action === 'create') { title = '🆕 新需求指派'; icon = 'bg-sky-500'; }
+                            else if (h.is_rejected || (h.action && h.action.includes('reject'))) { title = '💥 方案被打回'; icon = 'bg-rose-500'; }
+                            else if (h.action === 'complete') { title = '✅ 甲方验收通过'; icon = 'bg-emerald-500'; }
+                            else if (h.action && h.action.includes('urge')) { title = '🚨 紧急催办提醒'; icon = 'bg-rose-500'; }
+                        }
+                        // 3. 管理方(上帝)视角过滤
+                        else if (currentRole === 'admin' && isAdmin) {
+                            if (h.action === 'submit_framework') { title = '👀 框架待审批'; icon = 'bg-amber-500'; }
+                            else if (h.action === 'submit_draft') { title = '🎁 正稿待验收'; icon = 'bg-emerald-500'; }
+                            else if (h.action === 'reject_framework' || h.action === 'reject_draft' || h.is_rejected) { title = '💥 方案被打回'; icon = 'bg-rose-500'; }
+                            else if (h.action === 'complete') { title = '✅ 任务圆满结案'; icon = 'bg-emerald-500'; }
+                            else if (h.action === 'urge' || (h.reply && h.reply.includes('催办'))) { title = '🚨 紧急催办提醒'; icon = 'bg-rose-500'; }
+                            else if (h.action === 'transfer') { title = '🔄 任务转单/退回'; icon = 'bg-orange-500'; }
+                            else if (h.action === 'create') { title = '🆕 新需求发布'; icon = 'bg-indigo-500'; }
+                        }
+
+                        if (title) {
+                            myNotifs.push({
+                                id: `${task.id}_${index}`,
+                                taskId: task.id,
+                                title: title,
+                                content: `${h.operator || '系统'}: ${h.reply || h.desc || '更新了任务'}`,
+                                time: h.time || h.created_at || new Date().toISOString(),
+                                icon: icon
+                            });
+                        }
+                    });
                 });
 
-                // 💡 核心修复4：极客级 Hash 防抖。比对内容，没有新消息或已读状态改变就直接返回，不重绘 DOM
-                const newHash = myNotifs.map(n => n.id + '_' + n.is_read).join(',');
+                // 按时间倒序
+                myNotifs.sort((a, b) => new Date(b.time) - new Date(a.time));
+
+                // 读写本地已读记录（角色隔离）
+                const storeKey = `read_notifs_${currentRole}_${myIdentities[0]||'unknown'}`;
+                let readReceipts = JSON.parse(localStorage.getItem(storeKey) || '[]');
+                
+                const unreadNotifs = myNotifs.filter(n => !readReceipts.includes(n.id));
+                const unreadCount = unreadNotifs.length;
+
+                // Hash防抖，没有变化不刷新DOM
+                const newHash = myNotifs.map(n => n.id + (readReceipts.includes(n.id) ? '_r' : '_u')).join(',');
                 if (isSilent && newHash === lastNotifHash) return;
                 lastNotifHash = newHash;
 
-                const unreadCount = myNotifs.filter(n => !n.is_read).length;
                 if(unreadCount > 0) {
                     badge.innerText = `${unreadCount} 未读`;
                     badge.classList.remove('hidden');
@@ -312,29 +349,14 @@
 
                 let html = '';
                 myNotifs.forEach(n => {
-                    const isRead = n.is_read;
+                    const isRead = readReceipts.includes(n.id);
                     const dotHtml = isRead ? `<div class="w-8 h-8 rounded-full bg-zinc-800/50 flex items-center justify-center text-zinc-600 shrink-0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg></div>` : 
-                                           `<div class="w-8 h-8 rounded-full bg-${themeColor}-500/20 border border-${themeColor}-500/30 flex items-center justify-center text-${themeColor}-400 shrink-0 shadow-[0_0_15px_rgba(var(--tw-colors-${themeColor}-500),0.3)]"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></div>`;
+                                           `<div class="w-8 h-8 rounded-full ${n.icon}/20 border border-${n.icon.split('-')[1]}-500/30 flex items-center justify-center text-${n.icon.split('-')[1]}-400 shrink-0 shadow-[0_0_15px_rgba(var(--tw-colors-${n.icon.split('-')[1]}-500),0.3)]"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></div>`;
                     
-                    const bgClass = isRead ? 'bg-[#121217] opacity-60' : `bg-[#18181b] border-${themeColor}-500/30 shadow-[0_0_15px_rgba(var(--tw-colors-${themeColor}-500),0.05)]`;
+                    const bgClass = isRead ? 'bg-[#121217] opacity-60' : `bg-[#18181b] border-${n.icon.split('-')[1]}-500/30 shadow-[0_0_15px_rgba(var(--tw-colors-${n.icon.split('-')[1]}-500),0.05)]`;
                     const titleClass = isRead ? 'text-zinc-400' : 'text-white';
                     
-                    let targetUrl = n.link_url || '#';
-                    let taskIdMatch = targetUrl.match(/id=(TK-\d+)/);
-                    let taskId = taskIdMatch ? taskIdMatch[1] : '系统通知';
-
-                    // 💡 智能拆分标题和正文
-                    let titleText = '业务动态更新';
-                    let contentText = n.content || '';
-                    let titleMatch = contentText.match(/^(【.*?】)/);
-                    if(titleMatch) {
-                        titleText = titleMatch[1];
-                        contentText = contentText.replace(titleMatch[1], '').trim();
-                    } else if(n.content && n.content.includes('🚨')) {
-                        titleText = '🚨 紧急提醒';
-                    }
-
-                    const dateStr = new Date(n.created_at).toLocaleString();
+                    const dateStr = new Date(n.time).toLocaleString();
 
                     html += `
                     <div class="msg-card p-5 rounded-2xl flex items-start gap-4 ${bgClass}">
@@ -342,22 +364,20 @@
                         <div class="flex-1 min-w-0">
                             <div class="flex justify-between items-start mb-1.5">
                                 <div class="flex items-center gap-2">
-                                    <span class="text-[10px] font-mono font-bold bg-white/5 px-2 py-0.5 rounded text-zinc-400 border border-white/5">${taskId}</span>
-                                    <h4 class="text-[14px] font-bold ${titleClass}">${titleText}</h4>
+                                    <span class="text-[10px] font-mono font-bold bg-white/5 px-2 py-0.5 rounded text-zinc-400 border border-white/5">${n.taskId}</span>
+                                    <h4 class="text-[14px] font-bold ${titleClass}">${n.title}</h4>
                                 </div>
-                                <span class="text-[11px] text-zinc-500 font-mono flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full ${isRead?'bg-zinc-700':`bg-${themeColor}-500 animate-pulse`}"></span> ${dateStr}</span>
+                                <span class="text-[11px] text-zinc-500 font-mono flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full ${isRead?'bg-zinc-700':`${n.icon} animate-pulse`}"></span> ${dateStr}</span>
                             </div>
-                            <p class="text-[13px] text-zinc-300 leading-relaxed mb-4">${contentText}</p>
-                            <button onclick="markSingleAndGo('${n.id}', '${targetUrl}')" class="text-[11px] font-bold text-zinc-300 bg-white/5 hover:bg-white/10 border border-white/5 px-3 py-1.5 rounded flex items-center gap-1.5 transition-colors w-max btn-press">
+                            <p class="text-[13px] text-zinc-300 leading-relaxed mb-4">${n.content}</p>
+                            <button onclick="markSingleAndGo('${n.id}', '${n.taskId}')" class="text-[11px] font-bold text-zinc-300 bg-white/5 hover:bg-white/10 border border-white/5 px-3 py-1.5 rounded flex items-center gap-1.5 transition-colors w-max btn-press">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg> 点击穿梭至详情页处理
                             </button>
                         </div>
                     </div>`;
                 });
                 container.innerHTML = html;
-
-                // 保存给全读按钮用
-                window.currentMyUnreadIds = myNotifs.filter(n => !n.is_read).map(n => n.id);
+                window.currentMyUnreadIds = unreadNotifs.map(n => n.id);
 
             } catch(e) {
                 console.error("加载消息失败:", e);
@@ -365,42 +385,47 @@
             }
         }
 
-        // 🚀 更新云端消除红点
+        // 🚀 更新本地缓存消除红点
         window.markAllAsRead = async function(btnNode) {
-            if (!window.supabase || !window.currentMyUnreadIds || window.currentMyUnreadIds.length === 0) return;
+            if (!window.currentMyUnreadIds || window.currentMyUnreadIds.length === 0) return;
             
             const originalText = btnNode.innerHTML;
             btnNode.innerHTML = `<svg class="animate-spin h-3.5 w-3.5 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 处理中...`;
             
-            try {
-                await window.supabase.from('notifications')
-                    .update({ is_read: true })
-                    .in('id', window.currentMyUnreadIds);
-                
-                lastNotifHash = ''; // 清空 Hash 强制重绘
-                await window.loadMsgs(false); // 重新拉取
-            } catch(e) { console.error(e); }
+            const userStr = localStorage.getItem('activeUserObj');
+            const currentUser = JSON.parse(userStr);
+            const myEnName = (currentUser.enName || currentUser.displayName || '').toLowerCase() || 'unknown';
+            const storeKey = `read_notifs_${currentRole}_${myEnName}`;
+
+            let readReceipts = JSON.parse(localStorage.getItem(storeKey) || '[]');
+            readReceipts = [...new Set([...readReceipts, ...window.currentMyUnreadIds])];
+            localStorage.setItem(storeKey, JSON.stringify(readReceipts));
+            
+            lastNotifHash = ''; // 清空 Hash 强制重绘
+            await window.loadMsgs(false); // 重新拉取
             
             btnNode.innerHTML = originalText;
         }
 
         // 🚀 智能路由：根据当前角色强行矫正点击的链接目的地
-        window.markSingleAndGo = async function(id, url) {
-            try {
-                await window.supabase.from('notifications').update({ is_read: true }).eq('id', id);
-            } catch(e) {}
+        window.markSingleAndGo = function(id, taskId) {
+            const userStr = localStorage.getItem('activeUserObj');
+            const currentUser = JSON.parse(userStr);
+            const myEnName = (currentUser.enName || currentUser.displayName || '').toLowerCase() || 'unknown';
+            const storeKey = `read_notifs_${currentRole}_${myEnName}`;
 
-            let finalUrl = url || '#';
-            let match = finalUrl.match(/id=(TK-\d+)/);
-            if (match) {
-                if (currentRole === 'design') {
-                    finalUrl = 'task-detail-designer.html?id=' + match[1];
-                } else {
-                    // 需求方和超管/领导都统一去 requester 页面进行验收或审批
-                    finalUrl = 'task-detail-requester.html?id=' + match[1];
-                }
+            let readReceipts = JSON.parse(localStorage.getItem(storeKey) || '[]');
+            if (!readReceipts.includes(id)) {
+                readReceipts.push(id);
+                localStorage.setItem(storeKey, JSON.stringify(readReceipts));
             }
-            window.location.href = finalUrl;
+
+            if (currentRole === 'design') {
+                window.location.href = 'task-detail-designer.html?id=' + taskId;
+            } else {
+                // 需求方和超管/领导都统一去 requester 页面进行验收或审批
+                window.location.href = 'task-detail-requester.html?id=' + taskId;
+            }
         }
 
         window.logout = function(e) { e.stopPropagation(); localStorage.removeItem('activeUserObj'); window.location.href = 'login.html'; }
