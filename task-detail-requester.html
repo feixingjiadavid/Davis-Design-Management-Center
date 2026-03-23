@@ -78,7 +78,7 @@
                     <div id="notifMenu" class="hidden absolute right-0 top-[120%] w-[340px] bg-[#121217] border border-white/10 rounded-2xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.8)] py-3 dropdown-enter z-[9999]">
                         <div class="px-5 pb-3 border-b border-white/5 flex justify-between items-center">
                             <h3 class="text-[14px] font-bold text-white">消息通知</h3>
-                            <button onclick="window.markAllAsRead(event)" class="text-[11px] text-indigo-400 hover:text-indigo-300 btn-press transition-colors">全部已读</button>
+                            <button onclick="window.markAllAsRead(event)" class="text-[11px] text-indigo-400 hover:text-indigo-300 btn-press transition-colors">全部标为已读</button>
                         </div>
                         <div id="notif-list-container" class="max-h-[300px] overflow-y-auto custom-scrollbar">
                             <div class="px-5 py-8 text-center text-zinc-500 text-xs">加载中...</div>
@@ -209,11 +209,7 @@
         window.supabase = supabase;
         window.DB_TABLE = 'test_tasks';
         
-        // 🚀 初始化大盘邮件系统
-        if(window.SysNotification) {
-            window.SysNotification.init();
-        }
-
+        if(window.SysNotification) window.SysNotification.init();
         if(window.initApp) window.initApp();
     </script>
 
@@ -357,37 +353,27 @@
             setTimeout(() => clearInterval(checkAndLoad), 5000); 
         }
 
-        // 🚀 终极防崩兜底：不再往 notifications 表写库，只用 SysNotification 发邮件！
+        // 🚀 兜底邮件发信机制
         window.insertDbNotification = async function(targetEnName, content, link_url, category = 'update') {
-            if (!window.SysNotification || !targetEnName) return;
+            if (!window.supabase || !targetEnName) return;
             try {
-                let targetEmail = '';
-                let targetUserId = null; 
+                const { data: usersData } = await window.supabase.from('users')
+                    .select('id, email, name, enName')
+                    .eq('enName', targetEnName.toLowerCase());
 
-                const { data: usersData } = await window.supabase.from('users').select('id, email, name, enName');
-                if (usersData) {
-                    const u = usersData.find(x => 
-                        (x.enName||'').toLowerCase() === targetEnName.toLowerCase() || 
-                        (x.name||'').toLowerCase() === targetEnName.toLowerCase() || 
-                        targetEnName.toLowerCase().includes((x.enName||'').toLowerCase()) ||
-                        targetEnName.toLowerCase().includes((x.name||'').toLowerCase())
-                    );
-                    if (u) { targetUserId = u.id; targetEmail = u.email; }
+                let targetUserId = '00000000-0000-0000-0000-000000000000';
+                let targetEmail = targetEnName + '@webank.com';
+
+                if (usersData && usersData.length > 0) {
+                    targetUserId = usersData[0].id;
+                    targetEmail = usersData[0].email || targetEmail;
                 }
 
-                if (!targetEmail) {
-                    if (/^[a-zA-Z]+$/.test(targetEnName)) targetEmail = targetEnName.toLowerCase() + '@webank.com';
-                    else targetEmail = 'davidxxu@webank.com'; 
+                if (window.SysNotification) {
+                    await window.SysNotification.sendNotice({
+                        targetId: targetUserId, targetEmail: targetEmail, content: content, category: category, url: link_url
+                    });
                 }
-
-                // 仅调用外部邮件通知，不再手工写入有外键约束的数据库！
-                await window.SysNotification.sendNotice({
-                    targetId: targetUserId || '00000000-0000-0000-0000-000000000000', 
-                    targetEmail: targetEmail, 
-                    content: content, 
-                    category: category, 
-                    url: link_url
-                });
             } catch(e) { console.error("通知派发异常:", e); }
         }
 
@@ -734,7 +720,6 @@
                     <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-${sCol}-500"></div>
                     <h3 class="text-[16px] font-bold text-white mb-3">${sText}</h3>
                     <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">该需求在此刻已永久封存闭环，感谢你的设计输出。左侧为您参与提交的所有历史版本记录供复盘。</p>
-                    <button onclick="window.location.href='index.html'" class="w-full py-3.5 bg-[#1a1a24] border border-zinc-700 text-zinc-400 hover:bg-zinc-800 hover:text-white rounded-xl text-[13px] font-bold transition-all btn-press">返回工作台</button>
                 `;
             }
 
@@ -762,6 +747,7 @@
                     else if(h.action === 'terminate') { dotColor = 'rose'; actionTxt = '任务被强行终止'; subTxt = h.reply || ''; }
                     else if(h.action === 'transfer') { dotColor = 'orange'; actionTxt = '任务发生转单'; subTxt = h.reply || ''; }
                     else if(h.action === 'accept') { dotColor = 'sky'; actionTxt = '接单并给出排期'; subTxt = h.reply || ''; }
+                    else if(h.action === 'urge') { dotColor = 'rose'; actionTxt = '发送了催办提醒'; subTxt = h.reply || ''; }
                     
                     html += `
                     <div class="relative flex gap-4 z-10 pb-6 group">
@@ -847,6 +833,13 @@
 
                 if (targetIdentifier) {
                     await window.insertDbNotification(targetIdentifier, content, `task-detail-designer.html?id=${currentTaskId}`, 'urgent');
+                    
+                    const user = JSON.parse(localStorage.getItem('activeUserObj') || '{}');
+                    const dispName = user.displayName || user.enName || '相关人员';
+                    globalHistoryArr.push({
+                        action: 'urge', operator: dispName, time: new Date().toISOString(), reply: '发送了系统强提醒，催促尽快处理！'
+                    });
+                    await window.supabase.from(window.DB_TABLE).update({ history_json: JSON.stringify(globalHistoryArr) }).eq('id', currentTaskId);
                 }
             } catch(e) { console.error(e); }
 
@@ -983,6 +976,7 @@
                             else if (h.action === 'reject_framework') { title = '💥 框架被打回'; content = `主管打回了设计方案，设计师正在重修：《${task.title}》`; icon = 'bg-rose-500'; }
                             else if (h.action === 'urge_req' || (h.reply && h.reply.includes('催办'))) { title = '🚨 紧急催办'; content = `系统提醒您及时跟进单据验收：《${task.title}》`; icon = 'bg-rose-500'; }
                             else if (h.action === 'transfer') { title = '🔄 任务转移'; content = `设计师发生了转单或退回动作：《${task.title}》`; icon = 'bg-orange-500'; }
+                            else if (h.action === 'urge') { title = '🚨 紧急提醒'; content = `您收到了催办通知：《${task.title}》`; icon = 'bg-rose-500'; }
                         }
                         
                         // 2. 如果我是管理员/领导（上帝视角关注点）
