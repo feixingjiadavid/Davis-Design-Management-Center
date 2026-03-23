@@ -156,7 +156,7 @@
                         已分派流转中工单
                     </h3>
                     <div class="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-4" id="tasks-container">
-                        </div>
+                    </div>
                 </div>
 
                 <div class="flex-[1] flex flex-col">
@@ -164,7 +164,7 @@
                         <h3 class="text-[15px] font-bold text-white mb-6">实时资源池监控 <span class="text-xs text-zinc-500 font-normal ml-1">(基于进行中工单)</span></h3>
                         
                         <div class="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2" id="resource-pool">
-                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -473,21 +473,26 @@
             const userStr = localStorage.getItem('activeUserObj');
             if(!userStr) return;
             const currentUser = JSON.parse(userStr);
-            const userKeyword = (currentUser.enName || currentUser.cnName || '').toLowerCase();
+            const userKeyword = (currentUser.enName || currentUser.cnName || currentUser.name || '').toLowerCase();
+            const isAdmin = (currentUser.perms || []).includes('admin');
 
             try {
                 const { data, error } = await window.supabase.from('notifications')
                     .select('*').order('created_at', { ascending: false }).limit(100);
                 if (error) throw error;
 
-                // 管理端：不过滤专属某人的，只看所有重要更新或针对自己的消息！
+                // 🚀 核心修复：超管和领导看全盘重要消息
                 let myNotifs = data.filter(n => {
                     const target = (n.target_email || '').toLowerCase();
                     const targetPrefix = target.split('@')[0];
                     
-                    // 💡 核心隔离：管理方看全盘或者针对自己的
                     const isForMe = (targetPrefix === userKeyword) || (currentUser.email && target === currentUser.email.toLowerCase());
-                    const isGlobalUrgent = n.category === 'urgent' || (n.content && n.content.includes('框架待审')); 
+                    
+                    // 只要你是超管/领导，任何审批、催办、退回以及发给丹楠姐的通知，你都能看到！
+                    const isGlobalUrgent = isAdmin && (
+                        targetPrefix === 'judyzzhang' || 
+                        (n.content && (n.content.includes('审') || n.content.includes('催') || n.content.includes('退回') || n.content.includes('交付')))
+                    );
 
                     return isForMe || isGlobalUrgent;
                 });
@@ -524,8 +529,8 @@
                             if(titleMatch) {
                                 titleText = titleMatch[1];
                                 contentText = contentText.replace(titleMatch[1], '').trim();
-                            } else if(n.category === 'urgent') {
-                                titleText = '🚨 紧急催办';
+                            } else if(n.content.includes('🚨')) {
+                                titleText = '🚨 紧急提醒';
                             }
                             
                             return `
