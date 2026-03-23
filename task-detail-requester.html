@@ -78,7 +78,7 @@
                     <div id="notifMenu" class="hidden absolute right-0 top-[120%] w-[340px] bg-[#121217] border border-white/10 rounded-2xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.8)] py-3 dropdown-enter z-[9999]">
                         <div class="px-5 pb-3 border-b border-white/5 flex justify-between items-center">
                             <h3 class="text-[14px] font-bold text-white">消息通知</h3>
-                            <button onclick="window.markAllAsRead(event)" class="text-[11px] text-indigo-400 hover:text-indigo-300 btn-press transition-colors">全部已读</button>
+                            <button onclick="window.markAllAsRead(event)" class="text-[11px] text-indigo-400 hover:text-indigo-300 btn-press transition-colors">全部标为已读</button>
                         </div>
                         <div id="notif-list-container" class="max-h-[300px] overflow-y-auto custom-scrollbar">
                             <div class="px-5 py-8 text-center text-zinc-500 text-xs">加载中...</div>
@@ -356,7 +356,7 @@
             setTimeout(() => clearInterval(checkAndLoad), 5000); 
         }
 
-        // 🚀 兜底邮件发信机制
+        // 🚀 兜底邮件发信机制 (只发外网邮件，不写通知表，防崩)
         window.insertDbNotification = async function(targetEnName, content, link_url, category = 'update') {
             if (!window.supabase || !targetEnName) return;
             try {
@@ -571,7 +571,7 @@
             
             const isCreator = (dispName === globalTaskData.creator || enName === (globalTaskData.creator || '').toLowerCase());
             const isLeader = enName === 'judyzzhang';
-            const isSuperAdmin = enName === 'davidxxu';
+            const isSuperAdmin = enName === 'davidxxu' || enName === 'davidxu' || enName === 'ponyxu';
             
             const hBadge = document.getElementById('header-status-badge');
             const hTag = document.getElementById('header-identity-tag');
@@ -615,7 +615,7 @@
                         <div class="w-14 h-14 bg-orange-500/10 text-orange-500 rounded-full flex items-center justify-center mb-5"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div>
                         <h3 class="text-[16px] font-bold text-white mb-3">设计师爆肝作图中</h3>
                         <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">设计师 ${globalTaskData.assignee || ''} 已接手该单，正在根据您的需求产出设计图。若进度缓慢，可点击下方按钮催促。</p>
-                        <button onclick="actionUrge(this)" class="w-full py-3.5 bg-[#1a1a24] hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white rounded-xl text-[13px] font-bold transition-all btn-press flex items-center justify-center gap-2"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>发送催办系统邮件通知</button>
+                        <button onclick="actionUrge(this)" class="w-full py-3.5 bg-[#1a1a24] hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white rounded-xl text-[13px] font-bold transition-all btn-press flex items-center justify-center gap-2"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>发送催办系统提醒</button>
                     `;
                 } else {
                     pnlHtml = `<div class="text-center py-6 text-zinc-500 text-sm">系统处理中，旁观者无操作权限。</div>`;
@@ -649,7 +649,7 @@
                         <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-zinc-500"></div>
                         <h3 class="text-[16px] font-bold text-white mb-3">框架方案审核中</h3>
                         <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">设计已提交中期框架方案，请等待主管 (丹楠姐) 审批把关结果。</p>
-                        <button onclick="actionUrge(this)" class="w-full py-3.5 bg-[#1a1a24] hover:bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white rounded-xl text-[13px] font-bold transition-all btn-press">发送邮件催办主管审批</button>
+                        <button onclick="actionUrge(this)" class="w-full py-3.5 bg-[#1a1a24] hover:bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white rounded-xl text-[13px] font-bold transition-all btn-press">发送催办系统提醒</button>
                     `;
                 }
 
@@ -711,7 +711,7 @@
                     <div class="w-14 h-14 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center mb-5"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></div>
                     <h3 class="text-[16px] font-bold text-white mb-3">方案已被打回重修</h3>
                     <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">当前设计存在不符预期的地方已被驳回，请留意下方时间轴中指出的打回意见。目前正在等待设计师重新提交新版本。</p>
-                    <button onclick="actionUrge(this)" class="w-full py-3.5 bg-[#1a1a24] hover:bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white rounded-xl text-[13px] font-bold transition-all btn-press">发邮件催促设计尽快重传</button>
+                    <button onclick="actionUrge(this)" class="w-full py-3.5 bg-[#1a1a24] hover:bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white rounded-xl text-[13px] font-bold transition-all btn-press">发送催办系统提醒</button>
                 `;
 
             } else {
@@ -787,8 +787,7 @@
                     if (act === 'approve_framework') { notifyRole = 'assignee'; content = `【审核通过】领导已同意大方向：《${globalTaskData.title}》，请继续推进正稿。`; }
                     else if (act.startsWith('reject_')) { notifyRole = 'assignee'; content = `【打回修改】你的设计单《${globalTaskData.title}》已被打回，请立刻查看修改意见。`; }
                     else if (act === 'complete') { notifyRole = 'assignee'; content = `【验收完结】恭喜！你的设计单《${globalTaskData.title}》已被甲方满意验收，任务闭环。`; }
-                    else if (act === 'terminate') { notifyRole = 'assignee'; content = `【任务终止】注意：单据《${globalTaskData.title}》已被强行终止并废弃。`; }
-
+                    
                     if (notifyRole && content) {
                         let targetIdentifier = '';
                         if (notifyRole === 'assignee') targetIdentifier = globalTaskData.assignee;
@@ -803,16 +802,27 @@
             return true;
         }
 
+        // 💡 核心修复2：撤销需求不删记录，而是状态更新为 terminated，记录历史
         window.actionCancel = async function() { 
-            showConfirm("确认撤销", "确定要撤销该需求单吗？该操作会将记录彻底删除。", async () => {
-                const { error } = await window.supabase.from(window.DB_TABLE).delete().eq('id', currentTaskId);
-                if(error) return showAlert("撤销失败", error.message, "danger");
-                showToast('已撤销', `需求单已安全删除。`, 'info');
-                setTimeout(() => window.location.href='index.html', 1000); 
+            showConfirm("确认撤销", "确定要撤销该需求单吗？撤销后该需求将被置为【已终止】状态，不再进行流转。", async () => {
+                const dispName = currentUser.displayName || currentUser.enName || '需求方';
+                const payload = {
+                    action: 'terminate', 
+                    operator: `${dispName} (需求方)`, 
+                    time: new Date().toISOString(),
+                    reply: '发起人主动撤销了该需求单。',
+                    is_rejected: true, 
+                    reply_by: '发起人撤回'
+                };
+
+                if(await updateSupabaseState('terminated', '需求方已撤销该单据。', payload)) {
+                    showToast('已撤销', `需求单已安全撤销。`, 'info');
+                    setTimeout(() => window.location.href='index.html', 1000); 
+                }
             }, "danger");
         }
 
-        // 💡 确保甲方催办时写入历史，以唤醒设计师的铃铛
+        // 💡 核心修复3：通用催办不仅发信，还写入历史唤醒所有端铃铛
         window.actionUrge = async function(btn) {
             const originalText = btn.innerHTML;
             btn.innerHTML = '<svg class="animate-spin h-3.5 w-3.5 mr-2 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 发送警报中...';
@@ -839,8 +849,7 @@
                     await window.insertDbNotification(targetIdentifier, content, `task-detail-designer.html?id=${currentTaskId}`, 'urgent');
                     
                     // 写入历史，彻底唤醒红点
-                    const user = JSON.parse(localStorage.getItem('activeUserObj') || '{}');
-                    const dispName = user.displayName || user.enName || '相关人员';
+                    const dispName = currentUser.displayName || currentUser.enName || '相关人员';
                     globalHistoryArr.push({
                         action: 'urge', operator: dispName, time: new Date().toISOString(), reply: '发送了系统强提醒，催促尽快处理！'
                     });
@@ -850,7 +859,7 @@
 
             btn.innerHTML = '✓ 已发催办';
             btn.className = "w-full py-3.5 bg-zinc-800 border border-zinc-700 text-zinc-500 rounded-xl text-[13px] font-bold cursor-not-allowed";
-            showToast('催办成功', '已向对方直接发送系统强提醒邮件！', 'success');
+            showToast('催办成功', '已记录系统强提醒！', 'success');
             setTimeout(() => window.location.reload(), 1000);
         }
 
@@ -914,7 +923,7 @@
         }
 
         window.actionTerminate = function() {
-            showConfirm("强行终止单据", "确定因为修改次数过多而终止此需求吗？<br><br>终止后该记录将被彻底封存归档，您需要重新在大厅发起新单。", async () => {
+            showConfirm("强行终止单据", "确定因为修改次数过多而终止此需求吗？<br><br>终止后该记录将被彻底封存归档，不再继续流转。", async () => {
                 const dispName = currentUser.displayName || currentUser.enName;
                 const payload = {
                     action: 'terminate', operator: `${dispName} (需求方)`, time: new Date().toISOString(),
@@ -948,7 +957,7 @@
             const rolePrefix = isAdmin ? 'admin' : 'req';
 
             try {
-                // 直接拉取所有工单数据，通过内部流转历史(history_json)智能生成通知！
+                // 直接拉取所有工单数据，通过内部流转历史智能生成通知！
                 const { data: tasks, error } = await window.supabase.from(window.DB_TABLE)
                     .select('id, title, creator, history_json')
                     .order('created_at', { ascending: false });
@@ -961,7 +970,6 @@
                     const creatorStr = (task.creator || '').toLowerCase();
                     const isMyTask = creatorStr.includes(myName) || myName.includes(creatorStr);
                     
-                    // 如果不是超管，且不是我发的需求，直接跳过
                     if (!isAdmin && !isMyTask) return;
 
                     let hist = [];
@@ -980,9 +988,9 @@
                             else if (h.action === 'submit_framework') { title = '👀 框架方案已提'; content = `设计师提交了中期方案，正等待主管把关：《${task.title}》`; icon = 'bg-amber-500'; }
                             else if (h.action === 'submit_draft') { title = '🎁 正稿待验收'; content = `设计师交付了正式稿，请火速前往验收：《${task.title}》`; icon = 'bg-emerald-500'; }
                             else if (h.action === 'reject_framework') { title = '💥 框架被打回'; content = `主管打回了设计方案，设计师正在重修：《${task.title}》`; icon = 'bg-rose-500'; }
-                            else if (h.action && h.action.includes('urge') && op.includes('设计')) { title = '🚨 紧急催办'; content = `系统提醒您及时跟进单据验收：《${task.title}》`; icon = 'bg-rose-500'; }
                             else if (h.action === 'transfer') { title = '🔄 任务转移'; content = `设计师发生了转单或退回动作：《${task.title}》`; icon = 'bg-orange-500'; }
-                            else if (h.action === 'urge') { title = '🚨 紧急提醒'; content = `您收到了催办通知：《${task.title}》`; icon = 'bg-rose-500'; }
+                            else if (h.action === 'terminate') { title = '🚨 任务终止'; content = `单据已被撤销或强行终止：《${task.title}》`; icon = 'bg-rose-500'; }
+                            else if ((h.action && h.action.includes('urge')) && op.includes('设计')) { title = '🚨 紧急催办'; content = `系统提醒您及时跟进单据验收：《${task.title}》`; icon = 'bg-rose-500'; }
                         }
                         
                         // 2. 如果我是管理员/领导（上帝视角关注点）
@@ -991,9 +999,10 @@
                             else if (h.action === 'submit_draft') { title = '🎁 正稿待验收'; content = `${h.operator} 交付了正式稿，等待甲方验收：《${task.title}》`; icon = 'bg-emerald-500'; }
                             else if (h.action === 'reject_framework' || h.action === 'reject_draft' || h.is_rejected) { title = '💥 方案被打回'; content = `单据发生打回重修：《${task.title}》- ${h.reply || h.desc}`; icon = 'bg-rose-500'; }
                             else if (h.action === 'complete') { title = '✅ 任务圆满结案'; content = `甲方已验收通过该单据：《${task.title}》`; icon = 'bg-emerald-500'; }
-                            else if ((h.action && h.action.includes('urge')) || (h.reply && h.reply.includes('催办'))) { title = '🚨 紧急催办提醒'; content = `单据产生催办行为：《${task.title}》`; icon = 'bg-rose-500'; }
                             else if (h.action === 'transfer') { title = '🔄 任务转单/退回'; content = `发生人员转单或退回大厅：《${task.title}》`; icon = 'bg-orange-500'; }
                             else if (h.action === 'create') { title = '🆕 新需求发布'; content = `大厅有新的需求发布：《${task.title}》`; icon = 'bg-indigo-500'; }
+                            else if (h.action === 'terminate') { title = '🚨 任务撤销/终止'; content = `单据已被撤销或强行终止：《${task.title}》`; icon = 'bg-rose-500'; }
+                            else if ((h.action && h.action.includes('urge')) || (h.reply && h.reply.includes('催办'))) { title = '🚨 紧急催办提醒'; content = `单据产生催办行为：《${task.title}》`; icon = 'bg-rose-500'; }
                         }
 
                         if (title) {
@@ -1012,15 +1021,12 @@
                     });
                 });
 
-                // 按时间倒序
                 myNotifs.sort((a, b) => new Date(b.time) - new Date(a.time));
 
-                // 读写本地已读记录
                 let readReceipts = JSON.parse(localStorage.getItem(`notif_read_${rolePrefix}_` + myName) || '[]');
                 const unreadNotifs = myNotifs.filter(n => !readReceipts.includes(n.id));
                 const unreadCount = unreadNotifs.length;
 
-                // 弹窗提醒防抖
                 let prevUnreadCount = parseInt(localStorage.getItem(`prevUnreadCount_${rolePrefix}_` + myName) || '0');
                 if (isSilent && unreadCount > prevUnreadCount) {
                     const newCount = unreadCount - prevUnreadCount;
@@ -1028,7 +1034,6 @@
                 }
                 localStorage.setItem(`prevUnreadCount_${rolePrefix}_` + myName, unreadCount.toString());
 
-                // 铃铛红点UI
                 const bellDot = document.getElementById('bell-dot');
                 if (bellDot) {
                     if (unreadCount > 0) {
@@ -1039,7 +1044,6 @@
                     }
                 }
 
-                // 渲染下拉列表
                 const notifContainer = document.getElementById('notif-list-container');
                 if (notifContainer) {
                     if (unreadCount === 0) {
@@ -1087,6 +1091,7 @@
                 localStorage.setItem(`notif_read_${rolePrefix}_` + myName, JSON.stringify(readReceipts));
             }
             
+            // 已在当前详情页，刷新自身
             const urlParams = new URLSearchParams(window.location.search);
             const currentTaskId = urlParams.get('id');
             if (currentTaskId === taskId) {
@@ -1117,19 +1122,14 @@
             
             window.syncNotificationsFromCloud(true);
             if(window.showToast) window.showToast('全部已读', '消息红点已清除。', 'success');
-            
             btn.innerHTML = originalText;
         };
 
         document.addEventListener('DOMContentLoaded', () => {
-            const notifBtn = document.getElementById('notifBtn');
-            const notifMenu = document.getElementById('notifMenu');
-            if(notifBtn && notifMenu) {
-                // 确保点击铃铛图标时调用 toggleNotificationPanel
-                notifBtn.addEventListener('click', window.toggleNotificationPanel);
-            }
-
+            // 全局点击监听（保证点击非菜单区域收起）
             document.addEventListener('click', (e) => { 
+                const notifMenu = document.getElementById('notifMenu');
+                const notifBtn = document.getElementById('notifBtn');
                 if(notifMenu && !notifMenu.contains(e.target) && notifBtn && !notifBtn.contains(e.target)) {
                     notifMenu.classList.add('hidden'); 
                 }
