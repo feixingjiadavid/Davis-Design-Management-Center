@@ -205,7 +205,7 @@
             <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
             </div>
-            <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-zinc-400 text-[11px] mt-0.5">操作已执行。</p></div>
+            <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-[11px] text-zinc-400 mt-0.5">操作已执行。</p></div>
         </div>
     </div>
 
@@ -263,7 +263,6 @@
             showDialogUI();
         }
 
-        // ================= 基础交互 =================
         window.logout = function(e) {
             if(e) e.stopPropagation();
             localStorage.removeItem('activeUserObj'); window.location.href = 'login.html'; 
@@ -284,37 +283,13 @@
         
         window.submitPwdChange = function() { window.showAlert('提示', '系统演示环境暂不可自助修改密码，请联系管理员。', 'info'); window.closePwdModal(); }
 
-        window.showToast = function(title, desc, type = 'success') {
-            const toast = document.getElementById('action-toast');
-            document.getElementById('toast-title').innerText = title;
-            document.getElementById('toast-desc').innerText = desc;
-            const icon = document.getElementById('toast-icon');
-            if(type === 'success') {
-                icon.className = "w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0";
-                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-            } else if(type === 'info') {
-                icon.className = "w-8 h-8 rounded-full bg-fuchsia-500/20 text-fuchsia-400 flex items-center justify-center shrink-0";
-                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
-            } else {
-                icon.className = "w-8 h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0";
-                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
-            }
-            toast.classList.remove('hidden');
-            setTimeout(() => { toast.classList.add('hidden'); }, 3000);
-        }
-
         function initRBAC() {
             const userStr = localStorage.getItem('activeUserObj');
             if (!userStr) { window.location.href = 'login.html'; return false; }
             const user = JSON.parse(userStr);
             const enName = user.enName ? user.enName.toLowerCase() : '';
 
-            // 🚀 核心修复：为 davidxu 注入无上权限！
-            if (enName === 'davidxu') {
-                user.perms = ['req', 'design', 'admin'];
-            }
-
-            if (!(user.perms || []).includes(PAGE_TYPE)) {
+            if (enName !== 'davidxu') {
                 window.showAlert("权限拦截", "您没有总监控制台访问权限，为您退回大厅。", "danger");
                 setTimeout(()=> window.location.href = 'index.html', 1500);
                 return false;
@@ -335,13 +310,13 @@
                     html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='assistant-workspace.html'"><div class="w-7 h-7 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div><span class="text-[13px] font-medium">设计方 (执行看板)</span></div>`; 
                 }
                 if ((user.perms || []).includes('admin')) { 
-                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#3b1740] text-fuchsia-400 cursor-default border border-fuchsia-900/50"><div class="w-7 h-7 rounded-lg bg-fuchsia-500/20 flex items-center justify-center text-fuchsia-500"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg></div><span class="text-[13px] font-bold">管理方 (当前)</span></div>`; 
+                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#3b1740] text-fuchsia-400 cursor-default border border-fuchsia-900/50"><div class="w-7 h-7 rounded-lg bg-fuchsia-500/20 flex items-center justify-center text-fuchsia-500"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="21"></line></svg></div><span class="text-[13px] font-bold">管理方 (当前)</span></div>`; 
                 }
                 menuContainer.innerHTML = html;
             }
 
             const triggerBtn = document.getElementById('identityBtn');
-            if (triggerBtn) { triggerBtn.innerHTML = `<span class="text-fuchsia-500 font-black flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500 animate-pulse"></span></span> 身份: 管理方 (当前) <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 ml-1"><polyline points="6 9 12 15 18 9"></polyline></svg>`; }
+            if (triggerBtn) { triggerBtn.innerHTML = `<span class="text-fuchsia-500 font-black flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500 animate-pulse shadow-[0_0_8px_#d946ef]"></span></span> 身份: 管理方 (当前) <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 ml-1"><polyline points="6 9 12 15 18 9"></polyline></svg>`; }
 
             return user;
         }
@@ -366,16 +341,22 @@
                 let designersMap = {};
 
                 try {
-                    const { data: users } = await window.supabase.from('user_profiles').select('en_name, cn_name, display_name, role, perms');
+                    const { data: users } = await window.supabase.from('users').select('enName, name, email, perms');
                     if (users) {
-                        users.filter(u => u.perms && u.perms.includes('design')).forEach(u => {
-                            const key = u.en_name.toLowerCase();
-                            if(!designersMap[key]) {
-                                designersMap[key] = { 
-                                    display: u.display_name || u.cn_name || u.en_name, 
-                                    count: 0, 
-                                    hours: 0 
-                                };
+                        users.forEach(u => {
+                            let p = [];
+                            if (typeof u.perms === 'string') try { p = JSON.parse(u.perms); } catch(e){}
+                            else if (Array.isArray(u.perms)) p = u.perms;
+
+                            if(p.includes('design')) {
+                                const key = (u.enName || u.email.split('@')[0]).toLowerCase();
+                                if(!designersMap[key]) {
+                                    designersMap[key] = { 
+                                        display: u.name || u.enName, 
+                                        count: 0, 
+                                        hours: 0 
+                                    };
+                                }
                             }
                         });
                     }
@@ -398,7 +379,7 @@
                                 case 'pending': sColor = 'sky'; sText = '待接单'; btnHtml = `<button class="text-sky-400 bg-sky-500/10 px-3 py-1 rounded text-[11px] font-bold">待响应</button>`; break;
                                 case 'pending_accept': sColor = 'amber'; sText = '待确认接单'; btnHtml = `<button class="text-amber-400 bg-amber-500/10 px-3 py-1 rounded text-[11px] font-bold">待接单</button>`; break;
                                 case 'processing': sColor = 'orange'; sText = '制作中'; btnHtml = `<button class="text-orange-400 bg-orange-500/10 px-3 py-1 rounded text-[11px] font-bold">查看进度</button>`; break;
-                                case 'pending_approval': sColor = 'amber'; sText = '框架审批中'; btnHtml = `<button onclick="event.stopPropagation(); window.location.href='task-detail-designer.html?id=${t.id}'" class="text-white bg-amber-600 hover:bg-amber-500 px-3 py-1 rounded text-[11px] font-bold transition-colors shadow-lg">去审批</button>`; break;
+                                case 'pending_approval': sColor = 'amber'; sText = '框架审批中'; btnHtml = `<button onclick="event.stopPropagation(); window.location.href='task-detail-requester.html?id=${t.id}'" class="text-white bg-amber-600 hover:bg-amber-500 px-3 py-1 rounded text-[11px] font-bold transition-colors shadow-lg">去审批</button>`; break;
                                 case 'reviewing': sColor = 'emerald'; sText = '待甲方验收'; btnHtml = `<button class="text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded text-[11px] font-bold">甲方验收中</button>`; break;
                                 case 'rejected': sColor = 'rose'; sText = '打回修改中'; btnHtml = `<button class="text-rose-400 bg-rose-500/10 px-3 py-1 rounded text-[11px] font-bold">督办催稿</button>`; break;
                                 default: sColor = 'zinc'; sText = '未知状态'; btnHtml = '';
@@ -413,7 +394,7 @@
                             }
 
                             tasksHtml += `
-                            <div class="bg-[#18181b] border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-colors cursor-pointer" onclick="window.location.href='task-detail-locked.html?id=${t.id}'">
+                            <div class="bg-[#18181b] border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-colors cursor-pointer" onclick="window.location.href='task-detail-requester.html?id=${t.id}'">
                                 <div class="flex justify-between items-center mb-4">
                                     <div class="flex items-center gap-3">
                                         <span class="text-[10px] font-mono font-bold bg-white/5 px-2 py-0.5 rounded border border-white/10 text-zinc-400">${t.id}</span>
@@ -492,9 +473,9 @@
                     const target = (n.target_email || '').toLowerCase();
                     const targetPrefix = target.split('@')[0];
                     
-                    // 管理方看全盘或者针对自己的
+                    // 💡 核心隔离：管理方看全盘或者针对自己的
                     const isForMe = (targetPrefix === userKeyword) || (currentUser.email && target === currentUser.email.toLowerCase());
-                    const isGlobalUrgent = n.category === 'urgent' || (n.content && n.content.includes('框架待审')); // 领导关心框架审核和紧急催办
+                    const isGlobalUrgent = n.category === 'urgent' || (n.content && n.content.includes('框架待审')); 
 
                     return isForMe || isGlobalUrgent;
                 });
@@ -522,15 +503,17 @@
                 const notifContainer = document.getElementById('notif-list-container');
                 if (notifContainer) {
                     if (unreadCount === 0) {
-                        notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读预警消息</div>';
+                        notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读消息</div>';
                     } else {
                         notifContainer.innerHTML = unreadNotifs.map(n => {
-                            let titleText = '全盘预警';
+                            let titleText = '系统通知';
                             let contentText = n.content || '';
                             let titleMatch = contentText.match(/^(【.*?】)/);
                             if(titleMatch) {
                                 titleText = titleMatch[1];
                                 contentText = contentText.replace(titleMatch[1], '').trim();
+                            } else if(n.category === 'urgent') {
+                                titleText = '🚨 紧急催办';
                             }
                             
                             return `
@@ -545,18 +528,22 @@
             } catch(e) { console.error("通知同步失败", e); }
         };
 
+        // 点击单条消息：消除云端红点并按身份智能跳转
         window.markSingleAsRead = async function(id, url) {
             if(window.supabase) { 
                 try { await window.supabase.from('notifications').update({ is_read: true }).eq('id', id); } catch(e){} 
             }
+            
+            // 💡 强制将跳转链接替换为需求方专用的详情页！
             let finalUrl = url || '#';
             let match = finalUrl.match(/id=(TK-\d+)/);
             if (match) {
-                finalUrl = 'task-detail-locked.html?id=' + match[1]; 
+                finalUrl = 'task-detail-requester.html?id=' + match[1];
             }
             window.location.href = finalUrl;
         };
 
+        // 点击全部已读：批量消除云端红点
         window.markAllAsRead = async function(e) {
             if(e) e.stopPropagation();
             if (!window.supabase || !window.currentMyUnreadIds || window.currentMyUnreadIds.length === 0) return;
