@@ -236,6 +236,8 @@
         </div>
     </div>
 
+    <script src="sys-notification.js"></script>
+
     <script type="module">
         import { supabase } from './supabase-config.js';
         window.supabase = supabase;
@@ -569,11 +571,20 @@
             pnl.className = pnlClasses; pnl.innerHTML = pnlHtml;
         }
 
+        // 💡 修复2：设计师催办时，将动作写入 history_json，唤醒领导/甲方的铃铛
         window.urgeLeader = async function(btn) {
             btn.innerHTML = '<svg class="animate-spin h-3.5 w-3.5 mr-2 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle></svg> 发送中...';
             btn.disabled = true;
             if (globalTaskData) {
+                // 原有的外部发信机制保留
                 await insertDbNotification('judyzzhang', `🚨 催办提醒：设计师已提交框架，请火速审批：《${globalTaskData.title || currentTaskId}》。`, `task-detail-requester.html?id=${currentTaskId}`, 'urgent');
+                
+                // 新增：写入历史轨迹，触发站内铃铛
+                const dispName = currentUser.displayName || currentUser.enName || '设计师';
+                globalHistoryArr.push({
+                    action: 'urge_leader', operator: `${dispName} (设计师)`, time: new Date().toISOString(), reply: '发起了紧急催办，请主管火速审批框架'
+                });
+                await window.supabase.from(window.DB_TABLE).update({ history_json: JSON.stringify(globalHistoryArr) }).eq('id', currentTaskId);
             }
             btn.innerHTML = '✓ 已催办';
             btn.className = "w-full py-3.5 bg-zinc-800 border border-zinc-700 text-zinc-500 rounded-xl text-[13px] font-bold cursor-not-allowed mb-3";
@@ -584,7 +595,15 @@
             btn.innerHTML = '<svg class="animate-spin h-3.5 w-3.5 mr-2 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle></svg> 发送中...';
             btn.disabled = true;
             if (globalTaskData && globalTaskData.creator) {
+                // 原有的外部发信机制保留
                 await insertDbNotification(globalTaskData.creator, `🚨 催办提醒：设计师交付了最终稿件，请火速验收：《${globalTaskData.title || currentTaskId}》。`, `task-detail-requester.html?id=${currentTaskId}`, 'urgent');
+                
+                // 新增：写入历史轨迹，触发站内铃铛
+                const dispName = currentUser.displayName || currentUser.enName || '设计师';
+                globalHistoryArr.push({
+                    action: 'urge_req', operator: `${dispName} (设计师)`, time: new Date().toISOString(), reply: '发起了紧急催办，请需求方火速验收正稿'
+                });
+                await window.supabase.from(window.DB_TABLE).update({ history_json: JSON.stringify(globalHistoryArr) }).eq('id', currentTaskId);
             }
             btn.innerHTML = '✓ 已催办';
             btn.className = "w-full py-3.5 bg-zinc-800 border border-zinc-700 text-zinc-500 rounded-xl text-[13px] font-bold cursor-not-allowed mb-3";
@@ -605,6 +624,7 @@
                     else if(h.action === 'terminate') { dotColor = 'rose'; actionTxt = '任务被强行终止'; subTxt = h.reply || ''; }
                     else if(h.action === 'transfer') { dotColor = 'orange'; actionTxt = '任务发生转单'; subTxt = h.reply || ''; }
                     else if(h.action === 'accept') { dotColor = 'sky'; actionTxt = '接单并给出排期'; subTxt = h.reply || ''; }
+                    else if(h.action === 'urge_leader' || h.action === 'urge_req') { dotColor = 'rose'; actionTxt = '发送催办提醒'; subTxt = h.reply || ''; }
                     
                     html += `
                     <div class="relative flex gap-4 z-10 pb-6 group">
@@ -759,7 +779,6 @@
                 const { error } = await window.supabase.from(window.DB_TABLE).update({ status: nextStatus, summary_desc: summaryStr, design_img_url: fallbackImg, source_file_link: sourceLink || globalTaskData.source_file_link, history_json: JSON.stringify(globalHistoryArr) }).eq('id', currentTaskId);
                 if (error) { btn.disabled = false; btn.innerHTML = btnOriginalText; return alert("状态更新失败：" + error.message); }
 
-                // 🚀 确保推送给 judyzzhang 和 creator
                 if (actionType === 'submit_framework') {
                     await insertDbNotification('judyzzhang', `【框架待审】设计师 ${currentUser.displayName || currentUser.enName} 上传了中期方案：《${globalTaskData.title}》，请您火速审批把关。`, `task-detail-requester.html?id=${currentTaskId}`, 'urgent');
                 } else if (actionType === 'submit_draft') {
@@ -780,10 +799,14 @@
             const userStr = localStorage.getItem('activeUserObj');
             if(!userStr) return;
             const currentUser = JSON.parse(userStr);
-            const myEnName = (currentUser.enName || '').toLowerCase(); 
+            
+            const myIdentities = [
+                (currentUser.enName || '').toLowerCase(),
+                (currentUser.displayName || '').toLowerCase(),
+                (currentUser.cnName || '').toLowerCase()
+            ].filter(Boolean);
 
             try {
-                // 直接拉取所有工单数据，通过内部流转历史(history_json)智能生成通知
                 const { data: tasks, error } = await window.supabase.from(window.DB_TABLE)
                     .select('id, title, assignee, history_json')
                     .order('created_at', { ascending: false });
@@ -791,17 +814,17 @@
 
                 let designNotifs = [];
                 tasks.forEach(task => {
-                    // 只看分配给我的单子
-                    if ((task.assignee || '').toLowerCase() !== myEnName) return;
+                    const taskAssignee = (task.assignee || '').toLowerCase();
+                    const isMyDesignTask = myIdentities.some(id => taskAssignee.includes(id) || id.includes(taskAssignee));
+                    if (!isMyDesignTask) return;
 
                     let hist = []; try { hist = JSON.parse(task.history_json || '[]'); } catch(e){}
                     hist.forEach((h, index) => {
                         const op = (h.operator || '').toLowerCase();
-                        // 如果动作不是我本人做的（是甲方或领导做的），就形成通知
-                        if (!op.includes(myEnName)) {
-                            let title = '进度更新';
-                            let icon = 'bg-sky-500';
-                            
+                        const isFromOthers = !myIdentities.some(id => op.includes(id));
+                        
+                        if (isFromOthers) {
+                            let title = '进度更新'; let icon = 'bg-sky-500';
                             if(h.action === 'create') title = '🆕 新需求指派';
                             if(h.is_rejected || (h.action && h.action.includes('reject'))) { title = '💥 方案被打回'; icon = 'bg-rose-500'; }
                             if(h.action === 'complete') { title = '✅ 甲方验收通过'; icon = 'bg-emerald-500'; }
@@ -819,10 +842,9 @@
                     });
                 });
 
-                // 按时间倒序
                 designNotifs.sort((a, b) => new Date(b.time) - new Date(a.time));
 
-                // 使用本地已读状态
+                const myEnName = myIdentities[0] || 'unknown';
                 let readReceipts = JSON.parse(localStorage.getItem('notif_read_design_' + myEnName) || '[]');
                 const unread = designNotifs.filter(n => !readReceipts.includes(n.id));
                 const unreadCount = unread.length;
@@ -834,7 +856,6 @@
                 }
                 localStorage.setItem('prevUnreadCount_design_' + myEnName, unreadCount.toString());
                 
-                // 更新小红点
                 const bellDot = document.getElementById('bell-dot');
                 if (bellDot) {
                     if (unreadCount > 0) {
@@ -845,19 +866,18 @@
                     }
                 }
 
-                // 渲染下拉列表
-                const list = document.getElementById('notif-list-container');
-                if (list) {
+                const notifContainer = document.getElementById('notif-list-container');
+                if (notifContainer) {
                     if (unreadCount === 0) {
-                        list.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读消息</div>';
+                        notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读消息，工作都在掌控中</div>';
                     } else {
-                        list.innerHTML = unread.map(n => {
+                        notifContainer.innerHTML = unread.map(n => {
                             const dateStr = new Date(n.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                             return `
                             <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors" onclick="window.markReadAndGoDesign('${n.id}', '${n.taskId}')">
                                 <div class="flex justify-between items-start mb-1">
                                     <h4 class="text-[13px] font-bold text-white flex items-center gap-2">
-                                        <span class="w-2 h-2 rounded-full ${n.icon} shrink-0 shadow-[0_0_8px_currentColor]"></span>${n.title}
+                                        <span class="w-1.5 h-1.5 rounded-full ${n.icon} shrink-0"></span>${n.title}
                                     </h4>
                                     <span class="text-[10px] text-zinc-500">${dateStr}</span>
                                 </div>
@@ -867,7 +887,7 @@
                     }
                 }
                 window.currentMyUnreadIds = unread.map(n => n.id);
-            } catch(e) { console.error("设计师消息引擎异常:", e); }
+            } catch(e) { console.error("设计师消息同步失败:", e); }
         };
 
         window.toggleNotificationPanel = async function() {
@@ -882,46 +902,59 @@
 
         window.markReadAndGoDesign = function(id, taskId) {
             const userStr = localStorage.getItem('activeUserObj');
-            const myEnName = JSON.parse(userStr).enName.toLowerCase();
+            const currentUser = JSON.parse(userStr);
+            const myEnName = (currentUser.enName || '').toLowerCase() || 'unknown';
+            
             let readReceipts = JSON.parse(localStorage.getItem('notif_read_design_' + myEnName) || '[]');
             if (!readReceipts.includes(id)) {
                 readReceipts.push(id);
                 localStorage.setItem('notif_read_design_' + myEnName, JSON.stringify(readReceipts));
             }
-            window.location.href = `task-detail-designer.html?id=${taskId}`;
+            
+            // 如果已经在当前页面，只刷红点；否则跳转
+            const urlParams = new URLSearchParams(window.location.search);
+            const currentTaskId = urlParams.get('id');
+            if (currentTaskId === taskId) {
+                window.syncNotificationsFromCloud(true);
+            } else {
+                window.location.href = `task-detail-designer.html?id=${taskId}`;
+            }
         };
 
         window.markAllAsRead = function(event) {
             if(event) event.stopPropagation();
             if (!window.currentMyUnreadIds || window.currentMyUnreadIds.length === 0) return;
+            
             const userStr = localStorage.getItem('activeUserObj');
-            const myEnName = JSON.parse(userStr).enName.toLowerCase();
+            const currentUser = JSON.parse(userStr);
+            const myEnName = (currentUser.enName || '').toLowerCase() || 'unknown';
+
+            const btn = event.currentTarget;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "处理中...";
+
             let readReceipts = JSON.parse(localStorage.getItem('notif_read_design_' + myEnName) || '[]');
             readReceipts = [...new Set([...readReceipts, ...window.currentMyUnreadIds])];
             localStorage.setItem('notif_read_design_' + myEnName, JSON.stringify(readReceipts));
+            
             window.syncNotificationsFromCloud(true);
             if(window.showToast) window.showToast('全部已读', '消息红点已清除。', 'success');
+            
+            btn.innerHTML = originalText;
         };
 
         document.addEventListener('DOMContentLoaded', () => {
-            if(initRBAC()) {
-                const idBtn = document.getElementById('identityBtn');
-                const idMenu = document.getElementById('identityMenu');
-                if(idBtn && idMenu) idBtn.addEventListener('click', (e) => { e.stopPropagation(); idMenu.classList.toggle('hidden'); });
-                
-                const notifBtn = document.getElementById('notifBtn');
-                const notifMenu = document.getElementById('notifMenu');
-                if(notifBtn && notifMenu) notifBtn.addEventListener('click', (e) => { e.stopPropagation(); notifMenu.classList.toggle('hidden'); });
+            const notifBtn = document.getElementById('notifBtn');
+            const notifMenu = document.getElementById('notifMenu');
+            if(notifBtn && notifMenu) notifBtn.addEventListener('click', (e) => { e.stopPropagation(); notifMenu.classList.toggle('hidden'); });
 
-                document.addEventListener('click', (e) => { 
-                    if(idMenu && !idMenu.contains(e.target)) idMenu.classList.add('hidden'); 
-                    if(notifMenu && !notifMenu.contains(e.target)) notifMenu.classList.add('hidden'); 
-                });
+            document.addEventListener('click', (e) => { 
+                if(notifMenu && !notifMenu.contains(e.target) && !notifBtn.contains(e.target)) notifMenu.classList.add('hidden'); 
+            });
 
-                // 启动轮询
-                setTimeout(() => { window.syncNotificationsFromCloud(true); }, 1500);
-                setInterval(() => { window.syncNotificationsFromCloud(true); }, 8000);
-            }
+            // 启动轮询
+            setTimeout(() => { window.syncNotificationsFromCloud(true); }, 1500);
+            setInterval(() => { window.syncNotificationsFromCloud(true); }, 8000);
         });
     </script>
 </body>
