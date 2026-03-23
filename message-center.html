@@ -71,7 +71,7 @@
             <div class="w-full max-w-[900px] flex flex-col">
                 <div class="flex items-center justify-between mb-6 border-b border-white/5 pb-3">
                     <div class="flex gap-6 text-[14px] font-bold">
-                        <button class="text-white border-b-2 border-white pb-3 relative top-[13px]">全部通知</button>
+                        <button class="text-white border-b-2 border-white pb-3 relative top-[13px]">系统通知与动态</button>
                     </div>
                     <button onclick="markAllAsRead(this)" class="text-[12px] text-zinc-500 hover:text-white transition-colors flex items-center gap-1.5 btn-press">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg> 全部标记为已读
@@ -210,12 +210,12 @@
 
             const avatarEl = document.getElementById('sidebar-avatar');
             if(avatarEl) { avatarEl.innerText = user.avatar || '?'; }
-            if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.cnName || user.enName;
+            if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.name || user.cnName || user.enName;
             
             loadMsgs();
         }
 
-        // 🚀 核心更新：连接真实 Supabase 云端查询
+        // 🚀 核心更新：上帝视角无盲区查库
         window.loadMsgs = async function() {
             const container = document.getElementById('msg-list-container');
             const badge = document.getElementById('unread-badge');
@@ -228,10 +228,11 @@
             const userStr = localStorage.getItem('activeUserObj');
             if (!userStr) return;
             const currentUser = JSON.parse(userStr);
-            const userKeyword = (currentUser.enName || currentUser.cnName || '').toLowerCase();
+            const userKeyword = (currentUser.enName || currentUser.cnName || currentUser.name || '').toLowerCase();
+            const isAdmin = (currentUser.perms || []).includes('admin');
 
             try {
-                // 取最近的记录，前端过滤匹配 (最高效且不被RLS卡死)
+                // 取最近的记录
                 const { data, error } = await window.supabase.from('notifications')
                     .select('*')
                     .order('created_at', { ascending: false })
@@ -239,10 +240,19 @@
                 
                 if (error) throw error;
 
-                // 💡 智能拦截：只找包含当前用户邮箱或名字的记录
+                // 💡 核心：上帝视角拦截器！超管能看到别人催单楠姐的、退回的、交付的所有关键节点！
                 let myNotifs = data.filter(n => {
                     const target = (n.target_email || '').toLowerCase();
-                    return target.includes(userKeyword) || (currentUser.email && target.includes(currentUser.email.toLowerCase()));
+                    const targetPrefix = target.split('@')[0];
+                    
+                    const isForMe = (targetPrefix === userKeyword) || (currentUser.email && target === currentUser.email.toLowerCase());
+                    
+                    const isGlobalUrgent = isAdmin && (
+                        targetPrefix === 'judyzzhang' || 
+                        (n.content && (n.content.includes('审') || n.content.includes('催') || n.content.includes('退回') || n.content.includes('交付')))
+                    );
+
+                    return isForMe || isGlobalUrgent;
                 });
 
                 const unreadCount = myNotifs.filter(n => !n.is_read).length;
@@ -283,10 +293,8 @@
                     if(titleMatch) {
                         titleText = titleMatch[1];
                         contentText = contentText.replace(titleMatch[1], '').trim();
-                    } else if(n.category === 'urgent') {
-                        titleText = '🚨 紧急催办';
-                    } else if(n.category === 'transfer') {
-                        titleText = '🔄 转单提醒';
+                    } else if(n.content && n.content.includes('🚨')) {
+                        titleText = '🚨 紧急提醒';
                     }
 
                     const dateStr = new Date(n.created_at).toLocaleString();
@@ -338,12 +346,23 @@
             btnNode.innerHTML = originalText;
         }
 
-        // 🚀 单个点击跳转并消除红点
+        // 🚀 智能路由：根据当前角色强行矫正点击的链接目的地
         window.markSingleAndGo = async function(id, url) {
             try {
                 await window.supabase.from('notifications').update({ is_read: true }).eq('id', id);
             } catch(e) {}
-            window.location.href = url;
+
+            let finalUrl = url || '#';
+            let match = finalUrl.match(/id=(TK-\d+)/);
+            if (match) {
+                if (currentRole === 'design') {
+                    finalUrl = 'task-detail-designer.html?id=' + match[1];
+                } else {
+                    // 需求方和超管/领导都统一去 requester 页面进行验收或审批
+                    finalUrl = 'task-detail-requester.html?id=' + match[1];
+                }
+            }
+            window.location.href = finalUrl;
         }
 
         window.logout = function(e) { e.stopPropagation(); localStorage.removeItem('activeUserObj'); window.location.href = 'login.html'; }
