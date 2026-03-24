@@ -94,7 +94,7 @@
                         组织架构与权限管理 
                         <span class="bg-fuchsia-500/20 text-fuchsia-400 text-[11px] px-2.5 py-0.5 rounded-lg border border-fuchsia-500/30">超管专属</span>
                     </h2>
-                    <p class="text-[12px] text-zinc-500">基于 org_members 专表解耦管理，权限与花名修改全系统云端生效，不触碰密码底库。</p>
+                    <p class="text-[12px] text-zinc-500">基于 org_members 专表解耦管理，权限与花名修改全系统云端生效，无视一切保护覆盖。</p>
                 </div>
                 
                 <div class="flex items-center gap-5">
@@ -141,7 +141,7 @@
                         <tr>
                             <th class="py-4 px-6 text-[11px] font-bold text-zinc-500 uppercase tracking-wider border-b border-white/5">用户资料</th>
                             <th class="py-4 px-6 text-[11px] font-bold text-zinc-500 uppercase tracking-wider border-b border-white/5">企微登录账号</th>
-                            <th class="py-4 px-6 text-[11px] font-bold text-zinc-500 uppercase tracking-wider border-b border-white/5">全局权限模块</th>
+                            <th class="py-4 px-6 text-[11px] font-bold text-zinc-500 uppercase tracking-wider border-b border-white/5">配置角色 / 模块权限</th>
                             <th class="py-4 px-6 text-[11px] font-bold text-zinc-500 uppercase tracking-wider border-b border-white/5 text-right">后台操作</th>
                         </tr>
                     </thead>
@@ -254,7 +254,9 @@
 
     <div id="action-toast" class="fixed top-8 right-8 z-[100000] hidden toast-slide-in">
         <div class="bg-[#1a1a1f] border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-3 w-72">
-            <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0"></div>
+            <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </div>
             <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-[11px] text-zinc-400 mt-0.5">操作已执行。</p></div>
         </div>
     </div>
@@ -278,7 +280,7 @@
         const PAGE_TYPE = 'admin'; 
         let globalUsersDB = {}; 
 
-        // 固化的基座配置
+        // 💡 固化的基座配置：仅做默认值，最高指挥权交给数据库
         const hardcodedProfiles = {
             'davidxxu': { name: '文哥', perms: ['req', 'design', 'admin'] },
             'judyzzhang': { name: '丹楠姐', perms: ['req', 'admin'] },
@@ -286,7 +288,7 @@
             'ponyxu': { name: '小戴维斯', perms: ['req', 'design', 'admin'] }
         };
 
-        // ================= 弹窗引擎 =================
+        // ================= 弹窗引擎逻辑 =================
         let confirmCallback = null;
         let dialogIsForce = false;
 
@@ -354,7 +356,7 @@
             setTimeout(() => { document.getElementById('pwd-modal-overlay').classList.add('hidden'); document.getElementById('pwd-modal').classList.add('hidden'); }, 300);
         }
 
-        window.submitPwdChange = function() { customAlert('提示', '系统演示环境暂不可自助修改密码', null, false, 'info'); window.closePwdModal(); }
+        window.submitPwdChange = function() { customAlert('提示', '系统演示环境暂不可自助修改密码，请联系管理员。', null, false, 'info'); window.closePwdModal(); }
 
         function initRBAC() {
             const userStr = localStorage.getItem('activeUserObj');
@@ -382,7 +384,7 @@
             return true;
         }
 
-        // ================= 💡 核心：获取并融合 users 和 org_members 表 =================
+        // ================= 💡 核心：获取并融合 users 和 org_members 表 (修正优先级逻辑！) =================
         window.loadUsersFromCloud = async function() {
             if(!initRBAC()) return;
             try {
@@ -393,7 +395,6 @@
                 // 2. 获取所有的权限花名册配置 (org_members 表)
                 const { data: orgData, error: oErr } = await window.supabase.from(window.DB_ORG_TABLE).select('*');
                 
-                // 为了健壮性，如果 org_members 还没建或者查不到，给一个空映射兜底
                 let orgMap = {};
                 if (orgData) {
                     orgData.forEach(o => orgMap[o.en_name] = o);
@@ -409,8 +410,15 @@
                     // A. 基础兜底设定
                     let finalName = enNameKey;
                     let finalPerms = ['req', 'design']; // 默认所有人皆可发单接单
+
+                    // B. 永远保护的高管底座（作为基础，防止新库没数据时报错）
+                    if (hardcodedProfiles[enNameKey]) {
+                        finalName = hardcodedProfiles[enNameKey].name;
+                        finalPerms = hardcodedProfiles[enNameKey].perms;
+                    }
                     
-                    // B. 查询专用配置表（org_members）中有无这个人的最新设定！
+                    // C. 查询专用配置表（org_members）中有无这个人的最新设定！
+                    // 💡 【修正点】：必须把 orgMap 的判断放在最后，确保云端专表的配置强行覆盖硬编码的底座！
                     if (orgMap[enNameKey]) {
                         finalName = orgMap[enNameKey].display_name;
                         if(orgMap[enNameKey].perms) {
@@ -418,12 +426,6 @@
                                 finalPerms = typeof orgMap[enNameKey].perms === 'string' ? JSON.parse(orgMap[enNameKey].perms) : orgMap[enNameKey].perms;
                             } catch(e) {}
                         }
-                    }
-
-                    // C. 永远保护的高管底座
-                    if (hardcodedProfiles[enNameKey]) {
-                        finalName = hardcodedProfiles[enNameKey].name;
-                        finalPerms = hardcodedProfiles[enNameKey].perms;
                     }
 
                     // 计算角色展示文本和颜色
@@ -584,9 +586,8 @@
                 }, { onConflict: 'en_name' });
                 
                 if (upsertErr) {
-                    // 如果没建表或者有表权限问题，做明确报错拦截
                     if (upsertErr.code === '42P01') {
-                        throw new Error('找不到 org_members 表！请确保您已经在 Supabase 中执行了第一步的 SQL 建表代码！');
+                        throw new Error('找不到 org_members 表！请确保您已经在 Supabase 中执行了建表 SQL 代码！');
                     }
                     throw upsertErr;
                 }
