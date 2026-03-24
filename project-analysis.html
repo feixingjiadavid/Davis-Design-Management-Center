@@ -143,7 +143,7 @@
             </div>
         </header>
 
-        <div class="flex-1 p-8 md:p-10 overflow-y-hidden flex flex-col z-10 relative">
+        <div class="flex-1 p-8 md:p-10 overflow-y-auto custom-scrollbar flex flex-col z-10 relative">
             
             <div id="dashboard-loading" class="absolute inset-0 bg-[#0c0c0e]/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
                 <svg class="animate-spin h-8 w-8 text-fuchsia-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
@@ -179,7 +179,7 @@
                     </div>
                 </div>
 
-                <div class="flex gap-8 items-start flex-1 min-h-0">
+                <div class="flex gap-8 items-start flex-1 min-h-[500px]">
                     
                     <div class="flex-1 flex flex-col bg-[#16161d] border border-white/5 rounded-3xl p-6 shadow-xl min-w-0 h-full">
                         <div class="flex items-center justify-between mb-6 pb-4 border-b border-white/5 shrink-0">
@@ -199,7 +199,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-3" id="project-list-container">
+                        <div class="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-3 pb-4" id="project-list-container">
                             </div>
                     </div>
 
@@ -211,7 +211,7 @@
                             </h3>
                             <span class="text-[11px] text-zinc-500 bg-white/5 px-2 py-1 rounded-md border border-white/10">0 工时也会展示，拒绝盲区</span>
                         </div>
-                        <div class="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-3" id="people-list-container">
+                        <div class="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-3 pb-4" id="people-list-container">
                             </div>
                     </div>
 
@@ -542,7 +542,8 @@
                                 // 找是谁干的
                                 if (h.operator) {
                                     let opLower = h.operator.toLowerCase();
-                                    let matchedUser = systemUsers.find(u => opLower.includes(u.en) || opLower.includes((u.display||'').toLowerCase()));
+                                    // 修复 Bug: 如果 display 为空，避免 .includes('') 导致匹配错误
+                                    let matchedUser = systemUsers.find(u => opLower.includes(u.en) || (u.display && opLower.includes(u.display.toLowerCase())));
                                     
                                     if (matchedUser) {
                                         peopleMap[matchedUser.en].hours += hVal;
@@ -634,14 +635,17 @@
                 prev1Data = extractDataForPeriod(p1Date, currentView);
             }
 
-            // 💡 渲染顶栏 4 个基础指标 (修复正确 ID)
+            // 💡 渲染顶栏 4 个基础指标 (修复了报错导致白屏的 Bug)
             document.getElementById('metric-cur-hours').innerText = currentData.totalHours.toFixed(1);
             document.getElementById('metric-cur-projects').innerText = currentData.projectsCount; 
             
             const actualPeople = Object.values(currentData.peopleMap).filter(p => p.hours > 0).length;
             const prevActualPeople = Object.values(prev1Data.peopleMap).filter(p => p.hours > 0).length;
             document.getElementById('metric-cur-people').innerText = actualPeople;
-            document.getElementById('metric-cur-tasks').innerText = currentData.tasksCount;
+            
+            // 注释或删除导致崩溃的行，因为 HTML 中并没有 metric-cur-tasks 元素
+            // document.getElementById('metric-cur-tasks').innerText = currentData.tasksCount;
+            
             document.getElementById('metric-cur-ai').innerText = currentData.aiCount;
 
             const trendH = currentData.totalHours - prev1Data.totalHours;
