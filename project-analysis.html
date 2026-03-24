@@ -23,9 +23,6 @@
         @keyframes growUp { 0% { transform: scaleY(0); } 100% { transform: scaleY(1); } }
         .bar-grow-h { animation: growRight 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; transform-origin: left; }
         @keyframes growRight { 0% { transform: scaleX(0); } 100% { transform: scaleX(1); } }
-        
-        .toast-slide-in { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-fuchsia-500/30 text-zinc-300">
@@ -229,7 +226,7 @@
             <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-fuchsia-500 to-indigo-500 rounded-t-3xl"></div>
             <div class="flex justify-between items-center mb-6 mt-2">
                 <h2 class="text-[16px] font-bold text-white flex items-center gap-2"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-fuchsia-500"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg> 修改登录密码</h2>
-                <button onclick="window.closePwdModal()" class="text-zinc-500 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-full p-1 transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+                <button onclick="closePwdModal()" class="text-zinc-500 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-full p-1 transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
             </div>
             <div class="space-y-4">
                 <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">当前密码</label><input type="password" id="old-pwd" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-fuchsia-500 transition-colors" placeholder="输入原密码"></div>
@@ -245,7 +242,7 @@
             <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
             </div>
-            <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-zinc-400 text-[11px] mt-0.5">操作已执行。</p></div>
+            <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-[11px] text-zinc-400 mt-0.5">操作已执行。</p></div>
         </div>
     </div>
 
@@ -262,7 +259,7 @@
         let currentView = 'month'; 
         let currentDate = new Date();
         let myAllTasks = []; 
-        let systemUsers = []; // 💡 存储系统里所有具备设计/管理权限的真实名单
+        let systemUsers = []; 
         let allProjects = [];
         let currentSelectedProject = 'all'; 
         let dropdownData = []; 
@@ -459,7 +456,7 @@
             return false;
         }
 
-        // ================= 💡 核心：全量拉取数据并初始化名单 (修改为 user_profiles 表) =================
+        // ================= 💡 核心：全量拉取数据并初始化名单 =================
         window.loadDashboardData = async function(isSilent = false) {
             if(!initRBAC()) return;
             if(!window.supabase) return;
@@ -468,21 +465,33 @@
             if(syncDot && !isSilent) syncDot.classList.remove('hidden');
 
             try {
-                // 1. 获取全盘用户库
-                // 修复：从 user_profiles 视图/表 中读取真实的花名册！
+                // 1. 获取全盘用户库（从 user_profiles 中读取）
                 const { data: users, error: uErr } = await window.supabase.from('user_profiles').select('*');
                 if (uErr) throw uErr;
 
                 systemUsers = [];
                 if (users) {
                     users.forEach(u => {
+                        let p = [];
+                        if (typeof u.perms === 'string') {
+                            try { p = JSON.parse(u.perms); } catch(e){ p = u.perms.split(','); }
+                        } else if (Array.isArray(u.perms)) {
+                            p = u.perms;
+                        }
+                        if (!p) p = [];
+
                         const en = (u.en_name || '').toLowerCase();
-                        // 💡 根据需求：所有人默认都是需求方和设计师，直接全部拉入大盘名单！不校验 perms！
-                        if(en && !systemUsers.some(x => x.en === en)) {
-                            systemUsers.push({
-                                en: en,
-                                display: u.display_name || u.cn_name || u.en_name || en
-                            });
+                        
+                        // 💡 新增过滤逻辑：精确剔除无需监测的特殊账号
+                        const excludedUsers = ['judyzzhang', 'ponyxu', 'davidxu'];
+
+                        if(!excludedUsers.includes(en) && (p.includes('design') || p.includes('admin') || en === 'davidxxu')) {
+                            if(en && !systemUsers.some(x => x.en === en)) {
+                                systemUsers.push({
+                                    en: en,
+                                    display: u.display_name || u.cn_name || u.en_name || en
+                                });
+                            }
                         }
                     });
                 }
@@ -545,21 +554,11 @@
                                     let opLower = h.operator.toLowerCase();
                                     let matchedUser = systemUsers.find(u => opLower.includes(u.en) || (u.display && opLower.includes(u.display.toLowerCase())));
                                     
-                                    if (matchedUser) {
+                                    // 注意：如果操作人不在我们要监测的名单里（比如领导审批动作），就不算入个人工时，但算入项目总工时
+                                    if (matchedUser && peopleMap[matchedUser.en]) {
                                         peopleMap[matchedUser.en].hours += hVal;
                                         peopleMap[matchedUser.en].taskCount += 1;
                                         if(t.project) peopleMap[matchedUser.en].projects.add(t.project);
-                                    } else {
-                                        // 哪怕底库没有这个人，也强行建立临时档案展示
-                                        const cleanName = h.operator.split(' ')[0].split('(')[0].trim();
-                                        const key = cleanName.toLowerCase();
-                                        if(!peopleMap[key]) {
-                                            peopleMap[key] = { display: cleanName, hours: 0, taskCount: 0, projects: new Set(), aiTools: {} };
-                                        }
-                                        peopleMap[key].hours += hVal;
-                                        peopleMap[key].taskCount += 1;
-                                        if(t.project) peopleMap[key].projects.add(t.project);
-                                        matchedUser = { en: key };
                                     }
 
                                     // 2. 抓取 AI 记录 (归属到个人)
@@ -571,8 +570,10 @@
                                                 if(!aiFreq[tool]) aiFreq[tool] = 0;
                                                 aiFreq[tool]++;
                                                 
-                                                if(!peopleMap[matchedUser.en].aiTools[tool]) peopleMap[matchedUser.en].aiTools[tool] = 0;
-                                                peopleMap[matchedUser.en].aiTools[tool]++;
+                                                if(matchedUser && peopleMap[matchedUser.en]) {
+                                                    if(!peopleMap[matchedUser.en].aiTools[tool]) peopleMap[matchedUser.en].aiTools[tool] = 0;
+                                                    peopleMap[matchedUser.en].aiTools[tool]++;
+                                                }
                                             }
                                         });
                                     }
@@ -679,7 +680,7 @@
                             <span class="text-[16px] font-mono font-black text-${col}-400 leading-none">${p.data.hours.toFixed(1)}<span class="text-[10px] text-zinc-500 ml-1 font-normal font-sans">h</span></span>
                         </div>
                         <div class="pl-2 mb-3">
-                            <p class="text-[11px] text-zinc-500 truncate" title="${userList}">参入者: <span class="text-zinc-300">${userList}</span> (${p.data.users.size}人)</p>
+                            <p class="text-[11px] text-zinc-500 truncate" title="${userList}">参与者: <span class="text-zinc-300">${userList}</span> (${p.data.users.size}人)</p>
                             <p class="text-[10px] text-zinc-600 mt-0.5">当期流转节点数: ${p.data.count}</p>
                         </div>
                         <div class="w-full h-1.5 bg-zinc-900 rounded-full overflow-hidden ml-2"><div class="h-full bg-${col}-500 rounded-full opacity-80 bar-grow-h" style="width: ${pct}%"></div></div>
@@ -698,7 +699,7 @@
             });
 
             if (sortedPpl.length === 0) {
-                pplContainer.innerHTML = '<div class="text-center py-20 text-zinc-500 text-sm">系统内暂无人员配置数据</div>';
+                pplContainer.innerHTML = '<div class="text-center py-20 text-zinc-500 text-sm">系统内暂无配置设计师/管理账号</div>';
             } else {
                 let pHtml = '';
                 sortedPpl.forEach((p, index) => {
@@ -756,7 +757,7 @@
                                 ${isEmpty ? '' : `<p class="text-[10px] text-zinc-500 mt-1">处理 ${p.taskCount} 个节点</p>`}
                             </div>
                         </div>
-                        ${isEmpty ? `<p class="text-[10px] text-zinc-600 pl-3 mt-3 pt-3 border-t border-zinc-800/50">该人员在此筛选周期内无任何产出或审批动作。</p>` : `
+                        ${isEmpty ? `<p class="text-[10px] text-zinc-600 pl-3 mt-3 pt-3 border-t border-zinc-800/50">该人员在此筛选周期内无任何产出动作。</p>` : `
                         <div class="pl-2 mt-4 space-y-2 pt-3 border-t border-white/5">
                             <div class="flex flex-wrap">${pTags}</div>
                             <div class="flex items-center gap-1.5 pt-1.5">
