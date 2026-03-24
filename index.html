@@ -276,13 +276,18 @@
 
                 <div class="grid grid-cols-2 gap-6 pt-2">
                     <div><label class="block text-[13px] font-bold text-zinc-300 mb-2">8. 需求参考链接 (选填)</label><input type="url" id="req-link" placeholder="如腾讯文档地址..." class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-indigo-500 transition-colors"></div>
+                    
                     <div>
-                        <label class="block text-[13px] font-bold text-zinc-300 mb-2">9. 本地附件上传 (选填)</label>
-                        <label for="real-file-upload" id="upload-zone" class="w-full bg-[#09090b] border border-zinc-700 border-dashed rounded-xl px-4 py-2.5 flex flex-col items-center justify-center text-zinc-500 cursor-pointer hover:border-indigo-500 transition-colors h-[46px]">
-                            <span id="upload-text" class="text-xs font-medium flex items-center gap-2"><svg id="upload-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>点击选择参考附件...</span>
-                            <input type="file" id="real-file-upload" class="hidden" onchange="handleFileSelect(event)">
-                        </label>
+                        <label class="block text-[13px] font-bold text-zinc-300 mb-2">9. 本地附件上传 (最多 5 个, 单个 ≤ 5MB)</label>
+                        <div id="upload-wrapper" class="flex flex-col gap-2">
+                            <label for="real-file-upload" id="upload-zone" class="w-full bg-[#09090b] border border-zinc-700 border-dashed rounded-xl px-4 py-2.5 flex flex-col items-center justify-center text-zinc-500 cursor-pointer hover:border-indigo-500 transition-colors h-[46px]">
+                                <span id="upload-text" class="text-xs font-medium flex items-center gap-2"><svg id="upload-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>点击选择参考附件 (支持多选)...</span>
+                                <input type="file" id="real-file-upload" class="hidden" multiple onchange="handleFileSelect(event)">
+                            </label>
+                            <div id="file-list-container" class="space-y-1.5 hidden"></div>
+                        </div>
                     </div>
+
                 </div>
             </div>
             
@@ -352,7 +357,8 @@
 
     <script>
         const PAGE_TYPE = 'req'; 
-        let currentUploadedFileData = null;
+        // 💡 核心全局变量：存储多个文件对象的数组 [{name, data}, ...]
+        window.currentUploadedFiles = [];
 
         // ================= UI与弹窗功能 =================
         window.closeCustomDialog = function() {
@@ -472,7 +478,6 @@
             return user;
         }
 
-        // 💡 修复清空测试数据 Bug
         window.clearTestData = async function() {
             if(!window.supabase) return;
             window.showConfirm("清空测试数据", "⚠️ 提示：为了保护真实业务，此操作将<b>只清空测试账号（如 davidxu, ponyxu, 飞行家戴维, 测试）产生的需求数据</b>，不会影响其他人的正式数据！<br><br>确定要继续吗？", async () => {
@@ -826,6 +831,102 @@
             }
         }
 
+        // ================= 💡 核心修复：多文件上传处理器 =================
+        window.handleFileSelect = async function(event) {
+            const files = Array.from(event.target.files);
+            if (!files.length) return;
+
+            const maxSize = 5 * 1024 * 1024; // 5MB 限制
+            let oversizeCount = 0;
+
+            for (let i = 0; i < files.length; i++) {
+                if (window.currentUploadedFiles.length >= 5) {
+                    window.showAlert("附件上限", "最多只能上传 5 个附件！超出的文件已被忽略。", "warning");
+                    break;
+                }
+                
+                let file = files[i];
+                if (file.size > maxSize) {
+                    oversizeCount++;
+                    continue;
+                }
+
+                // 异步将文件转为 Base64
+                let base64Data = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.readAsDataURL(file);
+                });
+
+                window.currentUploadedFiles.push({
+                    name: file.name,
+                    data: base64Data
+                });
+            }
+
+            if (oversizeCount > 0) {
+                window.showAlert("体积超限", `有 ${oversizeCount} 个文件超过了 5MB 限制，已被自动剔除拦截。\n为了系统性能，大文件建议提供需求链接。`, "warning");
+            }
+
+            document.getElementById('real-file-upload').value = ''; // 重置 input
+            window.renderFileListUI();
+        }
+
+        // ================= 💡 多文件 UI 渲染引擎 =================
+        window.renderFileListUI = function() {
+            const container = document.getElementById('file-list-container');
+            const uploadText = document.getElementById('upload-text');
+            const uploadZone = document.getElementById('upload-zone');
+
+            if (window.currentUploadedFiles.length === 0) {
+                container.innerHTML = '';
+                container.classList.add('hidden');
+                uploadText.innerHTML = `<svg id="upload-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>点击选择参考附件 (支持多选)...`;
+                uploadText.className = "text-xs font-medium flex items-center gap-2 text-zinc-500";
+                uploadZone.className = "w-full bg-[#09090b] border border-zinc-700 border-dashed rounded-xl px-4 py-2.5 flex flex-col items-center justify-center cursor-pointer hover:border-indigo-500 transition-colors h-[46px]";
+                uploadZone.style.display = 'flex';
+                return;
+            }
+
+            container.classList.remove('hidden');
+            let html = '';
+            window.currentUploadedFiles.forEach((file, index) => {
+                html += `
+                    <div class="flex items-center justify-between bg-indigo-500/10 border border-indigo-500/20 px-3 py-2 rounded-lg">
+                        <div class="flex items-center gap-2 overflow-hidden">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-indigo-400 shrink-0"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
+                            <span class="text-[11px] text-indigo-300 truncate font-medium max-w-[200px]">${file.name}</span>
+                        </div>
+                        <button type="button" onclick="event.stopPropagation(); window.removeFile(${index})" class="text-rose-400 hover:text-rose-300 p-1 rounded-md hover:bg-rose-500/20 transition-colors btn-press shrink-0">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+
+            if (window.currentUploadedFiles.length >= 5) {
+                uploadZone.style.display = 'none'; // 满5个隐藏上传按钮
+            } else {
+                uploadZone.style.display = 'flex';
+                uploadText.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> 继续添加附件 (${window.currentUploadedFiles.length}/5)`;
+                uploadText.className = "text-xs font-medium flex items-center gap-1.5 text-indigo-400 w-full justify-center";
+                uploadZone.className = "w-full bg-indigo-500/5 border border-indigo-500/30 border-dashed rounded-xl px-4 py-2 flex flex-col items-center justify-center cursor-pointer hover:border-indigo-500 transition-colors h-[40px]";
+            }
+        }
+
+        window.removeFile = function(index) {
+            window.currentUploadedFiles.splice(index, 1);
+            window.renderFileListUI();
+        }
+
+        window.resetUploadZone = function() {
+            document.getElementById('real-file-upload').value = '';
+            window.currentUploadedFiles = []; 
+            window.renderFileListUI();
+        }
+
+        // ================= 存储草稿重构 =================
         window.saveDraft = function() { 
             const shortTitle = document.getElementById('req-short-title').value.trim();
             const fullDesc = document.getElementById('req-title').value.trim();
@@ -838,7 +939,7 @@
                 title: shortTitle, fullText: fullDesc, project: document.getElementById('req-project').value, 
                 assignee: document.getElementById('req-assignee').value, date: document.getElementById('req-date').value, 
                 link: document.getElementById('req-link').value, channels: selectedChannels,
-                otherChannel: otherChannelText, fileName: window.getFileNameFromUI(), fileData: currentUploadedFileData, time: new Date().getTime() 
+                otherChannel: otherChannelText, files: window.currentUploadedFiles, time: new Date().getTime() 
             };
             
             try {
@@ -849,12 +950,12 @@
                 const spinner = document.getElementById('loading-spinner');
                 if(spinner) spinner.classList.add('hidden');
             } catch (e) {
-                draftData.fileData = null;
-                draftData.fileName = draftData.fileName ? draftData.fileName + " (因体积过大暂存未包含)" : "";
+                // 如果图片体积加起来超过 LocalStorage 限制，剥离附件后暂存文字
+                draftData.files = [];
                 try {
                     localStorage.setItem('myDraftTask', JSON.stringify(draftData));
                     window.closeAllModals(); 
-                    window.showToast('📝 暂存部分成功', '因附件过大超出浏览器限制，已为您安全保留文本草稿。', 'info'); 
+                    window.showToast('📝 暂存部分成功', '因多附件体积过大超出浏览器缓存限制，已为您安全保留文本草稿。', 'info'); 
                     window.renderDraftToUI();
                     const spinner = document.getElementById('loading-spinner');
                     if(spinner) spinner.classList.add('hidden');
@@ -862,6 +963,7 @@
             }
         }
 
+        // ================= 读取草稿重构 =================
         window.editDraft = function() {
             document.getElementById('modal-title-text').innerText = '继续编辑草稿';
             const draftStr = localStorage.getItem('myDraftTask');
@@ -885,14 +987,15 @@
                     if(draft.otherChannel) document.getElementById('req-channel-other').value = draft.otherChannel;
                 }
 
-                if(draft.fileName && draft.fileData) {
-                    currentUploadedFileData = draft.fileData;
-                    const uploadText = document.getElementById('upload-text');
-                    const uploadZone = document.getElementById('upload-zone');
-                    uploadText.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg> 已选附件: <span class="font-bold truncate max-w-[120px]">${draft.fileName}</span>`;
-                    uploadText.className = "text-xs font-medium flex items-center gap-1.5 text-indigo-400 w-full justify-center";
-                    uploadZone.className = "w-full bg-indigo-500/10 border border-indigo-500/50 rounded-xl px-4 py-2.5 flex flex-col items-center justify-center cursor-pointer transition-colors h-[46px]";
+                // 兼容旧版单文件草稿和新版多文件草稿
+                if (draft.files && Array.isArray(draft.files)) {
+                    window.currentUploadedFiles = draft.files;
+                } else if (draft.fileName && draft.fileData) {
+                    window.currentUploadedFiles = [{ name: draft.fileName, data: draft.fileData }];
+                } else {
+                    window.currentUploadedFiles = [];
                 }
+                window.renderFileListUI();
             }
             window.openModal('create-modal', true);
         }
@@ -922,7 +1025,7 @@
             }, "danger");
         }
 
-        // 💡 修改建单时不再强制依赖 db_notifications，利用 history_json 解析引擎自动触发！
+        // ================= 💡 提交发单：打包多文件上传 =================
         window.submitNewReq = async function() {
             if(!window.supabase) return window.showAlert("系统错误", "云端服务仍在初始化，请稍等！", "danger");
 
@@ -974,10 +1077,20 @@
                 reply: actionReply
             }];
             
+            // 💡 新版文件打包逻辑
+            let finalFileName = '';
+            let finalFileData = null;
+            if (window.currentUploadedFiles.length > 0) {
+                // 用 | 分割多个文件名展示
+                finalFileName = window.currentUploadedFiles.map(f => f.name).join(' | ');
+                // 将对象数组转化为 JSON 字符串存储
+                finalFileData = JSON.stringify(window.currentUploadedFiles); 
+            }
+
             const taskData = {
                 id: newId, title: shortTitle, full_desc: fullDesc, summary_desc: finalDesc, project: projectVal,
                 due_date: dateInput, assignee: assigneeVal, link: linkInput, channels: selectedChannels,
-                file_name: window.getFileNameFromUI(), file_data: currentUploadedFileData, status: finalStatus, creator: creatorDisplay,
+                file_name: finalFileName, file_data: finalFileData, status: finalStatus, creator: creatorDisplay,
                 history_json: JSON.stringify(initialHistory) 
             };
 
@@ -1043,47 +1156,6 @@
             }
         }
         window.toggleOtherInput = toggleOtherInput;
-
-        function resetUploadZone() {
-            document.getElementById('real-file-upload').value = '';
-            currentUploadedFileData = null; 
-            document.getElementById('upload-text').innerHTML = `<svg id="upload-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg> 点击选择参考附件...`;
-            document.getElementById('upload-text').className = "text-xs font-medium flex items-center gap-2 text-zinc-500";
-            document.getElementById('upload-zone').className = "w-full bg-[#09090b] border border-zinc-700 border-dashed rounded-xl px-4 py-2.5 flex flex-col items-center justify-center cursor-pointer hover:border-indigo-500 transition-colors h-[46px]";
-        }
-        window.resetUploadZone = resetUploadZone;
-
-        function handleFileSelect(event) {
-            const fileList = event.target.files;
-            const uploadZone = document.getElementById('upload-zone');
-            const uploadText = document.getElementById('upload-text');
-            if(fileList.length > 0) {
-                let file = fileList[0];
-                let fileName = file.name;
-                
-                const maxSize = 2.5 * 1024 * 1024;
-                if (file.size > maxSize) {
-                    window.showAlert("附件体积过大", "您选择的文件超过了 2.5MB。由于当前系统暂未接入云端图床，大文件将导致浏览器存储崩溃。\n\n建议您：\n1. 压缩图片后再上传\n2. 或者将源文件传至腾讯文档，在上方【需求参考链接】处提供 URL。", "warning");
-                    document.getElementById('real-file-upload').value = ''; 
-                    return;
-                }
-
-                const reader = new FileReader();
-                reader.onload = function(e) { currentUploadedFileData = e.target.result; };
-                reader.readAsDataURL(file); 
-                uploadText.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg> 已选附件: <span class="font-bold truncate max-w-[120px]">${fileName}</span>`;
-                uploadText.className = "text-xs font-medium flex items-center gap-1.5 text-indigo-400 w-full justify-center";
-                uploadZone.className = "w-full bg-indigo-500/10 border border-indigo-500/50 rounded-xl px-4 py-2.5 flex flex-col items-center justify-center cursor-pointer transition-colors h-[46px]";
-            }
-        }
-        window.handleFileSelect = handleFileSelect;
-
-        function getFileNameFromUI() {
-            const uploadTextEl = document.getElementById('upload-text');
-            if(uploadTextEl && uploadTextEl.innerText.includes('已选附件:')) { return uploadTextEl.innerText.split('已选附件:')[1].trim(); }
-            return '';
-        }
-        window.getFileNameFromUI = getFileNameFromUI;
 
         const PROJECT_LIST = [
             "Smart文化-OpenTalk", "Smart文化-1024", "Smart文化-后勤小管家", "Smart文化-小蓝书运营", "Smart文化-送物机器人",
