@@ -23,6 +23,9 @@
         @keyframes growUp { 0% { transform: scaleY(0); } 100% { transform: scaleY(1); } }
         .bar-grow-h { animation: growRight 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; transform-origin: left; }
         @keyframes growRight { 0% { transform: scaleX(0); } 100% { transform: scaleX(1); } }
+        
+        .toast-slide-in { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-fuchsia-500/30 text-zinc-300">
@@ -143,7 +146,7 @@
             </div>
         </header>
 
-        <div class="flex-1 p-8 md:p-10 overflow-y-auto custom-scrollbar flex flex-col z-10 relative">
+        <div class="flex-1 p-8 md:p-10 overflow-y-hidden flex flex-col z-10 relative">
             
             <div id="dashboard-loading" class="absolute inset-0 bg-[#0c0c0e]/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
                 <svg class="animate-spin h-8 w-8 text-fuchsia-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
@@ -179,7 +182,7 @@
                     </div>
                 </div>
 
-                <div class="flex gap-8 items-start flex-1 min-h-[500px]">
+                <div class="flex gap-8 items-start flex-1 min-h-[400px]">
                     
                     <div class="flex-1 flex flex-col bg-[#16161d] border border-white/5 rounded-3xl p-6 shadow-xl min-w-0 h-full">
                         <div class="flex items-center justify-between mb-6 pb-4 border-b border-white/5 shrink-0">
@@ -209,7 +212,7 @@
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                                 当期：团队全员效能摸底
                             </h3>
-                            <span class="text-[11px] text-zinc-500 bg-white/5 px-2 py-1 rounded-md border border-white/10">0 工时也会展示，拒绝盲区</span>
+                            <span class="text-[11px] text-zinc-500 bg-white/5 px-2 py-1 rounded-md border border-white/10">0 工时也会展示，最下为最闲</span>
                         </div>
                         <div class="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-3 pb-4" id="people-list-container">
                             </div>
@@ -259,7 +262,7 @@
         let currentView = 'month'; 
         let currentDate = new Date();
         let myAllTasks = []; 
-        let systemUsers = []; // 💡 存储系统里所有具备设计/管理权限的真实名单
+        let systemUsers = []; 
         let allProjects = [];
         let currentSelectedProject = 'all'; 
         let dropdownData = []; 
@@ -466,20 +469,27 @@
 
             try {
                 // 1. 获取全盘用户库（过滤出所有含设计或管理权限的人员，杜绝 0 工时盲区）
-                const { data: users } = await window.supabase.from('users').select('enName, name, email, perms');
+                const { data: users, error: uErr } = await window.supabase.from('users').select('*');
+                if (uErr) throw uErr;
+
                 systemUsers = [];
                 if (users) {
                     users.forEach(u => {
                         let p = [];
-                        if (typeof u.perms === 'string') try { p = JSON.parse(u.perms); } catch(e){}
-                        else if (Array.isArray(u.perms)) p = u.perms;
+                        if (typeof u.perms === 'string') {
+                            try { p = JSON.parse(u.perms); } catch(e){ p = u.perms.split(','); }
+                        } else if (Array.isArray(u.perms)) {
+                            p = u.perms;
+                        }
+                        if (!p) p = [];
 
-                        if(p.includes('design') || p.includes('admin')) {
+                        // 核心：强制抓出系统中所有有潜力接单的人
+                        if(p.includes('design') || p.includes('admin') || u.enName === 'davidxxu' || u.enName === 'judyzzhang') {
                             const en = (u.enName || (u.email ? u.email.split('@')[0] : '')).toLowerCase();
                             if(en && !systemUsers.some(x => x.en === en)) {
                                 systemUsers.push({
                                     en: en,
-                                    display: u.name || u.enName || en
+                                    display: u.name || u.cnName || u.enName || en
                                 });
                             }
                         }
@@ -515,7 +525,7 @@
             let activeTasksSet = new Set();
             let projectSet = new Set();
 
-            // 💡 初始化全员底库：0工时的人员也会包含在内！
+            // 💡 初始化全员底库：0工时的人员也会绝对包含在内！
             let peopleMap = {};
             systemUsers.forEach(u => {
                 peopleMap[u.en] = { display: u.display, hours: 0, taskCount: 0, projects: new Set(), aiTools: {} };
@@ -542,7 +552,6 @@
                                 // 找是谁干的
                                 if (h.operator) {
                                     let opLower = h.operator.toLowerCase();
-                                    // 修复 Bug: 如果 display 为空，避免 .includes('') 导致匹配错误
                                     let matchedUser = systemUsers.find(u => opLower.includes(u.en) || (u.display && opLower.includes(u.display.toLowerCase())));
                                     
                                     if (matchedUser) {
@@ -635,16 +644,13 @@
                 prev1Data = extractDataForPeriod(p1Date, currentView);
             }
 
-            // 💡 渲染顶栏 4 个基础指标 (修复了报错导致白屏的 Bug)
+            // 💡 渲染顶栏 4 个基础指标
             document.getElementById('metric-cur-hours').innerText = currentData.totalHours.toFixed(1);
             document.getElementById('metric-cur-projects').innerText = currentData.projectsCount; 
             
             const actualPeople = Object.values(currentData.peopleMap).filter(p => p.hours > 0).length;
             const prevActualPeople = Object.values(prev1Data.peopleMap).filter(p => p.hours > 0).length;
             document.getElementById('metric-cur-people').innerText = actualPeople;
-            
-            // 注释或删除导致崩溃的行，因为 HTML 中并没有 metric-cur-tasks 元素
-            // document.getElementById('metric-cur-tasks').innerText = currentData.tasksCount;
             
             document.getElementById('metric-cur-ai').innerText = currentData.aiCount;
 
@@ -675,7 +681,7 @@
                     const userList = Array.from(p.data.users).join(', ');
                     
                     pHtml += `
-                    <div class="bg-[#121217] border border-white/5 rounded-2xl p-4 shadow-sm relative overflow-hidden group hover:border-${col}-500/30 transition-colors">
+                    <div class="bg-[#121217] border border-white/5 rounded-2xl p-4 shadow-sm relative overflow-hidden group hover:border-${col}-500/30 transition-colors mb-4">
                         <div class="absolute left-0 top-0 bottom-0 w-1 bg-${col}-500/80 group-hover:w-1.5 transition-all"></div>
                         <div class="flex justify-between items-start mb-2 pl-2">
                             <h4 class="text-[14px] font-bold text-white group-hover:text-${col}-400 transition-colors">${p.name}</h4>
@@ -693,18 +699,33 @@
 
             // 💡 渲染右侧：全量人员效能摸底 (0也要展示，并带出AI频次)
             const pplContainer = document.getElementById('people-list-container');
-            const sortedPpl = Object.values(currentData.peopleMap).sort((a,b) => b.hours - a.hours);
+            
+            // 【核心排序逻辑】：工时高的在上，工时相同按处理节点数，节点数也相同按名字，0工时的绝对沉底
+            const sortedPpl = Object.values(currentData.peopleMap).sort((a,b) => {
+                if (b.hours !== a.hours) return b.hours - a.hours;
+                return b.taskCount - a.taskCount;
+            });
 
             if (sortedPpl.length === 0) {
-                pplContainer.innerHTML = '<div class="text-center py-20 text-zinc-500 text-sm">系统暂无人员信息</div>';
+                pplContainer.innerHTML = '<div class="text-center py-20 text-zinc-500 text-sm">系统内暂无配置设计师/管理账号</div>';
             } else {
                 let pHtml = '';
-                sortedPpl.forEach(p => {
+                sortedPpl.forEach((p, index) => {
                     const isEmpty = p.hours === 0;
-                    const bgClass = isEmpty ? 'bg-[#09090b] border-dashed border-zinc-800 opacity-60' : 'bg-[#121217] border-white/5 shadow-sm';
+                    const bgClass = isEmpty ? 'bg-[#09090b] border-dashed border-zinc-800 opacity-60' : 'bg-[#121217] border-white/5 shadow-sm hover:border-white/10';
                     const titleCol = isEmpty ? 'text-zinc-500' : 'text-zinc-200';
                     const hourCol = isEmpty ? 'text-zinc-600' : 'text-white';
                     
+                    // 状态徽章：满负荷 / 输出中 / 极度空闲
+                    let statusBadge = '';
+                    if (p.hours > 0 && index === 0) {
+                        statusBadge = `<span class="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">🔥 满负荷 / 最忙</span>`;
+                    } else if (p.hours === 0) {
+                        statusBadge = `<span class="text-[10px] font-bold text-zinc-500 bg-zinc-800/50 px-2 py-0.5 rounded border border-zinc-700/50">💤 极度空闲</span>`;
+                    } else {
+                        statusBadge = `<span class="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">✅ 输出中</span>`;
+                    }
+
                     let pTags = '';
                     if (!isEmpty && p.projects.size > 0) {
                         Array.from(p.projects).forEach(proj => {
@@ -712,7 +733,7 @@
                         });
                     }
 
-                    // 💡 渲染该人员的 AI 工具使用情况
+                    // 渲染该人员的 AI 工具使用情况
                     let aiTags = '';
                     if (!isEmpty) {
                         const aiKeys = Object.keys(p.aiTools);
@@ -726,22 +747,28 @@
                     }
 
                     pHtml += `
-                    <div class="${bgClass} border rounded-2xl p-4 relative overflow-hidden group">
+                    <div class="${bgClass} border rounded-2xl p-4 relative overflow-hidden group transition-all mb-4">
                         ${!isEmpty ? '<div class="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500/50 group-hover:w-1.5 transition-all"></div>' : ''}
                         <div class="flex justify-between items-start mb-2 pl-2">
-                            <div class="flex items-center gap-2">
-                                <div class="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-400">${p.display.substring(0,2).toUpperCase()}</div>
-                                <h4 class="text-[14px] font-bold ${titleCol}">${p.display}</h4>
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-400 shadow-inner">${p.display.substring(0,2).toUpperCase()}</div>
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <h4 class="text-[14px] font-bold ${titleCol}">${p.display}</h4>
+                                        ${statusBadge}
+                                    </div>
+                                    <p class="text-[10px] text-zinc-600 font-mono mt-0.5">${p.en}</p>
+                                </div>
                             </div>
                             <div class="text-right">
-                                <span class="text-[16px] font-mono font-black ${hourCol} leading-none">${p.hours.toFixed(1)}<span class="text-[10px] text-zinc-500 ml-1 font-normal font-sans">h</span></span>
-                                ${isEmpty ? '' : `<p class="text-[10px] text-zinc-500 mt-0.5">处理 ${p.taskCount} 个节点</p>`}
+                                <span class="text-[20px] font-mono font-black ${hourCol} leading-none">${p.hours.toFixed(1)}<span class="text-[10px] text-zinc-500 ml-1 font-normal font-sans">h</span></span>
+                                ${isEmpty ? '' : `<p class="text-[10px] text-zinc-500 mt-1">处理 ${p.taskCount} 个节点</p>`}
                             </div>
                         </div>
-                        ${isEmpty ? `<p class="text-[10px] text-zinc-600 pl-2 mt-2">该人员在此周期内无产出</p>` : `
-                        <div class="pl-2 mt-3 space-y-2">
+                        ${isEmpty ? `<p class="text-[10px] text-zinc-600 pl-3 mt-3 pt-3 border-t border-zinc-800/50">该人员在此筛选周期内无任何产出或审批动作。</p>` : `
+                        <div class="pl-2 mt-4 space-y-2 pt-3 border-t border-white/5">
                             <div class="flex flex-wrap">${pTags}</div>
-                            <div class="flex items-center gap-1.5 pt-1.5 border-t border-white/5">
+                            <div class="flex items-center gap-1.5 pt-1.5">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                                 ${aiTags}
                             </div>
