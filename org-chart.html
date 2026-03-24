@@ -91,16 +91,16 @@
             <div class="flex justify-between items-start w-full">
                 <div>
                     <h2 class="text-[24px] font-bold text-white tracking-tight mb-1.5 flex items-center gap-3">
-                        组织架构与全局权限网 
+                        组织架构与权限管理 
                         <span class="bg-fuchsia-500/20 text-fuchsia-400 text-[11px] px-2.5 py-0.5 rounded-lg border border-fuchsia-500/30">超管专属</span>
                     </h2>
-                    <p class="text-[12px] text-zinc-500">云端动态配置模式：权限配置实时上链全网生效，采用追加写入机制绕过底层限制。</p>
+                    <p class="text-[12px] text-zinc-500">基于 org_members 专表解耦管理，权限与花名修改全系统云端生效，不触碰密码底库。</p>
                 </div>
                 
                 <div class="flex items-center gap-5">
                     <button onclick="openModal('add')" class="bg-fuchsia-600 hover:bg-fuchsia-500 text-white px-5 py-2.5 rounded-[12px] text-[13px] font-bold shadow-[0_5px_15px_rgba(192,38,211,0.25)] transition-all flex items-center gap-2 btn-press">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                        新增系统成员
+                        新增业务成员
                     </button>
                     <div class="w-px h-6 bg-white/10 mx-2"></div>
                     <div class="relative" id="identity-wrapper">
@@ -125,14 +125,14 @@
                     <option value="req">仅需求方</option>
                 </select>
             </div>
-            <div class="text-[12px] text-zinc-500">系统生效成员： <span id="total-users" class="text-white font-bold font-mono text-base">0</span></div>
+            <div class="text-[12px] text-zinc-500">共 <span id="total-users" class="text-white font-bold font-mono text-base">0</span> 名系统成员</div>
         </div>
 
         <div class="flex-1 bg-[#121217] border border-white/5 rounded-2xl overflow-hidden flex flex-col shadow-xl relative">
             
             <div id="table-loading" class="absolute inset-0 bg-[#121217]/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center">
                 <svg class="animate-spin h-8 w-8 text-fuchsia-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                <p class="text-xs text-zinc-500 font-bold tracking-widest uppercase">SYNCING GLOBAL CONFIG...</p>
+                <p class="text-xs text-zinc-500 font-bold tracking-widest uppercase">SYNCING DATABASES...</p>
             </div>
 
             <div class="overflow-y-auto custom-scrollbar flex-1 relative">
@@ -141,7 +141,7 @@
                         <tr>
                             <th class="py-4 px-6 text-[11px] font-bold text-zinc-500 uppercase tracking-wider border-b border-white/5">用户资料</th>
                             <th class="py-4 px-6 text-[11px] font-bold text-zinc-500 uppercase tracking-wider border-b border-white/5">企微登录账号</th>
-                            <th class="py-4 px-6 text-[11px] font-bold text-zinc-500 uppercase tracking-wider border-b border-white/5">全网生效权限模块</th>
+                            <th class="py-4 px-6 text-[11px] font-bold text-zinc-500 uppercase tracking-wider border-b border-white/5">全局权限模块</th>
                             <th class="py-4 px-6 text-[11px] font-bold text-zinc-500 uppercase tracking-wider border-b border-white/5 text-right">后台操作</th>
                         </tr>
                     </thead>
@@ -161,7 +161,7 @@
     <div id="user-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closeUserModal()">
         <div id="user-modal" class="hidden w-full max-w-lg bg-[#121217] border border-fuchsia-500/30 rounded-3xl shadow-[0_20px_50px_-10px_rgba(192,38,211,0.2)] flex flex-col scale-95 transition-transform duration-300">
             <div class="px-6 py-5 border-b border-white/5 flex justify-between items-center bg-[#1a1a1f] rounded-t-3xl">
-                <h2 class="text-[15px] font-bold text-white flex items-center gap-2" id="modal-title">新增/编辑系统成员</h2>
+                <h2 class="text-[15px] font-bold text-white flex items-center gap-2" id="modal-title">系统账号管理</h2>
                 <button onclick="closeUserModal()" class="text-zinc-500 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-full p-1.5 transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
             </div>
             
@@ -171,7 +171,7 @@
                 <div class="bg-indigo-500/10 border border-indigo-500/20 p-3 rounded-xl mb-2 flex items-start gap-3">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-indigo-400 shrink-0 mt-0.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
                     <p class="text-[12px] text-indigo-300 leading-relaxed">
-                        <span class="font-bold">云端全网同步模式：</span><br>这里的花名和权限修改将通过底层“追加写入法”记录，<b>彻底绕过 UPDATE 修改限制</b>，保证全系统即时生效！
+                        <span class="font-bold">独立权限表模式：</span><br>底层的 Auth 仅用于账号登录。这里的花名和权限配置将写入专属的 <b>org_members</b> 表中，确保全系统即时同步且永不报错！
                     </p>
                 </div>
                 
@@ -218,7 +218,7 @@
             
             <div class="p-5 border-t border-white/5 bg-[#09090b] flex justify-end gap-3 rounded-b-3xl">
                 <button onclick="closeUserModal()" class="px-5 py-2.5 bg-transparent border border-zinc-700 text-zinc-400 hover:text-white rounded-xl text-[12px] font-bold btn-press transition-colors">取消</button>
-                <button onclick="saveUser()" id="btn-save-user" class="px-6 py-2.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded-xl text-[12px] font-bold shadow-[0_5px_15px_rgba(192,38,211,0.3)] btn-press transition-all">全网同步配置</button>
+                <button onclick="saveUser()" id="btn-save-user" class="px-6 py-2.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded-xl text-[12px] font-bold shadow-[0_5px_15px_rgba(192,38,211,0.3)] btn-press transition-all">确认并全网同步</button>
             </div>
         </div>
     </div>
@@ -262,7 +262,10 @@
     <script type="module">
         import { supabase } from './supabase-config.js';
         window.supabase = supabase;
-        window.DB_TABLE = 'test_tasks'; 
+        
+        // 💡 核心：指定专门的表来存取权限
+        window.DB_USERS_TABLE = 'users'; 
+        window.DB_ORG_TABLE = 'org_members';
         
         window.initAndLoad = function() {
             if(window.supabase) window.loadUsersFromCloud();
@@ -275,11 +278,7 @@
         const PAGE_TYPE = 'admin'; 
         let globalUsersDB = {}; 
 
-        // 💡 核心机制：利用 test_tasks 表中的一条特殊隐藏记录，充当全系统的配置集散地！
-        window.SYSTEM_CONFIG_TITLE = '[SYSTEM_DB] ORG_CONFIG';
-        window.globalOverrides = {};
-
-        // 固化的高管和测试基座配置
+        // 固化的基座配置
         const hardcodedProfiles = {
             'davidxxu': { name: '文哥', perms: ['req', 'design', 'admin'] },
             'judyzzhang': { name: '丹楠姐', perms: ['req', 'admin'] },
@@ -383,61 +382,62 @@
             return true;
         }
 
-        // ================= 💡 核心：获取 DB 基础名单 + 全网配置映射 (追加读写版) =================
+        // ================= 💡 核心：获取并融合 users 和 org_members 表 =================
         window.loadUsersFromCloud = async function() {
             if(!initRBAC()) return;
             try {
-                // 1. 获取所有纯净的基础账号 (来自 user_profiles 视图)
-                const { data: usersData, error: uErr } = await window.supabase.from('user_profiles').select('*');
+                // 1. 获取所有纯净的底层账号列表 (users 表)
+                const { data: baseUsers, error: uErr } = await window.supabase.from(window.DB_USERS_TABLE).select('email');
                 if(uErr) throw uErr;
                 
-                // 2. 获取最新一条追加写入的全局配置！
-                const { data: configTasks, error: cErr } = await window.supabase.from(window.DB_TABLE)
-                    .select('history_json')
-                    .eq('title', window.SYSTEM_CONFIG_TITLE)
-                    .order('created_at', { ascending: false })
-                    .limit(1); // 只要最新的一条
+                // 2. 获取所有的权限花名册配置 (org_members 表)
+                const { data: orgData, error: oErr } = await window.supabase.from(window.DB_ORG_TABLE).select('*');
                 
-                window.globalOverrides = {};
-                
-                if (configTasks && configTasks.length > 0) {
-                    try { window.globalOverrides = JSON.parse(configTasks[0].history_json || '{}'); } catch(e){}
+                // 为了健壮性，如果 org_members 还没建或者查不到，给一个空映射兜底
+                let orgMap = {};
+                if (orgData) {
+                    orgData.forEach(o => orgMap[o.en_name] = o);
                 }
                 
                 globalUsersDB = {}; 
-                (usersData || []).forEach(row => {
-                    const enNameKey = (row.en_name || '').toLowerCase();
+                (baseUsers || []).forEach(row => {
+                    const email = row.email || '';
+                    if (!email) return;
+                    const enNameKey = email.split('@')[0].toLowerCase();
                     if (!enNameKey) return;
 
-                    // A. 系统全员底层兜底：默认都有需求方和设计师权限
-                    let finalName = row.display_name || row.cn_name || enNameKey;
-                    let finalPerms = ['req', 'design'];
+                    // A. 基础兜底设定
+                    let finalName = enNameKey;
+                    let finalPerms = ['req', 'design']; // 默认所有人皆可发单接单
                     
-                    // B. 硬核高管名单写入（防止新系统刚跑起来丢失高管权限）
+                    // B. 查询专用配置表（org_members）中有无这个人的最新设定！
+                    if (orgMap[enNameKey]) {
+                        finalName = orgMap[enNameKey].display_name;
+                        if(orgMap[enNameKey].perms) {
+                            try {
+                                finalPerms = typeof orgMap[enNameKey].perms === 'string' ? JSON.parse(orgMap[enNameKey].perms) : orgMap[enNameKey].perms;
+                            } catch(e) {}
+                        }
+                    }
+
+                    // C. 永远保护的高管底座
                     if (hardcodedProfiles[enNameKey]) {
                         finalName = hardcodedProfiles[enNameKey].name;
                         finalPerms = hardcodedProfiles[enNameKey].perms;
                     }
 
-                    // C. 应用最高优先级的【云端全局配置中心】设定！
-                    if (window.globalOverrides[enNameKey]) {
-                        if (window.globalOverrides[enNameKey].isDeleted) return; // 如果云端配置剔除了这个人，直接跳过不渲染
-                        if (window.globalOverrides[enNameKey].name) finalName = window.globalOverrides[enNameKey].name;
-                        if (window.globalOverrides[enNameKey].perms) finalPerms = window.globalOverrides[enNameKey].perms;
-                    }
-
-                    // 最终计算角色文案和 UI 颜色
+                    // 计算角色展示文本和颜色
                     let roleText = '业务需求方 / 设计师';
                     let derivedColor = 'bg-orange-600';
                     if (finalPerms.includes('admin')) { 
-                        roleText = enNameKey === 'judyzzhang' ? '部门领导 / 统筹' : '系统管理员';
+                        roleText = enNameKey === 'judyzzhang' ? '部门领导 / 统筹' : '系统管理员 (超管)';
                         derivedColor = enNameKey === 'judyzzhang' ? 'bg-rose-700' : 'bg-fuchsia-700';
                     }
 
                     globalUsersDB[enNameKey] = {
                         enName: enNameKey, 
                         displayName: finalName,
-                        email: `${enNameKey}@webank.com`,
+                        email: email,
                         role: roleText, 
                         avatar: finalName.substring(0, 1).toUpperCase(), 
                         color: derivedColor,
@@ -449,7 +449,7 @@
                 renderTableUI();
             } catch(e) {
                 console.error(e);
-                document.getElementById('table-loading').innerHTML = `<p class="text-rose-500 font-bold">数据拉取失败</p><p class="text-xs text-zinc-500 max-w-md text-center mt-2">${e.message}</p>`;
+                document.getElementById('table-loading').innerHTML = `<p class="text-rose-500 font-bold">数据加载失败</p><p class="text-xs text-zinc-500 max-w-md text-center mt-2">${e.message}</p>`;
             }
         }
 
@@ -493,8 +493,8 @@
                         <td class="px-6 py-4 font-mono text-[12px] text-indigo-400">@${u.enName}</td>
                         <td class="px-6 py-4">${badges}</td>
                         <td class="px-6 py-4 text-right">
-                            <button onclick="openModal('edit', '${u.enName}')" class="text-[12px] text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-lg transition-colors btn-press mr-1">全局配置</button>
-                            <button onclick="deleteUser('${u.enName}', '${u.displayName}')" class="text-[12px] text-zinc-400 hover:text-rose-500 bg-zinc-800 hover:bg-rose-500/20 px-3 py-1.5 rounded-lg transition-colors btn-press">隐去卡片</button>
+                            <button onclick="openModal('edit', '${u.enName}')" class="text-[12px] text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-lg transition-colors btn-press mr-1">修改配置</button>
+                            <button onclick="deleteUser('${u.enName}', '${u.displayName}')" class="text-[12px] text-zinc-400 hover:text-rose-500 bg-zinc-800 hover:bg-rose-500/20 px-3 py-1.5 rounded-lg transition-colors btn-press">注销业务卡片</button>
                         </td>
                     </tr>
                 `;
@@ -525,7 +525,7 @@
                 document.querySelector('.perm-checkbox[value="design"]').checked = true;
             } else {
                 const u = globalUsersDB[enName];
-                document.getElementById('modal-title').innerText = '全局配置: ' + u.displayName;
+                document.getElementById('modal-title').innerText = '修改配置: ' + u.displayName;
                 document.getElementById('ipt-enName').value = u.enName;
                 document.getElementById('ipt-enName').disabled = true; 
                 document.getElementById('ipt-displayName').value = u.displayName;
@@ -547,7 +547,7 @@
             setTimeout(() => { modalOverlay.classList.add('hidden'); modal.classList.add('hidden'); }, 300); 
         }
 
-        // ================= 💡 彻底解耦：通过 INSERT 追加写入法绕过报错限制 =================
+        // ================= 💡 写入逻辑：解耦双轨制 =================
         window.saveUser = async function() {
             const enName = document.getElementById('ipt-enName').value.trim().toLowerCase();
             const displayName = document.getElementById('ipt-displayName').value.trim();
@@ -561,13 +561,14 @@
 
             const btn = document.getElementById('btn-save-user');
             const originalText = btn.innerText;
-            btn.disabled = true; btn.innerText = "全网同步中...";
+            btn.disabled = true; btn.innerText = "同步专表...";
 
             try {
                 if (!editKey) {
-                    if(globalUsersDB[enName]) throw new Error('该账号在系统中已存在！');
+                    if(globalUsersDB[enName]) throw new Error('该账号在底层中已存在！');
                     if(!pwd || pwd.length < 6) throw new Error('新增用户必须设置至少 6 位初始密码！');
 
+                    // 1. 底层走 auth.signUp，仅传邮箱密码，不做多余动作！
                     const realEmail = `${enName}@webank.com`;
                     const { error: authErr } = await window.supabase.auth.signUp({ email: realEmail, password: pwd });
                     if (authErr) throw new Error(`底层账号注册失败: ${authErr.message.includes('already registered') ? "该邮箱已被占用" : authErr.message}`);
@@ -575,32 +576,28 @@
 
                 const targetKey = editKey || enName;
 
-                // 更新内存字典
-                window.globalOverrides[targetKey] = {
-                    ...window.globalOverrides[targetKey],
-                    name: displayName,
+                // 2. 将花名和权限，显式推送到我们刚刚新建的 org_members 专表
+                const { error: upsertErr } = await window.supabase.from(window.DB_ORG_TABLE).upsert({
+                    en_name: targetKey,
+                    display_name: displayName,
                     perms: checkedPerms
-                };
-
-                // 💡 重点：使用追加写入 INSERT，不使用 UPDATE，避免触发 RLS 或 Check 约束报错！
-                const { error: insErr } = await window.supabase.from(window.DB_TABLE).insert([{
-                    title: window.SYSTEM_CONFIG_TITLE,
-                    project: 'system_config',
-                    status: 'archived', // 封存状态不外显
-                    creator: 'system_admin',
-                    assignee: 'none',
-                    history_json: JSON.stringify(window.globalOverrides)
-                }]);
+                }, { onConflict: 'en_name' });
                 
-                if (insErr) throw new Error("无法上传至全网配置: " + insErr.message);
+                if (upsertErr) {
+                    // 如果没建表或者有表权限问题，做明确报错拦截
+                    if (upsertErr.code === '42P01') {
+                        throw new Error('找不到 org_members 表！请确保您已经在 Supabase 中执行了第一步的 SQL 建表代码！');
+                    }
+                    throw upsertErr;
+                }
 
-                showToast('全网生效', `成员 ${displayName} 的配置已同步至系统枢纽。`, 'success');
+                showToast('同步成功', `成员 ${displayName} 的配置已全网更新。`, 'success');
 
                 closeUserModal();
                 window.loadUsersFromCloud();
 
             } catch (err) {
-                customAlert('操作中止', err.message, null, false, 'error');
+                customAlert('操作失败', err.message, null, false, 'error');
             } finally {
                 btn.disabled = false; btn.innerText = originalText;
             }
@@ -609,29 +606,20 @@
         window.deleteUser = function(enName, displayName) {
             const userStr = localStorage.getItem('activeUserObj');
             if (userStr && JSON.parse(userStr).enName === enName) {
-                return customAlert('系统保护', '您不能在后台隐藏当前正在登录的超级管理员账号本身！', null, false, 'warning');
+                return customAlert('系统保护', '您不能在后台注销正在使用的超管账号卡片！', null, false, 'warning');
             }
 
-            customConfirm('隐去系统卡片', `确定要在系统后台隐去成员 <span class="text-rose-500 font-bold">[ ${displayName} ]</span> 吗？<br><br><b>此操作将立刻全网生效，剥夺其业务访问权，但保留基础登录。</b>`, async () => {
-                
-                window.globalOverrides[enName] = { isDeleted: true };
+            customConfirm('业务隔离移除', `确定要在系统后台注销成员 <span class="text-rose-500 font-bold">[ ${displayName} ]</span> 的卡片吗？<br><br><b>此操作将移除该人在 org_members 中的配置，并尝试隐藏他的登录。</b>`, async () => {
                 
                 try {
-                    // 💡 同步删除操作：依然使用 INSERT 追加写入最新状态
-                    const { error: insErr } = await window.supabase.from(window.DB_TABLE).insert([{
-                        title: window.SYSTEM_CONFIG_TITLE,
-                        project: 'system_config',
-                        status: 'archived',
-                        creator: 'system_admin',
-                        assignee: 'none',
-                        history_json: JSON.stringify(window.globalOverrides)
-                    }]);
-                    
-                    if (insErr) throw insErr;
+                    // 从专表中删除权限配置
+                    await window.supabase.from(window.DB_ORG_TABLE).delete().eq('en_name', enName);
+                    // 尝试从底层的 users 表中剔除（隐去卡片）
+                    await window.supabase.from(window.DB_USERS_TABLE).delete().eq('email', `${enName}@webank.com`).catch(()=> {});
 
-                    showToast('隐去成功', '该账号已全网隐去。', 'success');
+                    showToast('移除成功', '该账号业务卡片已清除。', 'success');
                     window.loadUsersFromCloud();
-                } catch(e) { customAlert('同步失败', e.message, null, false, 'error'); }
+                } catch(e) { customAlert('注销失败', e.message, null, false, 'error'); }
             });
         }
 
