@@ -79,9 +79,23 @@
 
             if (error) { alert("账号或密码错误！"); btn.innerText = "进入控制台"; btn.disabled = false; return; }
 
-            // 核心要求：所有人登录后不论权限，统一首站进入需求大厅 index.html
-            localStorage.setItem('activeUserObj', JSON.stringify(data.user.user_metadata));
-            window.location.href = 'index.html'; 
+            // 💡 提取用户登录配置
+            let userData = data.user.user_metadata || {};
+            
+            // 💡 强行补全底层 enName（防范新注册账号由于解耦导致 metadata 丢失信息，影响后续页面的判断）
+            if (!userData.enName) userData.enName = enName;
+            
+            localStorage.setItem('activeUserObj', JSON.stringify(userData));
+
+            btn.innerText = "跳转中...";
+
+            // 💡 核心路由拦截：如果登录者是部门领导 judyzzhang，直接重定向到全局大盘！
+            if (enName === 'judyzzhang') {
+                window.location.href = 'manager-workspace.html';
+            } else {
+                // 其他所有人统一进入需求大厅
+                window.location.href = 'index.html'; 
+            }
         }
     </script>
 </body>
