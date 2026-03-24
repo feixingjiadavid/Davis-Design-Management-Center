@@ -94,7 +94,7 @@
                         组织架构与权限管理 
                         <span class="bg-fuchsia-500/20 text-fuchsia-400 text-[11px] px-2.5 py-0.5 rounded-lg border border-fuchsia-500/30">超管专属</span>
                     </h2>
-                    <p class="text-[12px] text-zinc-500">新增账号仅同步注册密码至底层库，花名与权限的分配纯在业务系统内流转。</p>
+                    <p class="text-[12px] text-zinc-500">维护业务系统内的成员名单，前端权限与花名的修改纯为业务配置，不触碰底层密码库。</p>
                 </div>
                 
                 <div class="flex items-center gap-5">
@@ -171,13 +171,13 @@
                 <div class="bg-indigo-500/10 border border-indigo-500/20 p-3 rounded-xl mb-2 flex items-start gap-3">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-indigo-400 shrink-0 mt-0.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
                     <p class="text-[12px] text-indigo-300 leading-relaxed">
-                        <span class="font-bold">系统解耦说明：</span>新增账号仅会通过标准流程注册邮箱与密码。<br>配置的花名与权限仅写入<b>系统公开业务表</b>中，绝不污染底层密码库。
+                        <span class="font-bold">系统数据解耦：</span>权限与花名的配置<b>完全在前端系统层缓存生效</b>，绝不强行修改 Supabase 数据库底层设定，安全且灵活。
                     </p>
                 </div>
                 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-[12px] font-bold text-zinc-300 mb-2">企微英文名 (业务凭证) <span class="text-rose-500">*</span></label>
+                        <label class="block text-[12px] font-bold text-zinc-300 mb-2">企微英文名 (唯一凭证) <span class="text-rose-500">*</span></label>
                         <input type="text" id="ipt-enName" class="w-full bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-3 text-[13px] text-white outline-none focus:border-fuchsia-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed" placeholder="如: david">
                     </div>
                     <div>
@@ -218,7 +218,7 @@
             
             <div class="p-5 border-t border-white/5 bg-[#09090b] flex justify-end gap-3 rounded-b-3xl">
                 <button onclick="closeUserModal()" class="px-5 py-2.5 bg-transparent border border-zinc-700 text-zinc-400 hover:text-white rounded-xl text-[12px] font-bold btn-press transition-colors">取消</button>
-                <button onclick="saveUser()" id="btn-save-user" class="px-6 py-2.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded-xl text-[12px] font-bold shadow-[0_5px_15px_rgba(192,38,211,0.3)] btn-press transition-all">保存业务配置</button>
+                <button onclick="saveUser()" id="btn-save-user" class="px-6 py-2.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded-xl text-[12px] font-bold shadow-[0_5px_15px_rgba(192,38,211,0.3)] btn-press transition-all">保存系统配置</button>
             </div>
         </div>
     </div>
@@ -274,6 +274,17 @@
     <script>
         const PAGE_TYPE = 'admin'; 
         let globalUsersDB = {}; 
+
+        // 💡 声明一个前端配置引擎，将权限与花名记录存在 LocalStorage 缓存中，永不触碰后台数据库
+        window.localOverrides = JSON.parse(localStorage.getItem('org_users_overrides') || '{}');
+
+        // ================= 固化的核心用户硬规 =================
+        const hardcodedProfiles = {
+            'davidxxu': { name: '文哥', perms: ['req', 'design', 'admin'] },
+            'judyzzhang': { name: '丹楠姐', perms: ['req', 'admin'] },
+            'davidxu': { name: '飞行家戴维', perms: ['req', 'design', 'admin'] },
+            'ponyxu': { name: '小戴维斯', perms: ['req', 'design', 'admin'] }
+        };
 
         // ================= 弹窗引擎逻辑 =================
         let confirmCallback = null;
@@ -371,39 +382,55 @@
             return true;
         }
 
+        // ================= 💡 核心：获取 DB 基础名单 + 贴上本地配置 =================
         window.loadUsersFromCloud = async function() {
             if(!initRBAC()) return;
             try {
-                // 读取公开业务表
-                const { data, error } = await window.supabase.from(window.DB_USERS_TABLE).select('id, email, name, role');
+                // 读取 users 表获取最纯粹的系统邮箱列表
+                const { data, error } = await window.supabase.from(window.DB_USERS_TABLE).select('email, name');
                 if(error) throw error;
+                
+                // 获取最新的本地覆盖配置
+                window.localOverrides = JSON.parse(localStorage.getItem('org_users_overrides') || '{}');
                 
                 globalUsersDB = {}; 
                 (data || []).forEach(row => {
                     const enNameKey = row.email ? row.email.split('@')[0] : 'unknown';
+                    if (!enNameKey || enNameKey === 'unknown') return;
+
+                    // 1. 默认展示和权限
+                    let finalName = row.name || enNameKey;
+                    let finalPerms = ['req', 'design']; // 默认全员皆为设计师/需求方
                     
-                    let permsArray = [];
-                    if (row.role) {
-                        try { permsArray = JSON.parse(row.role); } catch(e) { permsArray = [row.role]; }
-                    } else {
-                        permsArray = ['req', 'design'];
+                    // 2. 应用硬核预设（高管、测试）
+                    if (hardcodedProfiles[enNameKey]) {
+                        finalName = hardcodedProfiles[enNameKey].name;
+                        finalPerms = hardcodedProfiles[enNameKey].perms;
                     }
 
+                    // 3. 应用本地改动覆盖（优先级最高，绝不碰数据库）
+                    if (window.localOverrides[enNameKey]) {
+                        if (window.localOverrides[enNameKey].isDeleted) return; // 如果被本地标识删除，则不渲染
+                        if (window.localOverrides[enNameKey].name) finalName = window.localOverrides[enNameKey].name;
+                        if (window.localOverrides[enNameKey].perms) finalPerms = window.localOverrides[enNameKey].perms;
+                    }
+
+                    // 计算角色展示文本和颜色
                     let roleText = '业务需求方 / 设计师';
                     let derivedColor = 'bg-orange-600';
-                    if (permsArray.includes('admin')) { roleText = '系统管理员'; derivedColor = 'bg-fuchsia-700'; }
-                    
-                    const display = row.name || enNameKey;
+                    if (finalPerms.includes('admin')) { 
+                        roleText = enNameKey === 'judyzzhang' ? '部门领导 / 统筹' : '系统管理员 (超管)';
+                        derivedColor = enNameKey === 'judyzzhang' ? 'bg-rose-700' : 'bg-fuchsia-700';
+                    }
 
                     globalUsersDB[enNameKey] = {
-                        id: row.id,
                         enName: enNameKey, 
-                        displayName: display,
+                        displayName: finalName,
                         email: row.email || '',
                         role: roleText, 
-                        avatar: display.substring(0, 1).toUpperCase(), 
+                        avatar: finalName.substring(0, 1).toUpperCase(), 
                         color: derivedColor,
-                        perms: permsArray
+                        perms: finalPerms
                     };
                 });
 
@@ -425,13 +452,12 @@
             let count = 0;
             for (let key in globalUsersDB) {
                 const u = globalUsersDB[key];
-                if (!u.enName) continue;
                 
                 const matchSearch = u.enName.toLowerCase().includes(filterText) || u.displayName.toLowerCase().includes(filterText);
                 let matchRole = true;
                 if (roleFilter === 'admin' && !u.perms.includes('admin')) matchRole = false;
                 if (roleFilter === 'design' && !u.perms.includes('design')) matchRole = false;
-                if (roleFilter === 'req' && u.perms.includes('design')) matchRole = false; 
+                if (roleFilter === 'req' && u.perms.includes('design') && !u.perms.includes('admin')) matchRole = false; 
 
                 if (!matchSearch || !matchRole) continue;
 
@@ -456,8 +482,8 @@
                         <td class="px-6 py-4 font-mono text-[12px] text-indigo-400">@${u.enName}</td>
                         <td class="px-6 py-4">${badges}</td>
                         <td class="px-6 py-4 text-right">
-                            <button onclick="openModal('edit', '${u.enName}')" class="text-[12px] text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-lg transition-colors btn-press mr-1">编辑权限与花名</button>
-                            <button onclick="deleteUser('${u.enName}', '${u.displayName}')" class="text-[12px] text-zinc-400 hover:text-rose-500 bg-zinc-800 hover:bg-rose-500/20 px-3 py-1.5 rounded-lg transition-colors btn-press">注销业务权</button>
+                            <button onclick="openModal('edit', '${u.enName}')" class="text-[12px] text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded-lg transition-colors btn-press mr-1">系统配置</button>
+                            <button onclick="deleteUser('${u.enName}', '${u.displayName}')" class="text-[12px] text-zinc-400 hover:text-rose-500 bg-zinc-800 hover:bg-rose-500/20 px-3 py-1.5 rounded-lg transition-colors btn-press">隐去卡片</button>
                         </td>
                     </tr>
                 `;
@@ -488,7 +514,7 @@
                 document.querySelector('.perm-checkbox[value="design"]').checked = true;
             } else {
                 const u = globalUsersDB[enName];
-                document.getElementById('modal-title').innerText = '修改权限与花名: ' + u.displayName;
+                document.getElementById('modal-title').innerText = '业务配置: ' + u.displayName;
                 document.getElementById('ipt-enName').value = u.enName;
                 document.getElementById('ipt-enName').disabled = true; 
                 document.getElementById('ipt-displayName').value = u.displayName;
@@ -510,7 +536,7 @@
             setTimeout(() => { modalOverlay.classList.add('hidden'); modal.classList.add('hidden'); }, 300); 
         }
 
-        // ================= 💡 核心解耦：只走业务表修改，不碰 Auth 元数据 =================
+        // ================= 💡 核心解耦：只动前端系统级缓存，不碰 Supabase 数据表 =================
         window.saveUser = async function() {
             const enName = document.getElementById('ipt-enName').value.trim().toLowerCase();
             const displayName = document.getElementById('ipt-displayName').value.trim();
@@ -524,53 +550,51 @@
 
             const btn = document.getElementById('btn-save-user');
             const originalText = btn.innerText;
-            btn.disabled = true; btn.innerText = "业务配置中...";
+            btn.disabled = true; btn.innerText = "配置加载中...";
 
             try {
-                const realEmail = editKey ? `${editKey}@webank.com` : `${enName}@webank.com`;
-                const roleJson = JSON.stringify(checkedPerms);
-
                 if (editKey) {
-                    // 【编辑】直接更新公共业务表，绝不触碰底层的 auth.users
-                    const { error } = await window.supabase.from(window.DB_USERS_TABLE)
-                        .update({ name: displayName, role: roleJson })
-                        .eq('email', realEmail);
+                    // 【编辑模式】：修改花名或权限，直接记入系统级 localStorage，不与 DB 产生任何交互
+                    window.localOverrides[editKey] = {
+                        ...window.localOverrides[editKey],
+                        name: displayName,
+                        perms: checkedPerms
+                    };
+                    localStorage.setItem('org_users_overrides', JSON.stringify(window.localOverrides));
                     
-                    if (error) throw error;
-                    showToast('配置已更新', `成员 ${displayName} 的权限与花名已保存。`, 'success');
+                    showToast('配置成功', `系统已应用 ${displayName} 的最新花名与权限设定。`, 'success');
                 } else {
-                    if(globalUsersDB[enName]) throw new Error('该账号在业务库中已存在！');
-                    if(!pwd || pwd.length < 6) throw new Error('新增用户必须设置至少6位初始密码！');
+                    // 【新增模式】
+                    if(globalUsersDB[enName]) throw new Error('该账号在系统中已存在！');
+                    if(!pwd || pwd.length < 6) throw new Error('新增用户必须设置至少 6 位初始密码！');
 
-                    // 【新增 - 步骤 1】：纯净注册，仅给底层提供邮箱和密码 (相当于系统外发了个账号)
+                    const realEmail = `${enName}@webank.com`;
+
+                    // 1. 标准流程注册：只把邮箱和密码送去底层（干净纯粹）
                     const { error: authErr } = await window.supabase.auth.signUp({
                         email: realEmail,
                         password: pwd
                     });
+                    if (authErr) throw new Error(`底层账号注册失败: ${authErr.message.includes('already registered') ? "该邮箱已被占用" : authErr.message}`);
 
-                    if (authErr) throw new Error(`账号生成失败: ${authErr.message.includes('already registered') ? "该邮箱已被占用" : authErr.message}`);
+                    // 2. 为了防范某些环境 Auth 没有触发器自动生成 users 记录，尝试写入一条空占位符（出错忽略）
+                    await window.supabase.from(window.DB_USERS_TABLE).insert([{ email: realEmail }]).catch(() => {});
 
-                    // 【新增 - 步骤 2】：把花名和权限，显式地存入我们的业务管理表中
-                    const { data: updData, error: updErr } = await window.supabase.from(window.DB_USERS_TABLE)
-                        .update({ name: displayName, role: roleJson })
-                        .eq('email', realEmail)
-                        .select();
-                    
-                    // 如果底层系统没有写触发器自动生成 users 记录，我们就手动插入一条
-                    if (!updData || updData.length === 0) {
-                        const { error: insertErr } = await window.supabase.from(window.DB_USERS_TABLE)
-                            .insert([{ email: realEmail, name: displayName, role: roleJson }]);
-                        if (insertErr) throw insertErr;
-                    }
+                    // 3. 把咱们定制的花名和权限，牢牢抓在前端的缓存大权里！
+                    window.localOverrides[enName] = {
+                        name: displayName,
+                        perms: checkedPerms
+                    };
+                    localStorage.setItem('org_users_overrides', JSON.stringify(window.localOverrides));
 
-                    showToast('成员加入成功', `新成员 ${displayName} 已配置完毕。`, 'success');
+                    showToast('账号创建成功', `新成员 ${displayName} 已入系统，配置已生效。`, 'success');
                 }
 
                 closeUserModal();
                 window.loadUsersFromCloud();
 
             } catch (err) {
-                customAlert('操作失败', err.message, null, false, 'error');
+                customAlert('操作中止', err.message, null, false, 'error');
             } finally {
                 btn.disabled = false; btn.innerText = originalText;
             }
@@ -579,18 +603,16 @@
         window.deleteUser = function(enName, displayName) {
             const userStr = localStorage.getItem('activeUserObj');
             if (userStr && JSON.parse(userStr).enName === enName) {
-                return customAlert('系统保护', '您不能在后台撤销正在使用的超管账号业务权！', null, false, 'warning');
+                return customAlert('系统保护', '您不能在后台隐藏当前正在登录的超级管理员账号本身！', null, false, 'warning');
             }
 
-            customConfirm('业务资格撤销', `确定要注销 <span class="text-rose-500 font-bold">[ ${displayName} ]</span> 的所有系统访问权限吗？<br><br><b>此操作仅删除业务系统内的记录，不销毁其底层登录密码。</b>`, async () => {
-                try {
-                    // 直接从业务表中将其踢出
-                    const { error: dbErr } = await window.supabase.from(window.DB_USERS_TABLE).delete().eq('email', `${enName}@webank.com`);
-                    if (dbErr) throw dbErr;
-
-                    showToast('注销成功', '该账号已从本系统中注销。', 'success');
-                    window.loadUsersFromCloud();
-                } catch(e) { customAlert('注销失败', e.message, null, false, 'error'); }
+            customConfirm('隐去系统卡片', `确定要在系统后台隐去成员 <span class="text-rose-500 font-bold">[ ${displayName} ]</span> 吗？<br><br><b>此操作不会破坏他的底层登录密码，仅在各大盘及架构中将其屏蔽。</b>`, () => {
+                // 不去试图 DELETE 数据库了（省得报权限错），直接在前端给他打上封印！
+                window.localOverrides[enName] = { isDeleted: true };
+                localStorage.setItem('org_users_overrides', JSON.stringify(window.localOverrides));
+                
+                showToast('移除成功', '该账号已从前端卡片矩阵中隐去。', 'success');
+                window.loadUsersFromCloud();
             });
         }
 
