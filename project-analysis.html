@@ -262,7 +262,7 @@
         let currentView = 'month'; 
         let currentDate = new Date();
         let myAllTasks = []; 
-        let systemUsers = []; 
+        let systemUsers = []; // 💡 存储系统里所有具备设计/管理权限的真实名单
         let allProjects = [];
         let currentSelectedProject = 'all'; 
         let dropdownData = []; 
@@ -459,7 +459,7 @@
             return false;
         }
 
-        // ================= 💡 核心：全量拉取数据并初始化名单 =================
+        // ================= 💡 核心：全量拉取数据并初始化名单 (修改为 user_profiles 表) =================
         window.loadDashboardData = async function(isSilent = false) {
             if(!initRBAC()) return;
             if(!window.supabase) return;
@@ -468,30 +468,21 @@
             if(syncDot && !isSilent) syncDot.classList.remove('hidden');
 
             try {
-                // 1. 获取全盘用户库（过滤出所有含设计或管理权限的人员，杜绝 0 工时盲区）
-                const { data: users, error: uErr } = await window.supabase.from('users').select('*');
+                // 1. 获取全盘用户库
+                // 修复：从 user_profiles 视图/表 中读取真实的花名册！
+                const { data: users, error: uErr } = await window.supabase.from('user_profiles').select('*');
                 if (uErr) throw uErr;
 
                 systemUsers = [];
                 if (users) {
                     users.forEach(u => {
-                        let p = [];
-                        if (typeof u.perms === 'string') {
-                            try { p = JSON.parse(u.perms); } catch(e){ p = u.perms.split(','); }
-                        } else if (Array.isArray(u.perms)) {
-                            p = u.perms;
-                        }
-                        if (!p) p = [];
-
-                        // 核心：强制抓出系统中所有有潜力接单的人
-                        if(p.includes('design') || p.includes('admin') || u.enName === 'davidxxu' || u.enName === 'judyzzhang') {
-                            const en = (u.enName || (u.email ? u.email.split('@')[0] : '')).toLowerCase();
-                            if(en && !systemUsers.some(x => x.en === en)) {
-                                systemUsers.push({
-                                    en: en,
-                                    display: u.name || u.cnName || u.enName || en
-                                });
-                            }
+                        const en = (u.en_name || '').toLowerCase();
+                        // 💡 根据需求：所有人默认都是需求方和设计师，直接全部拉入大盘名单！不校验 perms！
+                        if(en && !systemUsers.some(x => x.en === en)) {
+                            systemUsers.push({
+                                en: en,
+                                display: u.display_name || u.cn_name || u.en_name || en
+                            });
                         }
                     });
                 }
@@ -707,7 +698,7 @@
             });
 
             if (sortedPpl.length === 0) {
-                pplContainer.innerHTML = '<div class="text-center py-20 text-zinc-500 text-sm">系统内暂无配置设计师/管理账号</div>';
+                pplContainer.innerHTML = '<div class="text-center py-20 text-zinc-500 text-sm">系统内暂无人员配置数据</div>';
             } else {
                 let pHtml = '';
                 sortedPpl.forEach((p, index) => {
