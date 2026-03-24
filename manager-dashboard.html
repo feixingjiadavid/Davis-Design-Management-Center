@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>团队效能大盘 - 戴维斯设计需求管理中心</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
         body { background-color: #09090b; color: #e4e4e7; font-family: 'Inter', system-ui, sans-serif; }
@@ -19,6 +20,15 @@
         @keyframes dropIn { 0% { opacity: 0; transform: scaleY(0.95) translateY(-5px); } 100% { opacity: 1; transform: scaleY(1) translateY(0); } }
         .toast-slide-in { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        
+        /* 增加毛玻璃图表容器样式 */
+        .chart-container {
+            background: rgba(18, 18, 23, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 24px;
+            box-shadow: 0 20px 40px -15px rgba(0,0,0,0.5);
+        }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-fuchsia-500/30 text-zinc-300">
@@ -82,33 +92,14 @@
         <header class="h-[88px] px-10 flex justify-between items-center shrink-0 border-b border-white/5 bg-[#09090b]/80 backdrop-blur-xl z-20">
             <div>
                 <h2 class="text-2xl font-bold text-white tracking-tight mb-1.5 flex items-center gap-2">
-                    团队产能与效能大盘
+                    团队效能大盘
                     <span class="bg-fuchsia-500/20 text-fuchsia-400 text-[11px] px-2.5 py-0.5 rounded-lg border border-fuchsia-500/30 ml-2">管理视角</span>
                     <div id="sync-indicator" class="hidden w-2 h-2 rounded-full bg-emerald-500 animate-pulse ml-2" title="云端连接中..."></div>
                 </h2>
-                <p class="text-xs text-zinc-500">直观呈现团队当期产出与负荷情况，支持多页签与分页检索。</p>
+                <p class="text-xs text-zinc-500">洞察全盘业务趋势，聚焦宏观效能与质量分析。</p>
             </div>
             
             <div class="flex items-center gap-5 relative">
-                <div class="flex bg-[#121217] border border-white/10 rounded-xl p-1 shadow-inner">
-                    <button id="btn-view-week" onclick="switchView('week')" class="px-5 py-1.5 text-[13px] font-medium text-zinc-400 hover:text-white transition-colors rounded-lg btn-press">周度</button>
-                    <button id="btn-view-month" onclick="switchView('month')" class="px-5 py-1.5 text-[13px] font-bold bg-fuchsia-500/20 text-fuchsia-400 border border-fuchsia-500/20 rounded-lg shadow-sm cursor-default">月度</button>
-                    <button id="btn-view-year" onclick="switchView('year')" class="px-5 py-1.5 text-[13px] font-medium text-zinc-400 hover:text-white transition-colors rounded-lg btn-press">年度</button>
-                </div>
-
-                <div class="flex gap-2">
-                    <div class="relative" id="date-selector-wrapper">
-                        <button onclick="toggleDropdown('date-dropdown')" class="px-6 py-2 bg-[#121217] border border-white/5 rounded-xl text-[15px] font-bold text-white min-w-[160px] text-center shadow-inner hover:bg-white/5 transition-colors btn-press flex items-center justify-center gap-2">
-                            <span id="current-date-text">计算中...</span>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                        </button>
-                        <div id="date-dropdown" class="hidden absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-[#1a1a24] border border-white/10 rounded-2xl shadow-2xl z-50 dropdown-enter max-h-64 overflow-y-auto custom-scrollbar">
-                        </div>
-                    </div>
-                </div>
-                
-                <button onclick="jumpToCurrent()" class="px-4 py-2 bg-fuchsia-600/20 text-fuchsia-400 font-bold border border-fuchsia-500/20 rounded-xl hover:bg-fuchsia-500/30 transition-colors btn-press text-[12px]" id="btn-jump-current">回到本期</button>
-
                 <div class="w-px h-8 bg-white/10 mx-1"></div>
 
                 <div class="relative z-[120]" id="notif-wrapper">
@@ -138,76 +129,119 @@
             </div>
         </header>
 
-        <div class="flex-1 p-8 md:p-10 overflow-y-hidden flex flex-col z-10 relative">
+        <div class="flex-1 p-8 md:p-10 overflow-y-auto custom-scrollbar relative z-10">
             <div id="dashboard-loading" class="absolute inset-0 bg-[#0c0c0e]/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
                 <svg class="animate-spin h-8 w-8 text-fuchsia-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                <p class="text-xs text-zinc-500 font-bold tracking-widest uppercase">SYNCING GLOBAL DATA...</p>
+                <p class="text-xs text-zinc-500 font-bold tracking-widest uppercase">GENERATING ANALYTICS...</p>
             </div>
 
-            <div class="flex gap-6 mb-8 flex-wrap shrink-0">
-                <div class="flex-1 bg-[#16161d] border border-white/5 rounded-3xl p-5 flex items-center gap-5 min-w-[200px] shadow-lg">
-                    <div class="w-14 h-14 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            <div class="grid grid-cols-4 gap-6 mb-8">
+                <div class="chart-container p-6 flex flex-col justify-between">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="w-10 h-10 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                        </div>
+                        <span class="text-[10px] font-bold px-2 py-1 bg-white/5 rounded text-zinc-400">系统全周期</span>
                     </div>
                     <div>
-                        <p class="text-[12px] text-zinc-500 font-bold mb-1">进行中项目</p>
-                        <p class="text-[32px] font-black text-emerald-400 font-mono leading-none" id="stat-ongoing">0</p>
+                        <p class="text-[12px] text-zinc-500 font-bold mb-1">历史累计工单总量</p>
+                        <p class="text-[32px] font-black text-white font-mono leading-none" id="stat-total-tasks">0</p>
                     </div>
                 </div>
 
-                <div class="flex-1 bg-[#16161d] border border-white/5 rounded-3xl p-5 flex items-center gap-5 min-w-[200px] shadow-lg">
-                    <div class="w-14 h-14 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                <div class="chart-container p-6 flex flex-col justify-between">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 border border-emerald-500/20">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                        </div>
                     </div>
                     <div>
-                        <p class="text-[12px] text-zinc-500 font-bold mb-1">待响应/审批数</p>
-                        <p class="text-[32px] font-black text-amber-400 font-mono leading-none" id="stat-pending">0</p>
+                        <p class="text-[12px] text-zinc-500 font-bold mb-1">平均交付周期 (SLA)</p>
+                        <p class="text-[32px] font-black text-emerald-400 font-mono leading-none flex items-baseline gap-1">
+                            <span id="stat-avg-time">0</span><span class="text-sm text-zinc-500 font-bold">天/单</span>
+                        </p>
                     </div>
                 </div>
-                
-                <div class="flex-[1.5] bg-[#16161d] border border-white/5 rounded-3xl p-5 flex flex-col justify-center min-w-[240px] shadow-lg relative overflow-hidden group">
-                    <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-indigo-500 group-hover:w-2.5 transition-all"></div>
-                    <div class="flex items-center gap-5">
-                        <div class="w-14 h-14 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20 shrink-0">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+
+                <div class="chart-container p-6 flex flex-col justify-between relative overflow-hidden group">
+                    <div class="absolute right-0 top-0 bottom-0 w-1 bg-amber-500 group-hover:w-2 transition-all"></div>
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-400 border border-amber-500/20">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M2.13 15.57a9 9 0 1 0 3.1-8.52L2.5 9"></path></svg>
                         </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-[12px] text-zinc-500 font-bold mb-1">累计完结工单 <span class="text-[10px] font-normal">(本期)</span></p>
-                            <div class="flex items-end gap-6">
-                                <p class="text-[32px] font-black text-indigo-400 font-mono leading-none" id="stat-completed-month">0</p>
-                                <div class="flex gap-4 text-[11px] text-zinc-500 pb-1">
-                                    <span class="flex items-center gap-1">本周: <b id="stat-completed-week" class="text-zinc-300 font-mono">0</b></span>
-                                    <span class="flex items-center gap-1">全年: <b id="stat-completed-year" class="text-zinc-300 font-mono">0</b></span>
-                                </div>
+                    </div>
+                    <div>
+                        <p class="text-[12px] text-zinc-500 font-bold mb-1">方案打回/重修率</p>
+                        <p class="text-[32px] font-black text-amber-400 font-mono leading-none" id="stat-rework-rate">0%</p>
+                    </div>
+                </div>
+
+                <div class="chart-container p-6 flex flex-col justify-between">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-400 border border-rose-500/20">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-[12px] text-zinc-500 font-bold mb-1">强行终止单据</p>
+                        <p class="text-[32px] font-black text-rose-400 font-mono leading-none" id="stat-terminated">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-6 mb-8">
+                <div class="col-span-2 chart-container p-6">
+                    <h3 class="text-[15px] font-bold text-white mb-2 flex items-center gap-2">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-fuchsia-400"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
+                        各业务线需求占比分布
+                    </h3>
+                    <p class="text-xs text-zinc-500 mb-6">解析系统内各部门及需求类型的投产比。</p>
+                    <div id="chart-distribution" class="w-full h-[300px]"></div>
+                </div>
+
+                <div class="col-span-1 chart-container p-0 flex flex-col relative overflow-hidden">
+                    <div class="absolute inset-0 bg-gradient-to-br from-fuchsia-900/20 to-transparent z-0 pointer-events-none"></div>
+                    <div class="p-6 border-b border-white/5 relative z-10 flex items-center gap-3">
+                        <div class="p-2 bg-fuchsia-500/20 rounded-lg border border-fuchsia-500/30">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d946ef" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-[15px] font-bold text-white leading-tight">行政统筹效能之星</h3>
+                            <p class="text-[11px] text-zinc-400">保障系统运转的幕后英雄</p>
+                        </div>
+                    </div>
+                    
+                    <div class="p-6 flex-1 flex flex-col justify-center relative z-10">
+                        <div class="flex flex-col items-center text-center space-y-4">
+                            <div class="w-20 h-20 rounded-full bg-zinc-800 border-4 border-[#18181b] shadow-[0_0_25px_rgba(217,70,239,0.2)] flex items-center justify-center relative">
+                                <span class="text-2xl font-black text-white">AD</span>
+                                <div class="absolute -bottom-2 bg-fuchsia-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/20 shadow-md">卓越维护</div>
+                            </div>
+                            <div>
+                                <h4 class="text-lg font-bold text-white mb-1">行政服务运营组</h4>
+                                <p class="text-[12px] text-zinc-400 leading-relaxed">感谢行政与系统保障人员的高效统筹！<br>系统数据的精准归档、权限的有序流转以及流程的顺畅督办，离不开你们的默默支持与卓越响应。</p>
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <div class="flex-1 flex gap-10 min-h-0">
-                <div class="flex-[2] flex flex-col bg-[#121217]/50 border border-white/5 rounded-3xl p-6 shadow-xl relative min-w-0">
-                    <div class="flex items-center gap-6 mb-4 border-b border-white/10 px-2 shrink-0">
-                        <button onclick="window.switchTab('ongoing')" id="tab-ongoing" class="text-[14px] font-bold text-emerald-400 border-b-2 border-emerald-500 pb-3 flex items-center gap-2 transition-colors btn-press">
-                            <span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></span>流转中工单 (<span id="tab-count-ongoing" class="font-mono">0</span>)
-                        </button>
-                        <button onclick="window.switchTab('completed')" id="tab-completed" class="text-[14px] font-bold text-zinc-500 border-b-2 border-transparent pb-3 flex items-center gap-2 hover:text-zinc-300 transition-colors btn-press">
-                            <span class="w-2 h-2 rounded-full bg-zinc-500"></span>已完结/归档 (<span id="tab-count-completed" class="font-mono">0</span>)
-                        </button>
-                    </div>
-                    <div class="flex-1 flex flex-col min-h-0 relative">
-                        <div class="absolute inset-0 overflow-y-auto custom-scrollbar pr-4 space-y-4" id="tasks-list-container"></div>
-                    </div>
-                    <div class="pt-4 mt-2 border-t border-white/10 flex justify-end items-center gap-3 shrink-0" id="pagination-controls"></div>
-                </div>
-
-                <div class="flex-[1] flex flex-col">
-                    <div class="bg-[#121217] border border-white/5 rounded-3xl p-6 h-full flex flex-col shadow-2xl">
-                        <h3 class="text-[15px] font-bold text-white mb-6">实时资源池监控 <span class="text-xs text-zinc-500 font-normal ml-1">(基于进行中工单)</span></h3>
-                        <div class="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2" id="resource-pool"></div>
+                    <div class="bg-white/5 py-3 text-center border-t border-white/5 text-[11px] text-zinc-500 font-mono z-10">
+                        SYSTEM OPERATION EXCELLENCE
                     </div>
                 </div>
             </div>
+
+            <div class="chart-container p-6 w-full">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h3 class="text-[15px] font-bold text-white mb-1 flex items-center gap-2">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-sky-400"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                            需求吞吐量与完结趋势
+                        </h3>
+                        <p class="text-xs text-zinc-500">观测全局任务的新增并发量与团队消化能力的剪刀差。</p>
+                    </div>
+                </div>
+                <div id="chart-trends" class="w-full h-[350px]"></div>
+            </div>
+
         </div>
     </main>
 
@@ -245,9 +279,8 @@
 
     <script>
         const PAGE_TYPE = 'admin'; 
-        window.ongoingTasksData = []; window.completedTasksData = []; window.currentTab = 'ongoing'; window.currentPage = 1; const ITEMS_PER_PAGE = 8;
-        let currentView = 'month'; let currentDate = new Date(); let dropdownData = [];
         
+        // RBAC 初始化验证 (保持不变)
         function initRBAC() {
             const userStr = localStorage.getItem('activeUserObj');
             if (!userStr) { window.location.href = 'login.html'; return false; }
@@ -287,178 +320,160 @@
             toast.classList.remove('hidden'); setTimeout(() => { toast.classList.add('hidden'); }, 3000);
         }
 
+        // ================= 数据加载与图表渲染逻辑 =================
+        let echartDist = null;
+        let echartTrends = null;
+
         window.loadDashboardData = async function(isSilent = false) {
             if(!initRBAC() || !window.supabase) return;
             const syncDot = document.getElementById('sync-indicator');
             if(syncDot && !isSilent) syncDot.classList.remove('hidden');
 
             try {
-                const { data: users } = await window.supabase.from('users').select('enName, name, email, perms');
-                let systemUsers = [];
-                if (users) {
-                    users.forEach(u => {
-                        let p = [];
-                        if (typeof u.perms === 'string') try { p = JSON.parse(u.perms); } catch(e){}
-                        else if (Array.isArray(u.perms)) p = u.perms;
-                        if(p.includes('design') || p.includes('admin')) {
-                            systemUsers.push({ en: (u.enName || '').toLowerCase(), display: u.name || u.enName });
-                        }
-                    });
-                }
-
-                const { data: tasks, error } = await window.supabase.from(window.DB_TABLE).select('id, title, project, status, creator, assignee, due_date, history_json, created_at').order('created_at', { ascending: false });
+                // 获取所有工单数据以供分析
+                const { data: tasks, error } = await window.supabase.from(window.DB_TABLE).select('*').order('created_at', { ascending: true });
                 if (error) throw error;
                 
-                window.ongoingTasksData = (tasks || []).filter(t => !['completed', 'archived', 'terminated'].includes(t.status));
-                window.completedTasksData = (tasks || []).filter(t => ['completed', 'archived', 'terminated'].includes(t.status));
-                const pendingCount = window.ongoingTasksData.filter(t => ['pending', 'pending_accept', 'pending_approval', 'reviewing'].includes(t.status)).length;
+                // --- 1. 顶部数据卡片计算 ---
+                document.getElementById('stat-total-tasks').innerText = tasks.length;
+                
+                const terminatedCount = tasks.filter(t => t.status === 'terminated').length;
+                document.getElementById('stat-terminated').innerText = terminatedCount;
 
-                let weekC = 0, monthC = 0, yearC = 0;
-                const now = new Date();
-                const startOfYear = new Date(now.getFullYear(), 0, 1);
-                const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-                const day = now.getDay() || 7;
-                const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day + 1);
-                startOfWeek.setHours(0,0,0,0);
+                let totalDays = 0;
+                let completedCount = 0;
+                let rejectedCount = 0;
 
-                window.completedTasksData.forEach(t => {
-                    let dStr = t.created_at;
-                    try {
-                        let hArr = JSON.parse(t.history_json || '[]');
-                        if(hArr.length > 0) dStr = hArr[hArr.length-1].time || hArr[hArr.length-1].created_at || dStr;
-                    } catch(e){}
-                    const cDate = new Date(dStr);
-                    if (cDate >= startOfWeek) weekC++;
-                    if (cDate >= startOfMonth) monthC++;
-                    if (cDate >= startOfYear) yearC++;
+                tasks.forEach(task => {
+                    // 计算打回率
+                    let hist = [];
+                    try { hist = JSON.parse(task.history_json || '[]'); } catch(e){}
+                    
+                    const hasReject = hist.some(h => h.action === 'reject_framework' || h.action === 'reject_draft' || h.is_rejected === true);
+                    if(hasReject) rejectedCount++;
+
+                    // 计算SLA (平均交付周期)
+                    if (task.status === 'completed' || task.status === 'archived') {
+                        let endTime = new Date(task.created_at);
+                        if(hist.length > 0) {
+                            endTime = new Date(hist[hist.length - 1].time || hist[hist.length - 1].created_at);
+                        }
+                        const startTime = new Date(task.created_at);
+                        const diffTime = Math.abs(endTime - startTime);
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+                        totalDays += (diffDays === 0 ? 1 : diffDays); // 最少算1天
+                        completedCount++;
+                    }
                 });
 
-                if(!isSilent) {
-                    document.getElementById('stat-ongoing').innerText = window.ongoingTasksData.length;
-                    document.getElementById('stat-pending').innerText = pendingCount;
-                    document.getElementById('stat-completed-month').innerText = monthC;
-                    document.getElementById('stat-completed-week').innerText = weekC;
-                    document.getElementById('stat-completed-year').innerText = yearC;
-                    document.getElementById('tab-count-ongoing').innerText = window.ongoingTasksData.length;
-                    document.getElementById('tab-count-completed').innerText = window.completedTasksData.length;
+                const avgSLA = completedCount > 0 ? (totalDays / completedCount).toFixed(1) : 0;
+                document.getElementById('stat-avg-time').innerText = avgSLA;
 
-                    window.renderTasksList();
+                const rejectRate = tasks.length > 0 ? Math.round((rejectedCount / tasks.length) * 100) : 0;
+                document.getElementById('stat-rework-rate').innerText = rejectRate + '%';
 
-                    let designersMap = {};
-                    systemUsers.forEach(u => { designersMap[u.en] = { display: u.display, count: 0, hours: 0 }; });
+                // --- 2. 渲染图表 ---
+                renderEcharts(tasks);
 
-                    window.ongoingTasksData.forEach(t => {
-                        if (t.assignee && t.assignee !== 'none') {
-                            const assKey = t.assignee.toLowerCase();
-                            let matched = Object.keys(designersMap).find(k => assKey.includes(k));
-                            if(matched) designersMap[matched].count += 1;
-                        }
-                    });
-
-                    const poolContainer = document.getElementById('resource-pool');
-                    let poolHtml = '';
-                    Object.values(designersMap).sort((a,b) => b.count - a.count).forEach(data => {
-                        const statusColor = data.count === 0 ? 'text-zinc-500' : (data.count > 2 ? 'text-rose-500' : 'text-emerald-500');
-                        const statusText = data.count === 0 ? '空闲' : (data.count > 2 ? '高负荷' : '适中');
-                        const opacity = data.count === 0 ? 'opacity-60' : 'opacity-100';
-                        poolHtml += `<div class="flex items-center justify-between py-3 border-b border-white/5 last:border-0 ${opacity}">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[10px] font-bold text-zinc-300 shadow-inner shrink-0">${data.display.substring(0,2).toUpperCase()}</div>
-                                <div><p class="text-[13px] font-bold text-zinc-200 flex items-center gap-2">${data.display} <span class="text-[10px] text-zinc-500 bg-white/5 px-1.5 rounded border border-white/10 font-normal">${data.count} 单</span></p></div>
-                            </div>
-                            <div class="text-right shrink-0"><p class="text-[12px] font-bold ${statusColor} mb-0.5">${statusText}</p></div>
-                        </div>`;
-                    });
-                    poolContainer.innerHTML = poolHtml;
-                }
                 document.getElementById('dashboard-loading').classList.add('hidden');
             } catch (err) {
-                console.error(err);
-                if(!isSilent) window.showToast('数据拉取异常', err.message, 'error');
+                console.error("Dashboard Load Error:", err);
+                if(!isSilent) window.showToast('数据分析异常', err.message, 'error');
             } finally {
                 if(syncDot) setTimeout(() => syncDot.classList.add('hidden'), 500);
             }
         }
 
-        window.switchTab = function(tabName) {
-            window.currentTab = tabName; window.currentPage = 1; 
-            const tOngoing = document.getElementById('tab-ongoing'); const tCompleted = document.getElementById('tab-completed');
-            if (tabName === 'ongoing') {
-                tOngoing.className = "text-[14px] font-bold text-emerald-400 border-b-2 border-emerald-500 pb-3 flex items-center gap-2 transition-colors btn-press";
-                tOngoing.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></span>流转中工单 (<span id="tab-count-ongoing" class="font-mono">${window.ongoingTasksData.length}</span>)`;
-                tCompleted.className = "text-[14px] font-bold text-zinc-500 border-b-2 border-transparent pb-3 flex items-center gap-2 hover:text-zinc-300 transition-colors btn-press";
-                tCompleted.innerHTML = `<span class="w-2 h-2 rounded-full bg-zinc-500"></span>已完结/归档 (<span id="tab-count-completed" class="font-mono">${window.completedTasksData.length}</span>)`;
-            } else {
-                tOngoing.className = "text-[14px] font-bold text-zinc-500 border-b-2 border-transparent pb-3 flex items-center gap-2 hover:text-zinc-300 transition-colors btn-press";
-                tOngoing.innerHTML = `<span class="w-2 h-2 rounded-full bg-zinc-500"></span>流转中工单 (<span id="tab-count-ongoing" class="font-mono">${window.ongoingTasksData.length}</span>)`;
-                tCompleted.className = "text-[14px] font-bold text-indigo-400 border-b-2 border-indigo-500 pb-3 flex items-center gap-2 transition-colors btn-press";
-                tCompleted.innerHTML = `<span class="w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_8px_#6366f1]"></span>已完结/归档 (<span id="tab-count-completed" class="font-mono">${window.completedTasksData.length}</span>)`;
-            }
-            window.renderTasksList();
-        }
-
-        window.changePage = function(delta) {
-            const data = window.currentTab === 'ongoing' ? window.ongoingTasksData : window.completedTasksData;
-            const totalPages = Math.ceil(data.length / ITEMS_PER_PAGE) || 1;
-            const newPage = window.currentPage + delta;
-            if (newPage >= 1 && newPage <= totalPages) { window.currentPage = newPage; window.renderTasksList(); }
-        }
-
-        window.renderTasksList = function() {
-            const data = window.currentTab === 'ongoing' ? window.ongoingTasksData : window.completedTasksData;
-            const container = document.getElementById('tasks-list-container');
-            const pageControls = document.getElementById('pagination-controls');
-            
-            if (data.length === 0) {
-                container.innerHTML = `<div class="text-center py-20 opacity-50"><p class="text-zinc-500 text-sm">此列表暂无工单</p></div>`; pageControls.innerHTML = ''; return;
-            }
-
-            const totalPages = Math.ceil(data.length / ITEMS_PER_PAGE);
-            if (window.currentPage > totalPages) window.currentPage = totalPages;
-            const start = (window.currentPage - 1) * ITEMS_PER_PAGE;
-            const pageData = data.slice(start, start + ITEMS_PER_PAGE);
-            
-            let html = '';
-            pageData.forEach(t => {
-                let sColor, sText, btnHtml;
-                if (window.currentTab === 'completed') {
-                    sColor = t.status === 'terminated' ? 'rose' : 'zinc'; 
-                    sText = t.status === 'terminated' ? '已强行终止' : '已验收完结';
-                    btnHtml = `<button onclick="event.stopPropagation(); window.location.href='task-detail-requester.html?id=${t.id}'" class="text-zinc-300 bg-zinc-800 hover:bg-zinc-700 px-4 py-1.5 rounded-lg text-[11px] font-bold transition-colors btn-press border border-zinc-700 shadow-sm">查看详情快照</button>`;
-                } else {
-                    switch(t.status) {
-                        case 'pending': sColor = 'sky'; sText = '待接单'; btnHtml = `<button class="text-sky-400 bg-sky-500/10 px-3 py-1 rounded text-[11px] font-bold">待响应</button>`; break;
-                        case 'pending_accept': sColor = 'amber'; sText = '待确认接单'; btnHtml = `<button class="text-amber-400 bg-amber-500/10 px-3 py-1 rounded text-[11px] font-bold">待接单</button>`; break;
-                        case 'processing': sColor = 'orange'; sText = '制作中'; btnHtml = `<button class="text-orange-400 bg-orange-500/10 px-3 py-1 rounded text-[11px] font-bold">查看进度</button>`; break;
-                        case 'pending_approval': sColor = 'amber'; sText = '框架审批中'; btnHtml = `<button onclick="event.stopPropagation(); window.location.href='task-detail-requester.html?id=${t.id}'" class="text-white bg-amber-600 hover:bg-amber-500 px-4 py-1.5 rounded-lg text-[11px] font-bold transition-colors shadow-lg btn-press">⚡ 去审批</button>`; break;
-                        case 'reviewing': sColor = 'emerald'; sText = '待甲方验收'; btnHtml = `<button class="text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded text-[11px] font-bold">甲方验收中</button>`; break;
-                        case 'rejected': sColor = 'rose'; sText = '打回修改中'; btnHtml = `<button class="text-rose-400 bg-rose-500/10 px-3 py-1 rounded text-[11px] font-bold">督办催稿</button>`; break;
-                        default: sColor = 'zinc'; sText = '未知状态'; btnHtml = '';
-                    }
-                }
-                const opacityClass = window.currentTab === 'completed' ? 'opacity-70 hover:opacity-100' : '';
-                html += `
-                <div class="bg-[#18181b] border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-colors cursor-pointer relative overflow-hidden group ${opacityClass}" onclick="window.location.href='task-detail-requester.html?id=${t.id}'">
-                    <div class="absolute left-0 top-0 bottom-0 w-1 bg-${sColor}-500 group-hover:w-1.5 transition-all"></div>
-                    <div class="flex justify-between items-center mb-4 pl-1">
-                        <div class="flex items-center gap-3"><span class="text-[10px] font-mono font-bold bg-white/5 px-2 py-0.5 rounded border border-white/10 text-zinc-400">${t.id}</span><span class="text-[14px] font-bold text-white group-hover:text-${sColor}-400 transition-colors">${t.title}</span></div>
-                        ${btnHtml}
-                    </div>
-                    <div class="flex justify-between items-center text-[12px] text-zinc-500 pl-1">
-                        <div class="flex items-center gap-4"><span class="flex items-center gap-1.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> 委派: <strong class="text-zinc-300 font-normal">${t.assignee === 'none' ? '暂未分配' : t.assignee}</strong></span><span class="flex items-center gap-1.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> 状态: <span class="text-${sColor}-400 font-bold">${sText}</span></span></div>
-                        <span class="font-mono">期望交付: ${t.due_date || '未定'}</span>
-                    </div>
-                </div>`;
+        function renderEcharts(tasks) {
+            // -- 业务分布数据预处理 (Pie Chart) --
+            const projectCounts = {};
+            tasks.forEach(t => {
+                const proj = t.project && t.project !== 'none' ? t.project : '未分类/常规设计';
+                projectCounts[proj] = (projectCounts[proj] || 0) + 1;
             });
-            container.innerHTML = html;
-            pageControls.innerHTML = `
-                <button onclick="window.changePage(-1)" class="px-4 py-2 rounded-xl text-[12px] font-bold ${window.currentPage === 1 ? 'bg-zinc-800/50 text-zinc-600 cursor-not-allowed' : 'bg-[#18181b] text-zinc-300 hover:text-white border border-white/10 btn-press'} transition-all flex items-center gap-1"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg> 上一页</button>
-                <div class="bg-[#18181b] border border-white/5 rounded-xl px-4 py-2 flex items-center justify-center min-w-[80px]"><span class="text-[12px] text-white font-bold font-mono">${window.currentPage} <span class="text-zinc-500 font-normal mx-1">/</span> ${totalPages}</span></div>
-                <button onclick="window.changePage(1)" class="px-4 py-2 rounded-xl text-[12px] font-bold ${window.currentPage === totalPages ? 'bg-zinc-800/50 text-zinc-600 cursor-not-allowed' : 'bg-[#18181b] text-zinc-300 hover:text-white border border-white/10 btn-press'} transition-all flex items-center gap-1">下一页 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
-            `;
+            const pieData = Object.keys(projectCounts).map(key => ({
+                name: key,
+                value: projectCounts[key]
+            })).sort((a,b) => b.value - a.value);
+
+            if (!echartDist) { echartDist = echarts.init(document.getElementById('chart-distribution')); }
+            echartDist.setOption({
+                tooltip: { trigger: 'item', backgroundColor: '#18181b', borderColor: '#3f3f46', textStyle: { color: '#e4e4e7' } },
+                legend: { top: 'bottom', textStyle: { color: '#a1a1aa', fontSize: 11 }, type: 'scroll' },
+                series: [{
+                    name: '需求占比',
+                    type: 'pie',
+                    radius: ['45%', '70%'],
+                    avoidLabelOverlap: false,
+                    itemStyle: { borderRadius: 10, borderColor: '#121217', borderWidth: 2 },
+                    label: { show: false, position: 'center' },
+                    emphasis: { label: { show: true, fontSize: 14, fontWeight: 'bold', color: '#fff' } },
+                    labelLine: { show: false },
+                    data: pieData.length > 0 ? pieData : [{value: 0, name: '暂无数据'}],
+                    color: ['#d946ef', '#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#f43f5e', '#64748b']
+                }]
+            });
+
+            // -- 趋势数据预处理 (Line/Bar Chart) --
+            // 按月份分组统计新增和完结
+            const monthMap = {};
+            // 初始化近6个月的结构
+            for(let i=5; i>=0; i--) {
+                const d = new Date(); d.setMonth(d.getMonth() - i);
+                const mStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}`;
+                monthMap[mStr] = { created: 0, completed: 0 };
+            }
+
+            tasks.forEach(t => {
+                // 统计新增
+                const cDate = new Date(t.created_at);
+                const cMonth = `${cDate.getFullYear()}-${String(cDate.getMonth()+1).padStart(2, '0')}`;
+                if(monthMap[cMonth] !== undefined) monthMap[cMonth].created++;
+
+                // 统计结单
+                if (t.status === 'completed' || t.status === 'archived') {
+                    let endD = new Date(t.created_at);
+                    try {
+                        let hist = JSON.parse(t.history_json || '[]');
+                        if(hist.length > 0) endD = new Date(hist[hist.length - 1].time || hist[hist.length - 1].created_at);
+                    } catch(e){}
+                    const endMonth = `${endD.getFullYear()}-${String(endD.getMonth()+1).padStart(2, '0')}`;
+                    if(monthMap[endMonth] !== undefined) monthMap[endMonth].completed++;
+                }
+            });
+
+            const xAxisData = Object.keys(monthMap);
+            const createdData = xAxisData.map(k => monthMap[k].created);
+            const completedData = xAxisData.map(k => monthMap[k].completed);
+
+            if (!echartTrends) { echartTrends = echarts.init(document.getElementById('chart-trends')); }
+            echartTrends.setOption({
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: '#18181b', borderColor: '#3f3f46', textStyle: { color: '#e4e4e7' } },
+                legend: { data: ['新增需求量', '完结消化量'], textStyle: { color: '#a1a1aa' } },
+                grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                xAxis: [{ type: 'category', data: xAxisData.map(d => d.substring(5) + '月'), axisLabel: { color: '#71717a' }, axisLine: { lineStyle: { color: '#3f3f46' } } }],
+                yAxis: [{ type: 'value', splitLine: { lineStyle: { color: '#27272a', type: 'dashed' } }, axisLabel: { color: '#71717a' } }],
+                series: [
+                    {
+                        name: '新增需求量', type: 'bar', barWidth: '30%',
+                        itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: '#38bdf8' }, { offset: 1, color: '#0284c7' }]), borderRadius: [4, 4, 0, 0] },
+                        data: createdData
+                    },
+                    {
+                        name: '完结消化量', type: 'line', smooth: true, symbol: 'circle', symbolSize: 8,
+                        itemStyle: { color: '#10b981' }, lineStyle: { width: 3, shadowColor: 'rgba(16,185,129,0.3)', shadowBlur: 10 },
+                        data: completedData
+                    }
+                ]
+            });
+
+            // 监听窗口缩放重绘
+            window.addEventListener('resize', () => {
+                echartDist.resize(); echartTrends.resize();
+            });
         }
 
-        // ================= 🔔 全局消息中心 (history_json 解析) =================
+        // ================= 🔔 全局消息中心 (保持不变) =================
         let lastNotifHash = '';
         window.syncNotificationsFromCloud = async function(isSilent = true) {
             if(!window.supabase) return;
@@ -551,7 +566,7 @@
             });
             window.loadDashboardData();
             setTimeout(() => { window.syncNotificationsFromCloud(true); }, 1500);
-            setInterval(() => { window.loadDashboardData(true); window.syncNotificationsFromCloud(true); }, 8000);
+            setInterval(() => { window.loadDashboardData(true); window.syncNotificationsFromCloud(true); }, 8000); // 调整为8秒刷新大盘数据
         });
     </script>
 </body>
