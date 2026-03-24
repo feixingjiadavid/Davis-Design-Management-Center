@@ -465,28 +465,21 @@
             if(syncDot && !isSilent) syncDot.classList.remove('hidden');
 
             try {
-                // 1. 获取全盘用户库（从 user_profiles 中读取）
+                // 1. 获取全盘用户库（从 user_profiles 中读取视图）
+                // 💡 修复：无脑拉取所有人，因为默认全员皆为设计师/需求方
                 const { data: users, error: uErr } = await window.supabase.from('user_profiles').select('*');
                 if (uErr) throw uErr;
 
                 systemUsers = [];
                 if (users) {
                     users.forEach(u => {
-                        let p = [];
-                        if (typeof u.perms === 'string') {
-                            try { p = JSON.parse(u.perms); } catch(e){ p = u.perms.split(','); }
-                        } else if (Array.isArray(u.perms)) {
-                            p = u.perms;
-                        }
-                        if (!p) p = [];
-
                         const en = (u.en_name || '').toLowerCase();
                         
-                        // 💡 新增过滤逻辑：精确剔除无需监测的特殊账号
+                        // 💡 剔除名单：仅剔除这 3 个特殊账号，其余所有人全量拉入池中！
                         const excludedUsers = ['judyzzhang', 'ponyxu', 'davidxu'];
 
-                        if(!excludedUsers.includes(en) && (p.includes('design') || p.includes('admin') || en === 'davidxxu')) {
-                            if(en && !systemUsers.some(x => x.en === en)) {
+                        if(en && !excludedUsers.includes(en)) {
+                            if(!systemUsers.some(x => x.en === en)) {
                                 systemUsers.push({
                                     en: en,
                                     display: u.display_name || u.cn_name || u.en_name || en
@@ -525,10 +518,10 @@
             let activeTasksSet = new Set();
             let projectSet = new Set();
 
-            // 💡 初始化全员底库：0工时的人员也会绝对包含在内！
+            // 💡 初始化全员底库：保证 0 工时人员显示，并修复 en 为 undefined 的问题
             let peopleMap = {};
             systemUsers.forEach(u => {
-                peopleMap[u.en] = { display: u.display, hours: 0, taskCount: 0, projects: new Set(), aiTools: {} };
+                peopleMap[u.en] = { en: u.en, display: u.display, hours: 0, taskCount: 0, projects: new Set(), aiTools: {} };
             });
 
             let activeProjects = {};
@@ -554,11 +547,26 @@
                                     let opLower = h.operator.toLowerCase();
                                     let matchedUser = systemUsers.find(u => opLower.includes(u.en) || (u.display && opLower.includes(u.display.toLowerCase())));
                                     
-                                    // 注意：如果操作人不在我们要监测的名单里（比如领导审批动作），就不算入个人工时，但算入项目总工时
                                     if (matchedUser && peopleMap[matchedUser.en]) {
                                         peopleMap[matchedUser.en].hours += hVal;
                                         peopleMap[matchedUser.en].taskCount += 1;
                                         if(t.project) peopleMap[matchedUser.en].projects.add(t.project);
+                                    } else {
+                                        // 哪怕底库没有这个人，也强行建立临时档案展示（动态生成 fallback）
+                                        const cleanName = h.operator.split(' ')[0].split('(')[0].trim();
+                                        const key = cleanName.toLowerCase();
+                                        
+                                        // 如果操作者是那三个被剔除的人，直接跳过，不给他们计入个人卡片
+                                        const excludedUsers = ['judyzzhang', 'ponyxu', 'davidxu'];
+                                        if (!excludedUsers.some(ex => key.includes(ex))) {
+                                            if(!peopleMap[key]) {
+                                                peopleMap[key] = { en: key, display: cleanName, hours: 0, taskCount: 0, projects: new Set(), aiTools: {} };
+                                            }
+                                            peopleMap[key].hours += hVal;
+                                            peopleMap[key].taskCount += 1;
+                                            if(t.project) peopleMap[key].projects.add(t.project);
+                                            matchedUser = { en: key };
+                                        }
                                     }
 
                                     // 2. 抓取 AI 记录 (归属到个人)
@@ -680,7 +688,7 @@
                             <span class="text-[16px] font-mono font-black text-${col}-400 leading-none">${p.data.hours.toFixed(1)}<span class="text-[10px] text-zinc-500 ml-1 font-normal font-sans">h</span></span>
                         </div>
                         <div class="pl-2 mb-3">
-                            <p class="text-[11px] text-zinc-500 truncate" title="${userList}">参与者: <span class="text-zinc-300">${userList}</span> (${p.data.users.size}人)</p>
+                            <p class="text-[11px] text-zinc-500 truncate" title="${userList}">参入者: <span class="text-zinc-300">${userList}</span> (${p.data.users.size}人)</p>
                             <p class="text-[10px] text-zinc-600 mt-0.5">当期流转节点数: ${p.data.count}</p>
                         </div>
                         <div class="w-full h-1.5 bg-zinc-900 rounded-full overflow-hidden ml-2"><div class="h-full bg-${col}-500 rounded-full opacity-80 bar-grow-h" style="width: ${pct}%"></div></div>
@@ -757,7 +765,7 @@
                                 ${isEmpty ? '' : `<p class="text-[10px] text-zinc-500 mt-1">处理 ${p.taskCount} 个节点</p>`}
                             </div>
                         </div>
-                        ${isEmpty ? `<p class="text-[10px] text-zinc-600 pl-3 mt-3 pt-3 border-t border-zinc-800/50">该人员在此筛选周期内无任何产出动作。</p>` : `
+                        ${isEmpty ? `<p class="text-[10px] text-zinc-600 pl-3 mt-3 pt-3 border-t border-zinc-800/50">该人员在此筛选周期内无任何产出或审批动作。</p>` : `
                         <div class="pl-2 mt-4 space-y-2 pt-3 border-t border-white/5">
                             <div class="flex flex-wrap">${pTags}</div>
                             <div class="flex items-center gap-1.5 pt-1.5">
