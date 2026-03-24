@@ -128,7 +128,6 @@
             </div>
 
             <div class="flex gap-6 mb-8 overflow-x-auto custom-scrollbar pb-2">
-                
                 <div class="bg-[#16161d] border border-white/5 rounded-3xl p-5 flex flex-col gap-2 min-w-[240px] shadow-lg relative overflow-hidden">
                     <div class="flex items-center gap-5 mb-1">
                         <div class="w-14 h-14 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20">
@@ -172,7 +171,7 @@
             </div>
 
             <div class="flex-1 flex gap-10 min-h-0">
-                <div class="flex-[2] flex flex-col bg-[#121217]/50 border border-white/5 rounded-3xl p-6 shadow-xl relative min-w-0">
+                <div class="flex-[1.5] flex flex-col bg-[#121217]/50 border border-white/5 rounded-3xl p-6 shadow-xl relative min-w-0">
                     
                     <div class="flex items-center gap-6 mb-4 border-b border-white/10 px-2 shrink-0">
                         <button onclick="window.switchTab('ongoing')" id="tab-ongoing" class="text-[14px] font-bold text-emerald-400 border-b-2 border-emerald-500 pb-3 flex items-center gap-2 transition-colors btn-press">
@@ -184,23 +183,21 @@
                     </div>
 
                     <div class="flex-1 flex flex-col min-h-0 relative">
-                        <div class="absolute inset-0 overflow-y-auto custom-scrollbar pr-4 space-y-4" id="tasks-list-container">
-                            </div>
+                        <div class="absolute inset-0 overflow-y-auto custom-scrollbar pr-4 space-y-4" id="tasks-list-container"></div>
                     </div>
 
-                    <div class="pt-4 mt-2 border-t border-white/10 flex justify-end items-center gap-3 shrink-0" id="pagination-controls">
-                        </div>
+                    <div class="pt-4 mt-2 border-t border-white/10 flex justify-end items-center gap-3 shrink-0" id="pagination-controls"></div>
                 </div>
 
                 <div class="flex-[1] flex flex-col">
-                    <div class="bg-[#121217] border border-white/5 rounded-3xl p-6 h-full flex flex-col shadow-2xl">
-                        <h3 class="text-[15px] font-bold text-white mb-6">实时资源池监控 <span class="text-xs text-zinc-500 font-normal ml-1">(基于进行中工单)</span></h3>
-                        <div class="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2" id="resource-pool">
-                            </div>
+                    <div class="bg-[#121217] border border-white/5 rounded-3xl p-6 h-full flex flex-col shadow-2xl relative">
+                        <h3 class="text-[15px] font-bold text-white mb-2">实时资源池监控</h3>
+                        <p class="text-[11px] text-zinc-500 mb-6 pb-4 border-b border-white/5">全员名单已展出，透视所有成员的执行负荷，支持下拽到底。</p>
+                        
+                        <div class="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2" id="resource-pool"></div>
                     </div>
                 </div>
             </div>
-
         </div>
     </main>
 
@@ -220,15 +217,12 @@
         </div>
     </div>
 
-    <div id="custom-dialog-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[999999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center">
-        <div id="custom-dialog" class="w-full max-w-sm bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 p-6 relative overflow-hidden">
-            <div id="dialog-color-bar" class="absolute top-0 left-0 right-0 h-1 bg-fuchsia-500"></div>
-            <div class="flex items-center gap-3 mb-3 mt-2">
-                <div id="dialog-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0"></div>
-                <h2 id="dialog-title" class="text-[16px] font-bold text-white">提示</h2>
+    <div id="action-toast" class="fixed top-8 right-8 z-[100000] hidden toast-slide-in">
+        <div class="bg-[#1a1a1f] border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-3 w-72">
+            <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
             </div>
-            <p id="dialog-message" class="text-[13px] text-zinc-400 leading-relaxed mb-6">内容</p>
-            <div class="flex gap-3 justify-end w-full mt-auto" id="dialog-buttons"></div>
+            <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-zinc-400 text-[11px] mt-0.5">操作已执行。</p></div>
         </div>
     </div>
 
@@ -250,55 +244,17 @@
         window.currentPage = 1;
         const ITEMS_PER_PAGE = 8;
 
-        window.closeCustomDialog = function() {
-            const overlay = document.getElementById('custom-dialog-overlay');
-            const dialog = document.getElementById('custom-dialog');
-            overlay.classList.add('opacity-0'); dialog.classList.add('scale-95');
-            setTimeout(() => { overlay.classList.add('hidden'); }, 300);
-        }
-
-        function setupDialog(title, message, type) {
-            document.getElementById('dialog-title').innerText = title;
-            document.getElementById('dialog-message').innerHTML = message;
-            const colorBar = document.getElementById('dialog-color-bar');
-            const icon = document.getElementById('dialog-icon');
-            
-            if(type === 'danger') {
-                colorBar.className = 'absolute top-0 left-0 right-0 h-1 bg-rose-500';
-                icon.className = 'w-8 h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0';
-                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
-            } else if(type === 'success') {
-                colorBar.className = 'absolute top-0 left-0 right-0 h-1 bg-emerald-500';
-                icon.className = 'w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0';
-                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-            } else {
-                colorBar.className = 'absolute top-0 left-0 right-0 h-1 bg-fuchsia-500';
-                icon.className = 'w-8 h-8 rounded-full bg-fuchsia-500/20 text-fuchsia-400 flex items-center justify-center shrink-0';
-                icon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
-            }
-        }
-
-        function showDialogUI() {
-            const overlay = document.getElementById('custom-dialog-overlay');
-            const dialog = document.getElementById('custom-dialog');
-            overlay.classList.remove('hidden');
-            setTimeout(() => { overlay.classList.remove('opacity-0'); dialog.classList.remove('scale-95'); }, 10);
-        }
-
-        window.showAlert = function(title, message, type="primary") {
-            setupDialog(title, message, type);
-            const btnContainer = document.getElementById('dialog-buttons');
-            let btnColor = type === 'danger' ? 'bg-rose-600 hover:bg-rose-500' : (type === 'success' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-fuchsia-600 hover:bg-fuchsia-500');
-            btnContainer.innerHTML = `<button onclick="closeCustomDialog()" class="w-full py-2.5 ${btnColor} text-white rounded-xl text-[13px] font-bold shadow-lg transition-all btn-press">我知道了</button>`;
-            showDialogUI();
-        }
-
-        window.logout = function(e) { e.stopPropagation(); localStorage.removeItem('activeUserObj'); window.location.href = 'login.html'; }
         window.openPwdModal = function() { document.getElementById('pwd-modal-overlay').classList.remove('hidden'); setTimeout(() => { document.getElementById('pwd-modal-overlay').classList.remove('opacity-0'); document.getElementById('pwd-modal').classList.remove('hidden', 'scale-95'); }, 10); }
         window.closePwdModal = function() { document.getElementById('pwd-modal-overlay').classList.add('opacity-0'); document.getElementById('pwd-modal').classList.add('scale-95'); setTimeout(() => { document.getElementById('pwd-modal-overlay').classList.add('hidden'); document.getElementById('pwd-modal').classList.add('hidden'); }, 300); }
-        window.submitPwdChange = function() { window.showAlert('提示', '系统演示环境暂不可自助修改密码，请联系管理员。', 'info'); window.closePwdModal(); }
+        window.submitPwdChange = function() { window.showToast('提示', '系统演示环境暂不可自助修改密码', 'info'); window.closePwdModal(); }
+        window.logout = function(e) { e.stopPropagation(); localStorage.removeItem('activeUserObj'); window.location.href = 'login.html'; }
 
-        // ================= 修复：新增身份切换菜单的显示/隐藏方法 =================
+        window.showToast = function(title, desc, type = 'success') {
+            const toast = document.getElementById('action-toast');
+            document.getElementById('toast-title').innerText = title; document.getElementById('toast-desc').innerText = desc;
+            toast.classList.remove('hidden'); setTimeout(() => { toast.classList.add('hidden'); }, 3000);
+        }
+
         window.toggleIdentityMenu = function(event) {
             if(event) event.stopPropagation();
             const identityMenu = document.getElementById('identityMenu');
@@ -313,7 +269,7 @@
             const user = JSON.parse(userStr);
             const enName = user.enName ? user.enName.toLowerCase().trim() : '';
 
-            // 💡 终极兜底提权：保护这三个超管，且给领导授权
+            // 终极兜底提权
             if (['davidxxu', 'davidxu', 'ponyxu'].includes(enName)) {
                 user.perms = ['req', 'design', 'admin'];
             } else if (enName === 'judyzzhang') {
@@ -323,7 +279,7 @@
             }
 
             if (!(user.perms || []).includes('admin')) {
-                window.showAlert("权限拦截", "您没有总监控制台访问权限，为您退回大厅。", "danger");
+                alert("权限拦截：您没有总监控制台访问权限，为您退回大厅。");
                 setTimeout(()=> window.location.href = 'index.html', 1500);
                 return false;
             }
@@ -356,7 +312,7 @@
             return user;
         }
 
-        // ================= 💡 核心：全局数据引擎 =================
+        // ================= 💡 全局数据引擎 (全员透视版) =================
         window.loadDashboardData = async function(isSilent = false) {
             if(!initRBAC()) return;
             if(!window.supabase) return;
@@ -372,7 +328,6 @@
                 window.completedTasksData = (tasks || []).filter(t => ['completed', 'archived', 'terminated'].includes(t.status));
                 const pendingTasks = window.ongoingTasksData.filter(t => ['pending', 'pending_accept', 'pending_approval', 'reviewing'].includes(t.status));
 
-                // 统计
                 let weekC = 0, monthC = 0, yearC = 0;
                 const now = new Date();
                 const startOfYear = new Date(now.getFullYear(), 0, 1);
@@ -394,7 +349,6 @@
                     if (cDate >= startOfYear) yearC++;
                 });
 
-                // 资源池统计
                 let designersMap = {};
                 try {
                     const { data: users } = await window.supabase.from('users').select('enName, name, email, perms');
@@ -405,9 +359,9 @@
                             else if (Array.isArray(u.perms)) p = u.perms;
 
                             if(p.includes('design') || p.includes('admin')) {
-                                const key = (u.enName || (u.email ? u.email.split('@')[0] : '')).toLowerCase();
-                                if(key && !designersMap[key]) {
-                                    designersMap[key] = { display: u.name || u.enName, count: 0, hours: 0 };
+                                const en = (u.enName || (u.email ? u.email.split('@')[0] : '')).toLowerCase();
+                                if(en && !designersMap[en]) {
+                                    designersMap[en] = { en: en, display: u.name || u.enName || en, count: 0, hours: 0, tasks: [] };
                                 }
                             }
                         });
@@ -417,9 +371,27 @@
                 window.ongoingTasksData.forEach(t => {
                     if (t.assignee && t.assignee !== 'none' && t.status !== 'pending') {
                         const assKey = t.assignee.toLowerCase();
-                        if(!designersMap[assKey]) designersMap[assKey] = { display: t.assignee, count: 0, hours: 0 };
-                        designersMap[assKey].count += 1;
-                        designersMap[assKey].hours += 4.5;
+                        
+                        let matchedKey = null;
+                        for (let k in designersMap) {
+                            if (assKey.includes(k) || assKey.includes(designersMap[k].display.toLowerCase()) || designersMap[k].display.toLowerCase().includes(assKey)) {
+                                matchedKey = k;
+                                break;
+                            }
+                        }
+
+                        if (matchedKey) {
+                            designersMap[matchedKey].count += 1;
+                            designersMap[matchedKey].hours += 4.5;
+                            designersMap[matchedKey].tasks.push(t);
+                        } else {
+                            if(!designersMap[assKey]) {
+                                designersMap[assKey] = { en: assKey, display: t.assignee, count: 0, hours: 0, tasks: [] };
+                            }
+                            designersMap[assKey].count += 1;
+                            designersMap[assKey].hours += 4.5;
+                            designersMap[assKey].tasks.push(t);
+                        }
                     }
                 });
 
@@ -437,30 +409,67 @@
 
                     const poolContainer = document.getElementById('resource-pool');
                     let poolHtml = '';
-                    const sortedDesigners = Object.keys(designersMap).sort((a,b) => designersMap[b].count - designersMap[a].count);
+                    const sortedDesigners = Object.values(designersMap).sort((a,b) => b.count - a.count);
                     
-                    sortedDesigners.forEach(key => {
-                        const data = designersMap[key];
-                        const statusColor = data.count === 0 ? 'text-zinc-500' : (data.count > 2 ? 'text-rose-500' : 'text-emerald-500');
-                        const statusText = data.count === 0 ? '空闲' : (data.count > 2 ? '高负荷' : '适中');
-                        const opacity = data.count === 0 ? 'opacity-60' : 'opacity-100';
+                    sortedDesigners.forEach(data => {
+                        const isEmpty = data.count === 0;
+                        const statusColor = isEmpty ? 'text-zinc-500' : (data.count > 2 ? 'text-rose-500' : 'text-emerald-500');
+                        const statusText = isEmpty ? '极度空闲' : (data.count > 2 ? '高负荷' : '状态适中');
+                        const opacityClass = isEmpty ? 'opacity-60 hover:opacity-100' : 'opacity-100';
+                        const bgClass = isEmpty ? 'bg-[#09090b] border-dashed border-white/5' : 'bg-[#18181b] border border-white/5 shadow-sm hover:border-white/10';
+
+                        let tasksHtml = '';
+                        if (!isEmpty) {
+                            tasksHtml = '<div class="mt-3 space-y-1.5 pt-3 border-t border-white/5">';
+                            data.tasks.forEach(task => {
+                                let sColor = 'zinc'; let sText = '流转中';
+                                if (task.status === 'processing') { sColor = 'orange'; sText = '制作中'; }
+                                else if (task.status === 'pending_approval') { sColor = 'amber'; sText = '待审批'; }
+                                else if (task.status === 'reviewing') { sColor = 'emerald'; sText = '验收中'; }
+                                else if (task.status === 'rejected') { sColor = 'rose'; sText = '被打回'; }
+                                else if (task.status === 'pending_accept') { sColor = 'sky'; sText = '待接单'; }
+                                
+                                tasksHtml += `
+                                    <div class="flex justify-between items-center bg-black/20 px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors cursor-pointer" onclick="window.location.href='task-detail-requester.html?id=${task.id}'">
+                                        <div class="flex items-center gap-2 min-w-0 pr-2">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-${sColor}-500 shrink-0"></span>
+                                            <span class="text-[11px] text-zinc-300 truncate hover:text-white" title="${task.title}">${task.title}</span>
+                                        </div>
+                                        <span class="text-[9px] text-${sColor}-400 shrink-0 bg-${sColor}-500/10 px-1.5 py-0.5 rounded border border-${sColor}-500/20">${sText}</span>
+                                    </div>
+                                `;
+                            });
+                            tasksHtml += '</div>';
+                        }
 
                         poolHtml += `
-                        <div class="flex items-center justify-between py-3 border-b border-white/5 last:border-0 ${opacity}">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[10px] font-bold text-zinc-300 shadow-inner shrink-0">${data.display.substring(0,2).toUpperCase()}</div>
-                                <div>
-                                    <p class="text-[13px] font-bold text-zinc-200 flex items-center gap-2">${data.display} <span class="text-[10px] text-zinc-500 bg-white/5 px-1.5 rounded border border-white/10 font-normal">${data.count} 单</span></p>
+                        <div class="${bgClass} rounded-2xl p-4 mb-3 transition-all relative overflow-hidden group ${opacityClass}">
+                            ${!isEmpty ? '<div class="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500/50 group-hover:w-1.5 transition-all"></div>' : ''}
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[10px] font-bold text-zinc-300 shadow-inner shrink-0">${data.display.substring(0,2).toUpperCase()}</div>
+                                    <div>
+                                        <p class="text-[13px] font-bold ${isEmpty ? 'text-zinc-400' : 'text-white'} flex items-center gap-2">
+                                            ${data.display} 
+                                            <span class="text-[10px] ${isEmpty ? 'text-zinc-600 bg-zinc-900/50' : 'text-zinc-400 bg-white/5'} px-1.5 rounded border border-white/5 font-mono">${data.count} 单</span>
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="text-right shrink-0">
+                                    <p class="text-[12px] font-bold ${statusColor} mb-0.5">${statusText}</p>
+                                    ${!isEmpty ? `<p class="text-[10px] text-zinc-500 font-mono">${data.hours.toFixed(1)}h 预估</p>` : `<p class="text-[10px] text-zinc-600">待指派</p>`}
                                 </div>
                             </div>
-                            <div class="text-right shrink-0">
-                                <p class="text-[12px] font-bold ${statusColor} mb-0.5">${statusText}</p>
-                                <p class="text-[10px] text-zinc-600 font-mono">${data.hours.toFixed(1)}h 预估</p>
-                            </div>
+                            ${tasksHtml}
                         </div>
                         `;
                     });
-                    poolContainer.innerHTML = poolHtml;
+
+                    if (sortedDesigners.length === 0) {
+                        poolContainer.innerHTML = '<div class="text-center py-10 text-zinc-500 text-xs">暂无团队人员数据</div>';
+                    } else {
+                        poolContainer.innerHTML = poolHtml;
+                    }
                 }
                 document.getElementById('dashboard-loading').classList.add('hidden');
 
@@ -478,13 +487,11 @@
             if (tabName === 'ongoing') {
                 tOngoing.className = "text-[14px] font-bold text-emerald-400 border-b-2 border-emerald-500 pb-3 flex items-center gap-2 transition-colors btn-press";
                 tOngoing.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></span>流转中 (<span id="tab-count-ongoing" class="font-mono">${window.ongoingTasksData.length}</span>)`;
-                
                 tCompleted.className = "text-[14px] font-bold text-zinc-500 border-b-2 border-transparent pb-3 flex items-center gap-2 hover:text-zinc-300 transition-colors btn-press";
                 tCompleted.innerHTML = `<span class="w-2 h-2 rounded-full bg-zinc-500"></span>已完结 (<span id="tab-count-completed" class="font-mono">${window.completedTasksData.length}</span>)`;
             } else {
                 tOngoing.className = "text-[14px] font-bold text-zinc-500 border-b-2 border-transparent pb-3 flex items-center gap-2 hover:text-zinc-300 transition-colors btn-press";
                 tOngoing.innerHTML = `<span class="w-2 h-2 rounded-full bg-zinc-500"></span>流转中 (<span id="tab-count-ongoing" class="font-mono">${window.ongoingTasksData.length}</span>)`;
-                
                 tCompleted.className = "text-[14px] font-bold text-indigo-400 border-b-2 border-indigo-500 pb-3 flex items-center gap-2 transition-colors btn-press";
                 tCompleted.innerHTML = `<span class="w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_8px_#6366f1]"></span>已完结 (<span id="tab-count-completed" class="font-mono">${window.completedTasksData.length}</span>)`;
             }
@@ -562,7 +569,6 @@
             });
             container.innerHTML = html;
 
-            // 渲染分页按钮
             let pHtml = `
                 <button onclick="window.changePage(-1)" class="px-4 py-2 rounded-xl text-[12px] font-bold ${window.currentPage === 1 ? 'bg-zinc-800/50 text-zinc-600 cursor-not-allowed border border-transparent' : 'bg-[#18181b] text-zinc-300 hover:text-white border border-white/10 hover:border-white/30 btn-press'} transition-all flex items-center gap-1"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg> 上一页</button>
                 <div class="bg-[#18181b] border border-white/5 rounded-xl px-4 py-2 flex items-center justify-center min-w-[80px]">
@@ -573,7 +579,7 @@
             pageControls.innerHTML = pHtml;
         }
 
-        // ================= 🔔 全局消息通知引擎 =================
+        // ================= 🔔 全局消息通知引擎 (修复强化版) =================
         let lastNotifHash = '';
 
         window.syncNotificationsFromCloud = async function(isSilent = true) {
@@ -582,12 +588,16 @@
             if(!userStr) return;
             const currentUser = JSON.parse(userStr);
             const myName = (currentUser.displayName || currentUser.cnName || currentUser.enName || '').toLowerCase();
-            const isAdmin = (currentUser.perms || []).includes('admin');
+            const enName = (currentUser.enName || '').toLowerCase();
+
+            // 💡 修复：确保提权状态同步到通知引擎，强制给领导开天眼
+            let isAdmin = (currentUser.perms || []).includes('admin');
+            if (['davidxxu', 'davidxu', 'ponyxu', 'judyzzhang'].includes(enName)) isAdmin = true;
             const rolePrefix = isAdmin ? 'admin' : 'req';
 
             try {
                 const { data: tasks, error } = await window.supabase.from(window.DB_TABLE)
-                    .select('id, title, creator, history_json')
+                    .select('id, title, creator, assignee, history_json')
                     .order('created_at', { ascending: false });
                 
                 if (error) throw error;
@@ -596,8 +606,10 @@
 
                 tasks.forEach(task => {
                     const creatorStr = (task.creator || '').toLowerCase();
-                    const isMyTask = creatorStr.includes(myName) || myName.includes(creatorStr);
+                    const assigneeStr = (task.assignee || '').toLowerCase();
+                    const isMyTask = creatorStr.includes(myName) || myName.includes(creatorStr) || assigneeStr.includes(myName) || myName.includes(assigneeStr);
                     
+                    // 管理员看全部预警，非管理员只看自己的
                     if (!isAdmin && !isMyTask) return;
 
                     let hist = [];
@@ -605,29 +617,40 @@
 
                     hist.forEach((h, index) => {
                         const op = (h.operator || '').toLowerCase();
-                        if (op.includes(myName)) return;
+                        // 过滤掉自己产生的操作，不给自己发通知
+                        if (op.includes(myName) && myName !== '') return;
 
-                        let title = ''; let content = ''; let icon = 'bg-indigo-500';
+                        let title = ''; let content = ''; let icon = 'bg-fuchsia-500';
                         
-                        if (isMyTask) {
-                            if (h.action === 'accept') { title = '✅ 设计已接单'; content = `${h.operator} 已接手并排期：《${task.title}》`; icon = 'bg-sky-500'; }
-                            else if (h.action === 'submit_framework') { title = '👀 框架方案已提'; content = `设计师提交了中期方案，正等待主管把关：《${task.title}》`; icon = 'bg-amber-500'; }
-                            else if (h.action === 'submit_draft') { title = '🎁 正稿待验收'; content = `设计师交付了正式稿，请火速前往验收：《${task.title}》`; icon = 'bg-emerald-500'; }
-                            else if (h.action === 'reject_framework') { title = '💥 框架被打回'; content = `主管打回了设计方案，设计师正在重修：《${task.title}》`; icon = 'bg-rose-500'; }
-                            else if (h.action && h.action.includes('urge') && op.includes('设计')) { title = '🚨 紧急催办'; content = `系统提醒您及时跟进单据验收：《${task.title}》`; icon = 'bg-rose-500'; }
-                            else if (h.action === 'transfer') { title = '🔄 任务转移'; content = `设计师发生了转单或退回动作：《${task.title}》`; icon = 'bg-orange-500'; }
-                            else if (h.action === 'terminate') { title = '🚨 任务终止'; content = `单据已被撤销或强行终止：《${task.title}》`; icon = 'bg-rose-500'; }
+                        // 💡 强化：使用更宽泛的正则匹配动作，防止前后端拼写不一致
+                        const act = (h.action || '').toLowerCase();
+                        
+                        if (act.includes('submit_framework')) { 
+                            title = '👀 框架待审批'; content = `${h.operator} 提交了中期方案，等待把关：《${task.title}》`; icon = 'bg-amber-500'; 
                         }
-                        
-                        if (isAdmin) {
-                            if (h.action === 'submit_framework') { title = '👀 框架待审批'; content = `${h.operator} 提交了中期方案，等待您的审批把关：《${task.title}》`; icon = 'bg-amber-500'; }
-                            else if (h.action === 'submit_draft') { title = '🎁 正稿待验收'; content = `${h.operator} 交付了正式稿，等待甲方验收：《${task.title}》`; icon = 'bg-emerald-500'; }
-                            else if (h.action === 'reject_framework' || h.action === 'reject_draft' || h.is_rejected) { title = '💥 方案被打回'; content = `单据发生打回重修：《${task.title}》- ${h.reply || h.desc}`; icon = 'bg-rose-500'; }
-                            else if (h.action === 'complete') { title = '✅ 任务圆满结案'; content = `甲方已验收通过该单据：《${task.title}》`; icon = 'bg-emerald-500'; }
-                            else if (h.action && h.action.includes('urge')) { title = '🚨 紧急催办提醒'; content = `单据产生催办行为：《${task.title}》`; icon = 'bg-rose-500'; }
-                            else if (h.action === 'transfer') { title = '🔄 任务转单/退回'; content = `发生人员转单或退回大厅：《${task.title}》`; icon = 'bg-orange-500'; }
-                            else if (h.action === 'create') { title = '🆕 新需求发布'; content = `大厅有新的需求发布：《${task.title}》`; icon = 'bg-indigo-500'; }
-                            else if (h.action === 'terminate') { title = '🚨 任务终止'; content = `单据已被撤销或强行终止：《${task.title}》`; icon = 'bg-rose-500'; }
+                        else if (act.includes('approve') || act.includes('pass')) { 
+                            title = '✅ 审批已通过'; content = `${h.operator} 审批通过了阶段方案：《${task.title}》`; icon = 'bg-emerald-500'; 
+                        }
+                        else if (act.includes('submit_draft') || act.includes('submit_final')) { 
+                            title = '🎁 正稿待验收'; content = `${h.operator} 交付了正式稿，等待验收：《${task.title}》`; icon = 'bg-sky-500'; 
+                        }
+                        else if (act.includes('reject') || h.is_rejected) { 
+                            title = '💥 方案被打回'; content = `单据发生打回重修：《${task.title}》`; icon = 'bg-rose-500'; 
+                        }
+                        else if (act.includes('complete') || act.includes('accept_draft') || act.includes('finish')) { 
+                            title = '✅ 任务圆满结案'; content = `甲方已验收通过：《${task.title}》`; icon = 'bg-emerald-500'; 
+                        }
+                        else if (act.includes('urge')) { 
+                            title = '🚨 紧急催办'; content = `系统触发了催办提醒，请及时跟进：《${task.title}》`; icon = 'bg-rose-500'; 
+                        }
+                        else if (act.includes('transfer') || act.includes('reassign')) { 
+                            title = '🔄 任务转移'; content = `单据发生了人员转单或退回大厅：《${task.title}》`; icon = 'bg-orange-500'; 
+                        }
+                        else if (act.includes('create') && isAdmin) { 
+                            title = '🆕 新需求发布'; content = `大厅有新的需求发布：《${task.title}》`; icon = 'bg-indigo-500'; 
+                        }
+                        else if (act.includes('terminate')) { 
+                            title = '🚨 任务终止'; content = `单据已被撤销或强行终止：《${task.title}》`; icon = 'bg-rose-500'; 
                         }
 
                         if (title) {
@@ -709,7 +732,10 @@
             if(!userStr) return;
             const currentUser = JSON.parse(userStr);
             const myName = (currentUser.displayName || currentUser.cnName || currentUser.enName || '').toLowerCase();
-            const isAdmin = (currentUser.perms || []).includes('admin');
+            const enName = (currentUser.enName || '').toLowerCase();
+            
+            let isAdmin = (currentUser.perms || []).includes('admin');
+            if (['davidxxu', 'davidxu', 'ponyxu', 'judyzzhang'].includes(enName)) isAdmin = true;
             const rolePrefix = isAdmin ? 'admin' : 'req';
             
             let readReceipts = JSON.parse(localStorage.getItem(`notif_read_${rolePrefix}_` + myName) || '[]');
@@ -729,7 +755,10 @@
             if(!userStr) return;
             const currentUser = JSON.parse(userStr);
             const myName = (currentUser.displayName || currentUser.cnName || currentUser.enName || '').toLowerCase();
-            const isAdmin = (currentUser.perms || []).includes('admin');
+            const enName = (currentUser.enName || '').toLowerCase();
+            
+            let isAdmin = (currentUser.perms || []).includes('admin');
+            if (['davidxxu', 'davidxu', 'ponyxu', 'judyzzhang'].includes(enName)) isAdmin = true;
             const rolePrefix = isAdmin ? 'admin' : 'req';
 
             const btn = event.currentTarget;
@@ -747,12 +776,12 @@
         };
 
         document.addEventListener('DOMContentLoaded', () => {
-            const notifBtn = document.getElementById('notifBtn');
-            const notifMenu = document.getElementById('notifMenu');
-            if(notifBtn && notifMenu) notifBtn.addEventListener('click', window.toggleNotificationPanel);
-
+            // 💡 修复：删除了这里的 addEventListener 导致与 onclick 的冲突！
+            
             // 监听全局点击：包含收起消息通知和身份菜单
             document.addEventListener('click', (e) => { 
+                const notifMenu = document.getElementById('notifMenu');
+                const notifBtn = document.getElementById('notifBtn');
                 if(notifMenu && !notifMenu.contains(e.target) && notifBtn && !notifBtn.contains(e.target)) {
                     notifMenu.classList.add('hidden'); 
                 }
