@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <title>快捷提单 - 戴维斯设计系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { background-color: #09090b; color: #e4e4e7; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        .form-card { background: #121217; border: 1px solid rgba(255,255,255,0.05); }
+        input, select, textarea { background: #09090b !important; border: 1px solid #27272a !important; color: white !important; outline: none; transition: all 0.2s; }
+        input:focus, textarea:focus { border-color: #6366f1 !important; box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2); }
+        .pill-checkbox:checked + div { background-color: rgba(99, 102, 241, 0.15); border-color: #6366f1; color: #818cf8; font-weight: 600; }
+        .drop-item:hover { background-color: rgba(99, 102, 241, 0.15); color: #818cf8; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+        /* 强校验视觉提示 */
+        .invalid-field { border-color: #ef4444 !important; animation: shake 0.3s; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+    </style>
+</head>
+<body class="p-4 md:p-10 flex justify-center items-start min-h-screen">
+
+    <div class="w-full max-w-2xl form-card rounded-[2.5rem] p-8 shadow-2xl relative">
+        <div class="flex items-center gap-4 mb-8">
+            <div class="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold text-white tracking-tight">起草新设计需求 (快捷问卷版)</h1>
+                <p class="text-zinc-500 text-[11px] mt-1">提单身份：<span id="display-creator" class="text-indigo-400 font-bold font-mono">识别中...</span></p>
+            </div>
+        </div>
+
+        <form id="quickForm" class="space-y-6" novalidate>
+            <div>
+                <label class="block text-[12px] font-bold text-zinc-400 mb-2 uppercase">1. 需求标题 <span class="text-rose-500">*</span></label>
+                <input type="text" id="req-short-title" class="w-full px-4 py-3.5 rounded-xl text-sm" placeholder="例如：年度大会主视觉设计">
+            </div>
+
+            <div>
+                <label class="block text-[12px] font-bold text-zinc-400 mb-2 uppercase">2. 需求描述 <span class="text-rose-500">*</span></label>
+                <textarea id="req-title" class="w-full px-4 py-3.5 rounded-xl text-sm h-28 resize-none custom-scrollbar" placeholder="详细说明背景、尺寸要求等..."></textarea>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-[12px] font-bold text-zinc-400 mb-2 uppercase">3. 产出类型 <span class="text-rose-500">*</span></label>
+                    <select id="req-type" class="w-full px-4 py-3.5 rounded-xl text-sm cursor-pointer">
+                        <option value="">-- 请选择 --</option>
+                        <option value="平面视觉">平面视觉</option>
+                        <option value="视频动效">视频动效</option>
+                    </select>
+                </div>
+                <div class="relative" id="project-wrapper">
+                    <label class="block text-[12px] font-bold text-zinc-400 mb-2 uppercase">4. 归属项目 <span class="text-rose-500">*</span></label>
+                    <input type="text" id="req-project" class="w-full px-4 py-3.5 rounded-xl text-sm" placeholder="点选或搜索..." onfocus="showProjectDrop()" oninput="filterProjectDrop()" readonly>
+                    <div id="project-dropdown" class="hidden absolute left-0 right-0 top-[100%] mt-1 bg-[#121217] border border-zinc-700 rounded-xl shadow-2xl z-[999] max-h-56 overflow-y-auto custom-scrollbar py-2"></div>
+                </div>
+            </div>
+
+            <div id="channel-container">
+                <label class="block text-[12px] font-bold text-zinc-400 mb-2 uppercase">5. 期望分发渠道 (必选) <span class="text-rose-500">*</span></label>
+                <div class="flex flex-wrap gap-2">
+                    <label class="cursor-pointer"><input type="checkbox" value="企业号" class="hidden pill-checkbox req-channel"><div class="border border-zinc-700 bg-[#09090b] text-zinc-500 text-[10px] px-4 py-2 rounded-full transition-all">企业号</div></label>
+                    <label class="cursor-pointer"><input type="checkbox" value="邮件" class="hidden pill-checkbox req-channel"><div class="border border-zinc-700 bg-[#09090b] text-zinc-500 text-[10px] px-4 py-2 rounded-full transition-all">邮件</div></label>
+                    <label class="cursor-pointer"><input type="checkbox" value="小蓝书" class="hidden pill-checkbox req-channel"><div class="border border-zinc-700 bg-[#09090b] text-zinc-500 text-[10px] px-4 py-2 rounded-full transition-all">小蓝书</div></label>
+                    <label class="cursor-pointer"><input type="checkbox" value="立地屏" class="hidden pill-checkbox req-channel"><div class="border border-zinc-700 bg-[#09090b] text-zinc-500 text-[10px] px-4 py-2 rounded-full transition-all">立地屏</div></label>
+                    <label class="cursor-pointer"><input type="checkbox" value="电视机" class="hidden pill-checkbox req-channel"><div class="border border-zinc-700 bg-[#09090b] text-zinc-500 text-[10px] px-4 py-2 rounded-full transition-all">电视机</div></label>
+                    <label class="cursor-pointer"><input type="checkbox" value="异形牌" class="hidden pill-checkbox req-channel"><div class="border border-zinc-700 bg-[#09090b] text-zinc-500 text-[10px] px-4 py-2 rounded-full transition-all">异形牌</div></label>
+                    <label class="cursor-pointer"><input type="checkbox" value="We视角" class="hidden pill-checkbox req-channel"><div class="border border-zinc-700 bg-[#09090b] text-zinc-500 text-[10px] px-4 py-2 rounded-full transition-all">We视角</div></label>
+                    <label class="cursor-pointer"><input type="checkbox" value="其他" id="channel-other-cb" class="hidden pill-checkbox req-channel" onchange="toggleOtherInput()"><div class="border border-zinc-700 bg-[#09090b] text-zinc-500 text-[10px] px-4 py-2 rounded-full transition-all">其他</div></label>
+                </div>
+                <input type="text" id="req-channel-other" placeholder="请手写具体渠道..." class="hidden w-full mt-3 bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-2.5 text-sm">
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="relative" id="assignee-wrapper">
+                    <label class="block text-[12px] font-bold text-zinc-400 mb-2 uppercase">6. 期望执行人 <span class="text-rose-500">*</span></label>
+                    <input type="text" id="req-assignee-input" class="w-full px-4 py-3 rounded-xl text-sm" placeholder="选统筹或设计师" onfocus="showAssigneeDrop()" oninput="filterAssigneeDrop()" readonly>
+                    <div id="assignee-dropdown" class="hidden absolute left-0 right-0 top-[100%] mt-1 bg-[#121217] border border-zinc-700 rounded-xl shadow-2xl z-[999] max-h-56 overflow-y-auto custom-scrollbar py-2"></div>
+                </div>
+                <div>
+                    <label class="block text-[12px] font-bold text-zinc-400 mb-2 uppercase">7. 期望交付日 <span class="text-rose-500">*</span></label>
+                    <input type="date" id="req-date" class="w-full px-4 py-3 rounded-xl text-sm" style="color-scheme: dark;">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-[12px] font-bold text-zinc-400 mb-2 uppercase">8. 参考链接 (选填)</label>
+                <input type="url" id="req-link" class="w-full px-4 py-3 rounded-xl text-sm" placeholder="腾讯文档地址...">
+            </div>
+
+            <div>
+                <label class="block text-[12px] font-bold text-zinc-400 mb-2 uppercase">9. 参考附件 (最多5个, 单个≤5MB)</label>
+                <label class="w-full border-2 border-zinc-800 border-dashed rounded-xl px-4 py-5 flex flex-col items-center justify-center cursor-pointer hover:border-indigo-500 transition-colors">
+                    <span id="upload-text" class="text-[11px] text-zinc-500 flex items-center gap-2">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+                        点击选择附件 (支持多选)
+                    </span>
+                    <input type="file" id="file-upload" class="hidden" multiple onchange="handleFileSelect(event)">
+                </label>
+                <div id="file-list" class="mt-3 space-y-2 hidden"></div>
+            </div>
+
+            <button type="submit" id="submitBtn" class="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold shadow-xl transition-all active:scale-95">
+                确认提交并同步至大厅
+            </button>
+        </form>
+    </div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+        const supabase = createClient('https://supffjeeouibhqdfqosk.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1cGZmamVlb3VpYmhxZGZxb3NrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3NTE5MjIsImV4cCI6MjA4ODMyNzkyMn0.GqFMYmeKSZitaM1Z2oAxkMSChzocOxi49w9zrxKUQow');
+
+        const PROJECT_LIST = ["Smart文化-OpenTalk", "Smart文化-1024", "Smart文化-后勤小管家", "Smart文化-小蓝书运营", "Smart文化-送物机器人", "荣誉体系-即时激励", "荣誉体系-荣誉奖项", "荣誉体系-AI奖项", "荣誉体系-最佳拍档", "荣誉体系-科技合作社", "荣誉体系-极客团", "年度大会-武汉", "年度大会-上海", "年度大会-行庆", "HR侧相关-周年庆", "HR侧相关-初八团拜", "工会相关-团建旅游", "工会相关-运动季", "工会相关-文体活动", "常规活动-新人入职", "常规活动-科技合规银监人行类支持", "常规活动-年决", "常规活动-管理团队活动", "常规活动-外籍员工支持", "品宣支持", "科技子支持", "行品宣设计对接", "部门-基科", "部门-数业", "部门-贷款", "部门-存款", "部门-企同", "部门-财富", "部门-政科", "部门-数发", "部门-安全", "部门-上海", "部门-武汉", "部门-成都", "部门-科管"];
+        const ASSIGNEE_LIST = ['anckyyu', 'davidxxu', 'debbiehuang', 'evazzhu', 'hscheng', 'mengmengli', 'skylerhuang', 'sophiachen', 'tiaouyang', 'v_lijuangchen', 'v_lucui', 'v_sijieli', 'v_siyifu', 'v_sjtian', 'v_wbchye', 'v_wbjgao', 'v_wbmtli', 'v_zqlan', 'wenjiawu', 'yamyzhang', 'yaozhong', 'yoshyliu', 'zoeyzhou'].sort();
+
+        const params = new URLSearchParams(window.location.search);
+        const creatorId = params.get('creator') || '神秘提单人';
+        document.getElementById('display-creator').innerText = creatorId;
+
+        let currentFiles = [];
+
+        // --- 核心修复逻辑：点击空白处关闭所有下拉框 ---
+        document.addEventListener('click', (e) => {
+            const projWrap = document.getElementById('project-wrapper');
+            const assWrap = document.getElementById('assignee-wrapper');
+            if (projWrap && !projWrap.contains(e.target)) document.getElementById('project-dropdown').classList.add('hidden');
+            if (assWrap && !assWrap.contains(e.target)) document.getElementById('assignee-dropdown').classList.add('hidden');
+        });
+
+        // 强校验函数
+        function validate() {
+            document.querySelectorAll('.invalid-field').forEach(el => el.classList.remove('invalid-field'));
+            const fields = [
+                { id: 'req-short-title', name: '需求标题' },
+                { id: 'req-title', name: '需求描述' },
+                { id: 'req-type', name: '产出类型' },
+                { id: 'req-project', name: '归属项目' },
+                { id: 'req-assignee-input', name: '执行人' },
+                { id: 'req-date', name: '交付日期' }
+            ];
+            for (let field of fields) {
+                const el = document.getElementById(field.id);
+                if (!el.value.trim()) {
+                    el.classList.add('invalid-field');
+                    alert(`请填写必填项：${field.name}`);
+                    el.focus();
+                    return false;
+                }
+            }
+            if (document.querySelectorAll('.req-channel:checked').length === 0) {
+                document.getElementById('channel-container').classList.add('invalid-field');
+                alert('请至少选择一个期望分发渠道！');
+                return false;
+            }
+            return true;
+        }
+
+        window.showProjectDrop = () => renderDrop('project-dropdown', PROJECT_LIST, 'req-project');
+        window.filterProjectDrop = () => renderDrop('project-dropdown', PROJECT_LIST, 'req-project', document.getElementById('req-project').value);
+        window.showAssigneeDrop = () => renderDrop('assignee-dropdown', ['不指定 (系统统筹)', ...ASSIGNEE_LIST], 'req-assignee-input');
+        window.filterAssigneeDrop = () => renderDrop('assignee-dropdown', ['不指定 (系统统筹)', ...ASSIGNEE_LIST], 'req-assignee-input', document.getElementById('req-assignee-input').value);
+
+        function renderDrop(id, data, inputId, filter = '') {
+            const drop = document.getElementById(id);
+            drop.classList.remove('hidden');
+            const filtered = data.filter(i => i.toLowerCase().includes(filter.toLowerCase()));
+            drop.innerHTML = filtered.map(item => `<div class="px-4 py-2.5 drop-item cursor-pointer text-[13px] border-b border-white/5 last:border-0" onclick="selectItem('${id}','${inputId}','${item}')">${item}</div>`).join('');
+        }
+
+        window.selectItem = (id, inputId, val) => {
+            document.getElementById(inputId).value = val;
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        window.toggleOtherInput = () => {
+            const el = document.getElementById('req-channel-other');
+            el.classList.toggle('hidden', !document.getElementById('channel-other-cb').checked);
+        }
+
+        window.handleFileSelect = async (e) => {
+            const files = Array.from(e.target.files);
+            for (let f of files) {
+                if (currentFiles.length >= 5) break;
+                if (f.size > 5 * 1024 * 1024) { alert(`文件 ${f.name} 超过5MB！`); continue; }
+                const base64 = await new Promise(r => {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => r(ev.target.result);
+                    reader.readAsDataURL(f);
+                });
+                currentFiles.push({ name: f.name, data: base64 });
+            }
+            renderFileList();
+        }
+
+        function renderFileList() {
+            const list = document.getElementById('file-list');
+            list.classList.toggle('hidden', currentFiles.length === 0);
+            list.innerHTML = currentFiles.map((f, i) => `<div class="flex items-center justify-between bg-zinc-800/40 px-3 py-2 rounded-lg text-[11px] border border-white/5"><span class="truncate pr-4 text-zinc-300">${f.name}</span><button type="button" onclick="removeFile(${i})" class="text-rose-500 font-bold px-2">删除</button></div>`).join('');
+        }
+
+        window.removeFile = (i) => { currentFiles.splice(i, 1); renderFileList(); }
+
+        document.getElementById('quickForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!validate()) return;
+
+            const btn = document.getElementById('submitBtn');
+            btn.innerText = "强效入库中..."; btn.disabled = true;
+
+            const assigneeInput = document.getElementById('req-assignee-input').value;
+            const assigneeVal = (assigneeInput === '不指定 (系统统筹)' || !assigneeInput) ? 'none' : assigneeInput;
+            const channels = Array.from(document.querySelectorAll('.req-channel:checked')).map(cb => cb.value);
+            const other = document.getElementById('req-channel-other').value.trim();
+            if(other) channels.push(`其他: ${other}`);
+
+            const taskData = {
+                id: 'TK-' + Date.now().toString().slice(-6),
+                title: document.getElementById('req-short-title').value,
+                full_desc: document.getElementById('req-title').value,
+                project: document.getElementById('req-project').value,
+                due_date: document.getElementById('req-date').value,
+                assignee: assigneeVal,
+                link: document.getElementById('req-link').value,
+                creator: creatorId,
+                channels: channels,
+                status: assigneeVal === 'none' ? 'pending' : 'pending_accept',
+                file_name: currentFiles.map(f => f.name).join(' | '),
+                file_data: currentFiles.length > 0 ? JSON.stringify(currentFiles) : null,
+                summary_desc: assigneeVal === 'none' ? '已通过快捷问卷提交，等待统筹。' : `已指派给设计师 ${assigneeVal}，等待接单。`,
+                history_json: JSON.stringify([{ action: 'create', operator: `${creatorId} (需求方)`, time: new Date().toISOString(), reply: '通过免登录移动端发起新需求' }])
+            };
+
+            const { error } = await supabase.from('test_tasks').insert([taskData]);
+            if (error) {
+                alert("提交失败：" + error.message);
+                btn.innerText = "重新提交"; btn.disabled = false;
+            } else {
+                document.body.innerHTML = `<div class="flex flex-col items-center justify-center min-h-screen text-center p-6"><div class="w-20 h-20 bg-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/20"><svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg></div><h2 class="text-2xl font-bold text-white">需求已同步成功</h2><p class="text-zinc-500 mt-3 text-sm leading-relaxed">正式因为有规范的统筹把控，设计产出才更有保障。<br>工单号 ${taskData.id} 已录入戴维斯大厅。</p></div>`;
+            }
+        });
+    </script>
+</body>
+</html>
