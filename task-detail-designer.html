@@ -791,6 +791,32 @@
             showToast('推送成功', `该节点产出已流转至下一步。`, 'success');
             setTimeout(() => { window.location.href = 'assistant-workspace.html'; }, 1500);
         }
+
+        // 💡 补全看大图核心业务逻辑函数
+        window.openPreview = function(imgUrl) {
+            const modal = document.getElementById('image-preview-modal');
+            const modalImg = document.getElementById('modal-image');
+            if (!modal || !modalImg) return;
+
+            if (imgUrl) {
+                // 如果传入了图纸网络URL，直接渲染
+                modalImg.src = imgUrl;
+            } else if (localPreviewUrl) {
+                // 如果未传URL且本地上传缓存有效，渲染当前待上传的新版本图纸
+                modalImg.src = localPreviewUrl;
+            } else {
+                return;
+            }
+
+            modal.classList.add('visible');
+        }
+
+        window.closePreview = function() {
+            const modal = document.getElementById('image-preview-modal');
+            if (modal) {
+                modal.classList.remove('visible');
+            }
+        }
     </script>
 
     <script>
