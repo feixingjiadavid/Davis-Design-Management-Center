@@ -207,7 +207,7 @@
                 <div class="flex-[1] flex flex-col">
                     <div class="bg-[#121217] border border-white/5 rounded-3xl p-6 h-full flex flex-col shadow-2xl relative">
                         <h3 class="text-[15px] font-bold text-white mb-2">实时资源池监控</h3>
-                        <p class="text-[11px] text-zinc-500 mb-6 pb-4 border-b border-white/5">全员名单已展出，透视当前筛选周期内的实际工时产出。</p>
+                        <p class="text-[11px] text-zinc-500 mb-6 pb-4 border-b border-white/5">全员名单已展出，透视当前自然月内通过流水账产生的真实工时量。</p>
                         
                         <div class="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2" id="resource-pool"></div>
                     </div>
@@ -237,30 +237,30 @@
                         <p class="text-xl font-bold font-mono text-fuchsia-400" id="analysis-creators-count">0 人</p>
                     </div>
                     <div class="bg-black/30 border border-white/5 rounded-2xl p-3.5">
-                        <p class="text-[11px] text-zinc-500 font-medium mb-1">实际产生工时人数</p>
+                        <p class="text-[11px] text-zinc-500 font-medium mb-1">当月有实际工时人</p>
                         <p class="text-xl font-bold font-mono text-emerald-400" id="analysis-assignees-count">0 人</p>
                     </div>
                     <div class="bg-black/30 border border-white/5 rounded-2xl p-3.5">
-                        <p class="text-[11px] text-zinc-500 font-medium mb-1">当月吞吐工单总数</p>
-                        <p class="text-xl font-bold font-mono text-indigo-400" id="analysis-total-tasks">0 单</p>
+                        <p class="text-[11px] text-zinc-500 font-medium mb-1">当月累计投入工时</p>
+                        <p class="text-xl font-bold font-mono text-indigo-400" id="analysis-total-hours">0.0h</p>
                     </div>
                     <div class="bg-black/30 border border-white/5 rounded-2xl p-3.5">
-                        <p class="text-[11px] text-zinc-500 font-medium mb-1">当月完结交付率</p>
-                        <p class="text-xl font-bold font-mono text-amber-400" id="analysis-finish-rate">0%</p>
+                        <p class="text-[11px] text-zinc-500 font-medium mb-1">当月吞吐工单总数</p>
+                        <p class="text-xl font-bold font-mono text-amber-400" id="analysis-total-tasks">0 单</p>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-3 gap-4">
                     <div class="bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col min-h-[180px]">
-                        <h4 class="text-[12px] font-bold text-zinc-400 mb-2.5 flex items-center gap-1 text-fuchsia-400"><span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500"></span> 业务模块实际消耗分布</h4>
-                        <div class="text-[11px] space-y-1.5 text-zinc-400 overflow-y-auto custom-scrollbar flex-1" id="insight-modules-list">暂无明显模块分布</div>
+                        <h4 class="text-[12px] font-bold text-zinc-400 mb-2.5 flex items-center gap-1 text-fuchsia-400"><span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500"></span> 各项目当期工时消耗榜</h4>
+                        <div class="text-[11px] space-y-1.5 text-zinc-400 overflow-y-auto custom-scrollbar flex-1" id="insight-modules-list">暂无明显项目投入</div>
                     </div>
                     <div class="bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col min-h-[180px]">
-                        <h4 class="text-[12px] font-bold text-zinc-400 mb-2.5 flex items-center gap-1 text-emerald-400"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> 重点工时投入 Top 榜 (非0)</h4>
+                        <h4 class="text-[12px] font-bold text-zinc-400 mb-2.5 flex items-center gap-1 text-emerald-400"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> 当期成员投入工时排行 (非0)</h4>
                         <div class="text-[11px] space-y-1.5 text-zinc-400 overflow-y-auto custom-scrollbar flex-1" id="insight-staff-hours">暂无承接数据</div>
                     </div>
                     <div class="bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col min-h-[180px]">
-                        <h4 class="text-[12px] font-bold text-zinc-400 mb-2.5 flex items-center gap-1 text-indigo-400"><span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span> AI 工具真实渗透应用排行</h4>
+                        <h4 class="text-[12px] font-bold text-zinc-400 mb-2.5 flex items-center gap-1 text-indigo-400"><span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span> AI 工具当期真实应用排行</h4>
                         <div class="text-[11px] space-y-1.5 text-zinc-400 overflow-y-auto custom-scrollbar flex-1" id="insight-ai-tools-list">暂无应用频次</div>
                     </div>
                 </div>
@@ -400,7 +400,16 @@
             return user;
         }
 
-        // ================= 💡 全局数据引擎（完美配平投入分析页面的底层算法） =================
+        // 判断流水账里的某条记录是否属于当前自然月（对齐投入分析页的底层剪裁机制）
+        function isDateInCurrentMonth(dString) {
+            if (!dString) return false;
+            const d = new Date(dString);
+            if (isNaN(d.getTime())) return false;
+            const now = new Date();
+            return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+        }
+
+        // ================= 💡 全局数据引擎（主看板渲染底层） =================
         window.loadDashboardData = async function(isSilent = false) {
             if(!initRBAC()) return;
             if(!window.supabase) return;
@@ -409,7 +418,6 @@
             if(syncDot && !isSilent) syncDot.classList.remove('hidden');
 
             try {
-                // 1. 获取全盘用户底表配置
                 const { data: users, error: uErr } = await window.supabase.from('user_profiles').select('*');
                 if (uErr) throw uErr;
 
@@ -417,7 +425,7 @@
                 if (users) {
                     users.forEach(u => {
                         const en = (u.en_name || '').toLowerCase().trim();
-                        const excludedUsers = ['judyzzhang', 'ponyxu', 'davidxu'];
+                        const excludedUsers = ['judyzzhang', 'ponyxu', 'davidxxu', 'davidxu'];
                         if(en && !excludedUsers.includes(en)) {
                             if(!window.systemUsersList.some(x => x.en === en)) {
                                 window.systemUsersList.push({ en: en, display: u.display_name || u.cn_name || u.en_name || en });
@@ -426,7 +434,6 @@
                     });
                 }
 
-                // 2. 抓取全量工单
                 const { data: tasks, error } = await window.supabase.from(window.DB_TABLE).select('id, title, project, status, creator, assignee, due_date, history_json, created_at').order('created_at', { ascending: false });
                 if (error) throw error;
 
@@ -435,8 +442,7 @@
                 window.completedTasksData = (tasks || []).filter(t => ['completed', 'archived', 'terminated'].includes(t.status));
                 const pendingTasks = window.ongoingTasksData.filter(t => ['pending', 'pending_accept', 'pending_approval', 'reviewing'].includes(t.status));
 
-                // 3. 构建大盘时间周期计算
-                let monthC = 0, weekC = 0, yearC = 0;
+                let monthC = 0, weekC = 0;
                 const now = new Date();
                 const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (now.getDay() || 7) + 1);
                 startOfWeek.setHours(0,0,0,0);
@@ -453,37 +459,40 @@
                     if (cDate >= startOfMonth) monthC++;
                 });
 
-                // 4. 深度对接真实工时解析与 AI 标记透视（完全和项目投入分析页面对齐）
+                // 💡 核心对齐：初始化所有系统内置人员的本月时数，保证右侧列表严格匹配
                 let designersMap = {};
                 window.systemUsersList.forEach(u => {
                     designersMap[u.en] = { en: u.en, display: u.display, hours: 0, count: 0, tasks: [], aiTools: {} };
                 });
 
-                window.ongoingTasksData.forEach(t => {
+                // 穿透全量单据的历史流水账，只解构和计算【当期自然月】产生的工时，实现两页面联动闭环
+                window.allRawTasksData.forEach(t => {
                     try {
                         const hist = JSON.parse(t.history_json || '[]');
                         hist.forEach(h => {
-                            let hVal = parseFloat(h.work_hours || h.hours);
-                            if (!isNaN(hVal) && hVal > 0 && h.operator) {
-                                let opLower = h.operator.toLowerCase().trim();
-                                let matched = window.systemUsersList.find(u => opLower.includes(u.en) || (u.display && opLower.includes(u.display.toLowerCase())));
-                                
-                                if (matched && designersMap[matched.en]) {
-                                    designersMap[matched.en].hours += hVal;
-                                    if(!designersMap[matched.en].tasks.some(x => x.id === t.id)) {
-                                        designersMap[matched.en].count += 1;
-                                        designersMap[matched.en].tasks.push(t);
-                                    }
+                            if (isDateInCurrentMonth(h.created_at || h.time)) {
+                                let hVal = parseFloat(h.work_hours || h.hours);
+                                if (!isNaN(hVal) && hVal > 0 && h.operator) {
+                                    let opLower = h.operator.toLowerCase().trim();
+                                    let matched = window.systemUsersList.find(u => opLower.includes(u.en) || (u.display && opLower.includes(u.display.toLowerCase())));
+                                    
+                                    if (matched && designersMap[matched.en]) {
+                                        designersMap[matched.en].hours += hVal;
+                                        // 如果是进行中的需求单，则将其压入卡片气泡内
+                                        if(!['completed', 'archived', 'terminated'].includes(t.status) && !designersMap[matched.en].tasks.some(x => x.id === t.id)) {
+                                            designersMap[matched.en].count += 1;
+                                            designersMap[matched.en].tasks.push(t);
+                                        }
 
-                                    // 解析真实勾选的 AI 原生标签
-                                    if (h.action === 'submit_draft' || h.action === 'submit_framework') {
-                                        const tools = h.ai_tools || [];
-                                        tools.forEach(tool => {
-                                            if (tool && tool !== '无AI辅助') {
-                                                if(!designersMap[matched.en].aiTools[tool]) designersMap[matched.en].aiTools[tool] = 0;
-                                                designersMap[matched.en].aiTools[tool]++;
-                                            }
-                                        });
+                                        if (h.action === 'submit_draft' || h.action === 'submit_framework') {
+                                            const tools = h.ai_tools || [];
+                                            tools.forEach(tool => {
+                                                if (tool && tool !== '无AI辅助') {
+                                                    if(!designersMap[matched.en].aiTools[tool]) designersMap[matched.en].aiTools[tool] = 0;
+                                                    designersMap[matched.en].aiTools[tool]++;
+                                                }
+                                            });
+                                        }
                                     }
                                 }
                             }
@@ -498,21 +507,20 @@
                     document.getElementById('stat-pending').innerText = pendingTasks.length;
                     document.getElementById('stat-completed-month').innerText = monthC;
                     document.getElementById('stat-completed-week').innerText = weekC;
-                    document.getElementById('stat-completed-year').innerText = window.completedTasksData.length;
 
                     document.getElementById('tab-count-ongoing').innerText = window.ongoingTasksData.length;
                     document.getElementById('tab-count-completed').innerText = window.completedTasksData.length;
 
                     window.renderTasksList();
 
-                    // 渲染右侧实时资源池监控卡片 (完全复刻无偏差呈现)
+                    // 渲染右侧资源池列表
                     const poolContainer = document.getElementById('resource-pool');
                     let poolHtml = '';
                     const sortedDesigners = Object.values(designersMap).sort((a,b) => b.hours - a.hours || b.count - a.count);
                     
                     sortedDesigners.forEach((data, index) => {
                         const isEmpty = data.hours === 0;
-                        const statusColor = isEmpty ? 'text-zinc-500' : (data.count > 2 ? 'text-rose-500' : 'text-emerald-500');
+                        const statusColor = isEmpty ? 'text-zinc-500' : (data.count > 2 ? 'text-rose-400' : 'text-emerald-500');
                         const statusText = isEmpty ? '极度空闲' : (data.count > 2 ? '🔥 满负荷' : '✅ 输出中');
                         const opacityClass = isEmpty ? 'opacity-60 hover:opacity-100' : 'opacity-100';
                         const bgClass = isEmpty ? 'bg-[#09090b] border-dashed border-zinc-800' : 'bg-[#18181b] border border-white/5 shadow-sm hover:border-white/10';
@@ -538,10 +546,9 @@
                                 `;
                             });
 
-                            // 追加解析该设计师在此页面的 AI 应用微型标签
                             let aiSubTags = "";
                             Object.entries(data.aiTools).forEach(([tool, count]) => {
-                                aiSubTags += `<span class="text-[9px] text-amber-400 bg-amber-500/5 border border-amber-500/20 px-1.5 py-0.5 rounded mr-1">${tool}:${count}次</span>`;
+                                aiSubTags += `<span class="text-[9px] text-amber-400 bg-amber-500/5 border border-amber-500/20 px-1.5 py-0.5 rounded mr-1 mb-1">${tool}:${count}次</span>`;
                             });
                             if(aiSubTags) tasksHtml += `<div class="flex flex-wrap pt-2">${aiSubTags}</div>`;
                             tasksHtml += '</div>';
@@ -577,7 +584,7 @@
             } catch (err) { console.error(err); } finally { if(syncDot) setTimeout(() => syncDot.classList.add('hidden'), 500); }
         }
 
-        // ================= 💡 核心：月度核心分析与总结透视（完全对接真实工时与AI标签应用） =================
+        // ================= 💡 月度分析透视（深度注入当前自然月时间切割，对齐数据精度） =================
         window.openAnalysisModal = function() {
             document.getElementById('analysis-modal-overlay').classList.remove('hidden');
             setTimeout(() => {
@@ -588,103 +595,94 @@
             const now = new Date();
             const currentYear = now.getFullYear();
             const currentMonth = now.getMonth();
+            document.getElementById('analysis-modal-title').innerText = `${currentYear}年${currentMonth + 1}月 设计需求大盘核心分析与总结看板`;
 
-            // 1. 抓取精准范围单据
-            const monthlyTasks = (window.allRawTasksData || []).filter(task => {
-                let d = new Date(task.created_at);
-                try {
-                    let hArr = JSON.parse(task.history_json || '[]');
-                    if(hArr.length > 0 && ['completed', 'archived'].includes(task.status)) {
-                        let lastAct = hArr[hArr.length - 1];
-                        d = new Date(lastAct.time || lastAct.created_at || task.created_at);
-                    }
-                } catch(e){}
-                return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
-            });
-
-            // 2. 双端数据流动态去重提取
+            // 💡 关键修正：重新计算并隔离出完结属于本月，或流水归属于本月的绝对净值数据
+            let totalPeriodHours = 0;
             const uniqueCreators = new Set();
             const uniqueAssignees = new Set();
-            let rejectedCount = 0; 
+            let totalPeriodTasksSet = new Set();
             
-            const moduleCounts = { '监管模型与金融风控': 0, 'Honor荣誉系统/物料': 0, '团建Collection/行政': 0, '日常大厅运营协同': 0 };
-            
-            // 全盘 AI 工具真实提取映射
-            let aiToolsFreqGlobal = {};
+            const projectHoursMap = {};
             let totalRealAiCalls = 0;
+            let aiToolsFreqGlobal = {};
 
-            monthlyTasks.forEach(t => {
-                if(t.creator) uniqueCreators.add(t.creator.trim().toLowerCase());
-                if(t.status === 'rejected') rejectedCount++;
+            // 从内存缓存中提取已经计算好的当前月真实工时数据
+            const designersArray = Object.values(window.cachedDesignersMap || {});
+            designersArray.forEach(d => {
+                if (d.hours > 0) {
+                    uniqueAssignees.add(d.en);
+                    totalPeriodHours += d.hours;
+                }
+            });
 
-                // 划分模块
-                const titleStr = t.title || '';
-                if(titleStr.includes('金监') || titleStr.includes('金融') || titleStr.includes('监管') || titleStr.includes('银行')) moduleCounts['监管模型与金融风控']++;
-                else if(titleStr.includes('勋章') || titleStr.includes('Honor') || titleStr.includes('Super Tiger')) moduleCounts['Honor荣誉系统/物料']++;
-                else if(titleStr.includes('团建') || titleStr.includes('宴会') || titleStr.includes('Destination')) moduleCounts['团建Collection/行政']++;
-                else moduleCounts['日常大厅运营协同']++;
-
-                // 穿透提取真实填报的 AI tools 标签
+            // 重新遍历，过滤出仅在当月产生了实质动作的工单单据
+            window.allRawTasksData.forEach(t => {
                 try {
                     const hist = JSON.parse(t.history_json || '[]');
                     hist.forEach(h => {
-                        if (h.action === 'submit_draft' || h.action === 'submit_framework') {
-                            const tools = h.ai_tools || [];
-                            tools.forEach(tool => {
-                                if (tool && tool !== '无AI辅助') {
-                                    totalRealAiCalls++;
-                                    if(!aiToolsFreqGlobal[tool]) aiToolsFreqGlobal[tool] = 0;
-                                    aiToolsFreqGlobal[tool]++;
-                                }
-                            });
+                        if (isDateInCurrentMonth(h.created_at || h.time)) {
+                            totalPeriodTasksSet.add(t.id);
+                            if(t.creator) uniqueCreators.add(t.creator.trim().toLowerCase());
+
+                            let hVal = parseFloat(h.work_hours || h.hours);
+                            if (!isNaN(hVal) && hVal > 0) {
+                                const pName = t.project || '日常大厅运营协同';
+                                if(!projectHoursMap[pName]) projectHoursMap[pName] = 0;
+                                projectHoursMap[pName] += hVal;
+                            }
+
+                            if (h.action === 'submit_draft' || h.action === 'submit_framework') {
+                                const tools = h.ai_tools || [];
+                                tools.forEach(tool => {
+                                    if (tool && tool !== '无AI辅助') {
+                                        totalRealAiCalls++;
+                                        if(!aiToolsFreqGlobal[tool]) aiToolsFreqGlobal[tool] = 0;
+                                        aiToolsFreqGlobal[tool]++;
+                                    }
+                                });
+                            }
                         }
                     });
                 } catch(e){}
             });
 
-            // 3. 读取当前内存配平的活跃执行人员数 (hours > 0 的骨干)
-            const staffHoursArray = [];
-            Object.values(window.cachedDesignersMap || {}).forEach(data => {
-                if (data.hours > 0) { 
-                    uniqueAssignees.add(data.en);
-                    staffHoursArray.push({ display: data.display, hours: data.hours, count: data.count });
-                }
-            });
-            staffHoursArray.sort((a, b) => b.hours - a.hours);
-
-            const totalCount = monthlyTasks.length;
-            const completedCount = monthlyTasks.filter(t => ['completed', 'archived'].includes(t.status)).length;
+            const totalCount = totalPeriodTasksSet.size;
+            const completedCount = (window.completedTasksData || []).filter(t => totalPeriodTasksSet.has(t.id)).length;
             const finishRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
+            // 反哺四大看板数字
             document.getElementById('analysis-creators-count').innerText = `${uniqueCreators.size} 人`;
             document.getElementById('analysis-assignees-count').innerText = `${uniqueAssignees.size} 人`;
+            document.getElementById('analysis-total-hours').innerText = `${totalPeriodHours.toFixed(1)}h`;
             document.getElementById('analysis-total-tasks').innerText = `${totalCount} 单`;
             document.getElementById('analysis-finish-rate').innerText = `${finishRate}%`;
 
-            // 4. 渲染模块工作量分布
-            const sortedModules = Object.entries(moduleCounts).filter(e => e[1] > 0).sort((a,b) => b[1] - a[1]);
+            // 1. 渲染当期项目实际工时消耗榜 (严格按照工时降序排列)
+            const sortedProj = Object.entries(projectHoursMap).sort((a,b) => b[1] - a[1]);
             let moduleHtml = "";
-            sortedModules.forEach(([mod, count]) => {
-                let pct = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
+            sortedProj.forEach(([pName, hours]) => {
+                let pct = totalPeriodHours > 0 ? Math.round((hours / totalPeriodHours) * 100) : 0;
                 moduleHtml += `<div class='flex justify-between items-center bg-white/5 px-2.5 py-1.5 rounded-xl border border-white/5'>
-                    <span class='truncate text-zinc-300 mr-2'>${mod}</span>
-                    <span class='font-mono text-fuchsia-400 font-bold shrink-0'>${count}单 (${pct}%)</span>
+                    <span class='truncate text-zinc-300 mr-2'>${pName}</span>
+                    <span class='font-mono text-fuchsia-400 font-bold shrink-0'>${hours.toFixed(1)}h (${pct}%)</span>
                 </div>`;
             });
-            document.getElementById('insight-modules-list').innerHTML = moduleHtml || "<p class='text-zinc-500 text-center py-4'>暂无活动项目</p>";
+            document.getElementById('insight-modules-list').innerHTML = moduleHtml || "<p class='text-zinc-500 text-center py-4'>暂无活动项目工时</p>";
 
-            // 5. 渲染精准真实投入工时榜单 Top 排行
+            // 2. 渲染当期成员真实投入工时排行 (过滤掉0工时闲置组员)
+            const activeStaffArray = designersArray.filter(d => d.hours > 0).sort((a,b) => b.hours - a.hours);
             let staffHtml = "";
-            staffHoursArray.forEach((item, idx) => {
+            activeStaffArray.forEach((item, idx) => {
                 let rankColor = idx === 0 ? 'text-rose-400 font-black' : (idx === 1 ? 'text-orange-400 font-bold' : 'text-zinc-300');
                 staffHtml += `<div class='flex justify-between items-center bg-white/5 px-2.5 py-1.5 rounded-xl border border-white/5'>
                     <span class='${rankColor} truncate'>Top ${idx+1}. ${item.display}</span>
                     <span class='font-mono text-emerald-400 font-medium shrink-0'>${item.count}单 / <b>${item.hours.toFixed(1)}h</b></span>
                 </div>`;
             });
-            document.getElementById('insight-staff-hours').innerHTML = staffHtml || "<p class='text-zinc-500 text-center py-4'>无实际工时消耗</p>";
+            document.getElementById('insight-staff-hours').innerHTML = staffHtml || "<p class='text-zinc-500 text-center py-4'>无实际工时消耗记录</p>";
 
-            // 6. 渲染完全对齐、真实抓取的 AI 工具占比排序
+            // 3. 真实抓取的 AI 工具占比排序
             const sortedAiTools = Object.entries(aiToolsFreqGlobal).sort((a,b) => b[1] - a[1]);
             let aiHtml = "";
             sortedAiTools.forEach(([tool, val]) => {
@@ -694,22 +692,21 @@
                     <span class='font-mono text-indigo-400 font-bold shrink-0'>${val}次 (${pct}%)</span>
                 </div>`;
             });
-            document.getElementById('insight-ai-tools-list').innerHTML = aiHtml || "<p class='text-zinc-500 text-center py-4 italic'>本月全流水均为纯手绘产出</p>";
+            document.getElementById('insight-ai-tools-list').innerHTML = aiHtml || "<p class='text-zinc-500 text-center py-4 italic text-xs'>本期暂未产生AI标签填报</p>";
 
-            // 7. 动态组织极具管理深度的复盘总结（Summary）
+            // 4. 精准修正 Summary 叙述段落
             let summaryText = "";
             if(totalCount > 0) {
-                const primaryMod = sortedModules.length > 0 ? sortedModules[0][0] : "运营大厅协同";
-                const championStaff = staffHoursArray.length > 0 ? staffHoursArray[0].display : "中坚核心";
-                const championTool = sortedAiTools.length > 0 ? sortedAiTools[0][0] : "无";
+                const primaryProjName = sortedProj.length > 0 ? sortedProj[0][0] : "日常统筹";
+                const championStaffName = activeStaffArray.length > 0 ? activeStaffArray[0].display : "核心核心";
+                const primaryToolName = sortedAiTools.length > 0 ? sortedAiTools[0][0].split(' ')[0] : "AI组件";
 
-                summaryText = `【Henry 高管层数字化汇报摘要】\n本周期通过大厅底层核心单据流水的科学聚合，成功将分散各处的效能资产黑盒解码。全月累计在线发单的活跃业务方共 [ ${uniqueCreators.size} ] 人，实际承接并产生真实申报工时的全职核心设计行政力量共 [ ${uniqueAssignees.size} ] 人，达成大盘总完结交付率 [ ${finishRate}% ]。\n\n`;
-                summaryText += `核心统筹洞察：\n1. 🎯 战略火力对齐：本月团队最大真实算力重压处于「${primaryMod}」模块，项目工时消耗极具战略性。\n`;
-                summaryText += `2. 🏋️ 真实劳模能将：全盘穿透账目表明，[ ${championStaff} ] 贡献了最高的精算生产工时，是本周期负荷最饱满的主力。\n`;
-                summaryText += `3. 🤖 数字化工具沉淀：本月系统成功沉淀下 ${totalRealAiCalls} 次由组员自主上报的 AI 原生接入频次。统计表明，[ ${championTool} ] 在工作流中的应用占比居全队首位，直观论证了 Work Smart 哲学的深入渗透。\n\n`;
-                summaryText += `【统筹优化建议】单据历史内幕中本月累计打回返工 ${rejectedCount} 次。建议下阶段在控制台前置收紧总监中期框架（Framework）的审批卡点，实施跨饱和人力的“一键转单”，全盘榨取闲置带宽。`;
+                summaryText = `【Henry 高管层数字化汇报摘要】\n本周期通过大厅底层工单历史流水账（History JSON）的跨端透视，已实现与项目投入分析页面的绝对对齐。当期自然月大盘内，系统共记录 [ ${uniqueCreators.size} ] 名业务方人员活跃发单，由 [ ${uniqueAssignees.size} ] 名承接方全职组员高精度消化，累计产生精算实耗工时 [ ${totalPeriodHours.toFixed(1)}h ]，吞吐流转单据 [ ${totalCount} ] 项。\n\n`;
+                summaryText += `核心统筹管理红利指出：\n1. 🎯 项目资源流向：本月团队最大真实算力重压集中投入于「${primaryProjName}」项目，工时资源分布高度精准契合阶段性核心防御节奏。\n`;
+                summaryText += `2. 🏋️ 工时出勤骨干：在全体活跃执行方中，[ ${championStaffName} ] 贡献了最高的月度真实精算工时，在大盘中扮演坚实的执行输出大户。\n`;
+                summaryText += `3. 🤖 Work Smart 质量指标：本期系统共解析并记录下 [ ${totalRealAiCalls} ] 次由设计师在交付阶段手动勾选的 AI 原生接入。其中，[ ${primaryToolName} ] 在日常指令生成与概念排版中占比首屈一指，有力论证了 AI Native 工作流的常态化落地。`;
             } else {
-                summaryText = `【管理摘要】本月度大盘暂未产生大幅激活流水。团队整体人力带宽极度充裕，处于健康蓄水和战略孵化窗口期。`;
+                summaryText = `【汇报摘要】当前时间切片内无活跃工单动作。全员考评口径与提权引擎对齐精度良好，团队处于健康蓄水与内训周期。`;
             }
 
             document.getElementById('analysis-summary-text').innerText = summaryText;
@@ -720,8 +717,8 @@
                 assignees: uniqueAssignees.size,
                 total: totalCount,
                 finishRate: finishRate,
-                modules: sortedModules.map(e => `${e[0]}:${e[1]}单`).join(' | '),
-                topStaff: staffHoursArray.map(e => `${e.display}:${e.hours.toFixed(1)}h`).join(' | '),
+                modules: sortedProj.map(e => `${e[0]}:${e[1].toFixed(1)}h`).join(' | '),
+                topStaff: activeStaffArray.map(e => `${e.display}:${e.hours.toFixed(1)}h`).join(' | '),
                 aiTools: sortedAiTools.map(e => `${e[0]}:${e[1]}次`).join(' | ')
             };
         };
@@ -732,7 +729,7 @@
             const sourceContainer = document.getElementById('long-paper-capture-box');
             if(!paperMirror || !sourceContainer) return;
             
-            window.showToast('生成高清长图', '系统正在拉取最新的真实工时与AI标签画布进行无损排版...', 'info');
+            window.showToast('长图渲染中', '系统正在拉取最新的真实工时与AI标签画布进行无损排版...', 'info');
 
             const now = new Date();
             const currentYear = now.getFullYear();
@@ -806,18 +803,6 @@
             const currentYear = now.getFullYear();
             const currentMonth = now.getMonth();
 
-            const monthlyTasks = (window.allRawTasksData || []).filter(task => {
-                let d = new Date(task.created_at);
-                try {
-                    let hArr = JSON.parse(task.history_json || '[]');
-                    if(hArr.length > 0 && ['completed', 'archived'].includes(task.status)) {
-                        let lastAct = hArr[hArr.length - 1];
-                        d = new Date(lastAct.time || lastAct.created_at || task.created_at);
-                    }
-                } catch(e){}
-                return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
-            });
-
             const statusMap = {
                 'pending': '待接单', 'pending_accept': '待确认', 'processing': '制作中',
                 'pending_approval': '方案审批中', 'reviewing': '甲方验收中', 'rejected': '打回修改中',
@@ -838,7 +823,7 @@
 
             csvContent += "工单ID,需求单名称,单据当前状态,发起方(创建人),设计执行方(指派人),期望交付日期,工单创建时间\n";
 
-            monthlyTasks.forEach(t => {
+            window.allRawTasksData.forEach(t => {
                 const cleanTitle = (t.title || '').replace(/,/g, '，').replace(/\n/g, ' ');
                 const statusText = statusMap[t.status] || t.status || '流转中';
                 const creatorText = t.creator || '未命名';
