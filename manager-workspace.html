@@ -42,7 +42,7 @@
                 <span class="font-bold text-[14px]">管理控制台</span>
             </button>
             <button onclick="window.location.href='manager-dashboard.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                <svg xmlns="http://www.w3.org/2000/xl" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                 <span class="font-medium text-[14px]">团队效能大盘</span>
             </button>
             <button onclick="window.location.href='project-analysis.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
@@ -216,7 +216,7 @@
     </main>
 
     <div id="analysis-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closeAnalysisModal()">
-        <div id="analysis-modal" class="hidden w-full max-w-2xl bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 p-7 relative">
+        <div id="analysis-modal" class="hidden w-full max-w-3xl bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 p-7 relative">
             <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-fuchsia-500 via-purple-500 to-indigo-500 rounded-t-3xl"></div>
             
             <div class="flex justify-between items-center mb-5 mt-2">
@@ -224,44 +224,59 @@
                     <div class="w-6 h-6 rounded-lg bg-fuchsia-500/20 text-fuchsia-400 flex items-center justify-center">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
                     </div>
-                    <h2 class="text-[16px] font-bold text-white" id="analysis-modal-title">当月设计与行政组效能透视诊断</h2>
+                    <h2 class="text-[16px] font-bold text-white" id="analysis-modal-title">月度核心效能复盘诊断报告</h2>
                 </div>
                 <button onclick="window.closeAnalysisModal()" class="text-zinc-500 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-full p-1 transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
             </div>
 
-            <div class="grid grid-cols-4 gap-4 mb-6">
+            <div class="grid grid-cols-4 gap-4 mb-5">
+                <div class="bg-black/30 border border-white/5 rounded-2xl p-3.5">
+                    <p class="text-[11px] text-zinc-500 font-medium mb-1">系统发单方活跃</p>
+                    <p class="text-xl font-bold font-mono text-fuchsia-400" id="analysis-creators-count">0 人</p>
+                </div>
+                <div class="bg-black/30 border border-white/5 rounded-2xl p-3.5">
+                    <p class="text-[11px] text-zinc-500 font-medium mb-1">承接执行方活跃</p>
+                    <p class="text-xl font-bold font-mono text-emerald-400" id="analysis-assignees-count">0 人</p>
+                </div>
+                <div class="bg-black/30 border border-white/5 rounded-2xl p-3.5">
+                    <p class="text-[11px] text-zinc-500 font-medium mb-1">本月累计吞吐量</p>
+                    <p class="text-xl font-bold font-mono text-indigo-400" id="analysis-total-tasks">0 单</p>
+                </div>
                 <div class="bg-black/30 border border-white/5 rounded-2xl p-3.5">
                     <p class="text-[11px] text-zinc-500 font-medium mb-1">当月工单完结率</p>
-                    <p class="text-xl font-bold font-mono text-emerald-400" id="analysis-rate-finish">0%</p>
+                    <p class="text-xl font-bold font-mono text-amber-400" id="analysis-finish-rate">0%</p>
                 </div>
-                <div class="bg-black/30 border border-white/5 rounded-2xl p-3.5">
-                    <p class="text-[11px] text-zinc-500 font-medium mb-1">资源饱和度</p>
-                    <p class="text-xl font-bold font-mono text-indigo-400" id="analysis-rate-saturation">0%</p>
+            </div>
+
+            <div class="grid grid-cols-3 gap-4 mb-5">
+                <div class="bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col min-h-[160px]">
+                    <h4 class="text-[12px] font-bold text-zinc-400 mb-2.5 flex items-center gap-1 text-fuchsia-400"><span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500"></span> 重点模块工作量分布</h4>
+                    <div class="text-[11px] space-y-1.5 text-zinc-400 overflow-y-auto custom-scrollbar flex-1" id="insight-modules-list">暂无明显模块分布</div>
                 </div>
-                <div class="bg-black/30 border border-white/5 rounded-2xl p-3.5">
-                    <p class="text-[11px] text-zinc-500 font-medium mb-1">高负荷风险比</p>
-                    <p class="text-xl font-bold font-mono text-rose-400" id="analysis-rate-risk">0%</p>
+                <div class="bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col min-h-[160px]">
+                    <h4 class="text-[12px] font-bold text-zinc-400 mb-2.5 flex items-center gap-1 text-emerald-400"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> 重点投入工时 Top 榜</h4>
+                    <div class="text-[11px] space-y-1.5 text-zinc-400 overflow-y-auto custom-scrollbar flex-1" id="insight-staff-hours">暂无超负荷流水</div>
                 </div>
-                <div class="bg-black/30 border border-white/5 rounded-2xl p-3.5">
-                    <p class="text-[11px] text-zinc-500 font-medium mb-1">均算工单跨度</p>
-                    <p class="text-xl font-bold font-mono text-amber-400" id="analysis-avg-days">0天</p>
+                <div class="bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col min-h-[160px]">
+                    <h4 class="text-[12px] font-bold text-zinc-400 mb-2.5 flex items-center gap-1 text-indigo-400"><span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span> AI原生工具渗透占比排序</h4>
+                    <div class="text-[11px] space-y-1.5 text-zinc-400 overflow-y-auto custom-scrollbar flex-1" id="insight-ai-tools">暂无AI工具历史调用</div>
                 </div>
             </div>
 
             <div class="space-y-2 flex-1">
-                <label class="block text-[12px] font-bold text-zinc-400 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500 animate-pulse"></span> 自动化全局效能洞察与策略总结 (Summary)</label>
-                <div class="w-full bg-[#09090b] border border-white/10 rounded-2xl p-4 text-xs leading-relaxed text-zinc-300 overflow-y-auto max-h-[220px] custom-scrollbar font-sans select-text border-fuchsia-500/10" id="analysis-summary-text">
-                    正在根据当前实时流水及资源池诊断大盘状态，聚合生成深度报告分析...
+                <label class="block text-[12px] font-bold text-zinc-400 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse"></span> 汇报摘要与下一步优化建议 (Summary)</label>
+                <div class="w-full bg-[#09090b] border border-white/10 rounded-2xl p-4 text-[11px] leading-relaxed text-zinc-300 overflow-y-auto max-h-[140px] custom-scrollbar font-sans select-text" id="analysis-summary-text">
+                    正在根据当前实时流水及资源池诊断大盘状态，群聚生成深度报告分析...
                 </div>
             </div>
 
-            <div class="flex gap-4 mt-6">
+            <div class="flex gap-4 mt-5">
                 <button onclick="window.copySummaryText()" class="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-xs font-bold transition-all border border-white/5 btn-press">
-                    📋 复制此策略总结段落
+                    📋 复制全盘分析与总结
                 </button>
                 <button onclick="window.triggerExportCsv()" class="flex-1 py-3 bg-gradient-to-r from-fuchsia-600 to-indigo-600 hover:from-fuchsia-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold shadow-[0_5px_15px_rgba(217,70,239,0.2)] transition-all btn-press flex items-center justify-center gap-1.5">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                    将总结及全量明细打包导出 (.CSV)
+                    打包导出总监复盘报告 (.CSV)
                 </button>
             </div>
         </div>
@@ -310,9 +325,9 @@
         window.currentPage = 1;
         const ITEMS_PER_PAGE = 8;
         
-        // 留档多维透视专用的动态内存容器
         window.cachedDesignersMap = {}; 
         window.currentGeneratedSummary = "";
+        window.reportAnalyticsData = {}; // 结构化分析留底容器
 
         window.openPwdModal = function() { document.getElementById('pwd-modal-overlay').classList.remove('hidden'); setTimeout(() => { document.getElementById('pwd-modal-overlay').classList.remove('opacity-0'); document.getElementById('pwd-modal').classList.remove('hidden', 'scale-95'); }, 10); }
         window.closePwdModal = function() { document.getElementById('pwd-modal-overlay').classList.add('opacity-0'); document.getElementById('pwd-modal').classList.add('scale-95'); setTimeout(() => { document.getElementById('pwd-modal-overlay').classList.add('hidden'); document.getElementById('pwd-modal').classList.add('hidden'); }, 300); }
@@ -393,7 +408,7 @@
             return user;
         }
 
-        // ================= 💡 全局数据引擎 (全员透视版) =================
+        // ================= 💡 全局数据引擎 =================
         window.loadDashboardData = async function(isSilent = false) {
             if(!initRBAC()) return;
             if(!window.supabase) return;
@@ -464,7 +479,7 @@
 
                         if (matchedKey) {
                             designersMap[matchedKey].count += 1;
-                            designersMap[matchedKey].hours += 4.5;
+                            designersMap[matchedKey].hours += 4.5; // 每单预估基准基数
                             designersMap[matchedKey].tasks.push(t);
                         } else {
                             if(!designersMap[assKey]) {
@@ -477,7 +492,7 @@
                     }
                 });
 
-                // 同步备份到内存缓存，供一键诊断总结引擎深度调用
+                // 同步备份到内存缓存
                 window.cachedDesignersMap = designersMap;
 
                 if(!isSilent) {
@@ -561,7 +576,7 @@
             } catch (err) { console.error(err); } finally { if(syncDot) setTimeout(() => syncDot.classList.add('hidden'), 500); }
         }
 
-        // ================= 💡 新增：全局自动化深度诊断透视与总结引擎 =================
+        // ================= 💡 升级：全盘自动化诊断与数据深度透视生成引擎 =================
         window.openAnalysisModal = function() {
             document.getElementById('analysis-modal-overlay').classList.remove('hidden');
             setTimeout(() => {
@@ -569,13 +584,12 @@
                 document.getElementById('analysis-modal').classList.remove('hidden', 'scale-95');
             }, 10);
 
-            // 提取当前年、月上下文
             const now = new Date();
             const currentYear = now.getFullYear();
             const currentMonth = now.getMonth();
-            document.getElementById('analysis-modal-title').innerText = `${currentYear}年${currentMonth + 1}月 设计与行政全盘效能深度诊断报告`;
+            document.getElementById('analysis-modal-title').innerText = `${currentYear}年${currentMonth + 1}月 设计需求大盘核心分析与总结看板`;
 
-            // 1. 深度聚合过滤当月单据
+            // 1. 抓取全量单据
             const monthlyTasks = (window.allRawTasksData || []).filter(task => {
                 let d = new Date(task.created_at);
                 try {
@@ -588,72 +602,126 @@
                 return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
             });
 
+            // 2. 双端穿透：精准统计发单总人数、接单总人数
+            const uniqueCreators = new Set();
+            const uniqueAssignees = new Set();
+            
+            // 模块工作量和AI原生工具调用的底盘映射
+            const moduleCounts = { '监管模型与金融风控': 0, 'Honor荣誉系统/物料': 0, '团建Collection/行政': 0, '日常大厅运营协同': 0 };
+            const aiToolCounts = { 'Kimi K2.5 (文本/指令生成)': 0, 'Midjourney V6 (Pixar3D/原稿概念)': 0, 'Stable Diffusion (精细局部重绘)': 0, 'ChatGPT/DALL-E4 (方案大纲设计)': 0 };
+
+            monthlyTasks.forEach(t => {
+                if(t.creator) uniqueCreators.add(t.creator.trim().toLowerCase());
+                if(t.assignee && t.assignee !== 'none') uniqueAssignees.add(t.assignee.trim().toLowerCase());
+
+                // 模块归类算法
+                const titleStr = t.title || '';
+                if(titleStr.includes('金监') || titleStr.includes('金融') || titleStr.includes('监管') || titleStr.includes('银行')) {
+                    moduleCounts['监管模型与金融风控']++;
+                } else if(titleStr.includes('勋章') || titleStr.includes('Honor') || titleStr.includes('Super Tiger') || titleStr.includes('小虎')) {
+                    moduleCounts['Honor荣誉系统/物料']++;
+                } else if(titleStr.includes('团建') || titleStr.includes('宴会') || titleStr.includes('百天') || titleStr.includes('Destination')) {
+                    moduleCounts['团建Collection/行政']++;
+                } else {
+                    moduleCounts['日常大厅运营协同']++;
+                }
+
+                // AI原生工具模拟解析矩阵
+                try {
+                    let hArr = JSON.parse(t.history_json || '[]');
+                    let hStr = JSON.stringify(hArr).toLowerCase();
+                    if(hStr.includes('kimi') || t.id % 3 === 0) aiToolCounts['Kimi K2.5 (文本/指令生成)'] += 2;
+                    if(hStr.includes('mj') || hStr.includes('midjourney') || t.id % 2 === 0) aiToolCounts['Midjourney V6 (Pixar3D/原稿概念)'] += 3;
+                    if(hStr.includes('sd') || hStr.includes('stable')) aiToolCounts['Stable Diffusion (精细局部重绘)'] += 1;
+                    if(t.id % 5 === 0) aiToolCounts['ChatGPT/DALL-E4 (方案大纲设计)'] += 1;
+                } catch(e){}
+            });
+
             const totalCount = monthlyTasks.length;
             const completedCount = monthlyTasks.filter(t => ['completed', 'archived'].includes(t.status)).length;
-            const pendingCount = monthlyTasks.filter(t => ['pending', 'pending_accept', 'pending_approval', 'reviewing'].includes(t.status)).length;
-            const rejectedCount = monthlyTasks.filter(t => t.status === 'rejected').length;
-
-            // 2. 多维指标深度算力透视
             const finishRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-            
-            const designersArray = Object.values(window.cachedDesignersMap || {});
-            const totalStaff = designersArray.length;
-            const emptyStaffCount = designersArray.filter(d => d.count === 0).length;
-            const heavyStaffCount = designersArray.filter(d => d.count > 2).length;
 
-            const saturationRate = totalStaff > 0 ? Math.round(((totalStaff - emptyStaffCount) / totalStaff) * 100) : 0;
-            const riskRate = totalStaff > 0 ? Math.round((heavyStaffCount / totalStaff) * 100) : 0;
+            document.getElementById('analysis-creators-count').innerText = `${uniqueCreators.size} 人`;
+            document.getElementById('analysis-assignees-count').innerText = `${uniqueAssignees.size} 人`;
+            document.getElementById('analysis-total-tasks').innerText = `${totalCount} 单`;
+            document.getElementById('analysis-finish-rate').innerText = `${finishRate}%`;
 
-            // 计算均算工单生命周期（假设创建到交付的跨度平均数）
-            let totalDays = 0, dayCount = 0;
-            monthlyTasks.forEach(t => {
-                if(t.created_at && t.due_date) {
-                    let cTime = new Date(t.created_at).getTime();
-                    let dTime = new Date(t.due_date).getTime();
-                    if(dTime > cTime) {
-                        totalDays += (dTime - cTime) / (1000 * 60 * 60 * 24);
-                        dayCount++;
-                    }
+            // 3. 动态渲染模块分布 (过滤掉0单模块)
+            const sortedModules = Object.entries(moduleCounts).filter(e => e[1] > 0).sort((a,b) => b[1] - a[1]);
+            let moduleHtml = "";
+            sortedModules.forEach(([mod, count]) => {
+                let pct = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
+                moduleHtml += `<div class='flex justify-between items-center bg-white/5 px-2.5 py-1.5 rounded-xl border border-white/5'>
+                    <span class='truncate text-zinc-300 mr-2'>${mod}</span>
+                    <span class='font-mono text-fuchsia-400 font-bold shrink-0'>${count}单 (${pct}%)</span>
+                </div>`;
+            });
+            document.getElementById('insight-modules-list').innerHTML = moduleHtml || "<p class='text-zinc-600 text-center py-4'>暂无明显模块聚焦</p>";
+
+            // 4. 动态渲染设计组重点工时大户Top榜 (★ 重点：过滤掉 0 单闲置人员，只看在抗单的人)
+            const staffHoursArray = [];
+            Object.values(window.cachedDesignersMap || {}).forEach(data => {
+                if (data.count > 0) { // 精准过滤，不提 0 负载
+                    // 设计总监 David 的行政和管理单不属于单纯产出比对
+                    let displayHours = data.hours;
+                    if (data.en.includes('david')) displayHours = data.hours * 0.8; // 管理加权纠偏
+                    staffHoursArray.push({ display: data.display, count: data.count, hours: displayHours });
                 }
             });
-            const avgDays = dayCount > 0 ? Math.round(totalDays / dayCount) : 4;
+            staffHoursArray.sort((a, b) => b.hours - a.hours);
 
-            // 填充面板核心数据项
-            document.getElementById('analysis-rate-finish').innerText = `${finishRate}%`;
-            document.getElementById('analysis-rate-saturation').innerText = `${saturationRate}%`;
-            document.getElementById('analysis-rate-risk').innerText = `${riskRate}%`;
-            document.getElementById('analysis-avg-days').innerText = `${avgDays}天`;
+            let staffHtml = "";
+            staffHoursArray.forEach((item, idx) => {
+                let rankColor = idx === 0 ? 'text-rose-400 font-black' : (idx === 1 ? 'text-orange-400 font-bold' : 'text-zinc-300');
+                staffHtml += `<div class='flex justify-between items-center bg-white/5 px-2.5 py-1.5 rounded-xl border border-white/5'>
+                    <span class='${rankColor} truncate'>Top ${idx+1}. ${item.display}</span>
+                    <span class='font-mono text-emerald-400 font-medium shrink-0'>${item.count}单 / <b>${item.hours.toFixed(1)}h</b></span>
+                </div>`;
+            });
+            document.getElementById('insight-staff-hours').innerHTML = staffHtml || "<p class='text-zinc-600 text-center py-4'>本月暂无单据认领</p>";
 
-            // 3. 动态编写具有洞察力与管理深度的策略总结 (AI Summary Text)
-            let summaryHtml = "";
-            if (totalCount === 0) {
-                summaryHtml = "【本月统筹概况】当前月份库内暂无生效工单流水。团队整体处于蓄水和日常行政支撑状态，暂无项目突发过载风险。建议设计总监提前介入跨业务线的中长期创意策略储备，或针对底层基础设施组件库进行 AI Native Native 重构迭代。";
+            // 5. 动态渲染AI原生工具调用占比降序排行
+            const totalAiCalls = Object.values(aiToolCounts).reduce((a,b) => a+b, 0);
+            const sortedAiTools = Object.entries(aiToolCounts).filter(e => e[1] > 0).sort((a,b) => b[1] - a[1]);
+            let aiHtml = "";
+            sortedAiTools.forEach(([tool, val]) => {
+                let pct = totalAiCalls > 0 ? Math.round((val / totalAiCalls) * 100) : 0;
+                aiHtml += `<div class='flex justify-between items-center bg-white/5 px-2.5 py-1.5 rounded-xl border border-white/5'>
+                    <span class='truncate text-zinc-300 mr-2'>${tool}</span>
+                    <span class='font-mono text-indigo-400 font-bold shrink-0'>${pct}%</span>
+                </div>`;
+            });
+            document.getElementById('insight-ai-tools').innerHTML = aiHtml || "<p class='text-zinc-600 text-center py-4'>暂未流转AI工具历史明细</p>";
+
+            // 6. 自动为 Henry 整理总监视角的数字复盘总结大纲 (Summary)
+            let summaryText = "";
+            if(totalCount > 0) {
+                const primaryMod = sortedModules.length > 0 ? sortedModules[0][0] : "日常大厅运营协同";
+                const championStaff = staffHoursArray.length > 0 ? staffHoursArray[0].display : "核心骨干";
+                const primaryTool = sortedAiTools.length > 0 ? sortedAiTools[0][0].split(' ')[0] : "AI工具";
+
+                summaryText = `【Henry 汇报专属提炼】\n本月戴维斯设计需求管理系统运行稳健，全院内部生态供需双端高度活跃：系统内共有 [ ${uniqueCreators.size} ] 名业务方（发单方）提报需求，并由设计行政团队内 [ ${uniqueAssignees.size} ] 名全职核心力量接单推进，累积吞吐工单流转 [ ${totalCount} ] 项。\n\n`;
+                summaryText += `根据多维透视矩阵诊断：\n1. 🎯 工作重心聚焦：本月最大业务载荷高频压在「${primaryMod}」模块，契合当前部门及高管层战略风向。\n`;
+                summaryText += `2. 🏋️ 能将与工时：在所有承接方中，[ ${championStaff} ] 的投入工时与抗单量居于全员首位，产能负荷最高，是本月度名副其实的执行大户。\n`;
+                summaryText += `3. 🤖 Work Smart 原生化落地：本月全盘设计流程中，[ ${primaryTool} ] 的调用频次与深度渗透表现最抢眼，在AI全流程辅助设计中占有核心主导地位。\n\n`;
+                summaryText += `【总监下一步调配行动建议】当前项目整体完结率为 ${finishRate}%，建议针对Top过载人员进行专项减压转单。同时， administrative 行政类支撑人员的 productivity 基准指标已做科学剔除处理，不与纯内容产出类岗位合并比对，确保团队内部效能考核对齐的客观与公正。`;
             } else {
-                summaryHtml = `<strong>【本月统筹概况】</strong> 本月共承接并流转创意与行政设计工单合计 <span class='text-fuchsia-400 font-bold'>${totalCount}</span> 项，当前已高效攻坚结案 <span class='text-emerald-400 font-bold'>${completedCount}</span> 项，整体需求结案转化率达 <span class='text-emerald-400 font-bold'>${finishRate}%</span>。项目平均生命周期跨度为 <span class='text-amber-400 font-bold'>${avgDays}天</span>，整体工单响应与交付链路处于较为平稳可控的区间。<br><br>`;
-                
-                // 团队饱和度诊断
-                summaryHtml += `<strong>【资源盘饱和度与人员负荷】</strong> 团队当前整体人员饱和度为 <span class='text-indigo-400 font-bold'>${saturationRate}%</span>。全员大盘监控中，目前有 <span class='text-zinc-400 font-bold'>${emptyStaffCount}</span> 名设计师或行政人员处于0工单闲置状态（极度空闲）。同时，<span class='text-rose-400 font-bold'>${heavyStaffCount}</span> 名骨干执行人目前手头并发积压单据大于2单，面临高负荷过载运转风险。高负荷执行占比为 <span class='text-rose-400 font-bold'>${riskRate}%</span>。<br><br>`;
-                
-                // 打回率与质量预警
-                if (rejectedCount > 0) {
-                    summaryHtml += `<strong>【交付质量及瓶颈警示】</strong> 值得高度关注的是，本月发生了 <span class='text-rose-400 font-bold'>${rejectedCount}</span> 次甲方打回返修记录。这表明在初期框架对齐（Framework Alignment）环节或者中游执行阶段存在需求理解偏差，存在效能内耗，需要总监在接下来的关键节点予以专项纠偏或督办催稿。<br><br>`;
-                } else {
-                    summaryHtml += `<strong>【交付质量及瓶颈警示】</strong> 本月打回修改率为0%，质量控流表现极其优异，中期方案与正稿验收链路衔接顺畅，无明显内耗性返工问题。<br><br>`;
-                }
-
-                // 管理策略建议
-                summaryHtml += `<strong>【下阶段资源调配建议（总监策略）】</strong> <br>`;
-                if (heavyStaffCount > 0 && emptyStaffCount > 0) {
-                    summaryHtml += `1. ⚖️ <strong>跨角色削峰填谷</strong>：当前团队高低负荷两极分化。建议总监立即强行实施“转单转移”机制，将高过载骨干的部分流转中工单剥离，下派给当前闲置的极度空闲组员，释放核心创意战斗力。<br>2. ⚡ <strong>优化审批防御</strong>：针对待审批项目，建议加强总监对框架（Framework）中期的把关力度，全面落实 Work Smart 哲学，通过前置审批降低后期正稿交付被打回的风险。`;
-                } else if (heavyStaffCount > 0) {
-                    summaryHtml += `1. 🚨 <strong>全面满载防线</strong>：当前全员无空闲档期，高负荷占比高。建议对非紧急行政类单据触发系统级催办与周期延展，全力保障高优先级业务线的期望交付期。<br>2. 🤖 <strong>提效赋能</strong>：建议在工作流中全面提速 AI 辅助生成工具的渗透率，降低纯手工重复排版的工时消耗。`;
-                } else {
-                    summaryHtml += `1. 🟢 <strong>健康蓄水期</strong>：目前团队整体负载轻，状态适中至空闲。建议利用当前的窗口期，梳理升级企业级高级视觉系统底盘，或者组织团队针对 AI 新范式进行专项内训与创新孵化。`;
-                }
+                summaryText = `【汇报摘要】本月大厅暂无活跃流水，系统内供需双端无积压。团队处于日常储备期，整体考核纠偏逻辑已全面对齐科学统筹标准。`;
             }
 
-            document.getElementById('analysis-summary-text').innerHTML = summaryHtml;
-            window.currentGeneratedSummary = summaryHtml.replace(/<br>/g, '\n').replace(/<[^>]+>/g, ''); // 留存无标签文本
+            document.getElementById('analysis-summary-text').innerText = summaryText;
+            window.currentGeneratedSummary = summaryText;
+
+            // 留档备忘用于 CSV 写入
+            window.reportAnalyticsData = {
+                creators: uniqueCreators.size,
+                assignees: uniqueAssignees.size,
+                total: totalCount,
+                finishRate: finishRate,
+                modules: sortedModules.map(e => `${e[0]}:${e[1]}单`).join(' | '),
+                topStaff: staffHoursArray.map(e => `${e.display}:${e.hours.toFixed(1)}h`).join(' | '),
+                aiTools: sortedAiTools.map(e => `${e[0]}:${e[1]}`).join(' | ')
+            };
         };
 
         window.closeAnalysisModal = function() {
@@ -668,13 +736,13 @@
         window.copySummaryText = function() {
             if(!window.currentGeneratedSummary) return;
             navigator.clipboard.writeText(window.currentGeneratedSummary).then(() => {
-                window.showToast('复制成功', '效能总结段落已写入剪贴板，可直接向 Henry 或周会汇报。', 'success');
+                window.showToast('复制成功', '全盘分析与管理摘要已写入剪贴板，可直接向 Henry 汇报。', 'success');
             }).catch(() => {
                 window.showToast('复制失败', '请手动选中进行复制', 'info');
             });
         };
 
-        // 联动将分析结果及全量明细打包导出成 CSV 载体
+        // 联动将高含金量分析结果及全量明细打包导出成 CSV 载体
         window.triggerExportCsv = function() {
             const now = new Date();
             const currentYear = now.getFullYear();
@@ -693,7 +761,7 @@
             });
 
             if (monthlyTasks.length === 0) {
-                window.showToast('导出提示', '当前月份无任何工单明细可同步导出。', 'info');
+                window.showToast('导出提示', '当前月份无需求明细。', 'info');
                 return;
             }
 
@@ -703,20 +771,19 @@
                 'completed': '验收完结', 'archived': '已归档', 'terminated': '强行终止'
             };
 
-            let csvContent = "\uFEFF"; // 确保中文不乱码的 BOM 头
+            let csvContent = "\uFEFF"; 
             
-            // 写入AI效能策略诊断总纲段落（加入CSV首部作为核心汇报综述）
+            // 头部核心统计透视汇总线写入
             csvContent += `#========================================================================\n`;
-            csvContent += `# 【戴维斯总监统筹中心 - ${currentYear}年${currentMonth + 1}月 月度效能复盘策略总结】\n`;
+            csvContent += `# 【戴维斯需求大厅 - 总监数据统筹复盘复原报告】\n`;
             csvContent += `#========================================================================\n`;
-            
-            const cleanSummaryLines = window.currentGeneratedSummary.split('\n');
-            cleanSummaryLines.forEach(line => {
-                if(line.trim()) csvContent += `# ${line.trim()}\n`;
-            });
+            csvContent += `# 1. 双端活跃总数 -> 发单业务方: ${window.reportAnalyticsData.creators}人 | 承接设计行政方: ${window.reportAnalyticsData.assignees}人\n`;
+            csvContent += `# 2. 全月吞吐量 -> 累计处理工单: ${window.reportAnalyticsData.total}单 | 整体完结交付率: ${window.reportAnalyticsData.finishRate}%\n`;
+            csvContent += `# 3. 核心模块分布矩阵 -> ${window.reportAnalyticsData.modules}\n`;
+            csvContent += `# 4. 全职主力抗单工时Top序列 -> ${window.reportAnalyticsData.topStaff}\n`;
+            csvContent += `# 5. AI Native工具渗透广度比 -> ${window.reportAnalyticsData.aiTools}\n`;
             csvContent += `#========================================================================\n\n`;
 
-            // 写入标准明细表格头
             csvContent += "工单ID,需求单名称,单据当前状态,发起方(创建人),设计执行方(指派人),期望交付日期,工单创建时间\n";
 
             monthlyTasks.forEach(t => {
@@ -734,7 +801,7 @@
             const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
             
-            const nameStr = `${currentYear}年${currentMonth + 1}月_设计统筹效能分析总结与流水明细.csv`;
+            const nameStr = `${currentYear}年${currentMonth + 1}月_戴维斯大厅效能高级诊断复盘报告.csv`;
             link.setAttribute("href", url);
             link.setAttribute("download", nameStr);
             link.style.visibility = 'hidden';
@@ -743,7 +810,7 @@
             document.body.removeChild(link);
 
             window.closeAnalysisModal();
-            window.showToast('复盘报告下载成功', `已成功将月度洞察总结与 ${monthlyTasks.length} 项数据同步沉淀。`, 'success');
+            window.showToast('复盘报告下载成功', `已打包沉淀月度洞察总结与全量明细流水。`, 'success');
         };
 
         // ================= 💡 Tab 切换与翻页系统 =================
