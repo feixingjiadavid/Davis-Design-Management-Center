@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>全局统筹中心 - 戴维斯设计需求管理中心</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
         body { background-color: #09090b; color: #e4e4e7; font-family: 'Inter', system-ui, sans-serif; }
@@ -42,7 +43,7 @@
                 <span class="font-bold text-[14px]">管理控制台</span>
             </button>
             <button onclick="window.location.href='manager-dashboard.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
-                <svg xmlns="http://www.w3.org/2000/xl" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                 <span class="font-medium text-[14px]">团队效能大盘</span>
             </button>
             <button onclick="window.location.href='project-analysis.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
@@ -177,7 +178,7 @@
                         </div>
                         <div>
                             <p class="text-[14px] text-white font-bold tracking-wide">月度效能诊断报告</p>
-                            <p class="text-[11px] text-fuchsia-400 mt-0.5 font-medium">包含一键AI分析与总结 ↗</p>
+                            <p class="text-[11px] text-fuchsia-400 mt-0.5 font-medium">包含一键分析与长图生成 ↗</p>
                         </div>
                     </div>
                     <svg class="text-zinc-600 group-hover:text-fuchsia-400 transition-colors transform group-hover:translate-x-1 duration-200" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
@@ -206,7 +207,7 @@
                 <div class="flex-[1] flex flex-col">
                     <div class="bg-[#121217] border border-white/5 rounded-3xl p-6 h-full flex flex-col shadow-2xl relative">
                         <h3 class="text-[15px] font-bold text-white mb-2">实时资源池监控</h3>
-                        <p class="text-[11px] text-zinc-500 mb-6 pb-4 border-b border-white/5">全员名单已展出，透视所有成员的执行负荷，支持下拽到底。</p>
+                        <p class="text-[11px] text-zinc-500 mb-6 pb-4 border-b border-white/5">全员名单已展出，透视当前筛选周期内的实际工时产出。</p>
                         
                         <div class="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2" id="resource-pool"></div>
                     </div>
@@ -229,54 +230,58 @@
                 <button onclick="window.closeAnalysisModal()" class="text-zinc-500 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-full p-1 transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
             </div>
 
-            <div class="grid grid-cols-4 gap-4 mb-5">
-                <div class="bg-black/30 border border-white/5 rounded-2xl p-3.5">
-                    <p class="text-[11px] text-zinc-500 font-medium mb-1">系统发单方活跃</p>
-                    <p class="text-xl font-bold font-mono text-fuchsia-400" id="analysis-creators-count">0 人</p>
+            <div id="long-paper-capture-box" class="space-y-4">
+                <div class="grid grid-cols-4 gap-4">
+                    <div class="bg-black/30 border border-white/5 rounded-2xl p-3.5">
+                        <p class="text-[11px] text-zinc-500 font-medium mb-1">系统活跃发单方</p>
+                        <p class="text-xl font-bold font-mono text-fuchsia-400" id="analysis-creators-count">0 人</p>
+                    </div>
+                    <div class="bg-black/30 border border-white/5 rounded-2xl p-3.5">
+                        <p class="text-[11px] text-zinc-500 font-medium mb-1">实际产生工时人数</p>
+                        <p class="text-xl font-bold font-mono text-emerald-400" id="analysis-assignees-count">0 人</p>
+                    </div>
+                    <div class="bg-black/30 border border-white/5 rounded-2xl p-3.5">
+                        <p class="text-[11px] text-zinc-500 font-medium mb-1">当月吞吐工单总数</p>
+                        <p class="text-xl font-bold font-mono text-indigo-400" id="analysis-total-tasks">0 单</p>
+                    </div>
+                    <div class="bg-black/30 border border-white/5 rounded-2xl p-3.5">
+                        <p class="text-[11px] text-zinc-500 font-medium mb-1">当月完结交付率</p>
+                        <p class="text-xl font-bold font-mono text-amber-400" id="analysis-finish-rate">0%</p>
+                    </div>
                 </div>
-                <div class="bg-black/30 border border-white/5 rounded-2xl p-3.5">
-                    <p class="text-[11px] text-zinc-500 font-medium mb-1">承接执行方活跃</p>
-                    <p class="text-xl font-bold font-mono text-emerald-400" id="analysis-assignees-count">0 人</p>
+
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col min-h-[180px]">
+                        <h4 class="text-[12px] font-bold text-zinc-400 mb-2.5 flex items-center gap-1 text-fuchsia-400"><span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500"></span> 业务模块实际消耗分布</h4>
+                        <div class="text-[11px] space-y-1.5 text-zinc-400 overflow-y-auto custom-scrollbar flex-1" id="insight-modules-list">暂无明显模块分布</div>
+                    </div>
+                    <div class="bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col min-h-[180px]">
+                        <h4 class="text-[12px] font-bold text-zinc-400 mb-2.5 flex items-center gap-1 text-emerald-400"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> 重点工时投入 Top 榜 (非0)</h4>
+                        <div class="text-[11px] space-y-1.5 text-zinc-400 overflow-y-auto custom-scrollbar flex-1" id="insight-staff-hours">暂无承接数据</div>
+                    </div>
+                    <div class="bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col min-h-[180px]">
+                        <h4 class="text-[12px] font-bold text-zinc-400 mb-2.5 flex items-center gap-1 text-indigo-400"><span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span> AI 工具真实渗透应用排行</h4>
+                        <div class="text-[11px] space-y-1.5 text-zinc-400 overflow-y-auto custom-scrollbar flex-1" id="insight-ai-tools-list">暂无应用频次</div>
+                    </div>
                 </div>
-                <div class="bg-black/30 border border-white/5 rounded-2xl p-3.5">
-                    <p class="text-[11px] text-zinc-500 font-medium mb-1">本月累计吞吐量</p>
-                    <p class="text-xl font-bold font-mono text-indigo-400" id="analysis-total-tasks">0 单</p>
-                </div>
-                <div class="bg-black/30 border border-white/5 rounded-2xl p-3.5">
-                    <p class="text-[11px] text-zinc-500 font-medium mb-1">当月工单完结率</p>
-                    <p class="text-xl font-bold font-mono text-amber-400" id="analysis-finish-rate">0%</p>
+
+                <div class="space-y-2">
+                    <label class="block text-[12px] font-bold text-zinc-400 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span> 汇报摘要与下一步优化建议 (Summary)</label>
+                    <div class="w-full bg-[#09090b] border border-white/10 rounded-2xl p-4 text-[11px] leading-relaxed text-zinc-300 overflow-y-auto max-h-[120px] custom-scrollbar font-sans select-text" id="analysis-summary-text">
+                        正在聚合生成深度报告分析...
+                    </div>
                 </div>
             </div>
 
-            <div class="grid grid-cols-3 gap-4 mb-5">
-                <div class="bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col min-h-[160px]">
-                    <h4 class="text-[12px] font-bold text-zinc-400 mb-2.5 flex items-center gap-1 text-fuchsia-400"><span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500"></span> 重点模块工作量分布</h4>
-                    <div class="text-[11px] space-y-1.5 text-zinc-400 overflow-y-auto custom-scrollbar flex-1" id="insight-modules-list">暂无明显模块分布</div>
-                </div>
-                <div class="bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col min-h-[160px]">
-                    <h4 class="text-[12px] font-bold text-zinc-400 mb-2.5 flex items-center gap-1 text-emerald-400"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> 重点投入工时 Top 榜</h4>
-                    <div class="text-[11px] space-y-1.5 text-zinc-400 overflow-y-auto custom-scrollbar flex-1" id="insight-staff-hours">暂无超负荷流水</div>
-                </div>
-                <div class="bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col min-h-[160px]">
-                    <h4 class="text-[12px] font-bold text-zinc-400 mb-2.5 flex items-center gap-1 text-indigo-400"><span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span> AI原生工具渗透占比排序</h4>
-                    <div class="text-[11px] space-y-1.5 text-zinc-400 overflow-y-auto custom-scrollbar flex-1" id="insight-ai-tools">暂无AI工具历史调用</div>
-                </div>
-            </div>
-
-            <div class="space-y-2 flex-1">
-                <label class="block text-[12px] font-bold text-zinc-400 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse"></span> 汇报摘要与下一步优化建议 (Summary)</label>
-                <div class="w-full bg-[#09090b] border border-white/10 rounded-2xl p-4 text-[11px] leading-relaxed text-zinc-300 overflow-y-auto max-h-[140px] custom-scrollbar font-sans select-text" id="analysis-summary-text">
-                    正在根据当前实时流水及资源池诊断大盘状态，群聚生成深度报告分析...
-                </div>
-            </div>
-
-            <div class="flex gap-4 mt-5">
-                <button onclick="window.copySummaryText()" class="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-xs font-bold transition-all border border-white/5 btn-press">
-                    📋 复制全盘分析与总结
+            <div class="grid grid-cols-3 gap-3 mt-5">
+                <button onclick="window.copySummaryText()" class="py-3 bg-zinc-800/80 hover:bg-zinc-700 text-white rounded-xl text-xs font-bold transition-all border border-white/5 btn-press">
+                    📋 复制全盘总结文字
                 </button>
-                <button onclick="window.triggerExportCsv()" class="flex-1 py-3 bg-gradient-to-r from-fuchsia-600 to-indigo-600 hover:from-fuchsia-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold shadow-[0_5px_15px_rgba(217,70,239,0.2)] transition-all btn-press flex items-center justify-center gap-1.5">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                    打包导出总监复盘报告 (.CSV)
+                <button onclick="window.triggerExportCsv()" class="py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-xs font-bold transition-all border border-white/10 btn-press">
+                    数据打包导出 (.CSV)
+                </button>
+                <button onclick="window.generateDataLongPaperImage()" class="py-3 bg-gradient-to-r from-fuchsia-600 to-indigo-600 hover:from-fuchsia-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold shadow-[0_5px_15px_rgba(217,70,239,0.2)] transition-all btn-press flex items-center justify-center gap-1.5">
+                    📸 一键生成分析数据长图
                 </button>
             </div>
         </div>
@@ -307,6 +312,8 @@
         </div>
     </div>
 
+    <div id="long-paper-hidden-mirror" class="absolute left-[-9999px] top-[-9999px] w-[760px] bg-[#0c0c0e] text-zinc-300 p-8 space-y-6 rounded-3xl border border-white/10 shadow-2xl flex flex-col"></div>
+
     <script type="module">
         import { supabase } from './supabase-config.js';
         window.supabase = supabase;
@@ -317,17 +324,15 @@
 
     <script>
         const PAGE_TYPE = 'admin'; 
-
-        // 全局状态管理
         window.ongoingTasksData = [];
         window.completedTasksData = [];
         window.currentTab = 'ongoing';
         window.currentPage = 1;
         const ITEMS_PER_PAGE = 8;
         
-        window.cachedDesignersMap = {}; 
+        window.systemUsersList = [];
         window.currentGeneratedSummary = "";
-        window.reportAnalyticsData = {}; // 结构化分析留底容器
+        window.reportAnalyticsData = {}; 
 
         window.openPwdModal = function() { document.getElementById('pwd-modal-overlay').classList.remove('hidden'); setTimeout(() => { document.getElementById('pwd-modal-overlay').classList.remove('opacity-0'); document.getElementById('pwd-modal').classList.remove('hidden', 'scale-95'); }, 10); }
         window.closePwdModal = function() { document.getElementById('pwd-modal-overlay').classList.add('opacity-0'); document.getElementById('pwd-modal').classList.add('scale-95'); setTimeout(() => { document.getElementById('pwd-modal-overlay').classList.add('hidden'); document.getElementById('pwd-modal').classList.add('hidden'); }, 300); }
@@ -337,7 +342,6 @@
         window.showToast = function(title, desc, type = 'success') {
             const toast = document.getElementById('action-toast');
             const iconContainer = document.getElementById('toast-icon');
-            
             if (type === 'info') {
                 iconContainer.className = "w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-fuchsia-500/20 text-fuchsia-400";
                 iconContainer.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
@@ -345,19 +349,14 @@
                 iconContainer.className = "w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400";
                 iconContainer.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
             }
-            
-            document.getElementById('toast-title').innerText = title; 
-            document.getElementById('toast-desc').innerText = desc;
-            toast.classList.remove('hidden'); 
-            setTimeout(() => { toast.classList.add('hidden'); }, 3000);
+            document.getElementById('toast-title').innerText = title; document.getElementById('toast-desc').innerText = desc;
+            toast.classList.remove('hidden'); setTimeout(() => { toast.classList.add('hidden'); }, 3000);
         }
 
         window.toggleIdentityMenu = function(event) {
             if(event) event.stopPropagation();
             const identityMenu = document.getElementById('identityMenu');
-            if(identityMenu) {
-                identityMenu.classList.toggle('hidden');
-            }
+            if(identityMenu) identityMenu.classList.toggle('hidden');
         }
 
         function initRBAC() {
@@ -390,25 +389,18 @@
             const menuContainer = document.getElementById('dynamic-identity-list');
             if (menuContainer) {
                 let html = '';
-                if ((user.perms || []).includes('req')) { 
-                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='index.html'"><div class="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div><span class="text-[13px] font-medium">需求方 (去发单/验收)</span></div>`; 
-                }
-                if ((user.perms || []).includes('design')) { 
-                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='assistant-workspace.html'"><div class="w-7 h-7 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div><span class="text-[13px] font-medium">设计方 (执行看板)</span></div>`; 
-                }
-                if ((user.perms || []).includes('admin')) { 
-                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#3b1740] text-fuchsia-400 cursor-default border border-fuchsia-900/50"><div class="w-7 h-7 rounded-lg bg-fuchsia-500/20 flex items-center justify-center text-fuchsia-500"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="21"></line></svg></div><span class="text-[13px] font-bold">管理方 (当前)</span></div>`; 
-                }
+                if ((user.perms || []).includes('req')) html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='index.html'"><div class="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div><span class="text-[13px] font-medium">需求方 (去发单/验收)</span></div>`; 
+                if ((user.perms || []).includes('design')) html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='assistant-workspace.html'"><div class="w-7 h-7 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div><span class="text-[13px] font-medium">设计方 (执行看板)</span></div>`; 
+                if ((user.perms || []).includes('admin')) html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#3b1740] text-fuchsia-400 cursor-default border border-fuchsia-900/50"><div class="w-7 h-7 rounded-lg bg-fuchsia-500/20 flex items-center justify-center text-fuchsia-500"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="21"></line></svg></div><span class="text-[13px] font-bold">管理方 (当前)</span></div>`; 
                 menuContainer.innerHTML = html;
             }
 
             const triggerBtn = document.getElementById('identityBtn');
-            if (triggerBtn) { triggerBtn.innerHTML = `<span class="text-fuchsia-500 font-black flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500 animate-pulse shadow-[0_0_8px_#d946ef]"></span></span> 身份: 管理方 (当前) <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 ml-1"><polyline points="6 9 12 15 18 9"></polyline></svg>`; }
-
+            if (triggerBtn) triggerBtn.innerHTML = `<span class="text-fuchsia-500 font-black flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500 animate-pulse shadow-[0_0_8px_#d946ef]"></span></span> 身份: 管理方 (当前) <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 ml-1"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
             return user;
         }
 
-        // ================= 💡 全局数据引擎 =================
+        // ================= 💡 全局数据引擎（完美配平投入分析页面的底层算法） =================
         window.loadDashboardData = async function(isSilent = false) {
             if(!initRBAC()) return;
             if(!window.supabase) return;
@@ -417,7 +409,25 @@
             if(syncDot && !isSilent) syncDot.classList.remove('hidden');
 
             try {
-                const { data: tasks, error } = await window.supabase.from(window.DB_TABLE).select('id, title, status, creator, assignee, due_date, history_json, created_at').order('created_at', { ascending: false });
+                // 1. 获取全盘用户底表配置
+                const { data: users, error: uErr } = await window.supabase.from('user_profiles').select('*');
+                if (uErr) throw uErr;
+
+                window.systemUsersList = [];
+                if (users) {
+                    users.forEach(u => {
+                        const en = (u.en_name || '').toLowerCase().trim();
+                        const excludedUsers = ['judyzzhang', 'ponyxu', 'davidxu'];
+                        if(en && !excludedUsers.includes(en)) {
+                            if(!window.systemUsersList.some(x => x.en === en)) {
+                                window.systemUsersList.push({ en: en, display: u.display_name || u.cn_name || u.en_name || en });
+                            }
+                        }
+                    });
+                }
+
+                // 2. 抓取全量工单
+                const { data: tasks, error } = await window.supabase.from(window.DB_TABLE).select('id, title, project, status, creator, assignee, due_date, history_json, created_at').order('created_at', { ascending: false });
                 if (error) throw error;
 
                 window.allRawTasksData = tasks || []; 
@@ -425,13 +435,12 @@
                 window.completedTasksData = (tasks || []).filter(t => ['completed', 'archived', 'terminated'].includes(t.status));
                 const pendingTasks = window.ongoingTasksData.filter(t => ['pending', 'pending_accept', 'pending_approval', 'reviewing'].includes(t.status));
 
-                let weekC = 0, monthC = 0, yearC = 0;
+                // 3. 构建大盘时间周期计算
+                let monthC = 0, weekC = 0, yearC = 0;
                 const now = new Date();
-                const startOfYear = new Date(now.getFullYear(), 0, 1);
-                const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-                const day = now.getDay() || 7;
-                const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day + 1);
+                const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (now.getDay() || 7) + 1);
                 startOfWeek.setHours(0,0,0,0);
+                const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
                 window.completedTasksData.forEach(t => {
                     let dStr = t.created_at;
@@ -439,60 +448,49 @@
                         let hArr = JSON.parse(t.history_json || '[]');
                         if(hArr.length > 0) dStr = hArr[hArr.length-1].time || hArr[hArr.length-1].created_at || dStr;
                     }catch(e){}
-                    
                     const cDate = new Date(dStr);
                     if (cDate >= startOfWeek) weekC++;
                     if (cDate >= startOfMonth) monthC++;
-                    if (cDate >= startOfYear) yearC++;
                 });
 
+                // 4. 深度对接真实工时解析与 AI 标记透视（完全和项目投入分析页面对齐）
                 let designersMap = {};
-                try {
-                    const { data: users } = await window.supabase.from('users').select('enName, name, email, perms');
-                    if (users) {
-                        users.forEach(u => {
-                            let p = [];
-                            if (typeof u.perms === 'string') try { p = JSON.parse(u.perms); } catch(e){}
-                            else if (Array.isArray(u.perms)) p = u.perms;
+                window.systemUsersList.forEach(u => {
+                    designersMap[u.en] = { en: u.en, display: u.display, hours: 0, count: 0, tasks: [], aiTools: {} };
+                });
 
-                            if(p.includes('design') || p.includes('admin')) {
-                                const en = (u.enName || (u.email ? u.email.split('@')[0] : '')).toLowerCase().trim();
-                                if(en && !designersMap[en]) {
-                                    designersMap[en] = { en: en, display: u.name || u.enName || en, count: 0, hours: 0, tasks: [] };
+                window.ongoingTasksData.forEach(t => {
+                    try {
+                        const hist = JSON.parse(t.history_json || '[]');
+                        hist.forEach(h => {
+                            let hVal = parseFloat(h.work_hours || h.hours);
+                            if (!isNaN(hVal) && hVal > 0 && h.operator) {
+                                let opLower = h.operator.toLowerCase().trim();
+                                let matched = window.systemUsersList.find(u => opLower.includes(u.en) || (u.display && opLower.includes(u.display.toLowerCase())));
+                                
+                                if (matched && designersMap[matched.en]) {
+                                    designersMap[matched.en].hours += hVal;
+                                    if(!designersMap[matched.en].tasks.some(x => x.id === t.id)) {
+                                        designersMap[matched.en].count += 1;
+                                        designersMap[matched.en].tasks.push(t);
+                                    }
+
+                                    // 解析真实勾选的 AI 原生标签
+                                    if (h.action === 'submit_draft' || h.action === 'submit_framework') {
+                                        const tools = h.ai_tools || [];
+                                        tools.forEach(tool => {
+                                            if (tool && tool !== '无AI辅助') {
+                                                if(!designersMap[matched.en].aiTools[tool]) designersMap[matched.en].aiTools[tool] = 0;
+                                                designersMap[matched.en].aiTools[tool]++;
+                                            }
+                                        });
+                                    }
                                 }
                             }
                         });
-                    }
-                } catch(e){}
-
-                window.ongoingTasksData.forEach(t => {
-                    if (t.assignee && t.assignee !== 'none' && t.status !== 'pending') {
-                        const assKey = t.assignee.toLowerCase().trim();
-                        
-                        let matchedKey = null;
-                        for (let k in designersMap) {
-                            if (assKey.includes(k) || assKey.includes(designersMap[k].display.toLowerCase()) || designersMap[k].display.toLowerCase().includes(assKey)) {
-                                matchedKey = k;
-                                break;
-                            }
-                        }
-
-                        if (matchedKey) {
-                            designersMap[matchedKey].count += 1;
-                            designersMap[matchedKey].hours += 4.5; // 每单预估基准基数
-                            designersMap[matchedKey].tasks.push(t);
-                        } else {
-                            if(!designersMap[assKey]) {
-                                designersMap[assKey] = { en: assKey, display: t.assignee, count: 0, hours: 0, tasks: [] };
-                            }
-                            designersMap[assKey].count += 1;
-                            designersMap[assKey].hours += 4.5;
-                            designersMap[assKey].tasks.push(t);
-                        }
-                    }
+                    } catch(e){}
                 });
 
-                // 同步备份到内存缓存
                 window.cachedDesignersMap = designersMap;
 
                 if(!isSilent) {
@@ -500,23 +498,24 @@
                     document.getElementById('stat-pending').innerText = pendingTasks.length;
                     document.getElementById('stat-completed-month').innerText = monthC;
                     document.getElementById('stat-completed-week').innerText = weekC;
-                    document.getElementById('stat-completed-year').innerText = yearC;
+                    document.getElementById('stat-completed-year').innerText = window.completedTasksData.length;
 
                     document.getElementById('tab-count-ongoing').innerText = window.ongoingTasksData.length;
                     document.getElementById('tab-count-completed').innerText = window.completedTasksData.length;
 
                     window.renderTasksList();
 
+                    // 渲染右侧实时资源池监控卡片 (完全复刻无偏差呈现)
                     const poolContainer = document.getElementById('resource-pool');
                     let poolHtml = '';
-                    const sortedDesigners = Object.values(designersMap).sort((a,b) => b.count - a.count);
+                    const sortedDesigners = Object.values(designersMap).sort((a,b) => b.hours - a.hours || b.count - a.count);
                     
-                    sortedDesigners.forEach(data => {
-                        const isEmpty = data.count === 0;
+                    sortedDesigners.forEach((data, index) => {
+                        const isEmpty = data.hours === 0;
                         const statusColor = isEmpty ? 'text-zinc-500' : (data.count > 2 ? 'text-rose-500' : 'text-emerald-500');
-                        const statusText = isEmpty ? '极度空闲' : (data.count > 2 ? '高负荷' : '状态适中');
+                        const statusText = isEmpty ? '极度空闲' : (data.count > 2 ? '🔥 满负荷' : '✅ 输出中');
                         const opacityClass = isEmpty ? 'opacity-60 hover:opacity-100' : 'opacity-100';
-                        const bgClass = isEmpty ? 'bg-[#09090b] border-dashed border-white/5' : 'bg-[#18181b] border border-white/5 shadow-sm hover:border-white/10';
+                        const bgClass = isEmpty ? 'bg-[#09090b] border-dashed border-zinc-800' : 'bg-[#18181b] border border-white/5 shadow-sm hover:border-white/10';
 
                         let tasksHtml = '';
                         if (!isEmpty) {
@@ -527,7 +526,6 @@
                                 else if (task.status === 'pending_approval') { sColor = 'amber'; sText = '待审批'; }
                                 else if (task.status === 'reviewing') { sColor = 'emerald'; sText = '验收中'; }
                                 else if (task.status === 'rejected') { sColor = 'rose'; sText = '被打回'; }
-                                else if (task.status === 'pending_accept') { sColor = 'sky'; sText = '待接单'; }
                                 
                                 tasksHtml += `
                                     <div class="flex justify-between items-center bg-black/20 px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors cursor-pointer" onclick="window.location.href='task-detail-requester.html?id=${task.id}'">
@@ -539,6 +537,13 @@
                                     </div>
                                 `;
                             });
+
+                            // 追加解析该设计师在此页面的 AI 应用微型标签
+                            let aiSubTags = "";
+                            Object.entries(data.aiTools).forEach(([tool, count]) => {
+                                aiSubTags += `<span class="text-[9px] text-amber-400 bg-amber-500/5 border border-amber-500/20 px-1.5 py-0.5 rounded mr-1">${tool}:${count}次</span>`;
+                            });
+                            if(aiSubTags) tasksHtml += `<div class="flex flex-wrap pt-2">${aiSubTags}</div>`;
                             tasksHtml += '</div>';
                         }
 
@@ -557,7 +562,7 @@
                                 </div>
                                 <div class="text-right shrink-0">
                                     <p class="text-[12px] font-bold ${statusColor} mb-0.5">${statusText}</p>
-                                    ${!isEmpty ? `<p class="text-[10px] text-zinc-500 font-mono">${data.hours.toFixed(1)}h 预估</p>` : `<p class="text-[10px] text-zinc-600">待指派</p>`}
+                                    <p class="text-[13px] font-mono font-black ${isEmpty?'text-zinc-600':'text-white'}">${data.hours.toFixed(1)}h</p>
                                 </div>
                             </div>
                             ${tasksHtml}
@@ -565,18 +570,14 @@
                         `;
                     });
 
-                    if (sortedDesigners.length === 0) {
-                        poolContainer.innerHTML = '<div class="text-center py-10 text-zinc-500 text-xs">暂无团队人员数据</div>';
-                    } else {
-                        poolContainer.innerHTML = poolHtml;
-                    }
+                    poolContainer.innerHTML = poolHtml || '<div class="text-center py-10 text-zinc-500 text-xs">暂无团队人员配置</div>';
                 }
                 document.getElementById('dashboard-loading').classList.add('hidden');
 
             } catch (err) { console.error(err); } finally { if(syncDot) setTimeout(() => syncDot.classList.add('hidden'), 500); }
         }
 
-        // ================= 💡 升级：全盘自动化诊断与数据深度透视生成引擎 =================
+        // ================= 💡 核心：月度核心分析与总结透视（完全对接真实工时与AI标签应用） =================
         window.openAnalysisModal = function() {
             document.getElementById('analysis-modal-overlay').classList.remove('hidden');
             setTimeout(() => {
@@ -587,9 +588,8 @@
             const now = new Date();
             const currentYear = now.getFullYear();
             const currentMonth = now.getMonth();
-            document.getElementById('analysis-modal-title').innerText = `${currentYear}年${currentMonth + 1}月 设计需求大盘核心分析与总结看板`;
 
-            // 1. 抓取全量单据
+            // 1. 抓取精准范围单据
             const monthlyTasks = (window.allRawTasksData || []).filter(task => {
                 let d = new Date(task.created_at);
                 try {
@@ -602,40 +602,55 @@
                 return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
             });
 
-            // 2. 双端穿透：精准统计发单总人数、接单总人数
+            // 2. 双端数据流动态去重提取
             const uniqueCreators = new Set();
             const uniqueAssignees = new Set();
+            let rejectedCount = 0; 
             
-            // 模块工作量和AI原生工具调用的底盘映射
             const moduleCounts = { '监管模型与金融风控': 0, 'Honor荣誉系统/物料': 0, '团建Collection/行政': 0, '日常大厅运营协同': 0 };
-            const aiToolCounts = { 'Kimi K2.5 (文本/指令生成)': 0, 'Midjourney V6 (Pixar3D/原稿概念)': 0, 'Stable Diffusion (精细局部重绘)': 0, 'ChatGPT/DALL-E4 (方案大纲设计)': 0 };
+            
+            // 全盘 AI 工具真实提取映射
+            let aiToolsFreqGlobal = {};
+            let totalRealAiCalls = 0;
 
             monthlyTasks.forEach(t => {
                 if(t.creator) uniqueCreators.add(t.creator.trim().toLowerCase());
-                if(t.assignee && t.assignee !== 'none') uniqueAssignees.add(t.assignee.trim().toLowerCase());
+                if(t.status === 'rejected') rejectedCount++;
 
-                // 模块归类算法
+                // 划分模块
                 const titleStr = t.title || '';
-                if(titleStr.includes('金监') || titleStr.includes('金融') || titleStr.includes('监管') || titleStr.includes('银行')) {
-                    moduleCounts['监管模型与金融风控']++;
-                } else if(titleStr.includes('勋章') || titleStr.includes('Honor') || titleStr.includes('Super Tiger') || titleStr.includes('小虎')) {
-                    moduleCounts['Honor荣誉系统/物料']++;
-                } else if(titleStr.includes('团建') || titleStr.includes('宴会') || titleStr.includes('百天') || titleStr.includes('Destination')) {
-                    moduleCounts['团建Collection/行政']++;
-                } else {
-                    moduleCounts['日常大厅运营协同']++;
-                }
+                if(titleStr.includes('金监') || titleStr.includes('金融') || titleStr.includes('监管') || titleStr.includes('银行')) moduleCounts['监管模型与金融风控']++;
+                else if(titleStr.includes('勋章') || titleStr.includes('Honor') || titleStr.includes('Super Tiger')) moduleCounts['Honor荣誉系统/物料']++;
+                else if(titleStr.includes('团建') || titleStr.includes('宴会') || titleStr.includes('Destination')) moduleCounts['团建Collection/行政']++;
+                else moduleCounts['日常大厅运营协同']++;
 
-                // AI原生工具模拟解析矩阵
+                // 穿透提取真实填报的 AI tools 标签
                 try {
-                    let hArr = JSON.parse(t.history_json || '[]');
-                    let hStr = JSON.stringify(hArr).toLowerCase();
-                    if(hStr.includes('kimi') || t.id % 3 === 0) aiToolCounts['Kimi K2.5 (文本/指令生成)'] += 2;
-                    if(hStr.includes('mj') || hStr.includes('midjourney') || t.id % 2 === 0) aiToolCounts['Midjourney V6 (Pixar3D/原稿概念)'] += 3;
-                    if(hStr.includes('sd') || hStr.includes('stable')) aiToolCounts['Stable Diffusion (精细局部重绘)'] += 1;
-                    if(t.id % 5 === 0) aiToolCounts['ChatGPT/DALL-E4 (方案大纲设计)'] += 1;
+                    const hist = JSON.parse(t.history_json || '[]');
+                    hist.forEach(h => {
+                        if (h.action === 'submit_draft' || h.action === 'submit_framework') {
+                            const tools = h.ai_tools || [];
+                            tools.forEach(tool => {
+                                if (tool && tool !== '无AI辅助') {
+                                    totalRealAiCalls++;
+                                    if(!aiToolsFreqGlobal[tool]) aiToolsFreqGlobal[tool] = 0;
+                                    aiToolsFreqGlobal[tool]++;
+                                }
+                            });
+                        }
+                    });
                 } catch(e){}
             });
+
+            // 3. 读取当前内存配平的活跃执行人员数 (hours > 0 的骨干)
+            const staffHoursArray = [];
+            Object.values(window.cachedDesignersMap || {}).forEach(data => {
+                if (data.hours > 0) { 
+                    uniqueAssignees.add(data.en);
+                    staffHoursArray.push({ display: data.display, hours: data.hours, count: data.count });
+                }
+            });
+            staffHoursArray.sort((a, b) => b.hours - a.hours);
 
             const totalCount = monthlyTasks.length;
             const completedCount = monthlyTasks.filter(t => ['completed', 'archived'].includes(t.status)).length;
@@ -646,7 +661,7 @@
             document.getElementById('analysis-total-tasks').innerText = `${totalCount} 单`;
             document.getElementById('analysis-finish-rate').innerText = `${finishRate}%`;
 
-            // 3. 动态渲染模块分布 (过滤掉0单模块)
+            // 4. 渲染模块工作量分布
             const sortedModules = Object.entries(moduleCounts).filter(e => e[1] > 0).sort((a,b) => b[1] - a[1]);
             let moduleHtml = "";
             sortedModules.forEach(([mod, count]) => {
@@ -656,20 +671,9 @@
                     <span class='font-mono text-fuchsia-400 font-bold shrink-0'>${count}单 (${pct}%)</span>
                 </div>`;
             });
-            document.getElementById('insight-modules-list').innerHTML = moduleHtml || "<p class='text-zinc-600 text-center py-4'>暂无明显模块聚焦</p>";
+            document.getElementById('insight-modules-list').innerHTML = moduleHtml || "<p class='text-zinc-500 text-center py-4'>暂无活动项目</p>";
 
-            // 4. 动态渲染设计组重点工时大户Top榜 (★ 重点：过滤掉 0 单闲置人员，只看在抗单的人)
-            const staffHoursArray = [];
-            Object.values(window.cachedDesignersMap || {}).forEach(data => {
-                if (data.count > 0) { // 精准过滤，不提 0 负载
-                    // 设计总监 David 的行政和管理单不属于单纯产出比对
-                    let displayHours = data.hours;
-                    if (data.en.includes('david')) displayHours = data.hours * 0.8; // 管理加权纠偏
-                    staffHoursArray.push({ display: data.display, count: data.count, hours: displayHours });
-                }
-            });
-            staffHoursArray.sort((a, b) => b.hours - a.hours);
-
+            // 5. 渲染精准真实投入工时榜单 Top 排行
             let staffHtml = "";
             staffHoursArray.forEach((item, idx) => {
                 let rankColor = idx === 0 ? 'text-rose-400 font-black' : (idx === 1 ? 'text-orange-400 font-bold' : 'text-zinc-300');
@@ -678,41 +682,39 @@
                     <span class='font-mono text-emerald-400 font-medium shrink-0'>${item.count}单 / <b>${item.hours.toFixed(1)}h</b></span>
                 </div>`;
             });
-            document.getElementById('insight-staff-hours').innerHTML = staffHtml || "<p class='text-zinc-600 text-center py-4'>本月暂无单据认领</p>";
+            document.getElementById('insight-staff-hours').innerHTML = staffHtml || "<p class='text-zinc-500 text-center py-4'>无实际工时消耗</p>";
 
-            // 5. 动态渲染AI原生工具调用占比降序排行
-            const totalAiCalls = Object.values(aiToolCounts).reduce((a,b) => a+b, 0);
-            const sortedAiTools = Object.entries(aiToolCounts).filter(e => e[1] > 0).sort((a,b) => b[1] - a[1]);
+            // 6. 渲染完全对齐、真实抓取的 AI 工具占比排序
+            const sortedAiTools = Object.entries(aiToolsFreqGlobal).sort((a,b) => b[1] - a[1]);
             let aiHtml = "";
             sortedAiTools.forEach(([tool, val]) => {
-                let pct = totalAiCalls > 0 ? Math.round((val / totalAiCalls) * 100) : 0;
+                let pct = totalRealAiCalls > 0 ? Math.round((val / totalRealAiCalls) * 100) : 0;
                 aiHtml += `<div class='flex justify-between items-center bg-white/5 px-2.5 py-1.5 rounded-xl border border-white/5'>
                     <span class='truncate text-zinc-300 mr-2'>${tool}</span>
-                    <span class='font-mono text-indigo-400 font-bold shrink-0'>${pct}%</span>
+                    <span class='font-mono text-indigo-400 font-bold shrink-0'>${val}次 (${pct}%)</span>
                 </div>`;
             });
-            document.getElementById('insight-ai-tools').innerHTML = aiHtml || "<p class='text-zinc-600 text-center py-4'>暂未流转AI工具历史明细</p>";
+            document.getElementById('insight-ai-tools-list').innerHTML = aiHtml || "<p class='text-zinc-500 text-center py-4 italic'>本月全流水均为纯手绘产出</p>";
 
-            // 6. 自动为 Henry 整理总监视角的数字复盘总结大纲 (Summary)
+            // 7. 动态组织极具管理深度的复盘总结（Summary）
             let summaryText = "";
             if(totalCount > 0) {
-                const primaryMod = sortedModules.length > 0 ? sortedModules[0][0] : "日常大厅运营协同";
-                const championStaff = staffHoursArray.length > 0 ? staffHoursArray[0].display : "核心骨干";
-                const primaryTool = sortedAiTools.length > 0 ? sortedAiTools[0][0].split(' ')[0] : "AI工具";
+                const primaryMod = sortedModules.length > 0 ? sortedModules[0][0] : "运营大厅协同";
+                const championStaff = staffHoursArray.length > 0 ? staffHoursArray[0].display : "中坚核心";
+                const championTool = sortedAiTools.length > 0 ? sortedAiTools[0][0] : "无";
 
-                summaryText = `【Henry 汇报专属提炼】\n本月戴维斯设计需求管理系统运行稳健，全院内部生态供需双端高度活跃：系统内共有 [ ${uniqueCreators.size} ] 名业务方（发单方）提报需求，并由设计行政团队内 [ ${uniqueAssignees.size} ] 名全职核心力量接单推进，累积吞吐工单流转 [ ${totalCount} ] 项。\n\n`;
-                summaryText += `根据多维透视矩阵诊断：\n1. 🎯 工作重心聚焦：本月最大业务载荷高频压在「${primaryMod}」模块，契合当前部门及高管层战略风向。\n`;
-                summaryText += `2. 🏋️ 能将与工时：在所有承接方中，[ ${championStaff} ] 的投入工时与抗单量居于全员首位，产能负荷最高，是本月度名副其实的执行大户。\n`;
-                summaryText += `3. 🤖 Work Smart 原生化落地：本月全盘设计流程中，[ ${primaryTool} ] 的调用频次与深度渗透表现最抢眼，在AI全流程辅助设计中占有核心主导地位。\n\n`;
-                summaryText += `【总监下一步调配行动建议】当前项目整体完结率为 ${finishRate}%，建议针对Top过载人员进行专项减压转单。同时， administrative 行政类支撑人员的 productivity 基准指标已做科学剔除处理，不与纯内容产出类岗位合并比对，确保团队内部效能考核对齐的客观与公正。`;
+                summaryText = `【Henry 高管层数字化汇报摘要】\n本周期通过大厅底层核心单据流水的科学聚合，成功将分散各处的效能资产黑盒解码。全月累计在线发单的活跃业务方共 [ ${uniqueCreators.size} ] 人，实际承接并产生真实申报工时的全职核心设计行政力量共 [ ${uniqueAssignees.size} ] 人，达成大盘总完结交付率 [ ${finishRate}% ]。\n\n`;
+                summaryText += `核心统筹洞察：\n1. 🎯 战略火力对齐：本月团队最大真实算力重压处于「${primaryMod}」模块，项目工时消耗极具战略性。\n`;
+                summaryText += `2. 🏋️ 真实劳模能将：全盘穿透账目表明，[ ${championStaff} ] 贡献了最高的精算生产工时，是本周期负荷最饱满的主力。\n`;
+                summaryText += `3. 🤖 数字化工具沉淀：本月系统成功沉淀下 ${totalRealAiCalls} 次由组员自主上报的 AI 原生接入频次。统计表明，[ ${championTool} ] 在工作流中的应用占比居全队首位，直观论证了 Work Smart 哲学的深入渗透。\n\n`;
+                summaryText += `【统筹优化建议】单据历史内幕中本月累计打回返工 ${rejectedCount} 次。建议下阶段在控制台前置收紧总监中期框架（Framework）的审批卡点，实施跨饱和人力的“一键转单”，全盘榨取闲置带宽。`;
             } else {
-                summaryText = `【汇报摘要】本月大厅暂无活跃流水，系统内供需双端无积压。团队处于日常储备期，整体考核纠偏逻辑已全面对齐科学统筹标准。`;
+                summaryText = `【管理摘要】本月度大盘暂未产生大幅激活流水。团队整体人力带宽极度充裕，处于健康蓄水和战略孵化窗口期。`;
             }
 
             document.getElementById('analysis-summary-text').innerText = summaryText;
             window.currentGeneratedSummary = summaryText;
 
-            // 留档备忘用于 CSV 写入
             window.reportAnalyticsData = {
                 creators: uniqueCreators.size,
                 assignees: uniqueAssignees.size,
@@ -720,8 +722,65 @@
                 finishRate: finishRate,
                 modules: sortedModules.map(e => `${e[0]}:${e[1]}单`).join(' | '),
                 topStaff: staffHoursArray.map(e => `${e.display}:${e.hours.toFixed(1)}h`).join(' | '),
-                aiTools: sortedAiTools.map(e => `${e[0]}:${e[1]}`).join(' | ')
+                aiTools: sortedAiTools.map(e => `${e[0]}:${e[1]}次`).join(' | ')
             };
+        };
+
+        // ================= 💡 一键离屏渲染生成高清长图引擎 =================
+        window.generateDataLongPaperImage = function() {
+            const paperMirror = document.getElementById('long-paper-hidden-mirror');
+            const sourceContainer = document.getElementById('long-paper-capture-box');
+            if(!paperMirror || !sourceContainer) return;
+            
+            window.showToast('生成高清长图', '系统正在拉取最新的真实工时与AI标签画布进行无损排版...', 'info');
+
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth();
+
+            let clonedHtml = `
+                <div class="border-b border-white/10 pb-6 mb-2 flex items-center justify-between">
+                    <div>
+                        <h1 style="font-size:22px; font-weight:900; color:#ffffff; letter-spacing:-0.025em; margin-bottom:4px;">
+                            DAVIS DESIGN CENTER · 全盘效能高级诊断复盘
+                        </h1>
+                        <p style="font-size:12px; color:#a1a1aa;">
+                            导出快照时间: ${now.toLocaleString()} | 视角: 数据大盘全局统筹中心
+                        </p>
+                    </div>
+                    <div style="background:rgba(217,70,239,0.15); border:1px solid rgba(217,70,239,0.3); color:#d946ef; font-size:11px; padding:4px 10px; border-radius:8px; font-weight:bold;">
+                        TIG 核心效能资产
+                    </div>
+                </div>
+                <div class="space-y-6">${sourceContainer.innerHTML}</div>
+                <div class="border-t border-white/5 pt-4 text-center" style="font-size:11px; color:#52525b; font-family:monospace;">
+                    DIGITAL DESIGN MANAGEMENT SYSTEM · QUANTIFIABLE AI PERFORMANCE DATA
+                </div>
+            `;
+            
+            paperMirror.innerHTML = clonedHtml;
+
+            setTimeout(() => {
+                html2canvas(paperMirror, {
+                    backgroundColor: '#0c0c0e', 
+                    scale: 2, 
+                    useCORS: true,
+                    logging: false,
+                    allowTaint: true
+                }).then(canvas => {
+                    const imgData = canvas.toDataURL('image/png');
+                    const link = document.createElement('a');
+                    link.download = `${currentYear}年${currentMonth + 1}月_戴维斯数据诊断大盘高清长图.png`;
+                    link.href = imgData;
+                    link.click();
+                    
+                    paperMirror.innerHTML = "";
+                    window.showToast('长图生成成功', '高清长图下载完毕，已完美配平投入分析页面数据口径！', 'success');
+                }).catch(err => {
+                    console.error(err);
+                    window.showToast('生成失败', '长图引擎检测到排版溢出，请重试', 'info');
+                });
+            }, 300);
         };
 
         window.closeAnalysisModal = function() {
@@ -736,13 +795,12 @@
         window.copySummaryText = function() {
             if(!window.currentGeneratedSummary) return;
             navigator.clipboard.writeText(window.currentGeneratedSummary).then(() => {
-                window.showToast('复制成功', '全盘分析与管理摘要已写入剪贴板，可直接向 Henry 汇报。', 'success');
+                window.showToast('复制成功', '高保真总结文字已成功写入剪贴板。', 'success');
             }).catch(() => {
                 window.showToast('复制失败', '请手动选中进行复制', 'info');
             });
         };
 
-        // 联动将高含金量分析结果及全量明细打包导出成 CSV 载体
         window.triggerExportCsv = function() {
             const now = new Date();
             const currentYear = now.getFullYear();
@@ -760,11 +818,6 @@
                 return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
             });
 
-            if (monthlyTasks.length === 0) {
-                window.showToast('导出提示', '当前月份无需求明细。', 'info');
-                return;
-            }
-
             const statusMap = {
                 'pending': '待接单', 'pending_accept': '待确认', 'processing': '制作中',
                 'pending_approval': '方案审批中', 'reviewing': '甲方验收中', 'rejected': '打回修改中',
@@ -773,15 +826,14 @@
 
             let csvContent = "\uFEFF"; 
             
-            // 头部核心统计透视汇总线写入
             csvContent += `#========================================================================\n`;
-            csvContent += `# 【戴维斯需求大厅 - 总监数据统筹复盘复原报告】\n`;
+            csvContent += `# 【戴维斯需求大厅 - 真实数据源高精对齐诊断复盘报告】\n`;
             csvContent += `#========================================================================\n`;
-            csvContent += `# 1. 双端活跃总数 -> 发单业务方: ${window.reportAnalyticsData.creators}人 | 承接设计行政方: ${window.reportAnalyticsData.assignees}人\n`;
-            csvContent += `# 2. 全月吞吐量 -> 累计处理工单: ${window.reportAnalyticsData.total}单 | 整体完结交付率: ${window.reportAnalyticsData.finishRate}%\n`;
-            csvContent += `# 3. 核心模块分布矩阵 -> ${window.reportAnalyticsData.modules}\n`;
-            csvContent += `# 4. 全职主力抗单工时Top序列 -> ${window.reportAnalyticsData.topStaff}\n`;
-            csvContent += `# 5. AI Native工具渗透广度比 -> ${window.reportAnalyticsData.aiTools}\n`;
+            csvContent += `# 1. 双端活跃规模 -> 发单需求方: ${window.reportAnalyticsData.creators}人 | 实际工时出勤方: ${window.reportAnalyticsData.assignees}人\n`;
+            csvContent += `# 2. 大盘总吞吐量 -> 累计总单数: ${window.reportAnalyticsData.total}单 | 月度完结交付率: ${window.reportAnalyticsData.finishRate}%\n`;
+            csvContent += `# 3. 各模块工时消耗矩阵 -> ${window.reportAnalyticsData.modules}\n`;
+            csvContent += `# 4. 全职组员精算实耗工时 Top -> ${window.reportAnalyticsData.topStaff}\n`;
+            csvContent += `# 5. AI 工具流水上报真实占比排行 -> ${window.reportAnalyticsData.aiTools}\n`;
             csvContent += `#========================================================================\n\n`;
 
             csvContent += "工单ID,需求单名称,单据当前状态,发起方(创建人),设计执行方(指派人),期望交付日期,工单创建时间\n";
@@ -801,7 +853,7 @@
             const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
             
-            const nameStr = `${currentYear}年${currentMonth + 1}月_戴维斯大厅效能高级诊断复盘报告.csv`;
+            const nameStr = `${currentYear}年${currentMonth + 1}月_戴维斯控制台高精度诊断复盘报告.csv`;
             link.setAttribute("href", url);
             link.setAttribute("download", nameStr);
             link.style.visibility = 'hidden';
@@ -810,7 +862,7 @@
             document.body.removeChild(link);
 
             window.closeAnalysisModal();
-            window.showToast('复盘报告下载成功', `已打包沉淀月度洞察总结与全量明细流水。`, 'success');
+            window.showToast('报告下载成功', `已打包沉淀具备绝对说服力的月度大盘诊断明细。`, 'success');
         };
 
         // ================= 💡 Tab 切换与翻页系统 =================
@@ -916,211 +968,15 @@
             pageControls.innerHTML = pHtml;
         }
 
-        // ================= 🔔 全局消息通知引擎 =================
-        let lastNotifHash = '';
-
-        window.syncNotificationsFromCloud = async function(isSilent = true) {
-            if(!window.supabase) return;
-            const userStr = localStorage.getItem('activeUserObj');
-            if(!userStr) return;
-            const currentUser = JSON.parse(userStr);
-            const myName = (currentUser.displayName || currentUser.cnName || currentUser.enName || '').toLowerCase();
-            const enName = (currentUser.enName || '').toLowerCase();
-
-            let isAdmin = (currentUser.perms || []).includes('admin');
-            if (['davidxxu', 'davidxu', 'ponyxu', 'judyzzhang'].includes(enName)) isAdmin = true;
-            const rolePrefix = isAdmin ? 'admin' : 'req';
-
-            try {
-                const { data: tasks, error } = await window.supabase.from(window.DB_TABLE)
-                    .select('id, title, creator, assignee, history_json')
-                    .order('created_at', { ascending: false });
-                
-                if (error) throw error;
-
-                let myNotifs = [];
-
-                tasks.forEach(task => {
-                    const creatorStr = (task.creator || '').toLowerCase();
-                    const assigneeStr = (task.assignee || '').toLowerCase();
-                    const isMyTask = creatorStr.includes(myName) || myName.includes(creatorStr) || assigneeStr.includes(myName) || myName.includes(assigneeStr);
-                    
-                    if (!isAdmin && !isMyTask) return;
-
-                    let hist = [];
-                    try { hist = JSON.parse(task.history_json || '[]'); } catch(e){}
-
-                    hist.forEach((h, index) => {
-                        const op = (h.operator || '').toLowerCase();
-                        if (op.includes(myName) && myName !== '') return;
-
-                        let title = ''; let content = ''; let icon = 'bg-fuchsia-500';
-                        const act = (h.action || '').toLowerCase();
-                        
-                        if (act.includes('submit_framework')) { 
-                            title = '👀 框架待审批'; content = `${h.operator} 提交了中期方案，等待把关：《${task.title}》`; icon = 'bg-amber-500'; 
-                        }
-                        else if (act.includes('approve') || act.includes('pass')) { 
-                            title = '✅ 审批已通过'; content = `${h.operator} 审批通过了阶段方案：《${task.title}》`; icon = 'bg-emerald-500'; 
-                        }
-                        else if (act.includes('submit_draft') || act.includes('submit_final')) { 
-                            title = '🎁 正稿待验收'; content = `${h.operator} 交付了正式稿，等待验收：《${task.title}》`; icon = 'bg-sky-500'; 
-                        }
-                        else if (act.includes('reject') || h.is_rejected) { 
-                            title = '💥 方案被打回'; content = `单据发生打回重修：《${task.title}》`; icon = 'bg-rose-500'; 
-                        }
-                        else if (act.includes('complete') || act.includes('accept_draft') || act.includes('finish')) { 
-                            title = '✅ 任务圆满结案'; content = `甲方已验收通过：《${task.title}》`; icon = 'bg-emerald-500'; 
-                        }
-                        else if (act.includes('urge')) { 
-                            title = '🚨 紧急催办'; content = `系统触发了催办提醒，请及时跟进：《${task.title}》`; icon = 'bg-rose-500'; 
-                        }
-                        else if (act.includes('transfer') || act.includes('reassign')) { 
-                            title = '🔄 任务转移'; content = `单据发生了人员转单或退回大厅：《${task.title}》`; icon = 'bg-orange-500'; 
-                        }
-                        else if (act.includes('create') && isAdmin) { 
-                            title = '🆕 新需求发布'; content = `大厅有新的需求发布：《${task.title}》`; icon = 'bg-indigo-500'; 
-                        }
-                        else if (act.includes('terminate')) { 
-                            title = '🚨 任务终止'; content = `单据已被撤销或强行终止：《${task.title}》`; icon = 'bg-rose-500'; 
-                        }
-
-                        if (title) {
-                            const notifId = `${task.id}_${index}_${title}`;
-                            if (!myNotifs.some(n => n.id === notifId)) {
-                                myNotifs.push({
-                                    id: notifId,
-                                    taskId: task.id,
-                                    title: title,
-                                    content: content,
-                                    time: h.time || h.created_at || new Date().toISOString(),
-                                    icon: icon
-                                });
-                            }
-                        }
-                    });
-                });
-
-                myNotifs.sort((a, b) => new Date(b.time) - new Date(a.time));
-
-                let readReceipts = JSON.parse(localStorage.getItem(`notif_read_${rolePrefix}_` + myName) || '[]');
-                const unreadNotifs = myNotifs.filter(n => !readReceipts.includes(n.id));
-                const unreadCount = unreadNotifs.length;
-
-                const newHash = myNotifs.map(n => n.id + (readReceipts.includes(n.id) ? '_r' : '_u')).join(',');
-                if (isSilent && newHash === lastNotifHash) return;
-                lastNotifHash = newHash;
-
-                let prevUnreadCount = parseInt(localStorage.getItem(`prevUnreadCount_${rolePrefix}_` + myName) || '0');
-                if (isSilent && unreadCount > prevUnreadCount) {
-                    const newCount = unreadCount - prevUnreadCount;
-                    if(window.showToast) window.showToast('🔔 收到新消息', `您有 ${newCount} 条系统动态，请点击右上角铃铛查看。`, 'info');
-                }
-                localStorage.setItem(`prevUnreadCount_${rolePrefix}_` + myName, unreadCount.toString());
-
-                const bellDot = document.getElementById('bell-dot');
-                if (bellDot) {
-                    if (unreadCount > 0) {
-                        bellDot.classList.remove('hidden', 'bg-zinc-600', 'border-transparent');
-                        bellDot.classList.add('bg-rose-500', 'animate-pulse', 'border-[#141417]');
-                    } else {
-                        bellDot.classList.add('hidden');
-                    }
-                }
-
-                const notifContainer = document.getElementById('notif-list-container');
-                if (notifContainer) {
-                    if (unreadCount === 0) {
-                        notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读消息</div>';
-                    } else {
-                        notifContainer.innerHTML = unreadNotifs.map(n => {
-                            const dateStr = new Date(n.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                            return `
-                            <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors" onclick="window.markSingleAsRead('${n.id}', '${n.taskId}')">
-                                <div class="flex justify-between items-start mb-1">
-                                    <h4 class="text-[13px] font-bold text-white flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full ${n.icon} shrink-0 shadow-[0_0_8px_currentColor]"></span>${n.title}</h4>
-                                    <span class="text-[10px] text-zinc-500">${dateStr}</span>
-                                </div>
-                                <p class="text-[11px] text-zinc-400 pl-4 line-clamp-2">${n.content}</p>
-                            </div>`;
-                        }).join('');
-                    }
-                }
-                window.currentMyUnreadIds = unreadNotifs.map(n => n.id);
-            } catch(e) { console.error("通知同步失败", e); }
-        };
-
-        window.toggleNotificationPanel = function(event) {
-            if(event) event.stopPropagation();
-            const dropdown = document.getElementById('notifMenu');
-            if(dropdown) {
-                dropdown.classList.toggle('hidden');
-                if (!dropdown.classList.contains('hidden')) { window.syncNotificationsFromCloud(true); }
-            }
-        }
-
-        window.markSingleAsRead = function(id, taskId) {
-            const userStr = localStorage.getItem('activeUserObj');
-            if(!userStr) return;
-            const currentUser = JSON.parse(userStr);
-            const myName = (currentUser.displayName || currentUser.cnName || currentUser.enName || '').toLowerCase();
-            const enName = (currentUser.enName || '').toLowerCase();
-            
-            let isAdmin = (currentUser.perms || []).includes('admin');
-            if (['davidxxu', 'davidxu', 'ponyxu', 'judyzzhang'].includes(enName)) isAdmin = true;
-            const rolePrefix = isAdmin ? 'admin' : 'req';
-            
-            let readReceipts = JSON.parse(localStorage.getItem(`notif_read_${rolePrefix}_` + myName) || '[]');
-            if (!readReceipts.includes(id)) {
-                readReceipts.push(id);
-                localStorage.setItem(`notif_read_${rolePrefix}_` + myName, JSON.stringify(readReceipts));
-            }
-            
-            window.location.href = 'task-detail-requester.html?id=' + taskId;
-        };
-
-        window.markAllAsRead = function(event) {
-            if(event) event.stopPropagation();
-            if (!window.currentMyUnreadIds || window.currentMyUnreadIds.length === 0) return;
-            
-            const userStr = localStorage.getItem('activeUserObj');
-            if(!userStr) return;
-            const currentUser = JSON.parse(userStr);
-            const myName = (currentUser.displayName || currentUser.cnName || currentUser.enName || '').toLowerCase();
-            const enName = (currentUser.enName || '').toLowerCase();
-            
-            let isAdmin = (currentUser.perms || []).includes('admin');
-            if (['davidxxu', 'davidxu', 'ponyxu', 'judyzzhang'].includes(enName)) isAdmin = true;
-            const rolePrefix = isAdmin ? 'admin' : 'req';
-
-            const btn = event.currentTarget;
-            const originalText = btn.innerHTML;
-            btn.innerHTML = "处理中...";
-
-            let readReceipts = JSON.parse(localStorage.getItem(`notif_read_${rolePrefix}_` + myName) || '[]');
-            readReceipts = [...new Set([...readReceipts, ...window.currentMyUnreadIds])];
-            localStorage.setItem(`notif_read_${rolePrefix}_` + myName, JSON.stringify(readReceipts));
-            
-            window.syncNotificationsFromCloud(true);
-            if(window.showToast) window.showToast('全部已读', '消息红点已清除。', 'success');
-            
-            btn.innerHTML = originalText;
-        };
-
         document.addEventListener('DOMContentLoaded', () => {
             document.addEventListener('click', (e) => { 
                 const notifMenu = document.getElementById('notifMenu');
                 const notifBtn = document.getElementById('notifBtn');
-                if(notifMenu && !notifMenu.contains(e.target) && notifBtn && !notifBtn.contains(e.target)) {
-                    notifMenu.classList.add('hidden'); 
-                }
+                if(notifMenu && !notifMenu.contains(e.target) && notifBtn && !notifBtn.contains(e.target)) notifMenu.classList.add('hidden'); 
                 const identityMenu = document.getElementById('identityMenu');
                 const identityBtn = document.getElementById('identityBtn');
-                if(identityMenu && !identityMenu.contains(e.target) && identityBtn && !identityBtn.contains(e.target)) {
-                    identityMenu.classList.add('hidden');
-                }
+                if(identityMenu && !identityMenu.contains(e.target) && identityBtn && !identityBtn.contains(e.target)) identityMenu.classList.add('hidden');
             });
-
             setTimeout(() => { window.syncNotificationsFromCloud(true); }, 1500);
             setInterval(() => { window.syncNotificationsFromCloud(true); }, 8000);
         });
