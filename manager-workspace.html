@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>全局统筹中心 - 戴维斯设计需求管理中心</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
         body { background-color: #09090b; color: #e4e4e7; font-family: 'Inter', system-ui, sans-serif; }
@@ -91,10 +90,6 @@
             </div>
             
             <div class="flex items-center gap-5 relative">
-                <button onclick="window.openAnalysisModal()" class="px-5 py-2.5 bg-gradient-to-r from-fuchsia-600 to-indigo-600 hover:from-fuchsia-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl shadow-[0_4px_15px_rgba(217,70,239,0.25)] transition-all btn-press flex items-center gap-1.5">
-                    📊 月度数据透视与长图生成
-                </button>
-
                 <div class="relative z-[120]" id="notif-wrapper">
                     <button id="notifBtn" onclick="window.toggleNotificationPanel(event)" class="w-10 h-10 rounded-xl bg-[#141417] border border-white/5 flex items-center justify-center text-zinc-400 hover:text-white transition-colors btn-press relative">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
@@ -206,77 +201,6 @@
         </div>
     </main>
 
-    <div id="analysis-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closeAnalysisModal()">
-        <div id="analysis-modal" class="hidden w-full max-w-3xl bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 p-7 relative">
-            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-fuchsia-500 via-purple-500 to-indigo-500 rounded-t-3xl"></div>
-            
-            <div class="flex justify-between items-center mb-5 mt-2">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-6 h-6 rounded-lg bg-fuchsia-500/20 text-fuchsia-400 flex items-center justify-center">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
-                    </div>
-                    <h2 class="text-[16px] font-bold text-white" id="analysis-modal-title">月度核心效能复盘诊断报告</h2>
-                </div>
-                <button onclick="window.closeAnalysisModal()" class="text-zinc-500 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-full p-1 transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
-            </div>
-
-            <div id="long-paper-capture-box" class="space-y-4">
-                <div class="grid grid-cols-4 gap-4">
-                    <div class="bg-black/30 border border-white/5 rounded-2xl p-3.5">
-                        <p class="text-[11px] text-zinc-500 font-medium mb-1">系统活跃发单方</p>
-                        <p class="text-xl font-bold font-mono text-fuchsia-400" id="analysis-creators-count">0 人</p>
-                    </div>
-                    <div class="bg-black/30 border border-white/5 rounded-2xl p-3.5">
-                        <p class="text-[11px] text-zinc-500 font-medium mb-1">实际产生工时人</p>
-                        <p class="text-xl font-bold font-mono text-emerald-400" id="analysis-assignees-count">0 人</p>
-                    </div>
-                    <div class="bg-black/30 border border-white/5 rounded-2xl p-3.5">
-                        <p class="text-[11px] text-zinc-500 font-medium mb-1">当月累计投入工时</p>
-                        <p class="text-xl font-bold font-mono text-indigo-400" id="analysis-total-hours">0.0h</p>
-                    </div>
-                    <div class="bg-black/30 border border-white/5 rounded-2xl p-3.5">
-                        <p class="text-[11px] text-zinc-500 font-medium mb-1">当月工单吞吐总量</p>
-                        <p class="text-xl font-bold font-mono text-amber-400" id="analysis-total-tasks">0 单</p>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-3 gap-4">
-                    <div class="bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col h-[200px] select-scrolling-box">
-                        <h4 class="text-[12px] font-bold text-zinc-400 mb-2.5 flex items-center gap-1 text-fuchsia-400"><span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500"></span> 各项目当期工时消耗榜</h4>
-                        <div class="text-[11px] space-y-1.5 text-zinc-400 overflow-y-auto custom-scrollbar flex-1 shadow-inner-box" id="insight-modules-list"></div>
-                    </div>
-                    <div class="bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col h-[200px] select-scrolling-box">
-                        <h4 class="text-[12px] font-bold text-zinc-400 mb-2.5 flex items-center gap-1 text-emerald-400"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> 当期成员投入工时排行 (非0)</h4>
-                        <div class="text-[11px] space-y-1.5 text-zinc-400 overflow-y-auto custom-scrollbar flex-1 shadow-inner-box" id="insight-staff-hours"></div>
-                    </div>
-                    <div class="bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col h-[200px] select-scrolling-box">
-                        <h4 class="text-[12px] font-bold text-zinc-400 mb-2.5 flex items-center gap-1 text-indigo-400"><span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span> AI 工具当期真实应用排行</h4>
-                        <div class="text-[11px] space-y-1.5 text-zinc-400 overflow-y-auto custom-scrollbar flex-1 shadow-inner-box" id="insight-ai-tools-list"></div>
-                    </div>
-                </div>
-
-                <div class="space-y-2">
-                    <label class="block text-[12px] font-bold text-zinc-400 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span> 诊断复盘大纲与下一步调配行动建议 (Summary)</label>
-                    <div class="w-full bg-[#09090b] border border-white/10 rounded-2xl p-4 text-[11px] leading-relaxed text-zinc-300 overflow-y-auto h-[120px] custom-scrollbar font-sans select-text select-scrolling-box" id="analysis-summary-text">
-                        正在穿透数据链解构当期复盘明细...
-                    </div>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-3 gap-3 mt-5">
-                <button onclick="window.copySummaryText()" class="py-3 bg-zinc-800/80 hover:bg-zinc-700 text-white rounded-xl text-xs font-bold transition-all border border-white/5 btn-press">
-                    📋 复制全盘总结文字
-                </button>
-                <button onclick="window.triggerExportCsv()" class="py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-xs font-bold transition-all border border-white/10 btn-press">
-                    数据打包导出 (.CSV)
-                </button>
-                <button onclick="window.generateDataLongPaperImage()" class="py-3 bg-gradient-to-r from-fuchsia-600 to-indigo-600 hover:from-fuchsia-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold shadow-[0_5px_15px_rgba(217,70,239,0.2)] transition-all btn-press flex items-center justify-center gap-1.5">
-                    📸 一键生成无损平铺长图
-                </button>
-            </div>
-        </div>
-    </div>
-
     <div id="pwd-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closePwdModal()">
         <div id="pwd-modal" class="hidden w-full max-w-sm bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 p-6 relative">
             <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-fuchsia-500 to-indigo-500 rounded-t-3xl"></div>
@@ -302,8 +226,6 @@
         </div>
     </div>
 
-    <div id="long-paper-hidden-mirror" class="absolute left-[-9999px] top-[-9999px] w-[780px] bg-[#0c0c0e] text-zinc-300 p-8 space-y-6 rounded-3xl border border-white/10 flex flex-col overflow-visible"></div>
-
     <script type="module">
         import { supabase } from './supabase-config.js';
         window.supabase = supabase;
@@ -321,10 +243,6 @@
         window.currentTab = 'ongoing';
         window.currentPage = 1;
         const ITEMS_PER_PAGE = 8;
-        
-        window.systemUsersList = [];
-        window.currentGeneratedSummary = "";
-        window.reportAnalyticsData = {};
 
         window.openPwdModal = function() { document.getElementById('pwd-modal-overlay').classList.remove('hidden'); setTimeout(() => { document.getElementById('pwd-modal-overlay').classList.remove('opacity-0'); document.getElementById('pwd-modal').classList.remove('hidden', 'scale-95'); }, 10); }
         window.closePwdModal = function() { document.getElementById('pwd-modal-overlay').classList.add('opacity-0'); document.getElementById('pwd-modal').classList.add('scale-95'); setTimeout(() => { document.getElementById('pwd-modal-overlay').classList.add('hidden'); document.getElementById('pwd-modal').classList.add('hidden'); }, 300); }
@@ -333,14 +251,6 @@
 
         window.showToast = function(title, desc, type = 'success') {
             const toast = document.getElementById('action-toast');
-            const iconContainer = document.getElementById('toast-icon');
-            if (type === 'info') {
-                iconContainer.className = "w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-fuchsia-500/20 text-fuchsia-400";
-                iconContainer.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
-            } else {
-                iconContainer.className = "w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400";
-                iconContainer.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-            }
             document.getElementById('toast-title').innerText = title; document.getElementById('toast-desc').innerText = desc;
             toast.classList.remove('hidden'); setTimeout(() => { toast.classList.add('hidden'); }, 3000);
         }
@@ -402,15 +312,7 @@
             return user;
         }
 
-        function isDateInCurrentMonth(dString) {
-            if (!dString) return false;
-            const d = new Date(dString);
-            if (isNaN(d.getTime())) return false;
-            const now = new Date();
-            return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-        }
-
-        // ================= 💡 全局数据引擎 (原有流转逻辑完璧复原) =================
+        // ================= 💡 全局数据引擎 (全员透视版) =================
         window.loadDashboardData = async function(isSilent = false) {
             if(!initRBAC()) return;
             if(!window.supabase) return;
@@ -419,38 +321,20 @@
             if(syncDot && !isSilent) syncDot.classList.remove('hidden');
 
             try {
-                // 1. 获取全盘配置用户库
-                const { data: users, error: uErr } = await window.supabase.from('user_profiles').select('*');
-                if (uErr) throw uErr;
-
-                window.systemUsersList = [];
-                if (users) {
-                    users.forEach(u => {
-                        const en = (u.en_name || '').toLowerCase().trim();
-                        const excludedUsers = ['judyzzhang']; // 仅过滤非出勤管理账号
-                        if(en && !excludedUsers.includes(en)) {
-                            if(!window.systemUsersList.some(x => x.en === en)) {
-                                window.systemUsersList.push({ en: en, display: u.display_name || u.cn_name || u.en_name || en });
-                            }
-                        }
-                    });
-                }
-
-                // 2. 捞取工单大厅底层单据
-                const { data: tasks, error } = await window.supabase.from(window.DB_TABLE).select('id, title, project, status, creator, assignee, due_date, history_json, created_at').order('created_at', { ascending: false });
+                const { data: tasks, error } = await window.supabase.from(window.DB_TABLE).select('id, title, status, creator, assignee, due_date, history_json, created_at').order('created_at', { ascending: false });
                 if (error) throw error;
 
-                // 注入原有流转Tab需求卡片数据源，彻底激活左侧实时看盘(18单/37单)
-                window.allRawTasksData = tasks || []; 
                 window.ongoingTasksData = (tasks || []).filter(t => !['completed', 'archived', 'terminated'].includes(t.status));
                 window.completedTasksData = (tasks || []).filter(t => ['completed', 'archived', 'terminated'].includes(t.status));
                 const pendingTasks = window.ongoingTasksData.filter(t => ['pending', 'pending_accept', 'pending_approval', 'reviewing'].includes(t.status));
 
-                let monthC = 0, weekC = 0;
+                let weekC = 0, monthC = 0, yearC = 0;
                 const now = new Date();
-                const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (now.getDay() || 7) + 1);
-                startOfWeek.setHours(0,0,0,0);
+                const startOfYear = new Date(now.getFullYear(), 0, 1);
                 const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                const day = now.getDay() || 7;
+                const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day + 1);
+                startOfWeek.setHours(0,0,0,0);
 
                 window.completedTasksData.forEach(t => {
                     let dStr = t.created_at;
@@ -458,76 +342,81 @@
                         let hArr = JSON.parse(t.history_json || '[]');
                         if(hArr.length > 0) dStr = hArr[hArr.length-1].time || hArr[hArr.length-1].created_at || dStr;
                     }catch(e){}
+                    
                     const cDate = new Date(dStr);
                     if (cDate >= startOfWeek) weekC++;
                     if (cDate >= startOfMonth) monthC++;
+                    if (cDate >= startOfYear) yearC++;
                 });
 
-                // 初始化全景资源底牌
                 let designersMap = {};
-                window.systemUsersList.forEach(u => {
-                    designersMap[u.en] = { en: u.en, display: u.display, hours: 0, count: 0, tasks: [], aiTools: {} };
-                });
+                try {
+                    const { data: users } = await window.supabase.from('users').select('enName, name, email, perms');
+                    if (users) {
+                        users.forEach(u => {
+                            let p = [];
+                            if (typeof u.perms === 'string') try { p = JSON.parse(u.perms); } catch(e){}
+                            else if (Array.isArray(u.perms)) p = u.perms;
 
-                // 穿透解构历史日志，累加当月实耗工时，精准匹配文哥(davidxxu)数据流
-                window.allRawTasksData.forEach(t => {
-                    try {
-                        const hist = JSON.parse(t.history_json || '[]');
-                        hist.forEach(h => {
-                            if (isDateInCurrentMonth(h.created_at || h.time)) {
-                                let hVal = parseFloat(h.work_hours || h.hours);
-                                if (!isNaN(hVal) && hVal > 0 && h.operator) {
-                                    let opLower = h.operator.toLowerCase().trim();
-                                    let matched = window.systemUsersList.find(u => opLower.includes(u.en) || (u.display && opLower.includes(u.display.toLowerCase())) || opLower.includes('文'));
-                                    
-                                    if (matched && designersMap[matched.en]) {
-                                        designersMap[matched.en].hours += hVal;
-                                        if(!['completed', 'archived', 'terminated'].includes(t.status) && !designersMap[matched.en].tasks.some(x => x.id === t.id)) {
-                                            designersMap[matched.en].count += 1;
-                                            designersMap[matched.en].tasks.push(t);
-                                        }
-
-                                        if (h.action === 'submit_draft' || h.action === 'submit_framework') {
-                                            const tools = h.ai_tools || [];
-                                            tools.forEach(tool => {
-                                                if (tool && tool !== '无AI辅助') {
-                                                    if(!designersMap[matched.en].aiTools[tool]) designersMap[matched.en].aiTools[tool] = 0;
-                                                    designersMap[matched.en].aiTools[tool]++;
-                                                }
-                                            });
-                                        }
-                                    }
+                            if(p.includes('design') || p.includes('admin')) {
+                                const en = (u.enName || (u.email ? u.email.split('@')[0] : '')).toLowerCase();
+                                if(en && !designersMap[en]) {
+                                    designersMap[en] = { en: en, display: u.name || u.enName || en, count: 0, hours: 0, tasks: [] };
                                 }
                             }
                         });
-                    } catch(e){}
-                });
+                    }
+                } catch(e){}
 
-                window.cachedDesignersMap = designersMap;
+                window.ongoingTasksData.forEach(t => {
+                    if (t.assignee && t.assignee !== 'none' && t.status !== 'pending') {
+                        const assKey = t.assignee.toLowerCase();
+                        
+                        let matchedKey = null;
+                        for (let k in designersMap) {
+                            if (assKey.includes(k) || assKey.includes(designersMap[k].display.toLowerCase()) || designersMap[k].display.toLowerCase().includes(assKey)) {
+                                matchedKey = k;
+                                break;
+                            }
+                        }
+
+                        if (matchedKey) {
+                            designersMap[matchedKey].count += 1;
+                            designersMap[matchedKey].hours += 4.5;
+                            designersMap[matchedKey].tasks.push(t);
+                        } else {
+                            if(!designersMap[assKey]) {
+                                designersMap[assKey] = { en: assKey, display: t.assignee, count: 0, hours: 0, tasks: [] };
+                            }
+                            designersMap[assKey].count += 1;
+                            designersMap[assKey].hours += 4.5;
+                            designersMap[assKey].tasks.push(t);
+                        }
+                    }
+                });
 
                 if(!isSilent) {
                     document.getElementById('stat-ongoing').innerText = window.ongoingTasksData.length;
                     document.getElementById('stat-pending').innerText = pendingTasks.length;
                     document.getElementById('stat-completed-month').innerText = monthC;
                     document.getElementById('stat-completed-week').innerText = weekC;
+                    document.getElementById('stat-completed-year').innerText = yearC;
 
                     document.getElementById('tab-count-ongoing').innerText = window.ongoingTasksData.length;
                     document.getElementById('tab-count-completed').innerText = window.completedTasksData.length;
 
-                    // 重新重绘左侧工单
                     window.renderTasksList();
 
-                    // 重新装填资源池（全员100%留底，0工时沉底，文哥数据严谨闭环）
                     const poolContainer = document.getElementById('resource-pool');
                     let poolHtml = '';
-                    const sortedDesigners = Object.values(designersMap).sort((a,b) => b.hours - a.hours || b.count - a.count);
+                    const sortedDesigners = Object.values(designersMap).sort((a,b) => b.count - a.count);
                     
-                    sortedDesigners.forEach((data, index) => {
-                        const isEmpty = data.hours === 0;
-                        const statusColor = isEmpty ? 'text-zinc-500' : (data.count > 2 ? 'text-rose-400' : 'text-emerald-500');
-                        const statusText = isEmpty ? '极度空闲' : (data.count > 2 ? '🔥 满负荷' : '✅ 输出中');
+                    sortedDesigners.forEach(data => {
+                        const isEmpty = data.count === 0;
+                        const statusColor = isEmpty ? 'text-zinc-500' : (data.count > 2 ? 'text-rose-500' : 'text-emerald-500');
+                        const statusText = isEmpty ? '极度空闲' : (data.count > 2 ? '高负荷' : '状态适中');
                         const opacityClass = isEmpty ? 'opacity-60 hover:opacity-100' : 'opacity-100';
-                        const bgClass = isEmpty ? 'bg-[#09090b] border-dashed border-zinc-800' : 'bg-[#18181b] border border-white/5 shadow-sm hover:border-white/10';
+                        const bgClass = isEmpty ? 'bg-[#09090b] border-dashed border-white/5' : 'bg-[#18181b] border border-white/5 shadow-sm hover:border-white/10';
 
                         let tasksHtml = '';
                         if (!isEmpty) {
@@ -538,6 +427,7 @@
                                 else if (task.status === 'pending_approval') { sColor = 'amber'; sText = '待审批'; }
                                 else if (task.status === 'reviewing') { sColor = 'emerald'; sText = '验收中'; }
                                 else if (task.status === 'rejected') { sColor = 'rose'; sText = '被打回'; }
+                                else if (task.status === 'pending_accept') { sColor = 'sky'; sText = '待接单'; }
                                 
                                 tasksHtml += `
                                     <div class="flex justify-between items-center bg-black/20 px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors cursor-pointer" onclick="window.location.href='task-detail-requester.html?id=${task.id}'">
@@ -549,12 +439,6 @@
                                     </div>
                                 `;
                             });
-
-                            let aiSubTags = "";
-                            Object.entries(data.aiTools).forEach(([tool, count]) => {
-                                aiSubTags += `<span class="text-[9px] text-amber-400 bg-amber-500/5 border border-amber-500/20 px-1.5 py-0.5 rounded mr-1 mb-1">${tool}:${count}次</span>`;
-                            });
-                            if(aiSubTags) tasksHtml += `<div class="flex flex-wrap pt-2">${aiSubTags}</div>`;
                             tasksHtml += '</div>';
                         }
 
@@ -573,7 +457,7 @@
                                 </div>
                                 <div class="text-right shrink-0">
                                     <p class="text-[12px] font-bold ${statusColor} mb-0.5">${statusText}</p>
-                                    <p class="text-[13px] font-mono font-black ${isEmpty?'text-zinc-600':'text-white'}">${data.hours.toFixed(1)}h</p>
+                                    ${!isEmpty ? `<p class="text-[10px] text-zinc-500 font-mono">${data.hours.toFixed(1)}h 预估</p>` : `<p class="text-[10px] text-zinc-600">待指派</p>`}
                                 </div>
                             </div>
                             ${tasksHtml}
@@ -581,324 +465,16 @@
                         `;
                     });
 
-                    poolContainer.innerHTML = poolHtml || '<div class="text-center py-10 text-zinc-500 text-xs">暂无团队人员配置</div>';
+                    if (sortedDesigners.length === 0) {
+                        poolContainer.innerHTML = '<div class="text-center py-10 text-zinc-500 text-xs">暂无团队人员数据</div>';
+                    } else {
+                        poolContainer.innerHTML = poolHtml;
+                    }
                 }
                 document.getElementById('dashboard-loading').classList.add('hidden');
 
             } catch (err) { console.error(err); } finally { if(syncDot) setTimeout(() => syncDot.classList.add('hidden'), 500); }
         }
-
-        // ================= 💡 月度分析诊断复盘 =================
-        window.openAnalysisModal = function() {
-            document.getElementById('analysis-modal-overlay').classList.remove('hidden');
-            setTimeout(() => {
-                document.getElementById('analysis-modal-overlay').classList.remove('opacity-0');
-                document.getElementById('analysis-modal').classList.remove('hidden', 'scale-95');
-            }, 10);
-
-            const now = new Date();
-            const currentYear = now.getFullYear();
-            const currentMonth = now.getMonth();
-            document.getElementById('analysis-modal-title').innerText = `${currentYear}年${currentMonth + 1}月 设计需求大盘核心分析与总结看板`;
-
-            let totalPeriodHours = 0;
-            const uniqueCreators = new Set();
-            const uniqueAssignees = new Set();
-            let totalPeriodTasksSet = new Set();
-            
-            const projectHoursMap = {};
-            let totalRealAiCalls = 0;
-            let aiToolsFreqGlobal = {};
-
-            const designersArray = Object.values(window.cachedDesignersMap || {});
-            designersArray.forEach(d => {
-                if (d.hours > 0) {
-                    uniqueAssignees.add(d.en);
-                    totalPeriodHours += d.hours;
-                }
-            });
-
-            window.allRawTasksData.forEach(t => {
-                try {
-                    const hist = JSON.parse(t.history_json || '[]');
-                    hist.forEach(h => {
-                        if (isDateInCurrentMonth(h.created_at || h.time)) {
-                            totalPeriodTasksSet.add(t.id);
-                            if(t.creator) uniqueCreators.add(t.creator.trim().toLowerCase());
-
-                            let hVal = parseFloat(h.work_hours || h.hours);
-                            if (!isNaN(hVal) && hVal > 0) {
-                                // 💡 直接抓取和另一个页面一模一样的项目名称分类
-                                const pName = t.project || '日常大厅运营协同';
-                                if(!projectHoursMap[pName]) projectHoursMap[pName] = 0;
-                                projectHoursMap[pName] += hVal;
-                            }
-
-                            if (h.action === 'submit_draft' || h.action === 'submit_framework') {
-                                const tools = h.ai_tools || [];
-                                tools.forEach(tool => {
-                                    if (tool && tool !== '无AI辅助') {
-                                        totalRealAiCalls++;
-                                        if(!aiToolsFreqGlobal[tool]) aiToolsFreqGlobal[tool] = 0;
-                                        aiToolsFreqGlobal[tool]++;
-                                    }
-                                });
-                            }
-                        }
-                    });
-                } catch(e){}
-            });
-
-            const totalCount = totalPeriodTasksSet.size;
-            const completedCount = (window.completedTasksData || []).filter(t => totalPeriodTasksSet.has(t.id)).length;
-            const finishRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-
-            document.getElementById('analysis-creators-count').innerText = `${uniqueCreators.size} 人`;
-            document.getElementById('analysis-assignees-count').innerText = `${uniqueAssignees.size} 人`;
-            document.getElementById('analysis-total-hours').innerText = `${totalPeriodHours.toFixed(1)}h`;
-            document.getElementById('analysis-total-tasks').innerText = `${totalCount} 单`;
-
-            // 项目工时消耗分布
-            const sortedProj = Object.entries(projectHoursMap).sort((a,b) => b[1] - a[1]);
-            let moduleHtml = "";
-            sortedProj.forEach(([pName, hours]) => {
-                let pct = totalPeriodHours > 0 ? Math.round((hours / totalPeriodHours) * 100) : 0;
-                moduleHtml += `<div class='flex justify-between items-center bg-white/5 px-2.5 py-1.5 rounded-xl border border-white/5 text-[11px]'>
-                    <span class='truncate text-zinc-300 mr-2'>${pName}</span>
-                    <span class='font-mono text-fuchsia-400 font-bold shrink-0'>${hours.toFixed(1)}h (${pct}%)</span>
-                </div>`;
-            });
-            document.getElementById('insight-modules-list').innerHTML = moduleHtml || "<p class='text-zinc-500 text-center py-4'>暂无明显项目投入</p>";
-
-            // 成员投入工时排行 (非0)
-            const activeStaffArray = designersArray.filter(d => d.hours > 0).sort((a,b) => b.hours - a.hours);
-            let staffHtml = "";
-            activeStaffArray.forEach((item, idx) => {
-                let rankColor = idx === 0 ? 'text-rose-400 font-black' : (idx === 1 ? 'text-orange-400 font-bold' : 'text-zinc-300');
-                staffHtml += `<div class='flex justify-between items-center bg-white/5 px-2.5 py-1.5 rounded-xl border border-white/5 text-[11px]'>
-                    <span class='${rankColor} truncate'>Top ${idx+1}. ${item.display}</span>
-                    <span class='font-mono text-emerald-400 font-medium shrink-0'>${item.count}单 / <b>${item.hours.toFixed(1)}h</b></span>
-                </div>`;
-            });
-            document.getElementById('insight-staff-hours').innerHTML = staffHtml || "<p class='text-zinc-500 text-center py-4'>无实际工时消耗记录</p>";
-
-            // AI 工具排行
-            const sortedAiTools = Object.entries(aiToolsFreqGlobal).sort((a,b) => b[1] - a[1]);
-            let aiHtml = "";
-            sortedAiTools.forEach(([tool, val]) => {
-                let pct = totalRealAiCalls > 0 ? Math.round((val / totalRealAiCalls) * 100) : 0;
-                aiHtml += `<div class='flex justify-between items-center bg-white/5 px-2.5 py-1.5 rounded-xl border border-white/5 text-[11px]'>
-                    <span class='truncate text-zinc-300 mr-2'>${tool}</span>
-                    <span class='font-mono text-indigo-400 font-bold shrink-0'>${val}次 (${pct}%)</span>
-                </div>`;
-            });
-            document.getElementById('insight-ai-tools-list').innerHTML = aiHtml || "<p class='text-zinc-500 text-center py-4 italic text-xs'>本期暂未产生AI标签填报</p>";
-
-            // 精炼总结
-            let summaryText = "";
-            if(totalCount > 0) {
-                const primaryProjName = sortedProj.length > 0 ? sortedProj[0][0] : "日常大厅运营协同";
-                const championStaffName = activeStaffArray.length > 0 ? activeStaffArray[0].display : "核心组员";
-                const primaryToolName = sortedAiTools.length > 0 ? sortedAiTools[0][0].split(' ')[0] : "AI组件";
-
-                summaryText = `本月度大厅流水在当期自然月内已实现精准聚焦。当前大盘活跃发单业务方共 [ ${uniqueCreators.size} ] 人，实际产生工时出勤的设计行政组员共 [ ${uniqueAssignees.size} ] 人，累计消化单据吞吐量 [ ${totalCount} ] 项，沉淀有据可查的精算时数 [ ${totalPeriodHours.toFixed(1)}h ]。\n\n`;
-                summaryText += `核心统筹风险及优化卡点：\n1. 🎯 资源消耗流向：本月最大工时重压精准落位在「${primaryProjName}」模块，占全盘大头。\n`;
-                summaryText += `2. 🏋️ 并发承接分布：[ ${championStaffName} ] 贡献了最高的实耗精算时数，面临集中过载高负载，后续建议进行跨角色的削峰填谷派单调配。\n`;
-                summaryText += `3. 🤖 AI 工作流落地质控：本期累积记录到 [ ${totalRealAiCalls} ] 次实质性 AI 工具链调用流水，其中 [ ${primaryToolName} ] 在全流程排版与原稿概念支撑中安全渗透。人力分布整体健康， administrative 行政岗位的 productivity 指标已做科学的分离对齐处理。`;
-            } else {
-                summaryText = `当前时间切片内无活动单据记录。大盘总体带宽极度富裕，处于平稳复盘窗口期。`;
-            }
-
-            document.getElementById('analysis-summary-text').innerText = summaryText;
-            window.currentGeneratedSummary = summaryText;
-
-            window.reportAnalyticsData = {
-                creators: uniqueCreators.size,
-                assignees: uniqueAssignees.size,
-                total: totalCount,
-                hours: totalPeriodHours.toFixed(1),
-                modules: sortedProj.map(e => `${e[0]}:${e[1].toFixed(1)}h`).join(' | '),
-                topStaff: activeStaffArray.map(e => `${e.display}:${e.hours.toFixed(1)}h`).join(' | '),
-                aiTools: sortedAiTools.map(e => `${e[0]}:${e[1]}次`).join(' | ')
-            };
-        };
-
-        // ================= 💡 核心升级：一键无损离屏长图无损生成引擎 =================
-        window.generateDataLongPaperImage = function() {
-            const paperMirror = document.getElementById('long-paper-hidden-mirror');
-            if(!paperMirror) return;
-            
-            window.showToast('长图生成中', '系统正在重置容器高度并渲染全平铺无损长图快照...', 'info');
-
-            const now = new Date();
-            const currentYear = now.getFullYear();
-            const currentMonth = now.getMonth();
-
-            let flatModulesHtml = document.getElementById('insight-modules-list').innerHTML;
-            let flatStaffHtml = document.getElementById('insight-staff-hours').innerHTML;
-            let flatAiHtml = document.getElementById('insight-ai-tools-list').innerHTML;
-            let flatSummaryText = document.getElementById('analysis-summary-text').innerText;
-
-            let clonedHtml = `
-                <div style="border-b: 1px solid rgba(255,255,255,0.1); padding-bottom: 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <h1 style="font-size: 22px; font-weight: 900; color: #ffffff; margin-bottom: 4px;">
-                            DAVIS DESIGN CENTER · 全盘效能高级复盘
-                        </h1>
-                        <p style="font-size: 12px; color: #71717a;">
-                            导出快照时间: ${now.toLocaleString()} | 视角: 数据大盘全局统筹中心
-                        </p>
-                    </div>
-                    <div style="background: rgba(217,70,239,0.15); border: 1px solid rgba(217,70,239,0.3); color: #d946ef; font-size: 11px; padding: 4px 10px; border-radius: 8px; font-weight: bold;">
-                        TIG 核心管理资产
-                    </div>
-                </div>
-
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;">
-                    <div style="background: #18181b; border: 1px solid rgba(255,255,255,0.05); padding: 16px; border-radius: 16px;">
-                        <p style="font-size: 11px; color: #71717a; font-weight: 500; margin-bottom: 4px;">系统活跃发单方</p>
-                        <p style="font-size: 20px; font-weight: bold; color: #d946ef; font-family: monospace;">${document.getElementById('analysis-creators-count').innerText}</p>
-                    </div>
-                    <div style="background: #18181b; border: 1px solid rgba(255,255,255,0.05); padding: 16px; border-radius: 16px;">
-                        <p style="font-size: 11px; color: #71717a; font-weight: 500; margin-bottom: 4px;">实际产生工时人</p>
-                        <p style="font-size: 20px; font-weight: bold; color: #10b981; font-family: monospace;">${document.getElementById('analysis-assignees-count').innerText}</p>
-                    </div>
-                    <div style="background: #18181b; border: 1px solid rgba(255,255,255,0.05); padding: 16px; border-radius: 16px;">
-                        <p style="font-size: 11px; color: #71717a; font-weight: 500; margin-bottom: 4px;">当月累计投入工时</p>
-                        <p style="font-size: 20px; font-weight: bold; color: #6366f1; font-family: monospace;">${document.getElementById('analysis-total-hours').innerText}</p>
-                    </div>
-                    <div style="background: #18181b; border: 1px solid rgba(255,255,255,0.05); padding: 16px; border-radius: 16px;">
-                        <p style="font-size: 11px; color: #71717a; font-weight: 500; margin-bottom: 4px;">当月工单吞吐总量</p>
-                        <p style="font-size: 20px; font-weight: bold; color: #f59e0b; font-family: monospace;">${document.getElementById('analysis-total-tasks').innerText}</p>
-                    </div>
-                </div>
-
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
-                    <div style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); padding: 16px; border-radius: 16px; display: flex; flex-direction: column;">
-                        <h4 style="font-size: 12px; font-weight: bold; color: #d946ef; margin-bottom: 12px;">各项目当期工时消耗榜</h4>
-                        <div style="display: flex; flex-direction: column; gap: 6px; overflow: visible !important; height: auto !important; max-height: none !important;">${flatModulesHtml}</div>
-                    </div>
-                    <div style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); padding: 16px; border-radius: 16px; display: flex; flex-direction: column;">
-                        <h4 style="font-size: 12px; font-weight: bold; color: #10b981; margin-bottom: 12px;">当期成员投入工时排行</h4>
-                        <div style="display: flex; flex-direction: column; gap: 6px; overflow: visible !important; height: auto !important; max-height: none !important;">${flatStaffHtml}</div>
-                    </div>
-                    <div style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); padding: 16px; border-radius: 16px; display: flex; flex-direction: column;">
-                        <h4 style="font-size: 12px; font-weight: bold; color: #6366f1; margin-bottom: 12px;">AI 工具当期真实应用排行</h4>
-                        <div style="display: flex; flex-direction: column; gap: 6px; overflow: visible !important; height: auto !important; max-height: none !important;">${flatAiHtml}</div>
-                    </div>
-                </div>
-
-                <div style="margin-top: 16px;">
-                    <label style="font-size: 12px; font-weight: bold; color: #a1a1aa; margin-bottom: 8px; display: block;">下一步优化建议 (Summary)</label>
-                    <div style="background: #09090b; border: 1px solid rgba(255,255,255,0.1); padding: 16px; border-radius: 16px; font-size: 12px; line-height: 1.6; text-align: justify; color: #e4e4e7; white-space: pre-wrap; overflow: visible !important; height: auto !important; max-height: none !important;">${flatSummaryText}</div>
-                </div>
-
-                <div style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 16px; text-align: center; font-size: 11px; color: #3f3f46; font-family: monospace; margin-top: 24px;">
-                    DIGITAL DESIGN MANAGEMENT SYSTEM · QUANTIFIABLE PERFORMANCE DATA
-                </div>
-            `;
-            
-            paperMirror.innerHTML = clonedHtml;
-
-            // 强行平铺内部可能残留高度限制的 div
-            const scrollingBoxes = paperMirror.querySelectorAll('div');
-            scrollingBoxes.forEach(box => {
-                box.style.overflow = "visible";
-                box.style.height = "auto";
-                box.style.maxHeight = "none";
-            });
-
-            setTimeout(() => {
-                html2canvas(paperMirror, {
-                    backgroundColor: '#0c0c0e', 
-                    scale: 2, 
-                    useCORS: true,
-                    logging: false,
-                    allowTaint: true
-                }).then(canvas => {
-                    const imgData = canvas.toDataURL('image/png');
-                    const link = document.createElement('a');
-                    link.download = `${currentYear}年${currentMonth + 1}月_戴维斯控制台全平铺数据长图.png`;
-                    link.href = imgData;
-                    link.click();
-                    
-                    paperMirror.innerHTML = "";
-                    window.showToast('长图生成成功', '高清长图平铺生成完毕，数据无截断遗漏。', 'success');
-                }).catch(err => {
-                    console.error(err);
-                    window.showToast('生成失败', '长图引擎检测到网络变动，请重试', 'info');
-                });
-            }, 300);
-        };
-
-        window.closeAnalysisModal = function() {
-            document.getElementById('analysis-modal-overlay').classList.add('opacity-0');
-            document.getElementById('analysis-modal').classList.add('scale-95');
-            setTimeout(() => {
-                document.getElementById('analysis-modal-overlay').classList.add('hidden');
-                document.getElementById('analysis-modal').classList.add('hidden');
-            }, 300);
-        };
-
-        window.copySummaryText = function() {
-            if(!window.currentGeneratedSummary) return;
-            navigator.clipboard.writeText(window.currentGeneratedSummary).then(() => {
-                window.showToast('复制成功', '管理复盘大纲文字已成功复制。', 'success');
-            }).catch(() => {
-                window.showToast('复制失败', '请手动选中进行复制', 'info');
-            });
-        };
-
-        window.triggerExportCsv = function() {
-            const now = new Date();
-            const currentYear = now.getFullYear();
-            const currentMonth = now.getMonth();
-
-            const statusMap = {
-                'pending': '待接单', 'pending_accept': '待确认', 'processing': '制作中',
-                'pending_approval': '方案审批中', 'reviewing': '甲方验收中', 'rejected': '打回修改中',
-                'completed': '验收完结', 'archived': '已归档', 'terminated': '强行终止'
-            };
-
-            let csvContent = "\uFEFF"; 
-            
-            csvContent += `#========================================================================\n`;
-            csvContent += `# 【戴维斯需求大厅 - 当期管理大盘精算分析复盘报告】\n`;
-            csvContent += `#========================================================================\n`;
-            csvContent += `# 1. 供需出勤盘点 -> 发单方: ${window.reportAnalyticsData.creators}人 | 有效报工出勤方: ${window.reportAnalyticsData.assignees}人\n`;
-            csvContent += `# 2. 数据总吞吐量 -> 当期流转单数: ${window.reportAnalyticsData.total}单 | 累计精算总时数: ${window.reportAnalyticsData.hours}h\n`;
-            csvContent += `# 3. 项目时数实耗排行 -> ${window.reportAnalyticsData.modules}\n`;
-            csvContent += `# 4. 团队主力精算工时 Top 榜 -> ${window.reportAnalyticsData.topStaff}\n`;
-            csvContent += `# 5. AI 原生工具真实应用频次 -> ${window.reportAnalyticsData.aiTools}\n`;
-            csvContent += `#========================================================================\n\n`;
-
-            csvContent += "工单ID,需求单名称,单据当前状态,发起方(创建人),设计执行方(指派人),期望交付日期,工单创建时间\n";
-
-            window.allRawTasksData.forEach(t => {
-                const cleanTitle = (t.title || '').replace(/,/g, '，').replace(/\n/g, ' ');
-                const statusText = statusMap[t.status] || t.status || '流转中';
-                const creatorText = t.creator || '未命名';
-                const assigneeText = t.assignee === 'none' ? '暂未分配' : (t.assignee || '暂未分配');
-                const dueDate = t.due_date || '未定';
-                const createTime = t.created_at ? new Date(t.created_at).toLocaleString() : '未知';
-
-                csvContent += `${t.id},${cleanTitle},${statusText},${creatorText},${assigneeText},${dueDate},${createTime}\n`;
-            });
-
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            
-            link.setAttribute("href", url);
-            link.setAttribute("download", `${currentYear}年${currentMonth + 1}月_戴维斯控制台精算复盘报告.csv`);
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-
-            window.closeAnalysisModal();
-            window.showToast('报告下载成功', `已打包沉淀具备绝对说服力的月度大盘诊断明细。`, 'success');
-        };
 
         // ================= 💡 Tab 切换与翻页系统 =================
         window.switchTab = function(tabName) {
@@ -964,8 +540,8 @@
                         case 'processing': sColor = 'orange'; sText = '制作中'; btnHtml = `<button class="text-orange-400 bg-orange-500/10 px-3 py-1 rounded text-[11px] font-bold">查看进度</button>`; break;
                         case 'pending_approval': sColor = 'amber'; sText = '框架审批中'; btnHtml = `<button onclick="event.stopPropagation(); window.location.href='task-detail-requester.html?id=${t.id}'" class="text-white bg-amber-600 hover:bg-amber-500 px-4 py-1.5 rounded-lg text-[11px] font-bold transition-colors shadow-lg btn-press">⚡ 去审批</button>`; break;
                         case 'reviewing': sColor = 'emerald'; sText = '待甲方验收'; btnHtml = `<button class="text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded text-[11px] font-bold">甲方验收中</button>`; break;
-                        case 'rejected': sColor = 'rose'; sText = '打回修改中', btnHtml = `<button class="text-rose-400 bg-rose-500/10 px-3 py-1 rounded text-[11px] font-bold">督办催稿</button>`; break;
-                        default: sColor = 'zinc'; sText = '未知状态', btnHtml = '';
+                        case 'rejected': sColor = 'rose'; sText = '打回修改中'; btnHtml = `<button class="text-rose-400 bg-rose-500/10 px-3 py-1 rounded text-[11px] font-bold">督办催稿</button>`; break;
+                        default: sColor = 'zinc'; sText = '未知状态'; btnHtml = '';
                     }
                 }
 
@@ -1002,6 +578,224 @@
             `;
             pageControls.innerHTML = pHtml;
         }
+
+        // ================= 🔔 全局消息通知引擎 (修复强化版) =================
+        let lastNotifHash = '';
+
+        window.syncNotificationsFromCloud = async function(isSilent = true) {
+            if(!window.supabase) return;
+            const userStr = localStorage.getItem('activeUserObj');
+            if(!userStr) return;
+            const currentUser = JSON.parse(userStr);
+            const myName = (currentUser.displayName || currentUser.cnName || currentUser.enName || '').toLowerCase();
+            const enName = (currentUser.enName || '').toLowerCase();
+
+            // 💡 修复：确保提权状态同步到通知引擎，强制给领导开天眼
+            let isAdmin = (currentUser.perms || []).includes('admin');
+            if (['davidxxu', 'davidxu', 'ponyxu', 'judyzzhang'].includes(enName)) isAdmin = true;
+            const rolePrefix = isAdmin ? 'admin' : 'req';
+
+            try {
+                const { data: tasks, error } = await window.supabase.from(window.DB_TABLE)
+                    .select('id, title, creator, assignee, history_json')
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+
+                let myNotifs = [];
+
+                tasks.forEach(task => {
+                    const creatorStr = (task.creator || '').toLowerCase();
+                    const assigneeStr = (task.assignee || '').toLowerCase();
+                    const isMyTask = creatorStr.includes(myName) || myName.includes(creatorStr) || assigneeStr.includes(myName) || myName.includes(assigneeStr);
+                    
+                    // 管理员看全部预警，非管理员只看自己的
+                    if (!isAdmin && !isMyTask) return;
+
+                    let hist = [];
+                    try { hist = JSON.parse(task.history_json || '[]'); } catch(e){}
+
+                    hist.forEach((h, index) => {
+                        const op = (h.operator || '').toLowerCase();
+                        // 过滤掉自己产生的操作，不给自己发通知
+                        if (op.includes(myName) && myName !== '') return;
+
+                        let title = ''; let content = ''; let icon = 'bg-fuchsia-500';
+                        
+                        // 💡 强化：使用更宽泛的正则匹配动作，防止前后端拼写不一致
+                        const act = (h.action || '').toLowerCase();
+                        
+                        if (act.includes('submit_framework')) { 
+                            title = '👀 框架待审批'; content = `${h.operator} 提交了中期方案，等待把关：《${task.title}》`; icon = 'bg-amber-500'; 
+                        }
+                        else if (act.includes('approve') || act.includes('pass')) { 
+                            title = '✅ 审批已通过'; content = `${h.operator} 审批通过了阶段方案：《${task.title}》`; icon = 'bg-emerald-500'; 
+                        }
+                        else if (act.includes('submit_draft') || act.includes('submit_final')) { 
+                            title = '🎁 正稿待验收'; content = `${h.operator} 交付了正式稿，等待验收：《${task.title}》`; icon = 'bg-sky-500'; 
+                        }
+                        else if (act.includes('reject') || h.is_rejected) { 
+                            title = '💥 方案被打回'; content = `单据发生打回重修：《${task.title}》`; icon = 'bg-rose-500'; 
+                        }
+                        else if (act.includes('complete') || act.includes('accept_draft') || act.includes('finish')) { 
+                            title = '✅ 任务圆满结案'; content = `甲方已验收通过：《${task.title}》`; icon = 'bg-emerald-500'; 
+                        }
+                        else if (act.includes('urge')) { 
+                            title = '🚨 紧急催办'; content = `系统触发了催办提醒，请及时跟进：《${task.title}》`; icon = 'bg-rose-500'; 
+                        }
+                        else if (act.includes('transfer') || act.includes('reassign')) { 
+                            title = '🔄 任务转移'; content = `单据发生了人员转单或退回大厅：《${task.title}》`; icon = 'bg-orange-500'; 
+                        }
+                        else if (act.includes('create') && isAdmin) { 
+                            title = '🆕 新需求发布'; content = `大厅有新的需求发布：《${task.title}》`; icon = 'bg-indigo-500'; 
+                        }
+                        else if (act.includes('terminate')) { 
+                            title = '🚨 任务终止'; content = `单据已被撤销或强行终止：《${task.title}》`; icon = 'bg-rose-500'; 
+                        }
+
+                        if (title) {
+                            const notifId = `${task.id}_${index}_${title}`;
+                            if (!myNotifs.some(n => n.id === notifId)) {
+                                myNotifs.push({
+                                    id: notifId,
+                                    taskId: task.id,
+                                    title: title,
+                                    content: content,
+                                    time: h.time || h.created_at || new Date().toISOString(),
+                                    icon: icon
+                                });
+                            }
+                        }
+                    });
+                });
+
+                myNotifs.sort((a, b) => new Date(b.time) - new Date(a.time));
+
+                let readReceipts = JSON.parse(localStorage.getItem(`notif_read_${rolePrefix}_` + myName) || '[]');
+                const unreadNotifs = myNotifs.filter(n => !readReceipts.includes(n.id));
+                const unreadCount = unreadNotifs.length;
+
+                const newHash = myNotifs.map(n => n.id + (readReceipts.includes(n.id) ? '_r' : '_u')).join(',');
+                if (isSilent && newHash === lastNotifHash) return;
+                lastNotifHash = newHash;
+
+                let prevUnreadCount = parseInt(localStorage.getItem(`prevUnreadCount_${rolePrefix}_` + myName) || '0');
+                if (isSilent && unreadCount > prevUnreadCount) {
+                    const newCount = unreadCount - prevUnreadCount;
+                    if(window.showToast) window.showToast('🔔 收到新消息', `您有 ${newCount} 条系统动态，请点击右上角铃铛查看。`, 'info');
+                }
+                localStorage.setItem(`prevUnreadCount_${rolePrefix}_` + myName, unreadCount.toString());
+
+                const bellDot = document.getElementById('bell-dot');
+                if (bellDot) {
+                    if (unreadCount > 0) {
+                        bellDot.classList.remove('hidden', 'bg-zinc-600', 'border-transparent');
+                        bellDot.classList.add('bg-rose-500', 'animate-pulse', 'border-[#141417]');
+                    } else {
+                        bellDot.classList.add('hidden');
+                    }
+                }
+
+                const notifContainer = document.getElementById('notif-list-container');
+                if (notifContainer) {
+                    if (unreadCount === 0) {
+                        notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读消息</div>';
+                    } else {
+                        notifContainer.innerHTML = unreadNotifs.map(n => {
+                            const dateStr = new Date(n.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                            return `
+                            <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors" onclick="window.markSingleAsRead('${n.id}', '${n.taskId}')">
+                                <div class="flex justify-between items-start mb-1">
+                                    <h4 class="text-[13px] font-bold text-white flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full ${n.icon} shrink-0 shadow-[0_0_8px_currentColor]"></span>${n.title}</h4>
+                                    <span class="text-[10px] text-zinc-500">${dateStr}</span>
+                                </div>
+                                <p class="text-[11px] text-zinc-400 pl-4 line-clamp-2">${n.content}</p>
+                            </div>`;
+                        }).join('');
+                    }
+                }
+                window.currentMyUnreadIds = unreadNotifs.map(n => n.id);
+            } catch(e) { console.error("通知同步失败", e); }
+        };
+
+        window.toggleNotificationPanel = function(event) {
+            if(event) event.stopPropagation();
+            const dropdown = document.getElementById('notifMenu');
+            if(dropdown) {
+                dropdown.classList.toggle('hidden');
+                if (!dropdown.classList.contains('hidden')) { window.syncNotificationsFromCloud(true); }
+            }
+        }
+
+        window.markSingleAsRead = function(id, taskId) {
+            const userStr = localStorage.getItem('activeUserObj');
+            if(!userStr) return;
+            const currentUser = JSON.parse(userStr);
+            const myName = (currentUser.displayName || currentUser.cnName || currentUser.enName || '').toLowerCase();
+            const enName = (currentUser.enName || '').toLowerCase();
+            
+            let isAdmin = (currentUser.perms || []).includes('admin');
+            if (['davidxxu', 'davidxu', 'ponyxu', 'judyzzhang'].includes(enName)) isAdmin = true;
+            const rolePrefix = isAdmin ? 'admin' : 'req';
+            
+            let readReceipts = JSON.parse(localStorage.getItem(`notif_read_${rolePrefix}_` + myName) || '[]');
+            if (!readReceipts.includes(id)) {
+                readReceipts.push(id);
+                localStorage.setItem(`notif_read_${rolePrefix}_` + myName, JSON.stringify(readReceipts));
+            }
+            
+            window.location.href = 'task-detail-requester.html?id=' + taskId;
+        };
+
+        window.markAllAsRead = function(event) {
+            if(event) event.stopPropagation();
+            if (!window.currentMyUnreadIds || window.currentMyUnreadIds.length === 0) return;
+            
+            const userStr = localStorage.getItem('activeUserObj');
+            if(!userStr) return;
+            const currentUser = JSON.parse(userStr);
+            const myName = (currentUser.displayName || currentUser.cnName || currentUser.enName || '').toLowerCase();
+            const enName = (currentUser.enName || '').toLowerCase();
+            
+            let isAdmin = (currentUser.perms || []).includes('admin');
+            if (['davidxxu', 'davidxu', 'ponyxu', 'judyzzhang'].includes(enName)) isAdmin = true;
+            const rolePrefix = isAdmin ? 'admin' : 'req';
+
+            const btn = event.currentTarget;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "处理中...";
+
+            let readReceipts = JSON.parse(localStorage.getItem(`notif_read_${rolePrefix}_` + myName) || '[]');
+            readReceipts = [...new Set([...readReceipts, ...window.currentMyUnreadIds])];
+            localStorage.setItem(`notif_read_${rolePrefix}_` + myName, JSON.stringify(readReceipts));
+            
+            window.syncNotificationsFromCloud(true);
+            if(window.showToast) window.showToast('全部已读', '消息红点已清除。', 'success');
+            
+            btn.innerHTML = originalText;
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // 💡 修复：删除了这里的 addEventListener 导致与 onclick 的冲突！
+            
+            // 监听全局点击：包含收起消息通知和身份菜单
+            document.addEventListener('click', (e) => { 
+                const notifMenu = document.getElementById('notifMenu');
+                const notifBtn = document.getElementById('notifBtn');
+                if(notifMenu && !notifMenu.contains(e.target) && notifBtn && !notifBtn.contains(e.target)) {
+                    notifMenu.classList.add('hidden'); 
+                }
+                const identityMenu = document.getElementById('identityMenu');
+                const identityBtn = document.getElementById('identityBtn');
+                if(identityMenu && !identityMenu.contains(e.target) && identityBtn && !identityBtn.contains(e.target)) {
+                    identityMenu.classList.add('hidden');
+                }
+            });
+
+            // 启动轮询
+            setTimeout(() => { window.syncNotificationsFromCloud(true); }, 1500);
+            setInterval(() => { window.syncNotificationsFromCloud(true); }, 8000);
+        });
     </script>
 </body>
 </html>
