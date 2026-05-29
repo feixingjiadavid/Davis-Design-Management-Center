@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>项目投入分析 - 戴维斯设计需求管理中心</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 html2canvas 库用于实现纯前端报告卡片截图导出 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
@@ -52,7 +53,7 @@
             </button>
             <button class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl bg-fuchsia-500/10 text-fuchsia-400 border border-fuchsia-500/20 transition-all cursor-default">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-                <span class="font-bold text-[14px]">项目投入 analysis</span>
+                <span class="font-bold text-[14px]">项目投入分析</span>
             </button>
             <button onclick="window.location.href='org-chart.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
@@ -95,9 +96,10 @@
             </div>
             
             <div class="flex items-center gap-6">
-                <button onclick="window.openExportAnalysisModal()" class="px-5 py-2 bg-gradient-to-r from-fuchsia-600 to-indigo-600 hover:from-fuchsia-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-[0_4px_20px_rgba(217,70,239,0.25)] hover:shadow-[0_4px_25px_rgba(217,70,239,0.4)] transition-all btn-press text-[13px] flex items-center gap-2 border border-white/10">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                    总结分析导出
+                <!-- 升级版：总结分析导出简报按钮 -->
+                <button onclick="window.openExportAnalysisModal()" class="px-5 py-2 bg-gradient-to-r from-fuchsia-600 via-purple-600 to-indigo-600 hover:from-fuchsia-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-[0_4px_20px_rgba(217,70,239,0.25)] hover:shadow-[0_4px_25px_rgba(217,70,239,0.4)] transition-all btn-press text-[13px] flex items-center gap-2 border border-white/10">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                    全盘总结分析导出
                 </button>
 
                 <div class="flex bg-[#121217] border border-white/10 rounded-xl p-1 shadow-inner">
@@ -226,6 +228,7 @@
         </div>
     </main>
 
+    <!-- 修改密码弹窗 -->
     <div id="pwd-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closePwdModal()">
         <div id="pwd-modal" class="hidden w-full max-w-sm bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 p-6 relative">
             <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-fuchsia-500 to-indigo-500 rounded-t-3xl"></div>
@@ -242,118 +245,160 @@
         </div>
     </div>
 
+    <!-- 深度重构核心分析看板弹窗 -->
     <div id="export-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4 overflow-y-auto" onclick="if(event.target === this) closeExportAnalysisModal()">
-        <div id="export-modal" class="w-full max-w-3xl bg-[#121217] border border-white/10 rounded-3xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] flex flex-col scale-95 transition-transform duration-300 relative my-auto">
+        <div id="export-modal" class="w-full max-w-4xl bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 relative my-auto">
             <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-fuchsia-500 via-purple-500 to-indigo-500 rounded-t-3xl"></div>
             
             <div class="p-6 border-b border-white/5 flex justify-between items-center">
                 <div>
                     <h2 class="text-lg font-bold text-white flex items-center gap-2">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d946ef" stroke-width="2.5"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
-                        智能化项目投入简报
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d946ef" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><circle cx="16" cy="13" r="2"></circle><circle cx="8" cy="13" r="2"></circle></svg>
+                        TIG 设计效能与类目工单双轨审计
                     </h2>
-                    <p class="text-[11px] text-zinc-500 mt-0.5">多维数据深度交叉穿透计算，生成高管层/敏捷周报级摘要报告</p>
+                    <p class="text-[11px] text-zinc-500 mt-0.5">深度多维穿透：发起人需求占比、类目单量及工时矩阵、工具使用分布占比</p>
                 </div>
                 <button onclick="closeExportAnalysisModal()" class="text-zinc-500 hover:text-white bg-zinc-800/80 hover:bg-zinc-700 rounded-full p-1.5 transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
             </div>
 
-            <div class="p-6 overflow-y-auto max-h-[60vh] space-y-6 custom-scrollbar" id="export-capture-zone">
-                <div class="bg-[#09090b] border border-white/5 rounded-2xl p-6 relative space-y-6" id="report-content-body">
+            <div class="p-6 overflow-y-auto max-h-[70vh] space-y-6 custom-scrollbar" id="export-capture-zone">
+                <div class="bg-[#09090b] border border-white/5 rounded-2xl p-6 relative space-y-6">
+                    
                     <div class="flex justify-between items-start border-b border-white/5 pb-4">
                         <div>
-                            <span class="text-[10px] uppercase font-bold tracking-widest text-fuchsia-400 bg-fuchsia-500/10 border border-fuchsia-500/20 px-2 py-0.5 rounded">TIG EFFICIENCY LEAGUE</span>
-                            <h3 class="text-[20px] font-black text-white mt-1.5" id="report-title-text">项目投入分析简报</h3>
+                            <span class="text-[10px] font-bold tracking-widest text-fuchsia-400 bg-fuchsia-500/10 border border-fuchsia-500/20 px-2 py-0.5 rounded">TIG AUDIT TEAM REPORT</span>
+                            <h3 class="text-[20px] font-black text-white mt-1.5">设计资产流转与源头简报</h3>
                             <p class="text-[11px] text-zinc-500 mt-1 flex items-center gap-2">
-                                <span id="report-view-tag" class="text-zinc-400 font-bold">月度盘点</span> 
-                                <span>|</span> 
-                                <span id="report-period-text">2026.05</span>
-                                <span>|</span>
-                                <span id="report-project-scope">全部项目</span>
+                                <span id="report-view-tag" class="text-zinc-400 font-bold">月度分析</span> | 
+                                <span id="report-period-text">2026.05</span> | 
+                                <span id="report-project-scope">全部范围</span>
                             </p>
                         </div>
                         <div class="text-right font-mono text-[11px] text-zinc-600">
-                            <p>CONFIDENTIAL</p>
+                            <p>METRIC CONTROL</p>
                             <p id="report-gen-time">2026-05-29</p>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-3 gap-4">
-                        <div class="bg-white/[0.02] border border-white/5 rounded-xl p-4">
-                            <p class="text-[11px] text-zinc-500 font-medium">资源消耗总工时</p>
-                            <p class="text-2xl font-black text-white font-mono mt-1" id="rep-m-hours">0.0<span class="text-xs font-normal text-zinc-500 ml-0.5">h</span></p>
+                    <!-- 大盘四大指标 -->
+                    <div class="grid grid-cols-4 gap-4">
+                        <div class="bg-white/[0.01] border border-white/5 rounded-xl p-4">
+                            <p class="text-[11px] text-zinc-500 font-medium">总计记录需求量</p>
+                            <p class="text-xl font-black text-fuchsia-400 font-mono mt-1" id="rep-m-demand-count">0<span class="text-[10px] font-normal text-zinc-500 ml-0.5">单</span></p>
                         </div>
-                        <div class="bg-white/[0.02] border border-white/5 rounded-xl p-4">
-                            <p class="text-[11px] text-zinc-500 font-medium">涉及活跃项目</p>
-                            <p class="text-2xl font-black text-white font-mono mt-1" id="rep-m-projects">0<span class="text-xs font-normal text-zinc-500 ml-0.5">个</span></p>
+                        <div class="bg-white/[0.01] border border-white/5 rounded-xl p-4">
+                            <p class="text-[11px] text-zinc-500 font-medium">累计消耗设计工时</p>
+                            <p class="text-xl font-black text-white font-mono mt-1" id="rep-m-hours">0.0<span class="text-[10px] font-normal text-zinc-500 ml-0.5">h</span></p>
                         </div>
-                        <div class="bg-white/[0.02] border border-white/5 rounded-xl p-4">
-                            <p class="text-[11px] text-zinc-500 font-medium">有填报产出人数</p>
-                            <p class="text-2xl font-black text-white font-mono mt-1" id="rep-m-people">0<span class="text-xs font-normal text-zinc-500 ml-0.5">人</span></p>
+                        <div class="bg-white/[0.01] border border-white/5 rounded-xl p-4">
+                            <p class="text-[11px] text-zinc-500 font-medium">涵盖活跃类目项目</p>
+                            <p class="text-xl font-black text-white font-mono mt-1" id="rep-m-projects">0<span class="text-[10px] font-normal text-zinc-500 ml-0.5">个</span></p>
+                        </div>
+                        <div class="bg-white/[0.01] border border-white/5 rounded-xl p-4">
+                            <p class="text-[11px] text-zinc-500 font-medium">出勤跟进设计师</p>
+                            <p class="text-xl font-black text-white font-mono mt-1" id="rep-m-people">0<span class="text-[10px] font-normal text-zinc-500 ml-0.5">人</span></p>
                         </div>
                     </div>
 
+                    <!-- 穿透一：需求提报人占比排行（发起人分析） -->
+                    <div class="space-y-3">
+                        <h4 class="text-[13px] font-bold text-zinc-400 flex items-center gap-2">
+                            <span class="w-1 h-3 bg-indigo-500 rounded-full"></span>
+                            需求发起方大盘审计：每个人占了多少需求
+                        </h4>
+                        <div id="rep-creator-ranking" class="grid grid-cols-2 gap-4">
+                            <!-- 动态注入发起人占比卡片 -->
+                        </div>
+                    </div>
+
+                    <!-- 穿透二：各类目/项目双轨纵横对比（类目单量占比多 + 工时占比高） -->
                     <div class="space-y-3">
                         <h4 class="text-[13px] font-bold text-zinc-400 flex items-center gap-2">
                             <span class="w-1 h-3 bg-fuchsia-500 rounded-full"></span>
-                            项目人力投入耗时排行与占比
+                            各类目/项目双轨对比分析：哪类需求多、哪类工时高
                         </h4>
-                        <div id="rep-project-ranking" class="space-y-2">
-                            </div>
+                        <div class="border border-white/5 rounded-xl overflow-hidden bg-white/[0.005]">
+                            <table class="w-full text-left text-xs font-mono">
+                                <thead class="bg-white/5 text-zinc-400 font-sans">
+                                    <tr>
+                                        <th class="p-3">类目/项目名称</th>
+                                        <th class="p-3 text-right">独立需求单量 (占比)</th>
+                                        <th class="p-3 text-right">累计消耗工时 (占比)</th>
+                                        <th class="p-3 text-center">流转密集度</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="rep-category-dual-matrix" class="divide-y divide-white/5 text-zinc-300">
+                                    <!-- 动态注入明细行 -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
+                    <!-- 穿透三：AI工具渗透比率 -->
+                    <div class="space-y-3">
+                        <h4 class="text-[13px] font-bold text-zinc-400 flex items-center gap-2">
+                            <span class="w-1 h-3 bg-amber-500 rounded-full"></span>
+                            当期生产力协同：AI 工具使用频次占比
+                        </h4>
+                        <div class="bg-white/[0.01] border border-white/5 rounded-xl p-4">
+                            <div id="rep-ai-tools-percentage-bar" class="w-full h-3 bg-zinc-900 rounded-full flex overflow-hidden mb-4"></div>
+                            <div id="rep-ai-tools-legend" class="grid grid-cols-2 gap-x-6 gap-y-2 text-xs font-mono text-zinc-400"></div>
+                        </div>
+                    </div>
+
+                    <!-- 穿透四：谁做的需求多（劳模双维度对比） -->
                     <div class="grid grid-cols-2 gap-6 pt-2">
                         <div class="space-y-3">
                             <h4 class="text-[13px] font-bold text-zinc-400 flex items-center gap-2">
-                                <span class="w-1 h-3 bg-indigo-500 rounded-full"></span>
-                                高产出劳模排行 (按工时)
+                                <span class="w-1 h-3 bg-sky-500 rounded-full"></span>
+                                设计承接：谁做的独立需求单量多
                             </h4>
-                            <div id="rep-people-hours-ranking" class="space-y-2">
-                                </div>
+                            <div id="rep-people-tasks-ranking" class="space-y-2"></div>
                         </div>
                         <div class="space-y-3">
                             <h4 class="text-[13px] font-bold text-zinc-400 flex items-center gap-2">
-                                <span class="w-1 h-3 bg-emerald-500 rounded-full"></span>
-                                高频流转劳模 (按工单节点)
+                                <span class="w-1 h-3 bg-purple-500 rounded-full"></span>
+                                设计承接：谁的硬核堆栈工时高
                             </h4>
-                            <div id="rep-people-tasks-ranking" class="space-y-2">
-                                </div>
+                            <div id="rep-people-hours-ranking" class="space-y-2"></div>
                         </div>
                     </div>
 
-                    <div class="bg-fuchsia-500/[0.03] border border-fuchsia-500/10 rounded-xl p-4 space-y-2">
+                    <!-- 穿透五：穿透碰撞智能洞察提示 -->
+                    <div class="bg-fuchsia-500/[0.02] border border-fuchsia-500/10 rounded-xl p-4 space-y-2">
                         <h4 class="text-[12px] font-bold text-fuchsia-400 flex items-center gap-1.5">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>
-                            智能化管理洞察提示
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                            智能化大盘纵横交叉诊断洞察
                         </h4>
-                        <p class="text-[11px] text-zinc-400 leading-relaxed" id="rep-intelligence-insight">
-                            数据提取中...
+                        <p class="text-[11px] text-zinc-400 leading-relaxed font-sans" id="rep-intelligence-insight">
+                            系统多源撞轨分析中...
                         </p>
                     </div>
-                    
-                    <div class="text-center text-[10px] text-zinc-600 border-t border-white/5 pt-4 font-mono">
-                        POWERED BY DAVIS DEMAND MANAGEMENT HUB • VISUAL REPORT ENGINE
-                    </div>
+
                 </div>
             </div>
 
+            <!-- 控制盘面板 -->
             <div class="p-6 border-t border-white/5 bg-[#16161d] rounded-b-3xl flex justify-between items-center gap-4">
                 <button onclick="window.copyMarkdownSummary()" class="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold rounded-xl text-[12px] btn-press transition-colors flex items-center gap-2 border border-white/5">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                    复制纯文本 Markdown 简报
+                    复制带有提报占比的 Markdown 简报
                 </button>
                 <div class="flex items-center gap-3">
+                    <!-- 核心改良：一键支持全量数据与占比的双轨电子表格 CSV 导出 -->
                     <button onclick="window.exportToCSV()" class="px-5 py-2.5 bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30 font-bold rounded-xl text-[12px] btn-press transition-colors flex items-center gap-2 border border-indigo-500/20">
-                        导出结构化 CSV
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                        导出全量明细 Excel/CSV 表格
                     </button>
                     <button onclick="window.exportToPNGImage()" class="px-6 py-2.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-bold rounded-xl text-[12px] btn-press shadow-lg shadow-fuchsia-600/20 transition-all flex items-center gap-2">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                        生成高保真 PNG 图片
+                        生成高清图片卡片
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- 消息流转提示区 -->
     <div id="action-toast" class="fixed top-8 right-8 z-[100000] hidden">
         <div class="bg-[#1a1a1f] border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-3 w-72">
             <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400">
@@ -584,7 +629,7 @@
             return false;
         }
 
-        // ================= 💡 核心：全量拉取数据并初始化名单 =================
+        // ================= 💡 全量拉取基础底座 =================
         window.loadDashboardData = async function(isSilent = false) {
             if(!initRBAC()) return;
             if(!window.supabase) return;
@@ -613,7 +658,7 @@
                     });
                 }
 
-                const { data: tasks, error } = await window.supabase.from(window.DB_TABLE).select('id, title, project, status, creator, assignee, due_date, history_json').order('created_at', { ascending: false });
+                const { data: tasks, error } = await window.supabase.from(window.DB_TABLE).select('id, title, project, status, creator, assignee, due_date, history_json, created_at').order('created_at', { ascending: false });
                 if (error) throw error;
                 myAllTasks = tasks || [];
 
@@ -632,25 +677,29 @@
             }
         }
 
-        // ================= 💡 精准周期计算函数 =================
+        // ================= 💡 三度重构升级：极其精准的多维交叉穿透核心计算引擎 =================
         function extractDataForPeriod(targetDate, viewType) {
             let totalHours = 0;
-            let aiFreq = {};
-            let aiCount = 0;
+            let aiFreq = {}; let aiCount = 0;
             let activeTasksSet = new Set();
             let projectSet = new Set();
 
+            // 提需求的人数据结构字典 (Creator Map)
+            let creatorMap = {};
+            // 各类目项目工单与耗时双轨字典
+            let activeProjects = {};
+
             let peopleMap = {};
             systemUsers.forEach(u => {
-                peopleMap[u.en] = { en: u.en, display: u.display, hours: 0, taskCount: 0, projects: new Set(), aiTools: {} };
+                peopleMap[u.en] = { en: u.en, display: u.display, hours: 0, taskCount: 0, uniqueTasksSet: new Set(), projects: new Set(), aiTools: {} };
             });
-
-            let activeProjects = {};
 
             myAllTasks.forEach(t => {
                 if (currentSelectedProject !== 'all' && t.project !== currentSelectedProject) return;
 
                 let taskActiveInPeriod = false;
+                let taskHoursInPeriod = 0; // 该工单在当前筛选周期内的累加工时
+
                 try {
                     const hist = JSON.parse(t.history_json || '[]');
                     hist.forEach(h => {
@@ -660,6 +709,7 @@
                             let hVal = parseFloat(h.work_hours || h.hours);
                             if (!isNaN(hVal) && hVal > 0) {
                                 totalHours += hVal;
+                                taskHoursInPeriod += hVal;
                                 
                                 if (h.operator) {
                                     let opLower = h.operator.toLowerCase();
@@ -668,18 +718,19 @@
                                     if (matchedUser && peopleMap[matchedUser.en]) {
                                         peopleMap[matchedUser.en].hours += hVal;
                                         peopleMap[matchedUser.en].taskCount += 1;
+                                        peopleMap[matchedUser.en].uniqueTasksSet.add(t.id);
                                         if(t.project) peopleMap[matchedUser.en].projects.add(t.project);
                                     } else {
                                         const cleanName = h.operator.split(' ')[0].split('(')[0].trim();
                                         const key = cleanName.toLowerCase();
-                                        
                                         const excludedUsers = ['judyzzhang', 'ponyxu', 'davidxu'];
                                         if (!excludedUsers.some(ex => key.includes(ex))) {
                                             if(!peopleMap[key]) {
-                                                peopleMap[key] = { en: key, display: cleanName, hours: 0, taskCount: 0, projects: new Set(), aiTools: {} };
+                                                peopleMap[key] = { en: key, display: cleanName, hours: 0, taskCount: 0, uniqueTasksSet: new Set(), projects: new Set(), aiTools: {} };
                                             }
                                             peopleMap[key].hours += hVal;
                                             peopleMap[key].taskCount += 1;
+                                            peopleMap[key].uniqueTasksSet.add(t.id);
                                             if(t.project) peopleMap[key].projects.add(t.project);
                                             matchedUser = { en: key };
                                         }
@@ -692,7 +743,6 @@
                                                 aiCount++;
                                                 if(!aiFreq[tool]) aiFreq[tool] = 0;
                                                 aiFreq[tool]++;
-                                                
                                                 if(matchedUser && peopleMap[matchedUser.en]) {
                                                     if(!peopleMap[matchedUser.en].aiTools[tool]) peopleMap[matchedUser.en].aiTools[tool] = 0;
                                                     peopleMap[matchedUser.en].aiTools[tool]++;
@@ -701,20 +751,35 @@
                                         });
                                     }
                                 }
-
-                                const pName = t.project || '无归属';
-                                if (!activeProjects[pName]) activeProjects[pName] = { count: 0, hours: 0, users: new Set() };
-                                activeProjects[pName].hours += hVal;
-                                activeProjects[pName].count += 1;
-                                if (h.operator) activeProjects[pName].users.add(h.operator.split(' ')[0].trim());
                             }
                         }
                     });
                 } catch(e){}
 
-                if (taskActiveInPeriod) {
+                // 如果该工单在周期内是活跃的（或者其创建时间落在该范围内，实现双重兜底判定）
+                let isCreatedInPeriod = isDateInPeriod(t.created_at, targetDate, viewType);
+                if (taskActiveInPeriod || isCreatedInPeriod) {
+                    taskActiveInPeriod = true;
                     activeTasksSet.add(t.id);
+                    const pName = t.project || '未归属类目';
                     if(t.project) projectSet.add(t.project);
+
+                    // 1. 穿透累加项目类目的“独立单量数量”和“总消耗工时”双轨模型
+                    if (!activeProjects[pName]) {
+                        activeProjects[pName] = { hours: 0, count: 0, uniqueTasks: new Set() };
+                    }
+                    activeProjects[pName].hours += taskHoursInPeriod;
+                    activeProjects[pName].uniqueTasks.add(t.id);
+                    activeProjects[pName].count = activeProjects[pName].uniqueTasks.size;
+
+                    // 2. 穿透碰撞提需求人 (Creator审计模型)
+                    let rawCreator = t.creator || '外部提报/未知';
+                    let cleanCreator = rawCreator.split(' ')[0].split('(')[0].trim();
+                    if (!creatorMap[cleanCreator]) {
+                        creatorMap[cleanCreator] = { name: cleanCreator, uniqueTasks: new Set(), count: 0 };
+                    }
+                    creatorMap[cleanCreator].uniqueTasks.add(t.id);
+                    creatorMap[cleanCreator].count = creatorMap[cleanCreator].uniqueTasks.size;
                 }
             });
 
@@ -724,12 +789,13 @@
                 aiFreq, 
                 aiCount, 
                 activeProjects,
-                tasksCount: activeTasksSet.size,
+                creatorMap,
+                tasksCount: activeTasksSet.size, // 独立需求总数
                 projectsCount: projectSet.size
             };
         }
 
-        // ================= 💡 数据重绘与更新 =================
+        // ================= 💡 主视角大盘数据重绘 =================
         function updateDataAndRender() {
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
@@ -764,7 +830,6 @@
             const actualPeople = Object.values(currentData.peopleMap).filter(p => p.hours > 0).length;
             const prevActualPeople = Object.values(prev1Data.peopleMap).filter(p => p.hours > 0).length;
             document.getElementById('metric-cur-people').innerText = actualPeople;
-            
             document.getElementById('metric-cur-ai').innerText = currentData.aiCount;
 
             const trendH = currentData.totalHours - prev1Data.totalHours;
@@ -790,7 +855,6 @@
                 sortedProj.forEach((p, idx) => {
                     const col = pColors[idx % pColors.length];
                     const pct = currentData.totalHours > 0 ? Math.round((p.data.hours / currentData.totalHours) * 100) : 0;
-                    const userList = Array.from(p.data.users).join(', ');
                     
                     pHtml += `
                     <div class="bg-[#121217] border border-white/5 rounded-2xl p-4 shadow-sm relative overflow-hidden group hover:border-${col}-500/30 transition-colors mb-4">
@@ -800,8 +864,7 @@
                             <span class="text-[16px] font-mono font-black text-${col}-400 leading-none">${p.data.hours.toFixed(1)}<span class="text-[10px] text-zinc-500 ml-1 font-normal font-sans">h</span></span>
                         </div>
                         <div class="pl-2 mb-3">
-                            <p class="text-[11px] text-zinc-500 truncate" title="${userList}">参入者: <span class="text-zinc-300">${userList}</span> (${p.data.users.size}人)</p>
-                            <p class="text-[10px] text-zinc-600 mt-0.5">当期流转节点数: ${p.data.count}</p>
+                            <p class="text-[11px] text-zinc-500 mt-0.5">涉及独立需求数: <span class="text-white font-bold font-mono">${p.data.count} 单</span></p>
                         </div>
                         <div class="w-full h-1.5 bg-zinc-900 rounded-full overflow-hidden ml-2"><div class="h-full bg-${col}-500 rounded-full opacity-80 bar-grow-h" style="width: ${pct}%"></div></div>
                     </div>`;
@@ -869,7 +932,7 @@
                             </div>
                             <div class="text-right">
                                 <span class="text-[20px] font-mono font-black ${hourCol} leading-none">${p.hours.toFixed(1)}<span class="text-[10px] text-zinc-500 ml-1 font-normal font-sans">h</span></span>
-                                ${isEmpty ? '' : `<p class="text-[10px] text-zinc-500 mt-1">处理 ${p.taskCount} 个节点</p>`}
+                                ${isEmpty ? '' : `<p class="text-[10px] text-zinc-500 mt-1">承接 ${p.uniqueTasksSet.size} 个独立工单</p>`}
                             </div>
                         </div>
                         ${isEmpty ? `<p class="text-[10px] text-zinc-600 pl-3 mt-3 pt-3 border-t border-zinc-800/50">该人员在此筛选周期内无任何产出或审批动作。</p>` : `
@@ -886,108 +949,165 @@
             }
         }
 
-        // ================= 💡 新增：核心总结分析计算与模态框交互引擎 =================
+        // ================= 💡 重构升级版：全量数据智能审计导出面板交互引擎 =================
         window.openExportAnalysisModal = function() {
             const overlay = document.getElementById('export-modal-overlay');
             const modal = document.getElementById('export-modal');
             
-            // 执行实时精细化统计
             const currentData = extractDataForPeriod(currentDate, currentView);
+            const totalDemands = currentData.tasksCount; // 总需求单数
             const actualPeople = Object.values(currentData.peopleMap).filter(p => p.hours > 0).length;
             
-            // 写入周期基础指标
             document.getElementById('rep-m-hours').innerText = currentData.totalHours.toFixed(1);
+            document.getElementById('rep-m-demand-count').innerText = totalDemands; 
             document.getElementById('rep-m-projects').innerText = currentData.projectsCount;
             document.getElementById('rep-m-people').innerText = actualPeople;
             
-            // 写入头部过滤上下文
-            const year = currentDate.getFullYear();
-            const month = currentDate.getMonth();
-            let periodStr = '';
-            let viewTag = '';
-            if (currentView === 'month') { viewTag = '月度数据盘点'; periodStr = `${year}年 ${month+1}月`; }
-            else if (currentView === 'week') { viewTag = '周度数据盘点'; const sw = getStartOfWeek(currentDate); const ew = new Date(sw); ew.setDate(ew.getDate() + 6); periodStr = `${sw.getMonth()+1}.${sw.getDate()} - ${ew.getMonth()+1}.${ew.getDate()}`; }
-            else { viewTag = '年度数据大盘'; periodStr = `${year} 年度`; }
+            const year = currentDate.getFullYear(); const month = currentDate.getMonth();
+            let periodStr = ''; let viewTag = '';
+            if (currentView === 'month') { viewTag = '月度设计流水审计'; periodStr = `${year}年 ${month+1}月`; }
+            else if (currentView === 'week') { viewTag = '周度敏捷迭代复盘'; const sw = getStartOfWeek(currentDate); const ew = new Date(sw); ew.setDate(ew.getDate() + 6); periodStr = `${sw.getMonth()+1}.${sw.getDate()} - ${ew.getMonth()+1}.${ew.getDate()}`; }
+            else { viewTag = '年度资源开销总览'; periodStr = `${year} 年度`; }
             
             document.getElementById('report-view-tag').innerText = viewTag;
             document.getElementById('report-period-text').innerText = periodStr;
-            document.getElementById('report-project-scope').innerText = currentSelectedProject === 'all' ? '全部项目大盘' : `限定项目: ${currentSelectedProject}`;
+            document.getElementById('report-project-scope').innerText = currentSelectedProject === 'all' ? '全部类目范围' : `类目: ${currentSelectedProject}`;
             document.getElementById('report-gen-time').innerText = new Date().toISOString().split('T')[0] + ' ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
-            // 1. 渲染项目排名占比 (限定前4，避免过长)
+            // 1. 动态计算渲染：发起需求的人大盘审计（每个人占了多少需求占比）
+            const creatorContainer = document.getElementById('rep-creator-ranking');
+            const sortedCreators = Object.values(currentData.creatorMap).sort((a,b) => b.count - a.count);
+            if (sortedCreators.length === 0) {
+                creatorContainer.innerHTML = `<div class="col-span-2 text-xs text-zinc-500 italic py-2">暂无需求方提报数据</div>`;
+            } else {
+                let html = '';
+                sortedCreators.slice(0, 6).forEach((c, idx) => {
+                    const pct = totalDemands > 0 ? ((c.count / totalDemands) * 100).toFixed(1) : 0;
+                    html += `
+                    <div class="bg-white/[0.01] border border-white/5 rounded-xl p-3 flex items-center justify-between font-mono">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="w-5 h-5 rounded bg-zinc-800 text-[10px] text-zinc-500 flex items-center justify-center font-bold">#${idx+1}</span>
+                            <span class="text-xs font-bold text-zinc-200 truncate font-sans">${c.name}</span>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <span class="text-xs font-bold text-white">${c.count} 单</span>
+                            <span class="text-[11px] text-indigo-400 font-black ml-2 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">${pct}%</span>
+                        </div>
+                    </div>`;
+                });
+                creatorContainer.innerHTML = html;
+            }
+
+            // 2. 动态计算渲染：各类目/项目双轨对比矩阵表格（哪类多，哪类高）
+            const dualMatrixBody = document.getElementById('rep-category-dual-matrix');
             const sortedProj = Object.keys(currentData.activeProjects).map(k => ({ name: k, data: currentData.activeProjects[k] })).sort((a,b) => b.data.hours - a.data.hours);
-            const projRankContainer = document.getElementById('rep-project-ranking');
-            if(sortedProj.length === 0) {
-                projRankContainer.innerHTML = `<div class="text-xs text-zinc-500 italic py-2">暂无活跃项目资源消耗</div>`;
+            if (sortedProj.length === 0) {
+                dualMatrixBody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-xs text-zinc-500 italic">当前大盘无撞轨数据流转</td></tr>`;
             } else {
                 let html = '';
-                sortedProj.slice(0, 5).forEach((p, idx) => {
-                    const pct = currentData.totalHours > 0 ? ((p.data.hours / currentData.totalHours) * 100).toFixed(1) : 0;
+                sortedProj.forEach(p => {
+                    const hoursPct = currentData.totalHours > 0 ? ((p.data.hours / currentData.totalHours) * 100).toFixed(1) : 0;
+                    const tasksPct = totalDemands > 0 ? ((p.data.count / totalDemands) * 100).toFixed(1) : 0;
+                    
+                    // 密集度系数计算
+                    let densityTag = '<span class="text-[10px] text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">正常流转</span>';
+                    if (parseFloat(tasksPct) > 25 && parseFloat(hoursPct) < 15) {
+                        densityTag = '<span class="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded font-bold">⚡️ 高频快钱需求</span>';
+                    } else if (parseFloat(hoursPct) > 30) {
+                        densityTag = '<span class="text-[10px] text-rose-400 bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded font-bold">🌋 资源重度黑洞</span>';
+                    }
+
                     html += `
-                    <div class="flex items-center justify-between text-xs font-mono">
-                        <div class="flex items-center gap-2 text-zinc-300 truncate max-w-[400px]">
-                            <span class="text-zinc-600 font-bold">0${idx+1}.</span>
-                            <span class="truncate">${p.name}</span>
-                        </div>
-                        <div class="flex items-center gap-4 shrink-0 text-right">
-                            <span class="text-zinc-400">${p.data.hours.toFixed(1)} h</span>
-                            <span class="text-fuchsia-400 font-bold w-12">${pct}%</span>
-                        </div>
-                    </div>`;
+                    <tr class="hover:bg-white/[0.01] transition-colors">
+                        <td class="p-3 text-xs font-sans font-bold text-white max-w-[240px] truncate" title="${p.name}">${p.name}</td>
+                        <td class="p-3 text-right text-xs"><span class="text-zinc-100 font-bold">${p.data.count}单</span> <span class="text-zinc-500 text-[10px] ml-1">(${tasksPct}%)</span></td>
+                        <td class="p-3 text-right text-xs"><span class="text-fuchsia-400 font-black">${p.data.hours.toFixed(1)}h</span> <span class="text-zinc-500 text-[10px] ml-1">(${hoursPct}%)</span></td>
+                        <td class="p-3 text-center">${densityTag}</td>
+                    </tr>`;
                 });
-                projRankContainer.innerHTML = html;
+                dualMatrixBody.innerHTML = html;
             }
 
-            // 2. 渲染核心效能排行 (按工时从高到低)
-            const sortedPplByHours = Object.values(currentData.peopleMap).filter(p => p.hours > 0).sort((a,b) => b.hours - a.hours);
-            const pplHoursContainer = document.getElementById('rep-people-hours-ranking');
-            if(sortedPplByHours.length === 0) {
-                pplHoursContainer.innerHTML = `<div class="text-xs text-zinc-500 italic py-2">无人员出勤工时</div>`;
+            // 3. AI工具辅助占比百分比条
+            const aiBar = document.getElementById('rep-ai-tools-percentage-bar');
+            const aiLegend = document.getElementById('rep-ai-tools-legend');
+            const aiTotal = currentData.aiCount;
+            if (aiTotal === 0) {
+                aiBar.innerHTML = `<div class="w-full h-full bg-zinc-900 text-[9px] text-zinc-600 flex items-center justify-center italic">本期未开启动作级AI协同</div>`;
+                aiLegend.innerHTML = `<div class="col-span-2 text-zinc-500 italic text-xs">无可用生产力占比分布</div>`;
             } else {
-                let html = '';
-                sortedPplByHours.slice(0, 4).forEach((p, idx) => {
-                    html += `
-                    <div class="flex justify-between items-center text-xs">
-                        <span class="text-zinc-400 font-mono"><span class="text-zinc-600 mr-1">${idx+1}.</span>${p.display}</span>
-                        <span class="text-white font-bold font-mono">${p.hours.toFixed(1)}h</span>
+                let barHtml = ''; let legendHtml = '';
+                const aiColors = ['bg-amber-500', 'bg-fuchsia-500', 'bg-sky-500', 'bg-emerald-500', 'bg-indigo-500'];
+                const textColors = ['text-amber-400', 'text-fuchsia-400', 'text-sky-400', 'text-emerald-400', 'text-indigo-400'];
+                Object.keys(currentData.aiFreq).map(k => ({ name: k, count: currentData.aiFreq[k] })).sort((a,b) => b.count - a.count).forEach((tool, idx) => {
+                    const c = aiColors[idx % aiColors.length]; const tc = textColors[idx % textColors.length];
+                    const pct = ((tool.count / aiTotal) * 100).toFixed(1);
+                    barHtml += `<div class="${c} h-full" style="width: ${pct}%"></div>`;
+                    legendHtml += `
+                    <div class="flex items-center justify-between px-2.5 py-1.5 border border-white/5 bg-white/[0.005] rounded-lg">
+                        <span class="flex items-center gap-1.5 truncate text-zinc-300 font-sans"><span class="w-1.5 h-1.5 rounded-full ${c}"></span>${tool.name}</span>
+                        <span class="${tc} font-bold">${pct}% <span class="text-zinc-600 font-normal text-[10px] ml-1">${tool.count}次</span></span>
                     </div>`;
                 });
-                pplHoursContainer.innerHTML = html;
+                aiBar.innerHTML = barHtml; aiLegend.innerHTML = legendHtml;
             }
 
-            // 3. 渲染谁做的需求多 (按处理工单节点排序)
-            const sortedPplByTasks = Object.values(currentData.peopleMap).filter(p => p.taskCount > 0).sort((a,b) => b.taskCount - a.taskCount);
+            // 4. 设计承接：独立需求单量劳模榜 (谁做的需求多)
+            const sortedPplByTasks = Object.values(currentData.peopleMap).filter(p => p.uniqueTasksSet.size > 0).sort((a,b) => b.uniqueTasksSet.size - a.uniqueTasksSet.size);
             const pplTasksContainer = document.getElementById('rep-people-tasks-ranking');
             if(sortedPplByTasks.length === 0) {
-                pplTasksContainer.innerHTML = `<div class="text-xs text-zinc-500 italic py-2">无流转需求工单</div>`;
+                pplTasksContainer.innerHTML = `<div class="text-xs text-zinc-500 italic py-2">本期无承接单数记录</div>`;
             } else {
                 let html = '';
                 sortedPplByTasks.slice(0, 4).forEach((p, idx) => {
                     html += `
-                    <div class="flex justify-between items-center text-xs">
-                        <span class="text-zinc-400 font-mono"><span class="text-zinc-600 mr-1">${idx+1}.</span>${p.display}</span>
-                        <span class="text-emerald-400 font-bold font-mono">${p.taskCount} 个流转节点</span>
+                    <div class="flex justify-between items-center text-xs px-2 py-1.5 bg-white/[0.01] border border-white/5 rounded-lg font-mono">
+                        <span class="text-zinc-300"><span class="text-zinc-600 font-bold mr-2">0${idx+1}</span>${p.display}</span>
+                        <span class="text-emerald-400 font-bold">攻坚解题 ${p.uniqueTasksSet.size} 个独立需求</span>
                     </div>`;
                 });
                 pplTasksContainer.innerHTML = html;
             }
 
-            // 4. 自动交叉碰撞，生成智能诊断 Insights
-            const insightEl = document.getElementById('rep-intelligence-insight');
-            if (currentData.totalHours === 0) {
-                insightEl.innerText = "当前周期内无任何工时历史和需求流转，请切换至有数据的周期或核对成员填报状态。";
+            // 5. 设计承接：硬核堆栈工时劳模榜
+            const sortedPplByHours = Object.values(currentData.peopleMap).filter(p => p.hours > 0).sort((a,b) => b.hours - a.hours);
+            const pplHoursContainer = document.getElementById('rep-people-hours-ranking');
+            if(sortedPplByHours.length === 0) {
+                pplHoursContainer.innerHTML = `<div class="text-xs text-zinc-500 italic py-2">无设计师填报出勤工时</div>`;
             } else {
-                let topProjName = sortedProj[0] ? sortedProj[0].name : '未知项目';
-                let topProjPct = sortedProj[0] && currentData.totalHours > 0 ? ((sortedProj[0].data.hours / currentData.totalHours) * 100).toFixed(1) : 0;
-                let topWorkerName = sortedPplByHours[0] ? sortedPplByHours[0].display : '暂无';
-                let topTaskerName = sortedPplByTasks[0] ? sortedPplByTasks[0].display : '暂无';
-                
-                let idleCount = Object.values(currentData.peopleMap).filter(p => p.hours === 0).length;
-
-                insightEl.innerHTML = `本期团队核心资源高度聚焦于 <span class="text-white font-bold">《${topProjName}》</span>，单项资源轰炸占比高达 <span class="text-fuchsia-400 font-bold">${topProjPct}%</span>。在人员效能摸底中，<span class="text-white font-bold">${topWorkerName}</span> 产出设计工时最长；而 <span class="text-emerald-400 font-bold">${topTaskerName}</span> 响应/流转的需求节点最为频繁，属本期高产劳模。当前全盘池内仍有 <span class="text-zinc-400 font-bold">${idleCount}</span> 名常驻成员工时挂零，存在局部复用空间，建议管理层合理调配。`;
+                let html = '';
+                sortedPplByHours.slice(0, 4).forEach((p, idx) => {
+                    html += `
+                    <div class="flex justify-between items-center text-xs px-2 py-1.5 bg-white/[0.01] border border-white/5 rounded-lg font-mono">
+                        <span class="text-zinc-300"><span class="text-zinc-600 font-bold mr-2">0${idx+1}</span>${p.display}</span>
+                        <span class="text-white font-bold">${p.hours.toFixed(1)} h</span>
+                    </div>`;
+                });
+                pplHoursContainer.innerHTML = html;
             }
 
-            // 显示弹窗
+            // 6. 双轨数据撞击融合智能 Insights 提示
+            const insightEl = document.getElementById('rep-intelligence-insight');
+            if (currentData.totalHours === 0) {
+                insightEl.innerText = "当期大盘无撞单及工时沉淀，无法出具多维审计诊断。";
+            } else {
+                let maxCreator = sortedCreators[0] ? sortedCreators[0].name : '未知';
+                let maxCreatorCount = sortedCreators[0] ? sortedCreators[0].count : 0;
+                let maxCreatorPct = totalDemands > 0 ? ((maxCreatorCount / totalDemands) * 100).toFixed(1) : 0;
+                
+                let topProjByHours = sortedProj[0] ? sortedProj[0].name : '无';
+                let topProjHoursPct = sortedProj[0] ? ((sortedProj[0].data.hours / currentData.totalHours) * 100).toFixed(1) : 0;
+                
+                let sortedProjByCount = [...sortedProj].sort((a,b) => b.data.count - a.data.count);
+                let topProjByCount = sortedProjByCount[0] ? sortedProjByCount[0].name : '无';
+                let topProjCountPct = sortedProjByCount[0] ? ((sortedProjByCount[0].data.count / totalDemands) * 100).toFixed(1) : 0;
+
+                let topDoer = sortedPplByTasks[0] ? sortedPplByTasks[0].display : '暂无';
+                let topDoerCount = sortedPplByTasks[0] ? sortedPplByTasks[0].uniqueTasksSet.size : 0;
+
+                insightEl.innerHTML = `本期在大盘需求源头审计中，<span class="text-white font-black">【${maxCreator}】</span> 属于本期最具统治力的发起方，一个人就狂砸了 <span class="text-indigo-400 font-bold">${maxCreatorCount} 单</span> 需求，强占全量流水提报的 <span class="text-indigo-400 font-bold">${maxCreatorPct}%</span>。纵观需求类目双轨矩阵，独立需求单量占比最高的类目为 <span class="text-white font-bold">《${topProjByCount}》</span>（占总单量的 ${topProjCountPct}%）；而疯狂吞噬团队工时、工时占比高居榜首的重度黑洞类目则是 <span class="text-fuchsia-400 font-bold">《${topProjByHours}》</span>（工时拦截率达 ${topProjHoursPct}%）。在下游了承接设计执行侧，设计师 <span class="text-emerald-400 font-bold">【${topDoer}】</span> 业务吞吐响应最为频繁，独立解题消化了 <span class="text-emerald-400 font-bold">${topDoerCount} 项独立工单</span>，属于本期名副其实的需求消化劳模。`;
+            }
+
             overlay.classList.remove('hidden');
             setTimeout(() => { overlay.classList.remove('opacity-0'); modal.classList.remove('scale-95'); }, 10);
         }
@@ -995,95 +1115,96 @@
         window.closeExportAnalysisModal = function() {
             const overlay = document.getElementById('export-modal-overlay');
             const modal = document.getElementById('export-modal');
-            overlay.classList.add('opacity-0');
-            modal.classList.add('scale-95');
+            overlay.classList.add('opacity-0'); modal.classList.add('scale-95');
             setTimeout(() => { overlay.classList.add('hidden'); }, 300);
         }
 
-        // 按钮功能：一键生成 Markdown 富文本复制
+        // 按钮功能：一键生成带有各方占比、类目单量和工时比对的 Markdown 摘要
         window.copyMarkdownSummary = function() {
             const currentData = extractDataForPeriod(currentDate, currentView);
+            const totalDemands = currentData.tasksCount;
+            const sortedCreators = Object.values(currentData.creatorMap).sort((a,b) => b.count - a.count);
             const sortedProj = Object.keys(currentData.activeProjects).map(k => ({ name: k, data: currentData.activeProjects[k] })).sort((a,b) => b.data.hours - a.data.hours);
-            const sortedPplByHours = Object.values(currentData.peopleMap).filter(p => p.hours > 0).sort((a,b) => b.hours - a.hours);
-            const sortedPplByTasks = Object.values(currentData.peopleMap).filter(p => p.taskCount > 0).sort((a,b) => b.taskCount - a.taskCount);
+            const sortedPplByTasks = Object.values(currentData.peopleMap).filter(p => p.uniqueTasksSet.size > 0).sort((a,b) => b.uniqueTasksSet.size - a.uniqueTasksSet.size);
+            const range = document.getElementById('report-period-text').innerText;
+
+            let md = `### 📊 TIG 设计资产流转与提报人源头多维分析简报\n`;
+            md += `* **盘点范围与周期**: ${range} (${document.getElementById('report-view-tag').innerText})\n`;
+            md += `* **核心指标**: 独立需求总量 \`${totalDemands}单\` | 设计硬核总耗时 \`${currentData.totalHours.toFixed(1)}h\`\n\n`;
             
-            const timeRange = document.getElementById('report-period-text').innerText;
-            
-            let md = `### 📊 戴维斯设计需求管理中心 - 项目投入分析简报\n`;
-            md += `**统计周期**: ${timeRange} (${document.getElementById('report-view-tag').innerText})\n`;
-            md += `**大盘概览**: 资源总投入 \`${currentData.totalHours.toFixed(1)}h\` | 活跃项目 \`${currentData.projectsCount}个\` | 活跃填报 \`${sortedPplByHours.length}人\`\n\n`;
-            
-            md += `#### 1️⃣ 项目人力投入耗时排行:\n`;
-            sortedProj.slice(0, 5).forEach((p, i) => {
-                const pct = currentData.totalHours > 0 ? ((p.data.hours / currentData.totalHours) * 100).toFixed(1) : 0;
-                md += `${i+1}. 【${p.name}】投入工时: ${p.data.hours.toFixed(1)}h | 团队占比: ${pct}%\n`;
+            md += `#### 1️⃣ 需求提报发起方大盘占比排行:\n`;
+            sortedCreators.slice(0, 4).forEach((c, i) => {
+                md += `${i+1}. 【${c.name}】发起独立需求: ${c.count}单 | 大盘占比: ${((c.count/totalDemands)*100).toFixed(1)}%\n`;
             });
             
-            md += `\n#### 2️⃣ 效能与需求流转劳模榜:\n`;
-            md += `* **投入工时最高**: ` + sortedPplByHours.slice(0, 3).map((p, i) => `${p.display}(${p.hours.toFixed(1)}h)`).join(' ➔ ') + `\n`;
-            md += `* **处理需求最多**: ` + sortedPplByTasks.slice(0, 3).map((p, i) => `${p.display}(${p.taskCount}单)`).join(' ➔ ') + `\n\n`;
+            md += `\n#### 2️⃣ 类目/项目双轨纵横盘点（单量与工时对照）:\n`;
+            sortedProj.slice(0, 5).forEach((p, i) => {
+                const hPct = currentData.totalHours > 0 ? ((p.data.hours/currentData.totalHours)*100).toFixed(1) : 0;
+                const tPct = totalDemands > 0 ? ((p.data.count/totalDemands)*100).toFixed(1) : 0;
+                md += `${i+1}. 【${p.name}】需求数: ${p.data.count}单(${tPct}%) ➔ 消耗设计工时: ${p.data.hours.toFixed(1)}h(${hPct}%)\n`;
+            });
             
-            md += `#### 3️⃣ 智能管理洞察:\n${document.getElementById('rep-intelligence-insight').innerText}\n\n`;
-            md += `*报告生成时间: ${document.getElementById('report-gen-time').innerText} • 戴维斯控制台高级视图自动化输出*`;
+            md += `\n#### 3️⃣ 设计承接高效劳模排行 (谁做的需求多):\n`;
+            sortedPplByTasks.slice(0, 4).forEach((p, i) => {
+                md += `${i+1}. 【${p.display}】独立设计需求消化量: ${p.uniqueTasksSet.size}单 (累计工时: ${p.hours.toFixed(1)}h)\n`;
+            });
+            
+            md += `\n#### 4️⃣ 穿透诊断管理层提示:\n${document.getElementById('rep-intelligence-insight').innerText}\n\n`;
+            md += `*报告导出源于戴维斯自动化数据中心 • ${document.getElementById('report-gen-time').innerText}*`;
 
             navigator.clipboard.writeText(md).then(() => {
-                window.showToast("复制成功", "Markdown 摘要已成功复制至系统剪贴板", "success");
-            }).catch(err => {
-                window.showToast("复制失败", "浏览器安全策略拦截，请手动选取内容", "error");
+                window.showToast("复制成功", "带有发起占比与类目对照的 Markdown 简报已就绪", "success");
             });
         }
 
-        // 按钮功能：纯前端 CSV 导出矩阵
+        // ================= 💡 核心改良功能：一键无损将提报人明细、类目工时占比等核心数据打成电子表格 CSV 导出 =================
         window.exportToCSV = function() {
             const currentData = extractDataForPeriod(currentDate, currentView);
-            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // 避免 Excel 中文乱码
+            const totalDemands = currentData.tasksCount;
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
             
-            csvContent += "维度分类,目标实体,核心度量数据(工时/频次),占比或节点流转数\n";
-            csvContent += `大盘盘点,总投入人力,${currentData.totalHours.toFixed(1)} 小时,-\n`;
-            csvContent += `大盘盘点,活跃项目数,${currentData.projectsCount} 个,-\n`;
+            // 写入全功能表格表头
+            csvContent += "度量分类层级,归属分类/人名,记录需求单数/消耗工时,数据大盘占比百分比\n";
+            csvContent += `核心摘要盘点,大盘累计记录需求量,${totalDemands} 单,-\n`;
+            csvContent += `核心摘要盘点,大盘设计总工时开销,${currentData.totalHours.toFixed(1)} 小时,-\n`;
             
-            const sortedProj = Object.keys(currentData.activeProjects).map(k => ({ name: k, data: currentData.activeProjects[k] })).sort((a,b) => b.data.hours - a.data.hours);
-            sortedProj.forEach(p => {
-                const pct = currentData.totalHours > 0 ? ((p.data.hours / currentData.totalHours) * 100).toFixed(1) : 0;
-                csvContent += `项目排行,${p.name.replace(/,/g, '，')},${p.data.hours.toFixed(1)},占比 ${pct}%\n`;
+            // 发起方数据写入
+            Object.values(currentData.creatorMap).sort((a,b) => b.count - a.count).forEach(c => {
+                csvContent += `需求发起方审计(Creator),${c.name},${c.count} 单,占总需求提报 ${((c.count/totalDemands)*100).toFixed(1)}%\n`;
             });
 
-            Object.values(currentData.peopleMap).forEach(p => {
-                csvContent += `全员效能,${p.display},${p.hours.toFixed(1)} 小时,处理工单 ${p.taskCount} 个\n`;
+            // 类目与项目工时单数双轨撞击数据写入
+            Object.keys(currentData.activeProjects).map(k => ({ name: k, data: currentData.activeProjects[k] })).sort((a,b) => b.data.hours - a.data.hours).forEach(p => {
+                const hPct = currentData.totalHours > 0 ? ((p.data.hours/currentData.totalHours)*100).toFixed(1) : 0;
+                const tPct = totalDemands > 0 ? ((p.data.count/totalDemands)*100).toFixed(1) : 0;
+                csvContent += `类目纵横双轨矩阵,${p.name.replace(/,/g, '，')}(单量数据),${p.data.count} 单,占总单量 ${tPct}%\n`;
+                csvContent += `类目纵横双轨矩阵,${p.name.replace(/,/g, '，')}(设计耗时),${p.data.hours.toFixed(1)} 小时,占总工时 ${hPct}%\n`;
+            });
+
+            // 设计执行侧吞吐需求数据写入
+            Object.values(currentData.peopleMap).sort((a,b) => b.uniqueTasksSet.size - a.uniqueTasksSet.size).forEach(p => {
+                csvContent += `设计执行侧吞吐(Assignee),${p.display},独立消化需求: ${p.uniqueTasksSet.size} 单,硬核沉淀工时: ${p.hours.toFixed(1)}h\n`;
             });
 
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `TIG_项目投入分析报告_${document.getElementById('report-period-text').innerText}.csv`);
+            link.setAttribute("download", `TIG_需求发起及类目工时占比纵横分析表_${document.getElementById('report-period-text').innerText}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            window.showToast("导出完成", "结构化报表已开始下载", "success");
+            window.showToast("导出表格成功", "全维度多要素交叉撞轨复盘表格已成功下载", "success");
         }
 
-        // 按钮功能：利用 html2canvas 一键将报告区域截取为高清 PNG 图片
         window.exportToPNGImage = function() {
             const captureZone = document.getElementById('export-capture-zone');
-            window.showToast("正在渲染", "高保真图像引擎生成中...", "info");
-            
-            html2canvas(captureZone, {
-                backgroundColor: '#121217',
-                scale: 2, // 提升清晰度，适配 Retina 显示屏
-                logging: false,
-                useCORS: true
-            }).then(canvas => {
+            window.showToast("正在生成", "高保真全屏报告截图渲染中...", "info");
+            html2canvas(captureZone, { backgroundColor: '#121217', scale: 2, logging: false, useCORS: true }).then(canvas => {
                 const imgData = canvas.toDataURL('image/png');
                 const link = document.createElement('a');
-                link.download = `TIG_项目分析简报_${document.getElementById('report-period-text').innerText}.png`;
-                link.href = imgData;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                window.showToast("生成成功", "高保真分析卡片已下载至本地", "success");
-            }).catch(err => {
-                console.error(err);
-                window.showToast("截图渲染失败", err.message, "error");
+                link.download = `TIG_多维双轨效能简报_${document.getElementById('report-period-text').innerText}.png`;
+                link.href = imgData; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+                window.showToast("卡片下载成功", "高保真图片简报已下载", "success");
             });
         }
 
