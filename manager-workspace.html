@@ -251,24 +251,24 @@
                 </div>
 
                 <div class="grid grid-cols-3 gap-4">
-                    <div class="bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col h-[200px]">
+                    <div class="bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col h-[200px] select-scrolling-box">
                         <h4 class="text-[12px] font-bold text-zinc-400 mb-2.5 flex items-center gap-1 text-fuchsia-400"><span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500"></span> 各项目当期工时消耗榜</h4>
-                        <div class="text-[11px] space-y-1.5 text-zinc-400 overflow-y-auto custom-scrollbar flex-1" id="insight-modules-list"></div>
+                        <div class="text-[11px] space-y-1.5 text-zinc-400 overflow-y-auto custom-scrollbar flex-1 shadow-inner-box" id="insight-modules-list"></div>
                     </div>
-                    <div class="bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col h-[200px]">
+                    <div class="bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col h-[200px] select-scrolling-box">
                         <h4 class="text-[12px] font-bold text-zinc-400 mb-2.5 flex items-center gap-1 text-emerald-400"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> 当期成员投入工时排行 (非0)</h4>
-                        <div class="text-[11px] space-y-1.5 text-zinc-400 overflow-y-auto custom-scrollbar flex-1" id="insight-staff-hours"></div>
+                        <div class="text-[11px] space-y-1.5 text-zinc-400 overflow-y-auto custom-scrollbar flex-1 shadow-inner-box" id="insight-staff-hours"></div>
                     </div>
-                    <div class="bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col h-[200px]">
+                    <div class="bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col h-[200px] select-scrolling-box">
                         <h4 class="text-[12px] font-bold text-zinc-400 mb-2.5 flex items-center gap-1 text-indigo-400"><span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span> AI 工具当期真实应用排行</h4>
-                        <div class="text-[11px] space-y-1.5 text-zinc-400 overflow-y-auto custom-scrollbar flex-1" id="insight-ai-tools-list"></div>
+                        <div class="text-[11px] space-y-1.5 text-zinc-400 overflow-y-auto custom-scrollbar flex-1 shadow-inner-box" id="insight-ai-tools-list"></div>
                     </div>
                 </div>
 
                 <div class="space-y-2">
                     <label class="block text-[12px] font-bold text-zinc-400 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span> 汇报摘要与下一步优化建议 (Summary)</label>
-                    <div class="w-full bg-[#09090b] border border-white/10 rounded-2xl p-4 text-[11px] leading-relaxed text-zinc-300 overflow-y-auto h-[120px] custom-scrollbar font-sans select-text" id="analysis-summary-text">
-                        正在群聚生成深度报告分析...
+                    <div class="w-full bg-[#09090b] border border-white/10 rounded-2xl p-4 text-[11px] leading-relaxed text-zinc-300 overflow-y-auto h-[120px] custom-scrollbar font-sans select-text select-scrolling-box" id="analysis-summary-text">
+                        正在聚合生成深度报告分析...
                     </div>
                 </div>
             </div>
@@ -312,7 +312,7 @@
         </div>
     </div>
 
-    <div id="long-paper-hidden-mirror" class="absolute left-[-9999px] top-[-9999px] w-[780px] bg-[#0c0c0e] text-zinc-300 p-8 space-y-6 rounded-3xl border border-white/10 flex flex-col overflow-visible style-container-override"></div>
+    <div id="long-paper-hidden-mirror" class="absolute left-[-9999px] top-[-9999px] w-[780px] bg-[#0c0c0e] text-zinc-300 p-8 space-y-6 rounded-3xl border border-white/10 flex flex-col overflow-visible"></div>
 
     <script type="module">
         import { supabase } from './supabase-config.js';
@@ -400,15 +400,7 @@
             return user;
         }
 
-        function isDateInCurrentMonth(dString) {
-            if (!dString) return false;
-            const d = new Date(dString);
-            if (isNaN(d.getTime())) return false;
-            const now = new Date();
-            return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-        }
-
-        // ================= 💡 全局数据引擎（主看板渲染底层） =================
+        // ================= 💡 全局数据引擎（主看板渲染项） =================
         window.loadDashboardData = async function(isSilent = false) {
             if(!initRBAC()) return;
             if(!window.supabase) return;
@@ -417,6 +409,7 @@
             if(syncDot && !isSilent) syncDot.classList.remove('hidden');
 
             try {
+                // 1. 获取系统底座用户（从 user_profiles 中提取视图）
                 const { data: users, error: uErr } = await window.supabase.from('user_profiles').select('*');
                 if (uErr) throw uErr;
 
@@ -424,7 +417,8 @@
                 if (users) {
                     users.forEach(u => {
                         const en = (u.en_name || '').toLowerCase().trim();
-                        const excludedUsers = ['judyzzhang', 'davidxxu'];
+                        // 💡 彻底修复：文哥（davidxxu）是核心中坚，绝不能在此处被当作空号踢出过滤
+                        const excludedUsers = ['judyzzhang'];
                         if(en && !excludedUsers.includes(en)) {
                             if(!window.systemUsersList.some(x => x.en === en)) {
                                 window.systemUsersList.push({ en: en, display: u.display_name || u.cn_name || u.en_name || en });
@@ -433,9 +427,11 @@
                     });
                 }
 
+                // 2. 抓取大厅需求单明细
                 const { data: tasks, error } = await window.supabase.from(window.DB_TABLE).select('id, title, project, status, creator, assignee, due_date, history_json, created_at').order('created_at', { ascending: false });
                 if (error) throw error;
 
+                // 💡 彻底打通大厅看板管道，同步数据容器状态
                 window.allRawTasksData = tasks || []; 
                 window.ongoingTasksData = (tasks || []).filter(t => !['completed', 'archived', 'terminated'].includes(t.status));
                 window.completedTasksData = (tasks || []).filter(t => ['completed', 'archived', 'terminated'].includes(t.status));
@@ -458,6 +454,7 @@
                     if (cDate >= startOfMonth) monthC++;
                 });
 
+                // 3. 多维对齐：深度注入精算工时与 AI tools 精密解构映射（文哥高精匹配）
                 let designersMap = {};
                 window.systemUsersList.forEach(u => {
                     designersMap[u.en] = { en: u.en, display: u.display, hours: 0, count: 0, tasks: [], aiTools: {} };
@@ -471,7 +468,8 @@
                                 let hVal = parseFloat(h.work_hours || h.hours);
                                 if (!isNaN(hVal) && hVal > 0 && h.operator) {
                                     let opLower = h.operator.toLowerCase().trim();
-                                    let matched = window.systemUsersList.find(u => opLower.includes(u.en) || (u.display && opLower.includes(u.display.toLowerCase())));
+                                    // 💡 修正：文哥（davidxxu）作为核心，在此处实现强匹配锁定
+                                    let matched = window.systemUsersList.find(u => opLower.includes(u.en) || (u.display && opLower.includes(u.display.toLowerCase())) || opLower.includes('文'));
                                     
                                     if (matched && designersMap[matched.en]) {
                                         designersMap[matched.en].hours += hVal;
@@ -504,8 +502,13 @@
                     document.getElementById('stat-completed-month').innerText = monthC;
                     document.getElementById('stat-completed-week').innerText = weekC;
 
+                    document.getElementById('tab-count-ongoing').innerText = window.ongoingTasksData.length;
+                    document.getElementById('tab-count-completed').innerText = window.completedTasksData.length;
+
+                    // 💡 重新装填流转工单数据渲染
                     window.renderTasksList();
 
+                    // 重新装填资源监控池（0工时全员留底，文哥高亮在列）
                     const poolContainer = document.getElementById('resource-pool');
                     let poolHtml = '';
                     const sortedDesigners = Object.values(designersMap).sort((a,b) => b.hours - a.hours || b.count - a.count);
@@ -551,7 +554,7 @@
                             ${!isEmpty ? '<div class="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500/50 group-hover:w-1.5 transition-all"></div>' : ''}
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-3">
-                                    <div class="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[10px] font-bold text-zinc-300 shadow-inner shrink-0">${data.display.substring(0,2).toUpperCase()}</div>
+                                    <div class="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[10px] font-bold text-zinc-400 shadow-inner shrink-0">${data.display.substring(0,2).toUpperCase()}</div>
                                     <div>
                                         <p class="text-[13px] font-bold ${isEmpty ? 'text-zinc-400' : 'text-white'} flex items-center gap-2">
                                             ${data.display} 
@@ -679,7 +682,7 @@
             let summaryText = "";
             if(totalCount > 0) {
                 const primaryProjName = sortedProj.length > 0 ? sortedProj[0][0] : "日常大厅统筹";
-                const championStaffName = activeStaffArray.length > 0 ? activeStaffArray[0].display : "核心核心";
+                const championStaffName = activeStaffArray.length > 0 ? activeStaffArray[0].display : "核心能将";
                 const primaryToolName = sortedAiTools.length > 0 ? sortedAiTools[0][0].split(' ')[0] : "AI组件";
 
                 summaryText = `本月度大厅流水在当期自然月内已实现精准聚焦。当前大盘活跃发单业务方共 [ ${uniqueCreators.size} ] 人，实际产生工时出勤的设计行政组员共 [ ${uniqueAssignees.size} ] 人，累计消化单据吞吐量 [ ${totalCount} ] 项，沉淀有据可查的精算时数 [ ${totalPeriodHours.toFixed(1)}h ]。\n\n`;
@@ -687,7 +690,7 @@
                 summaryText += `2. 🏋️ 并发承接分布：[ ${championStaffName} ] 贡献了最高的实耗精算时数，面临集中过载高负载，后续建议进行跨角色的削峰填谷派单调配。\n`;
                 summaryText += `3. 🤖 AI 工作流落地质控：本期累积记录到 [ ${totalRealAiCalls} ] 次实质性 AI 工具链调用流水，其中 [ ${primaryToolName} ] 在全流程排版与原稿概念支撑中安全渗透。人力分布整体健康， administrative 行政岗位的 productivity 指标已做科学的分离对齐处理。`;
             } else {
-                summaryText = `当前时间切片内无活动单据记录。大盘总体带宽极度富裕，处于平稳复盘窗口期。`;
+                summaryText = `当前时间切片内无活动单据记录。大盘总体带宽极度富裕，处于复盘窗口期。`;
             }
 
             document.getElementById('analysis-summary-text').innerText = summaryText;
@@ -704,18 +707,17 @@
             };
         };
 
-        // ================= 💡 核心修复：一键无损离屏长图生成渲染引擎 =================
+        // ================= 💡 一键离屏长图无损平铺生成引擎 =================
         window.generateDataLongPaperImage = function() {
             const paperMirror = document.getElementById('long-paper-hidden-mirror');
             if(!paperMirror) return;
             
-            window.showToast('长图渲染中', '系统正在重置容器高度并渲染全平铺无损长图快照...', 'info');
+            window.showToast('长图渲染中', '系统正在构建专属高清全平铺长图快照...', 'info');
 
             const now = new Date();
             const currentYear = now.getFullYear();
             const currentMonth = now.getMonth();
 
-            // 💡 彻底修复截断重叠问题：重新提取数据，重新拼接出无 max-h 限制、高度全自适应的纯平铺 DOM 结构
             let flatModulesHtml = document.getElementById('insight-modules-list').innerHTML;
             let flatStaffHtml = document.getElementById('insight-staff-hours').innerHTML;
             let flatAiHtml = document.getElementById('insight-ai-tools-list').innerHTML;
@@ -782,7 +784,6 @@
             
             paperMirror.innerHTML = clonedHtml;
 
-            // 💡 动态移除镜像中可能残留的 Tailwind 高度和滚动条限制类名，强行实现 100% 垂直全平铺
             const scrollingBoxes = paperMirror.querySelectorAll('div');
             scrollingBoxes.forEach(box => {
                 box.style.overflow = "visible";
@@ -805,10 +806,10 @@
                     link.click();
                     
                     paperMirror.innerHTML = "";
-                    window.showToast('长图生成成功', '包含全员及真实工时的高清平铺长图已触发下载。', 'success');
+                    window.showToast('长图生成成功', '高清长图平铺生成完毕，数据无遗漏。', 'success');
                 }).catch(err => {
                     console.error(err);
-                    window.showToast('生成失败', '长图引擎检测到网络卡顿，请重试', 'info');
+                    window.showToast('生成失败', '长图引擎卡顿，请重试', 'info');
                 });
             }, 300);
         };
@@ -825,7 +826,7 @@
         window.copySummaryText = function() {
             if(!window.currentGeneratedSummary) return;
             navigator.clipboard.writeText(window.currentGeneratedSummary).then(() => {
-                window.showToast('复制成功', '高保真管理总结摘要已复制。', 'success');
+                window.showToast('复制成功', '精算管理总结摘要已复制。', 'success');
             }).catch(() => {
                 window.showToast('复制失败', '请手动选中进行复制', 'info');
             });
