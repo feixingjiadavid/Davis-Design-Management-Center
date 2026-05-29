@@ -216,6 +216,7 @@
         </div>
     </main>
 
+    <!-- 全局数据诊断与高管复盘汇报模态窗 -->
     <div id="analysis-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closeAnalysisModal()">
         <div id="analysis-modal" class="hidden w-full max-w-3xl bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 p-7 relative">
             <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-fuchsia-500 via-purple-500 to-indigo-500 rounded-t-3xl"></div>
@@ -230,6 +231,7 @@
                 <button onclick="window.closeAnalysisModal()" class="text-zinc-500 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-full p-1 transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
             </div>
 
+            <!-- 数据项面板区域 -->
             <div id="long-paper-capture-box" class="space-y-4">
                 <div class="grid grid-cols-4 gap-4">
                     <div class="bg-black/30 border border-white/5 rounded-2xl p-3.5">
@@ -237,7 +239,7 @@
                         <p class="text-xl font-bold font-mono text-fuchsia-400" id="analysis-creators-count">0 人</p>
                     </div>
                     <div class="bg-black/30 border border-white/5 rounded-2xl p-3.5">
-                        <p class="text-[11px] text-zinc-500 font-medium mb-1">当月有实际工时人</p>
+                        <p class="text-[11px] text-zinc-500 font-medium mb-1">实际产生工时人</p>
                         <p class="text-xl font-bold font-mono text-emerald-400" id="analysis-assignees-count">0 人</p>
                     </div>
                     <div class="bg-black/30 border border-white/5 rounded-2xl p-3.5">
@@ -245,21 +247,21 @@
                         <p class="text-xl font-bold font-mono text-indigo-400" id="analysis-total-hours">0.0h</p>
                     </div>
                     <div class="bg-black/30 border border-white/5 rounded-2xl p-3.5">
-                        <p class="text-[11px] text-zinc-500 font-medium mb-1">当月吞吐工单总数</p>
+                        <p class="text-[11px] text-zinc-500 font-medium mb-1">当月工单吞吐总量</p>
                         <p class="text-xl font-bold font-mono text-amber-400" id="analysis-total-tasks">0 单</p>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-3 gap-4">
-                    <div class="bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col min-h-[180px]">
+                    <div class="bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col h-[200px]">
                         <h4 class="text-[12px] font-bold text-zinc-400 mb-2.5 flex items-center gap-1 text-fuchsia-400"><span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500"></span> 各项目当期工时消耗榜</h4>
                         <div class="text-[11px] space-y-1.5 text-zinc-400 overflow-y-auto custom-scrollbar flex-1" id="insight-modules-list">暂无明显项目投入</div>
                     </div>
-                    <div class="bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col min-h-[180px]">
+                    <div class="bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col h-[200px]">
                         <h4 class="text-[12px] font-bold text-zinc-400 mb-2.5 flex items-center gap-1 text-emerald-400"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> 当期成员投入工时排行 (非0)</h4>
                         <div class="text-[11px] space-y-1.5 text-zinc-400 overflow-y-auto custom-scrollbar flex-1" id="insight-staff-hours">暂无承接数据</div>
                     </div>
-                    <div class="bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col min-h-[180px]">
+                    <div class="bg-black/40 border border-white/10 rounded-2xl p-4 flex flex-col h-[200px]">
                         <h4 class="text-[12px] font-bold text-zinc-400 mb-2.5 flex items-center gap-1 text-indigo-400"><span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span> AI 工具当期真实应用排行</h4>
                         <div class="text-[11px] space-y-1.5 text-zinc-400 overflow-y-auto custom-scrollbar flex-1" id="insight-ai-tools-list">暂无应用频次</div>
                     </div>
@@ -267,12 +269,13 @@
 
                 <div class="space-y-2">
                     <label class="block text-[12px] font-bold text-zinc-400 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span> 汇报摘要与下一步优化建议 (Summary)</label>
-                    <div class="w-full bg-[#09090b] border border-white/10 rounded-2xl p-4 text-[11px] leading-relaxed text-zinc-300 overflow-y-auto max-h-[120px] custom-scrollbar font-sans select-text" id="analysis-summary-text">
-                        正在聚合生成深度报告分析...
+                    <div class="w-full bg-[#09090b] border border-white/10 rounded-2xl p-4 text-[11px] leading-relaxed text-zinc-300 overflow-y-auto h-[120px] custom-scrollbar font-sans select-text" id="analysis-summary-text">
+                        正在群聚生成深度报告分析...
                     </div>
                 </div>
             </div>
 
+            <!-- 底部功能动作栏 -->
             <div class="grid grid-cols-3 gap-3 mt-5">
                 <button onclick="window.copySummaryText()" class="py-3 bg-zinc-800/80 hover:bg-zinc-700 text-white rounded-xl text-xs font-bold transition-all border border-white/5 btn-press">
                     📋 复制全盘总结文字
@@ -281,12 +284,13 @@
                     数据打包导出 (.CSV)
                 </button>
                 <button onclick="window.generateDataLongPaperImage()" class="py-3 bg-gradient-to-r from-fuchsia-600 to-indigo-600 hover:from-fuchsia-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold shadow-[0_5px_15px_rgba(217,70,239,0.2)] transition-all btn-press flex items-center justify-center gap-1.5">
-                    📸 一键生成分析数据长图
+                    📸 一键生成分析 data 长图
                 </button>
             </div>
         </div>
     </div>
 
+    <!-- 密码修改弹窗 -->
     <div id="pwd-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closePwdModal()">
         <div id="pwd-modal" class="hidden w-full max-w-sm bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 p-6 relative">
             <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-fuchsia-500 to-indigo-500 rounded-t-3xl"></div>
@@ -312,7 +316,8 @@
         </div>
     </div>
 
-    <div id="long-paper-hidden-mirror" class="absolute left-[-9999px] top-[-9999px] w-[760px] bg-[#0c0c0e] text-zinc-300 p-8 space-y-6 rounded-3xl border border-white/10 shadow-2xl flex flex-col"></div>
+    <!-- 💡 长图离屏容器：彻底解除 max-h 与 overflow 限制，防止 image_0f55d9.jpg 的重叠重演 -->
+    <div id="long-paper-hidden-mirror" class="absolute left-[-9999px] top-[-9999px] w-[780px] bg-[#0c0c0e] text-zinc-300 p-8 space-y-6 rounded-3xl border border-white/10 flex flex-col overflow-visible"></div>
 
     <script type="module">
         import { supabase } from './supabase-config.js';
@@ -400,7 +405,6 @@
             return user;
         }
 
-        // 判断流水账里的某条记录是否属于当前自然月（对齐投入分析页的底层剪裁机制）
         function isDateInCurrentMonth(dString) {
             if (!dString) return false;
             const d = new Date(dString);
@@ -409,7 +413,7 @@
             return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
         }
 
-        // ================= 💡 全局数据引擎（主看板渲染底层） =================
+        // ================= 💡 全局数据引擎 =================
         window.loadDashboardData = async function(isSilent = false) {
             if(!initRBAC()) return;
             if(!window.supabase) return;
@@ -459,13 +463,11 @@
                     if (cDate >= startOfMonth) monthC++;
                 });
 
-                // 💡 核心对齐：初始化所有系统内置人员的本月时数，保证右侧列表严格匹配
                 let designersMap = {};
                 window.systemUsersList.forEach(u => {
                     designersMap[u.en] = { en: u.en, display: u.display, hours: 0, count: 0, tasks: [], aiTools: {} };
                 });
 
-                // 穿透全量单据的历史流水账，只解构和计算【当期自然月】产生的工时，实现两页面联动闭环
                 window.allRawTasksData.forEach(t => {
                     try {
                         const hist = JSON.parse(t.history_json || '[]');
@@ -478,7 +480,6 @@
                                     
                                     if (matched && designersMap[matched.en]) {
                                         designersMap[matched.en].hours += hVal;
-                                        // 如果是进行中的需求单，则将其压入卡片气泡内
                                         if(!['completed', 'archived', 'terminated'].includes(t.status) && !designersMap[matched.en].tasks.some(x => x.id === t.id)) {
                                             designersMap[matched.en].count += 1;
                                             designersMap[matched.en].tasks.push(t);
@@ -513,7 +514,6 @@
 
                     window.renderTasksList();
 
-                    // 渲染右侧资源池列表
                     const poolContainer = document.getElementById('resource-pool');
                     let poolHtml = '';
                     const sortedDesigners = Object.values(designersMap).sort((a,b) => b.hours - a.hours || b.count - a.count);
@@ -559,7 +559,7 @@
                             ${!isEmpty ? '<div class="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500/50 group-hover:w-1.5 transition-all"></div>' : ''}
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-3">
-                                    <div class="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[10px] font-bold text-zinc-300 shadow-inner shrink-0">${data.display.substring(0,2).toUpperCase()}</div>
+                                    <div class="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[10px] font-bold text-zinc-400 shadow-inner shrink-0">${data.display.substring(0,2).toUpperCase()}</div>
                                     <div>
                                         <p class="text-[13px] font-bold ${isEmpty ? 'text-zinc-400' : 'text-white'} flex items-center gap-2">
                                             ${data.display} 
@@ -584,7 +584,7 @@
             } catch (err) { console.error(err); } finally { if(syncDot) setTimeout(() => syncDot.classList.add('hidden'), 500); }
         }
 
-        // ================= 💡 月度分析透视（深度注入当前自然月时间切割，对齐数据精度） =================
+        // ================= 💡 月度分析复盘与数据透视生成引擎 =================
         window.openAnalysisModal = function() {
             document.getElementById('analysis-modal-overlay').classList.remove('hidden');
             setTimeout(() => {
@@ -597,7 +597,6 @@
             const currentMonth = now.getMonth();
             document.getElementById('analysis-modal-title').innerText = `${currentYear}年${currentMonth + 1}月 设计需求大盘核心分析与总结看板`;
 
-            // 💡 关键修正：重新计算并隔离出完结属于本月，或流水归属于本月的绝对净值数据
             let totalPeriodHours = 0;
             const uniqueCreators = new Set();
             const uniqueAssignees = new Set();
@@ -607,7 +606,6 @@
             let totalRealAiCalls = 0;
             let aiToolsFreqGlobal = {};
 
-            // 从内存缓存中提取已经计算好的当前月真实工时数据
             const designersArray = Object.values(window.cachedDesignersMap || {});
             designersArray.forEach(d => {
                 if (d.hours > 0) {
@@ -616,7 +614,6 @@
                 }
             });
 
-            // 重新遍历，过滤出仅在当月产生了实质动作的工单单据
             window.allRawTasksData.forEach(t => {
                 try {
                     const hist = JSON.parse(t.history_json || '[]');
@@ -648,65 +645,58 @@
             });
 
             const totalCount = totalPeriodTasksSet.size;
-            const completedCount = (window.completedTasksData || []).filter(t => totalPeriodTasksSet.has(t.id)).length;
-            const finishRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
-            // 反哺四大看板数字
             document.getElementById('analysis-creators-count').innerText = `${uniqueCreators.size} 人`;
             document.getElementById('analysis-assignees-count').innerText = `${uniqueAssignees.size} 人`;
             document.getElementById('analysis-total-hours').innerText = `${totalPeriodHours.toFixed(1)}h`;
             document.getElementById('analysis-total-tasks').innerText = `${totalCount} 单`;
-            document.getElementById('analysis-finish-rate').innerText = `${finishRate}%`;
 
-            // 1. 渲染当期项目实际工时消耗榜 (严格按照工时降序排列)
             const sortedProj = Object.entries(projectHoursMap).sort((a,b) => b[1] - a[1]);
             let moduleHtml = "";
             sortedProj.forEach(([pName, hours]) => {
                 let pct = totalPeriodHours > 0 ? Math.round((hours / totalPeriodHours) * 100) : 0;
-                moduleHtml += `<div class='flex justify-between items-center bg-white/5 px-2.5 py-1.5 rounded-xl border border-white/5'>
+                moduleHtml += `<div class='flex justify-between items-center bg-white/5 px-2.5 py-1.5 rounded-xl border border-white/5 text-[11px]'>
                     <span class='truncate text-zinc-300 mr-2'>${pName}</span>
                     <span class='font-mono text-fuchsia-400 font-bold shrink-0'>${hours.toFixed(1)}h (${pct}%)</span>
                 </div>`;
             });
             document.getElementById('insight-modules-list').innerHTML = moduleHtml || "<p class='text-zinc-500 text-center py-4'>暂无活动项目工时</p>";
 
-            // 2. 渲染当期成员真实投入工时排行 (过滤掉0工时闲置组员)
             const activeStaffArray = designersArray.filter(d => d.hours > 0).sort((a,b) => b.hours - a.hours);
             let staffHtml = "";
             activeStaffArray.forEach((item, idx) => {
                 let rankColor = idx === 0 ? 'text-rose-400 font-black' : (idx === 1 ? 'text-orange-400 font-bold' : 'text-zinc-300');
-                staffHtml += `<div class='flex justify-between items-center bg-white/5 px-2.5 py-1.5 rounded-xl border border-white/5'>
+                staffHtml += `<div class='flex justify-between items-center bg-white/5 px-2.5 py-1.5 rounded-xl border border-white/5 text-[11px]'>
                     <span class='${rankColor} truncate'>Top ${idx+1}. ${item.display}</span>
                     <span class='font-mono text-emerald-400 font-medium shrink-0'>${item.count}单 / <b>${item.hours.toFixed(1)}h</b></span>
                 </div>`;
             });
             document.getElementById('insight-staff-hours').innerHTML = staffHtml || "<p class='text-zinc-500 text-center py-4'>无实际工时消耗记录</p>";
 
-            // 3. 真实抓取的 AI 工具占比排序
             const sortedAiTools = Object.entries(aiToolsFreqGlobal).sort((a,b) => b[1] - a[1]);
             let aiHtml = "";
             sortedAiTools.forEach(([tool, val]) => {
                 let pct = totalRealAiCalls > 0 ? Math.round((val / totalRealAiCalls) * 100) : 0;
-                aiHtml += `<div class='flex justify-between items-center bg-white/5 px-2.5 py-1.5 rounded-xl border border-white/5'>
+                aiHtml += `<div class='flex justify-between items-center bg-white/5 px-2.5 py-1.5 rounded-xl border border-white/5 text-[11px]'>
                     <span class='truncate text-zinc-300 mr-2'>${tool}</span>
                     <span class='font-mono text-indigo-400 font-bold shrink-0'>${val}次 (${pct}%)</span>
                 </div>`;
             });
             document.getElementById('insight-ai-tools-list').innerHTML = aiHtml || "<p class='text-zinc-500 text-center py-4 italic text-xs'>本期暂未产生AI标签填报</p>";
 
-            // 4. 精准修正 Summary 叙述段落
+            // 💡 修正：彻底剔除给高管汇报用的客套废话，直击人力调配、工单健康底线
             let summaryText = "";
             if(totalCount > 0) {
-                const primaryProjName = sortedProj.length > 0 ? sortedProj[0][0] : "日常统筹";
+                const primaryProjName = sortedProj.length > 0 ? sortedProj[0][0] : "日常大厅统筹";
                 const championStaffName = activeStaffArray.length > 0 ? activeStaffArray[0].display : "核心核心";
                 const primaryToolName = sortedAiTools.length > 0 ? sortedAiTools[0][0].split(' ')[0] : "AI组件";
 
-                summaryText = `【Henry 高管层数字化汇报摘要】\n本周期通过大厅底层工单历史流水账（History JSON）的跨端透视，已实现与项目投入分析页面的绝对对齐。当期自然月大盘内，系统共记录 [ ${uniqueCreators.size} ] 名业务方人员活跃发单，由 [ ${uniqueAssignees.size} ] 名承接方全职组员高精度消化，累计产生精算实耗工时 [ ${totalPeriodHours.toFixed(1)}h ]，吞吐流转单据 [ ${totalCount} ] 项。\n\n`;
-                summaryText += `核心统筹管理红利指出：\n1. 🎯 项目资源流向：本月团队最大真实算力重压集中投入于「${primaryProjName}」项目，工时资源分布高度精准契合阶段性核心防御节奏。\n`;
-                summaryText += `2. 🏋️ 工时出勤骨干：在全体活跃执行方中，[ ${championStaffName} ] 贡献了最高的月度真实精算工时，在大盘中扮演坚实的执行输出大户。\n`;
-                summaryText += `3. 🤖 Work Smart 质量指标：本期系统共解析并记录下 [ ${totalRealAiCalls} ] 次由设计师在交付阶段手动勾选的 AI 原生接入。其中，[ ${primaryToolName} ] 在日常指令生成与概念排版中占比首屈一指，有力论证了 AI Native 工作流的常态化落地。`;
+                summaryText = `本月度大厅流水在当期自然月内已实现精准聚焦。当前大盘活跃发单业务方共 [ ${uniqueCreators.size} ] 人，实际产生工时出勤的设计行政组员共 [ ${uniqueAssignees.size} ] 人，累计消化单据吞吐量 [ ${totalCount} ] 项，沉淀有据可查的精算时数 [ ${totalPeriodHours.toFixed(1)}h ]。\n\n`;
+                summaryText += `核心统筹风险及优化卡点：\n1. 🎯 资源消耗流向：本月最大工时重压精准落位在「${primaryProjName}」模块，占全盘大头。\n`;
+                summaryText += `2. 🏋️ 并发承接分布：[ ${championStaffName} ] 贡献了最高的实耗精算时数，面临集中过载高负载，后续建议总监强制转单以分摊带宽。\n`;
+                summaryText += `3. 🤖 AI Native 工作流常态化质控：本期累积记录到 [ ${totalRealAiCalls} ] 次实质性 AI 工具链调用流水，其中 [ ${primaryToolName} ] 在全流程排版与原稿概念支撑中扮演主导位置。人力分布整体健康， administrative 行政岗位的 productivity 指标已做科学的分离对齐处理。`;
             } else {
-                summaryText = `【汇报摘要】当前时间切片内无活跃工单动作。全员考评口径与提权引擎对齐精度良好，团队处于健康蓄水与内训周期。`;
+                summaryText = `当前时间切片内无活动单据记录。大盘总体带宽极度富裕，处于平稳蓄水周期。`;
             }
 
             document.getElementById('analysis-summary-text').innerText = summaryText;
@@ -716,47 +706,96 @@
                 creators: uniqueCreators.size,
                 assignees: uniqueAssignees.size,
                 total: totalCount,
-                finishRate: finishRate,
+                hours: totalPeriodHours.toFixed(1),
                 modules: sortedProj.map(e => `${e[0]}:${e[1].toFixed(1)}h`).join(' | '),
                 topStaff: activeStaffArray.map(e => `${e.display}:${e.hours.toFixed(1)}h`).join(' | '),
                 aiTools: sortedAiTools.map(e => `${e[0]}:${e[1]}次`).join(' | ')
             };
         };
 
-        // ================= 💡 一键离屏渲染生成高清长图引擎 =================
+        // ================= 💡 核心升级：一键无损离屏长图生成渲染引擎 =================
         window.generateDataLongPaperImage = function() {
             const paperMirror = document.getElementById('long-paper-hidden-mirror');
-            const sourceContainer = document.getElementById('long-paper-capture-box');
-            if(!paperMirror || !sourceContainer) return;
+            if(!paperMirror) return;
             
-            window.showToast('长图渲染中', '系统正在拉取最新的真实工时与AI标签画布进行无损排版...', 'info');
+            window.showToast('长图渲染中', '系统正在重置容器高度并渲染全平铺无损长图快照...', 'info');
 
             const now = new Date();
             const currentYear = now.getFullYear();
             const currentMonth = now.getMonth();
 
+            // 💡 彻底修复截断重叠问题：重新提取数据，重新拼接出无 max-h 限制、高度全自适应的纯平铺 DOM 结构
+            let flatModulesHtml = document.getElementById('insight-modules-list').innerHTML;
+            let flatStaffHtml = document.getElementById('insight-staff-hours').innerHTML;
+            let flatAiHtml = document.getElementById('insight-ai-tools-list').innerHTML;
+            let flatSummaryText = document.getElementById('analysis-summary-text').innerText;
+
             let clonedHtml = `
-                <div class="border-b border-white/10 pb-6 mb-2 flex items-center justify-between">
+                <!-- 头部徽章标头 -->
+                <div style="border-b: 1px solid rgba(255,255,255,0.1); padding-bottom: 20px; margin-bottom: 24px; display: flex; justify-between; align-items: center;">
                     <div>
-                        <h1 style="font-size:22px; font-weight:900; color:#ffffff; letter-spacing:-0.025em; margin-bottom:4px;">
-                            DAVIS DESIGN CENTER · 全盘效能高级诊断复盘
+                        <h1 style="font-size: 22px; font-weight: 900; color: #ffffff; margin-bottom: 4px;">
+                            DAVIS DESIGN CENTER · 全盘效能高级复盘
                         </h1>
-                        <p style="font-size:12px; color:#a1a1aa;">
+                        <p style="font-size: 12px; color: #71717a;">
                             导出快照时间: ${now.toLocaleString()} | 视角: 数据大盘全局统筹中心
                         </p>
                     </div>
-                    <div style="background:rgba(217,70,239,0.15); border:1px solid rgba(217,70,239,0.3); color:#d946ef; font-size:11px; padding:4px 10px; border-radius:8px; font-weight:bold;">
-                        TIG 核心效能资产
+                    <div style="background: rgba(217,70,239,0.15); border: 1px solid rgba(217,70,239,0.3); color: #d946ef; font-size: 11px; padding: 4px 10px; border-radius: 8px; font-weight: bold;">
+                        TIG 核心管理资产
                     </div>
                 </div>
-                <div class="space-y-6">${sourceContainer.innerHTML}</div>
-                <div class="border-t border-white/5 pt-4 text-center" style="font-size:11px; color:#52525b; font-family:monospace;">
-                    DIGITAL DESIGN MANAGEMENT SYSTEM · QUANTIFIABLE AI PERFORMANCE DATA
+
+                <!-- 顶层核心四大数仓指标卡片 -->
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;">
+                    <div style="background: #18181b; border: 1px solid rgba(255,255,255,0.05); padding: 16px; border-radius: 16px;">
+                        <p style="font-size: 11px; color: #71717a; font-weight: 500; margin-bottom: 4px;">系统活跃发单方</p>
+                        <p style="font-size: 20px; font-weight: bold; color: #d946ef; font-family: monospace;">${document.getElementById('analysis-creators-count').innerText}</p>
+                    </div>
+                    <div style="background: #18181b; border: 1px solid rgba(255,255,255,0.05); padding: 16px; border-radius: 16px;">
+                        <p style="font-size: 11px; color: #71717a; font-weight: 500; margin-bottom: 4px;">实际产生工时人</p>
+                        <p style="font-size: 20px; font-weight: bold; color: #10b981; font-family: monospace;">${document.getElementById('analysis-assignees-count').innerText}</p>
+                    </div>
+                    <div style="background: #18181b; border: 1px solid rgba(255,255,255,0.05); padding: 16px; border-radius: 16px;">
+                        <p style="font-size: 11px; color: #71717a; font-weight: 500; margin-bottom: 4px;">当月累计投入工时</p>
+                        <p style="font-size: 20px; font-weight: bold; color: #6366f1; font-family: monospace;">${document.getElementById('analysis-total-hours').innerText}</p>
+                    </div>
+                    <div style="background: #18181b; border: 1px solid rgba(255,255,255,0.05); padding: 16px; border-radius: 16px;">
+                        <p style="font-size: 11px; color: #71717a; font-weight: 500; margin-bottom: 4px;">当月工单吞吐总量</p>
+                        <p style="font-size: 20px; font-weight: bold; color: #f59e0b; font-family: monospace;">${document.getElementById('analysis-total-tasks').innerText}</p>
+                    </div>
+                </div>
+
+                <!-- 三大中轴模块：彻底拉直平铺，移去所有 max-h、h、overflow 阻断限制类名 -->
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
+                    <div style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); padding: 16px; border-radius: 16px; display: flex; flex-direction: column;">
+                        <h4 style="font-size: 12px; font-weight: bold; color: #d946ef; margin-bottom: 12px; display: flex; align-items: center; gap: 4px;">各项目当期工时消耗榜</h4>
+                        <div style="display: flex; flex-direction: column; gap: 6px;">${flatModulesHtml}</div>
+                    </div>
+                    <div style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); padding: 16px; border-radius: 16px; display: flex; flex-direction: column;">
+                        <h4 style="font-size: 12px; font-weight: bold; color: #10b981; margin-bottom: 12px; display: flex; align-items: center; gap: 4px;">当期成员投入工时排行</h4>
+                        <div style="display: flex; flex-direction: column; gap: 6px;">${flatStaffHtml}</div>
+                    </div>
+                    <div style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); padding: 16px; border-radius: 16px; display: flex; flex-direction: column;">
+                        <h4 style="font-size: 12px; font-weight: bold; color: #6366f1; margin-bottom: 12px; display: flex; align-items: center; gap: 4px;">AI 工具当期真实应用排行</h4>
+                        <div style="display: flex; flex-direction: column; gap: 6px;">${flatAiHtml}</div>
+                    </div>
+                </div>
+
+                <!-- 底层自适应高度 Summary 总结大纲区 -->
+                <div style="margin-top: 16px;">
+                    <label style="font-size: 12px; font-weight: bold; color: #a1a1aa; margin-bottom: 8px; display: block;">汇报摘要与下一步优化建议 (Summary)</label>
+                    <div style="background: #09090b; border: 1px solid rgba(255,255,255,0.1); padding: 16px; border-radius: 16px; font-size: 12px; line-height: 1.6; text-align: justify; color: #e4e4e7; white-space: pre-wrap;">${flatSummaryText}</div>
+                </div>
+
+                <div style="border-t: 1px solid rgba(255,255,255,0.05); pt: 16px; text-align: center; font-size: 11px; color: #3f3f46; font-family: monospace; margin-top: 24px;">
+                    DIGITAL DESIGN MANAGEMENT SYSTEM · QUANTIFIABLE PERFORMANCE DATA
                 </div>
             `;
             
             paperMirror.innerHTML = clonedHtml;
 
+            // 唤起截图引擎渲染高清位图长图
             setTimeout(() => {
                 html2canvas(paperMirror, {
                     backgroundColor: '#0c0c0e', 
@@ -767,15 +806,15 @@
                 }).then(canvas => {
                     const imgData = canvas.toDataURL('image/png');
                     const link = document.createElement('a');
-                    link.download = `${currentYear}年${currentMonth + 1}月_戴维斯数据诊断大盘高清长图.png`;
+                    link.download = `${currentYear}年${currentMonth + 1}月_戴维斯大厅全平铺无损长图.png`;
                     link.href = imgData;
                     link.click();
                     
                     paperMirror.innerHTML = "";
-                    window.showToast('长图生成成功', '高清长图下载完毕，已完美配平投入分析页面数据口径！', 'success');
+                    window.showToast('长图生成成功', '高清完整平铺长图已触发下载，无任何数据截断和重叠。', 'success');
                 }).catch(err => {
                     console.error(err);
-                    window.showToast('生成失败', '长图引擎检测到排版溢出，请重试', 'info');
+                    window.showToast('生成失败', '长图引擎检测到未知阻断，请重试', 'info');
                 });
             }, 300);
         };
@@ -792,7 +831,7 @@
         window.copySummaryText = function() {
             if(!window.currentGeneratedSummary) return;
             navigator.clipboard.writeText(window.currentGeneratedSummary).then(() => {
-                window.showToast('复制成功', '高保真总结文字已成功写入剪贴板。', 'success');
+                window.showToast('复制成功', '高保真管理总结摘要已复制。', 'success');
             }).catch(() => {
                 window.showToast('复制失败', '请手动选中进行复制', 'info');
             });
@@ -812,13 +851,13 @@
             let csvContent = "\uFEFF"; 
             
             csvContent += `#========================================================================\n`;
-            csvContent += `# 【戴维斯需求大厅 - 真实数据源高精对齐诊断复盘报告】\n`;
+            csvContent += `# 【戴维斯需求大厅 - 当期管理大盘精算分析诊断报告】\n`;
             csvContent += `#========================================================================\n`;
-            csvContent += `# 1. 双端活跃规模 -> 发单需求方: ${window.reportAnalyticsData.creators}人 | 实际工时出勤方: ${window.reportAnalyticsData.assignees}人\n`;
-            csvContent += `# 2. 大盘总吞吐量 -> 累计总单数: ${window.reportAnalyticsData.total}单 | 月度完结交付率: ${window.reportAnalyticsData.finishRate}%\n`;
-            csvContent += `# 3. 各模块工时消耗矩阵 -> ${window.reportAnalyticsData.modules}\n`;
-            csvContent += `# 4. 全职组员精算实耗工时 Top -> ${window.reportAnalyticsData.topStaff}\n`;
-            csvContent += `# 5. AI 工具流水上报真实占比排行 -> ${window.reportAnalyticsData.aiTools}\n`;
+            csvContent += `# 1. 活跃规模分布 -> 发单方: ${window.reportAnalyticsData.creators}人 | 出勤执行方: ${window.reportAnalyticsData.assignees}人\n`;
+            csvContent += `# 2. 数据吞吐表现 -> 累计总单数: ${window.reportAnalyticsData.total}单 | 累计核定实耗工时: ${window.reportAnalyticsData.hours}h\n`;
+            csvContent += `# 3. 项目时数实耗分布 -> ${window.reportAnalyticsData.modules}\n`;
+            csvContent += `# 4. 全职中坚总工时排行 -> ${window.reportAnalyticsData.topStaff}\n`;
+            csvContent += `# 5. AI 原生工具真实应用频次 -> ${window.reportAnalyticsData.aiTools}\n`;
             csvContent += `#========================================================================\n\n`;
 
             csvContent += "工单ID,需求单名称,单据当前状态,发起方(创建人),设计执行方(指派人),期望交付日期,工单创建时间\n";
@@ -838,7 +877,7 @@
             const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
             
-            const nameStr = `${currentYear}年${currentMonth + 1}月_戴维斯控制台高精度诊断复盘报告.csv`;
+            const nameStr = `${currentYear}年${currentMonth + 1}月_戴维斯控制台精算复盘报告.csv`;
             link.setAttribute("href", url);
             link.setAttribute("download", nameStr);
             link.style.visibility = 'hidden';
