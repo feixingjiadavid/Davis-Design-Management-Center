@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>全局统筹中心 - 戴维斯设计需求管理中心</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
         body { background-color: #09090b; color: #e4e4e7; font-family: 'Inter', system-ui, sans-serif; }
@@ -16,7 +17,7 @@
         .btn-press { transition: all 0.15s ease; cursor: pointer; }
         .btn-press:active { transform: scale(0.95); }
         .dropdown-enter { animation: dropIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; transform-origin: top right; }
-        @keyframes dropIn { 0% { opacity: 0; transform: scale(0.95) translateY(-10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes dropIn { 0% { opacity: 0; transform: scaleY(0.95) translateY(-10px); } 100% { opacity: 1; transform: scaleY(1) translateY(0); } }
         .toast-slide-in { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     </style>
@@ -90,6 +91,11 @@
             </div>
             
             <div class="flex items-center gap-5 relative">
+                <button onclick="window.openExportAnalysisModal()" class="px-5 py-2 bg-gradient-to-r from-fuchsia-600 via-purple-600 to-indigo-600 hover:from-fuchsia-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-[0_4px_20px_rgba(217,70,239,0.25)] hover:shadow-[0_4px_25px_rgba(217,70,239,0.4)] transition-all btn-press text-[13px] flex items-center gap-2 border border-white/10">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
+                    全局统筹数据分析导出
+                </button>
+
                 <div class="relative z-[120]" id="notif-wrapper">
                     <button id="notifBtn" onclick="window.toggleNotificationPanel(event)" class="w-10 h-10 rounded-xl bg-[#141417] border border-white/5 flex items-center justify-center text-zinc-400 hover:text-white transition-colors btn-press relative">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
@@ -217,6 +223,107 @@
         </div>
     </div>
 
+    <div id="export-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4 overflow-y-auto" onclick="if(event.target === this) closeExportAnalysisModal()">
+        <div id="export-modal" class="w-full max-w-4xl bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 relative my-auto">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-fuchsia-500 via-purple-500 to-indigo-500 rounded-t-3xl"></div>
+            
+            <div class="p-6 border-b border-white/5 flex justify-between items-center">
+                <div>
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d946ef" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+                        TIG 全局生产就绪度与流转审计报告
+                    </h2>
+                    <p class="text-[11px] text-zinc-500 mt-0.5">多维实时提取：流转节点积压配比、全员执行负荷矩阵、精细化产能统筹数据</p>
+                </div>
+                <button onclick="closeExportAnalysisModal()" class="text-zinc-500 hover:text-white bg-zinc-800/80 hover:bg-zinc-700 rounded-full p-1.5 transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            </div>
+
+            <div class="p-6 overflow-y-auto max-h-[68vh] space-y-6 custom-scrollbar" id="export-capture-zone">
+                <div class="bg-[#09090b] border border-white/5 rounded-2xl p-6 relative space-y-6">
+                    
+                    <div class="flex justify-between items-start border-b border-white/5 pb-4">
+                        <div>
+                            <span class="text-[10px] font-bold tracking-widest text-fuchsia-400 bg-fuchsia-500/10 border border-fuchsia-500/20 px-2 py-0.5 rounded">TIG ORCHESTRATION Dispatches</span>
+                            <h3 class="text-[20px] font-black text-white mt-1.5">生产就绪度与阻塞盘点简报</h3>
+                            <p class="text-[11px] text-zinc-500 mt-1 flex items-center gap-2">
+                                <span class="text-zinc-400 font-bold">全盘即时快照</span> | 
+                                <span id="report-period-text">2026年05月</span>
+                            </p>
+                        </div>
+                        <div class="text-right font-mono text-[11px] text-zinc-600">
+                            <p>GLOBAL STATUS</p>
+                            <p id="report-gen-time">2026-05-29</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <h4 class="text-[13px] font-bold text-zinc-400 flex items-center gap-2">
+                            <span class="w-1 h-3 bg-fuchsia-500 rounded-full"></span>
+                            当前大盘各流转节点工单堆积占比明细
+                        </h4>
+                        <div class="bg-white/[0.01] border border-white/5 rounded-xl p-4">
+                            <div id="rep-status-percentage-bar" class="w-full h-3 bg-zinc-900 rounded-full flex overflow-hidden mb-4">
+                                </div>
+                            <div id="rep-status-legend" class="grid grid-cols-3 gap-3 text-xs font-mono text-zinc-400">
+                                </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <h4 class="text-[13px] font-bold text-zinc-400 flex items-center gap-2">
+                            <span class="w-1 h-3 bg-indigo-500 rounded-full"></span>
+                            实时设计资源负荷与任务吞吐排查明细
+                        </h4>
+                        <div class="border border-white/5 rounded-xl overflow-hidden bg-white/[0.005]">
+                            <table class="w-full text-left text-xs font-mono">
+                                <thead class="bg-white/5 text-zinc-400 font-sans">
+                                    <tr>
+                                        <th class="p-3">执行设计师</th>
+                                        <th class="p-3 text-right">当前承接独立工单数</th>
+                                        <th class="p-3 text-right">锁定负荷工时 (估)</th>
+                                        <th class="p-3 text-center">实时就绪度状态</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="rep-resource-pool-matrix" class="divide-y divide-white/5 text-zinc-300">
+                                    </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="bg-fuchsia-500/[0.02] border border-fuchsia-500/10 rounded-xl p-4 space-y-2">
+                        <h4 class="text-[12px] font-bold text-fuchsia-400 flex items-center gap-1.5">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>
+                            全局统筹统领调度洞察
+                        </h4>
+                        <p class="text-[11px] text-zinc-400 leading-relaxed font-sans" id="rep-intelligence-insight">
+                            正在透视全量流水进行交叉研判...
+                        </p>
+                    </div>
+                    
+                    <div class="text-center text-[10px] text-zinc-600 border-t border-white/5 pt-4 font-mono">
+                        POWERED BY DAVIS CONTROL CENTER • SHENZHEN METRIC HUB
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-6 border-t border-white/5 bg-[#16161d] rounded-b-3xl flex justify-between items-center gap-4">
+                <button onclick="window.copyMarkdownSummary()" class="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold rounded-xl text-[12px] btn-press transition-colors flex items-center gap-2 border border-white/5">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                    复制纯文本 Markdown 统筹简报
+                </button>
+                <div class="flex items-center gap-3">
+                    <button onclick="window.exportToCSV()" class="px-5 py-2.5 bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30 font-bold rounded-xl text-[12px] btn-press transition-colors flex items-center gap-2 border border-indigo-500/20">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                        导出结构化统筹数据表格
+                    </button>
+                    <button onclick="window.exportToPNGImage()" class="px-6 py-2.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-bold rounded-xl text-[12px] btn-press shadow-lg shadow-fuchsia-600/20 transition-all flex items-center gap-2">
+                        生成高清图片卡片报告
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="action-toast" class="fixed top-8 right-8 z-[100000] hidden toast-slide-in">
         <div class="bg-[#1a1a1f] border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-3 w-72">
             <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400">
@@ -237,9 +344,9 @@
     <script>
         const PAGE_TYPE = 'admin'; 
 
-        // 全局状态管理
         window.ongoingTasksData = [];
         window.completedTasksData = [];
+        window.designersMapGlobalRef = {}; // 为分析导出模态框特设的临时全局快照指针
         window.currentTab = 'ongoing';
         window.currentPage = 1;
         const ITEMS_PER_PAGE = 8;
@@ -251,6 +358,17 @@
 
         window.showToast = function(title, desc, type = 'success') {
             const toast = document.getElementById('action-toast');
+            const iconEl = document.getElementById('toast-icon');
+            if (type === 'error') {
+                iconEl.className = "w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-rose-500/20 text-rose-400";
+                iconEl.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+            } else if (type === 'info') {
+                iconEl.className = "w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-indigo-500/20 text-indigo-400";
+                iconEl.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+            } else {
+                iconEl.className = "w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400";
+                iconEl.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+            }
             document.getElementById('toast-title').innerText = title; document.getElementById('toast-desc').innerText = desc;
             toast.classList.remove('hidden'); setTimeout(() => { toast.classList.add('hidden'); }, 3000);
         }
@@ -258,9 +376,7 @@
         window.toggleIdentityMenu = function(event) {
             if(event) event.stopPropagation();
             const identityMenu = document.getElementById('identityMenu');
-            if(identityMenu) {
-                identityMenu.classList.toggle('hidden');
-            }
+            if(identityMenu) { identityMenu.classList.toggle('hidden'); }
         }
 
         function initRBAC() {
@@ -269,7 +385,6 @@
             const user = JSON.parse(userStr);
             const enName = user.enName ? user.enName.toLowerCase().trim() : '';
 
-            // 终极兜底提权
             if (['davidxxu', 'davidxu', 'ponyxu'].includes(enName)) {
                 user.perms = ['req', 'design', 'admin'];
             } else if (enName === 'judyzzhang') {
@@ -287,7 +402,6 @@
             const avatarTxt = (user.displayName || user.name || user.cnName || user.enName || 'U').substring(0, 1).toUpperCase();
             const avatarEl = document.getElementById('sidebar-avatar');
             if(avatarEl) { avatarEl.innerText = avatarTxt; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-fuchsia-600'} border border-white/20 flex items-center justify-center text-white font-bold text-sm shadow-lg shrink-0`; }
-            
             if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.name || user.cnName || user.enName;
             if(document.getElementById('sidebar-role')) document.getElementById('sidebar-role').innerHTML = `<span class="text-fuchsia-400 font-bold">当前视角: 管理方</span>`;
             
@@ -307,7 +421,7 @@
             }
 
             const triggerBtn = document.getElementById('identityBtn');
-            if (triggerBtn) { triggerBtn.innerHTML = `<span class="text-fuchsia-500 font-black flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500 animate-pulse shadow-[0_0_8px_#d946ef]"></span></span> 身份: 管理方 (当前) <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 ml-1"><polyline points="6 9 12 15 18 9"></polyline></svg>`; }
+            if (triggerBtn) { triggerBtn.innerHTML = `<span class="text-fuchsia-500 font-black flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500 animate-pulse shadow-[0_0_8px_#d946ef]"></span>身份: 管理方 (当前) <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 ml-1 inline"><polyline points="6 9 12 15 18 9"></polyline></svg></span>`; }
 
             return user;
         }
@@ -394,6 +508,9 @@
                         }
                     }
                 });
+
+                // 锁死全局快照引用
+                window.designersMapGlobalRef = designersMap;
 
                 if(!isSilent) {
                     document.getElementById('stat-ongoing').innerText = window.ongoingTasksData.length;
@@ -541,7 +658,7 @@
                         case 'pending_approval': sColor = 'amber'; sText = '框架审批中'; btnHtml = `<button onclick="event.stopPropagation(); window.location.href='task-detail-requester.html?id=${t.id}'" class="text-white bg-amber-600 hover:bg-amber-500 px-4 py-1.5 rounded-lg text-[11px] font-bold transition-colors shadow-lg btn-press">⚡ 去审批</button>`; break;
                         case 'reviewing': sColor = 'emerald'; sText = '待甲方验收'; btnHtml = `<button class="text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded text-[11px] font-bold">甲方验收中</button>`; break;
                         case 'rejected': sColor = 'rose'; sText = '打回修改中'; btnHtml = `<button class="text-rose-400 bg-rose-500/10 px-3 py-1 rounded text-[11px] font-bold">督办催稿</button>`; break;
-                        default: sColor = 'zinc'; sText = '未知状态'; btnHtml = '';
+                        default: sColor = 'zinc'; sText = '流转中'; btnHtml = '';
                     }
                 }
 
@@ -579,6 +696,215 @@
             pageControls.innerHTML = pHtml;
         }
 
+        // ================= 💡 新增：全盘就绪度与阻塞审计交互引擎 =================
+        window.openExportAnalysisModal = function() {
+            const overlay = document.getElementById('export-modal-overlay');
+            const modal = document.getElementById('export-modal');
+            
+            // 拼接并校准全大盘统计
+            const totalOngoing = window.ongoingTasksData.length;
+            const totalCompleted = window.completedTasksData.length;
+            const absoluteTotal = totalOngoing + totalCompleted;
+
+            // 各状态底层穿透抓取计数
+            let statPendingAccept = 0; // 待指派/待接单
+            let statProcessing = 0;    // 制作中
+            let statApproval = 0;     // 待总监把关审批
+            let statReviewing = 0;    // 甲方验收中
+            let statRejected = 0;     // 打回重修
+            
+            window.ongoingTasksData.forEach(t => {
+                if(['pending', 'pending_accept'].includes(t.status)) statPendingAccept++;
+                else if(t.status === 'processing') statProcessing++;
+                else if(t.status === 'pending_approval') statApproval++;
+                else if(t.status === 'reviewing') statReviewing++;
+                else if(t.status === 'rejected') statRejected++;
+            });
+
+            // 1. 注入绝对节点百分比状态条 (多彩矩阵)
+            const statusBar = document.getElementById('rep-status-percentage-bar');
+            const statusLegend = document.getElementById('rep-status-legend');
+            
+            if (absoluteTotal === 0) {
+                statusBar.innerHTML = `<div class="w-full h-full bg-zinc-900 text-zinc-600 italic flex items-center justify-center text-[10px]">系统大厅内暂无工单资产记录</div>`;
+                statusLegend.innerHTML = `<div class="col-span-3 text-zinc-500 italic">无可用生命周期数据</div>`;
+            } else {
+                const pctPending = ((statPendingAccept / absoluteTotal) * 100).toFixed(1);
+                const pctProc = ((statProcessing / absoluteTotal) * 100).toFixed(1);
+                const pctAppr = ((statApproval / absoluteTotal) * 100).toFixed(1);
+                const pctReview = ((statReviewing / absoluteTotal) * 100).toFixed(1);
+                const pctReject = ((statRejected / absoluteTotal) * 100).toFixed(1);
+                const pctComp = ((totalCompleted / absoluteTotal) * 100).toFixed(1);
+
+                statusBar.innerHTML = `
+                    <div class="bg-sky-500 h-full" style="width: ${pctPending}%" title="待指派"></div>
+                    <div class="bg-orange-500 h-full" style="width: ${pctProc}%" title="制作中"></div>
+                    <div class="bg-amber-500 h-full" style="width: ${pctAppr}%" title="待把关"></div>
+                    <div class="bg-emerald-500 h-full" style="width: ${pctReview}%" title="验收中"></div>
+                    <div class="bg-rose-500 h-full" style="width: ${pctReject}%" title="被打回"></div>
+                    <div class="bg-zinc-700 h-full" style="width: ${pctComp}%" title="已结案"></div>
+                `;
+
+                statusLegend.innerHTML = `
+                    <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-sky-500"></span>待接单: <b>${statPendingAccept}单</b> <span class="text-zinc-600">(${pctPending}%)</span></div>
+                    <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-orange-500"></span>制作中: <b>${statProcessing}单</b> <span class="text-zinc-600">(${pctProc}%)</span></div>
+                    <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span>待把关: <b>${statApproval}单</b> <span class="text-zinc-600">(${pctAppr}%)</span></div>
+                    <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>验收中: <b>${statReviewing}单</b> <span class="text-zinc-600">(${pctReview}%)</span></div>
+                    <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-500"></span>被打回: <b>${statRejected}单</b> <span class="text-zinc-600">(${pctReject}%)</span></div>
+                    <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-zinc-600"></span>已结案: <b>${totalCompleted}单</b> <span class="text-zinc-600">(${pctComp}%)</span></div>
+                `;
+            }
+
+            // 2. 注入动态实时资源负荷与任务吞吐矩阵表格
+            const matrixBody = document.getElementById('rep-resource-pool-matrix');
+            const targetPool = window.designersMapGlobalRef || {};
+            const sortedDesigners = Object.values(targetPool).sort((a,b) => b.count - a.count);
+            
+            if (sortedDesigners.length === 0) {
+                matrixBody.innerHTML = `<tr><td colspan="4" class="p-3 text-center text-zinc-500 italic">实时负荷池无任何常驻设计师登记</td></tr>`;
+            } else {
+                let html = '';
+                sortedDesigners.forEach(d => {
+                    const isEmpty = d.count === 0;
+                    let loadTag = '<span class="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded">💤 状态就绪/空闲</span>';
+                    if (d.count > 2) {
+                        loadTag = '<span class="text-[10px] text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded font-bold">🔥 重度压制/高负荷</span>';
+                    } else if (d.count > 0) {
+                        loadTag = '<span class="text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded">⚡ 产能释出/健康</span>';
+                    }
+                    html += `
+                        <tr class="hover:bg-white/[0.005] transition-colors">
+                            <td class="p-2.5 text-xs font-sans font-bold text-white">${d.display} <span class="text-[10px] text-zinc-600 font-mono">(${d.en})</span></td>
+                            <td class="p-2.5 text-right text-xs font-bold text-zinc-200">${d.count} 单</td>
+                            <td class="p-2.5 text-right text-xs font-mono text-zinc-400">${d.hours.toFixed(1)} h</td>
+                            <td class="p-2.5 text-center">${loadTag}</td>
+                        </tr>
+                    `;
+                });
+                matrixBody.innerHTML = html;
+            }
+
+            // 3. 全局高级统筹诊断 (交叉碰撞大盘痛点)
+            const insightEl = document.getElementById('rep-intelligence-insight');
+            if (absoluteTotal === 0) {
+                insightEl.innerText = "控制大厅尚未捕获流转单据，请在需求大厅建立单据后再启动统筹简报。";
+            } else {
+                let topBusyDesigner = sortedDesigners[0] ? sortedDesigners[0].display : '暂无';
+                let topBusyCount = sortedDesigners[0] ? sortedDesigners[0].count : 0;
+                let idleCount = sortedDesigners.filter(x => x.count === 0).length;
+
+                let delayWarning = '';
+                if (statApproval > 0) delayWarning = `当前控制台监测到有 <span class="text-amber-400 font-bold">${statApproval} 项中期方案</span> 挂滞在总监把关节点，存在延期踩线风险，请管理层立即进入处理。`;
+                else delayWarning = `本期审批流运转极其顺畅，未发现总监层级阻塞点。`;
+
+                insightEl.innerHTML = `当前全局控制大厅流转及完结单据共计 <span class="text-white font-black">${absoluteTotal} 项</span>。设计资源池全局宏观调度研判可见，当前最忙的执行终端为 <span class="text-white font-bold">【${topBusyDesigner}】</span>，单人同时横跨拉锯推进 <span class="text-rose-400 font-bold">${topBusyCount} 单</span> 任务；与之相对的是，当前资源池内仍有 <span class="text-zinc-500 font-bold">${idleCount} 名全职设计师/行政管理成员</span> 处于无指派挂空状态。${delayWarning} 建议根据现行负荷矩阵进行去中心化强制转单调度，释放高负荷人员压强。`;
+            }
+
+            // 平滑展现磨泥玻璃弹窗
+            overlay.classList.remove('hidden');
+            setTimeout(() => { overlay.classList.remove('opacity-0'); modal.classList.remove('scale-95'); }, 10);
+        }
+
+        window.closeExportAnalysisModal = function() {
+            const overlay = document.getElementById('export-modal-overlay');
+            const modal = document.getElementById('export-modal');
+            overlay.classList.add('opacity-0'); modal.classList.add('scale-95');
+            setTimeout(() => { overlay.classList.add('hidden'); }, 300);
+        }
+
+        // 按钮功能：一键快速导出带有去重负荷、各节点计数占比的 Markdown 周报简报
+        window.copyMarkdownSummary = function() {
+            const totalOngoing = window.ongoingTasksData.length;
+            const totalCompleted = window.completedTasksData.length;
+            const absoluteTotal = totalOngoing + totalCompleted;
+
+            let statPendingAccept = 0; let statProcessing = 0; let statApproval = 0; let statReviewing = 0; let statRejected = 0;
+            window.ongoingTasksData.forEach(t => {
+                if(['pending', 'pending_accept'].includes(t.status)) statPendingAccept++;
+                else if(t.status === 'processing') statProcessing++;
+                else if(t.status === 'pending_approval') statApproval++;
+                else if(t.status === 'reviewing') statReviewing++;
+                else if(t.status === 'rejected') statRejected++;
+            });
+
+            const sortedDesigners = Object.values(window.designersMapGlobalRef || {}).sort((a,b) => b.count - a.count);
+
+            let md = `### 📊 TIG 全局统筹生产就绪度与负荷排查周报简报\n`;
+            md += `* **生成即时快照**: ${new Date().toISOString().split('T')[0]} ${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}\n`;
+            md += `* **大盘总工单单量**: \`${absoluteTotal}单\` (其中流转中: \`${totalOngoing}单\` | 已结案: \`${totalCompleted}单\`)\n\n`;
+            
+            md += `#### 1️⃣ 生命周期各阶段积压及占比明细:\n`;
+            md += `1. 待响应指派: ${statPendingAccept} 单 | 占比: ${((statPendingAccept/absoluteTotal)*100).toFixed(1)}%\n`;
+            md += `2. 正在制作中: ${statProcessing} 单 | 占比: ${((statProcessing/absoluteTotal)*100).toFixed(1)}%\n`;
+            md += `3. 待总监审批: ${statApproval} 单 | 占比: ${((statApproval/absoluteTotal)*100).toFixed(1)}%\n`;
+            md += `4. 甲方验收中: ${statReviewing} 单 | 占比: ${((statReviewing/absoluteTotal)*100).toFixed(1)}%\n`;
+            md += `5.被打回修改: ${statRejected} 单 | 占比: ${((statRejected/absoluteTotal)*100).toFixed(1)}%\n`;
+            
+            md += `\n#### 2️⃣ 执行层核心负荷分布排查 (承接独立工单数):\n`;
+            sortedDesigners.forEach((d, i) => {
+                md += `${i+1}. 【${d.display}】当前拉锯承接: ${d.count} 单 | 预估占用工时: ${d.hours.toFixed(1)}h (${d.count > 2 ? '⚠️ 高负荷' : '✅ 状态健康'})\n`;
+            });
+
+            md += `\n#### 3️⃣ 统筹调度官智能建议:\n${document.getElementById('rep-intelligence-insight').innerText.replace(/<[^>]*>/g, '')}\n\n`;
+            md += `*报告一键由戴维斯全局统筹中心高级视图打包生成*`;
+
+            navigator.clipboard.writeText(md).then(() => {
+                window.showToast("复制成功", "统筹周报 Markdown 文本已复制", "success");
+            });
+        }
+
+        // ================= 💡 核心功能：一键纯前端将大盘生命周期分布、所有人负荷单量打成电子表格 CSV 导出 =================
+        window.exportToCSV = function() {
+            const totalOngoing = window.ongoingTasksData.length;
+            const totalCompleted = window.completedTasksData.length;
+            const absoluteTotal = totalOngoing + totalCompleted;
+
+            let statPendingAccept = 0; let statProcessing = 0; let statApproval = 0; let statReviewing = 0; let statRejected = 0;
+            window.ongoingTasksData.forEach(t => {
+                if(['pending', 'pending_accept'].includes(t.status)) statPendingAccept++;
+                else if(t.status === 'processing') statProcessing++;
+                else if(t.status === 'pending_approval') statApproval++;
+                else if(t.status === 'reviewing') statReviewing++;
+                else if(t.status === 'rejected') statRejected++;
+            });
+
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
+            csvContent += "数据层级分类,目标审计分类项,当前累计单量/锁定工时,大盘单量占比百分比\n";
+            csvContent += `全局工单概览,大厅已录入工单绝对总数,${absoluteTotal} 单,-\n`;
+            csvContent += `生命周期拓扑,待响应指派,${statPendingAccept} 单,占总单量 ${((statPendingAccept/absoluteTotal)*100).toFixed(1)}%\n`;
+            csvContent += `生命周期拓扑,正在制作中,${statProcessing} 单,占总单量 ${((statProcessing/absoluteTotal)*100).toFixed(1)}%\n`;
+            csvContent += `生命周期拓扑,待总监层把关审批,${statApproval} 单,占总单量 ${((statApproval/absoluteTotal)*100).toFixed(1)}%\n`;
+            csvContent += `生命周期拓扑,甲方验收中,${statReviewing} 单,占总单量 ${((statReviewing/absoluteTotal)*100).toFixed(1)}%\n`;
+            csvContent += `生命周期拓扑,被打回修改中,${statRejected} 单,占总单量 ${((statRejected/absoluteTotal)*100).toFixed(1)}%\n`;
+            csvContent += `生命周期拓扑,已圆满结案完结,${totalCompleted} 单,占总单量 ${((totalCompleted/absoluteTotal)*100).toFixed(1)}%\n`;
+
+            // 设计师承接与负荷比率导入
+            Object.values(window.designersMapGlobalRef || {}).sort((a,b) => b.count - a.count).forEach(d => {
+                csvContent += `执行层负荷审计,${d.display}(${d.en}),承接独立工单: ${d.count} 单,锁定工时: ${d.hours.toFixed(1)} 小时\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `TIG_全局生产就绪度与人员负荷审计表格_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.showToast("表格导出成功", "全局统筹明细结构化数据表已成功下载", "success");
+        }
+
+        window.exportToPNGImage = function() {
+            const captureZone = document.getElementById('export-capture-zone');
+            window.showToast("图片渲染中", "正在将全盘统筹卡片抓取转译为 PNG...", "info");
+            html2canvas(captureZone, { backgroundColor: '#121217', scale: 2, logging: false, useCORS: true }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const link = document.createElement('a');
+                link.download = `TIG_全局就绪统筹快照_${new Date().toISOString().split('T')[0]}.png`;
+                link.href = imgData; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+                window.showToast("PNG 下载成功", "高保真可视化简报快照已下载", "success");
+            });
+        }
+
         // ================= 🔔 全局消息通知引擎 (修复强化版) =================
         let lastNotifHash = '';
 
@@ -590,7 +916,6 @@
             const myName = (currentUser.displayName || currentUser.cnName || currentUser.enName || '').toLowerCase();
             const enName = (currentUser.enName || '').toLowerCase();
 
-            // 💡 修复：确保提权状态同步到通知引擎，强制给领导开天眼
             let isAdmin = (currentUser.perms || []).includes('admin');
             if (['davidxxu', 'davidxu', 'ponyxu', 'judyzzhang'].includes(enName)) isAdmin = true;
             const rolePrefix = isAdmin ? 'admin' : 'req';
@@ -609,7 +934,6 @@
                     const assigneeStr = (task.assignee || '').toLowerCase();
                     const isMyTask = creatorStr.includes(myName) || myName.includes(creatorStr) || assigneeStr.includes(myName) || myName.includes(assigneeStr);
                     
-                    // 管理员看全部预警，非管理员只看自己的
                     if (!isAdmin && !isMyTask) return;
 
                     let hist = [];
@@ -617,12 +941,9 @@
 
                     hist.forEach((h, index) => {
                         const op = (h.operator || '').toLowerCase();
-                        // 过滤掉自己产生的操作，不给自己发通知
                         if (op.includes(myName) && myName !== '') return;
 
                         let title = ''; let content = ''; let icon = 'bg-fuchsia-500';
-                        
-                        // 💡 强化：使用更宽泛的正则匹配动作，防止前后端拼写不一致
                         const act = (h.action || '').toLowerCase();
                         
                         if (act.includes('submit_framework')) { 
@@ -692,7 +1013,7 @@
                         bellDot.classList.remove('hidden', 'bg-zinc-600', 'border-transparent');
                         bellDot.classList.add('bg-rose-500', 'animate-pulse', 'border-[#141417]');
                     } else {
-                        bellDot.classList.add('hidden');
+                        bellDot.add('hidden');
                     }
                 }
 
@@ -761,9 +1082,7 @@
             if (['davidxxu', 'davidxu', 'ponyxu', 'judyzzhang'].includes(enName)) isAdmin = true;
             const rolePrefix = isAdmin ? 'admin' : 'req';
 
-            const btn = event.currentTarget;
-            const originalText = btn.innerHTML;
-            btn.innerHTML = "处理中...";
+            const btn = event.currentTarget; const originalText = btn.innerHTML; btn.innerHTML = "处理中...";
 
             let readReceipts = JSON.parse(localStorage.getItem(`notif_read_${rolePrefix}_` + myName) || '[]');
             readReceipts = [...new Set([...readReceipts, ...window.currentMyUnreadIds])];
@@ -771,28 +1090,17 @@
             
             window.syncNotificationsFromCloud(true);
             if(window.showToast) window.showToast('全部已读', '消息红点已清除。', 'success');
-            
             btn.innerHTML = originalText;
         };
 
         document.addEventListener('DOMContentLoaded', () => {
-            // 💡 修复：删除了这里的 addEventListener 导致与 onclick 的冲突！
-            
-            // 监听全局点击：包含收起消息通知和身份菜单
             document.addEventListener('click', (e) => { 
-                const notifMenu = document.getElementById('notifMenu');
-                const notifBtn = document.getElementById('notifBtn');
-                if(notifMenu && !notifMenu.contains(e.target) && notifBtn && !notifBtn.contains(e.target)) {
-                    notifMenu.classList.add('hidden'); 
-                }
-                const identityMenu = document.getElementById('identityMenu');
-                const identityBtn = document.getElementById('identityBtn');
-                if(identityMenu && !identityMenu.contains(e.target) && identityBtn && !identityBtn.contains(e.target)) {
-                    identityMenu.classList.add('hidden');
-                }
+                const notifMenu = document.getElementById('notifMenu'); const notifBtn = document.getElementById('notifBtn');
+                if(notifMenu && !notifMenu.contains(e.target) && notifBtn && !notifBtn.contains(e.target)) { notifMenu.classList.add('hidden'); }
+                const identityMenu = document.getElementById('identityMenu'); const identityBtn = document.getElementById('identityBtn');
+                if(identityMenu && !identityMenu.contains(e.target) && identityBtn && !identityBtn.contains(e.target)) { identityMenu.classList.add('hidden'); }
             });
 
-            // 启动轮询
             setTimeout(() => { window.syncNotificationsFromCloud(true); }, 1500);
             setInterval(() => { window.syncNotificationsFromCloud(true); }, 8000);
         });
