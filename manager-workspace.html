@@ -168,6 +168,20 @@
                         <span class="flex items-center gap-1">全年: <b id="stat-completed-year" class="text-zinc-300 font-mono">0</b></span>
                     </div>
                 </div>
+
+                <div onclick="window.exportMonthlyData()" class="bg-gradient-to-br from-[#1e1424] to-[#13131a] border border-fuchsia-500/20 hover:border-fuchsia-500/40 rounded-3xl p-5 flex items-center justify-between min-w-[240px] shadow-xl relative overflow-hidden group btn-press cursor-pointer">
+                    <div class="absolute inset-0 bg-fuchsia-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-fuchsia-500/10 flex items-center justify-center text-fuchsia-400 border border-fuchsia-500/20 group-hover:bg-fuchsia-500/20 group-hover:text-fuchsia-300 transition-all shadow-[0_0_15px_rgba(217,70,239,0.1)]">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        </div>
+                        <div>
+                            <p class="text-[14px] text-white font-bold tracking-wide">导出当月数据</p>
+                            <p class="text-[11px] text-zinc-500 mt-0.5">一键沉淀全盘效能明细</p>
+                        </div>
+                    </div>
+                    <svg class="text-zinc-600 group-hover:text-fuchsia-400 transition-colors transform group-hover:translate-x-1 duration-200" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                </div>
             </div>
 
             <div class="flex-1 flex gap-10 min-h-0">
@@ -251,8 +265,21 @@
 
         window.showToast = function(title, desc, type = 'success') {
             const toast = document.getElementById('action-toast');
-            document.getElementById('toast-title').innerText = title; document.getElementById('toast-desc').innerText = desc;
-            toast.classList.remove('hidden'); setTimeout(() => { toast.classList.add('hidden'); }, 3000);
+            const iconContainer = document.getElementById('toast-icon');
+            
+            // 动态调节Toast主题色
+            if (type === 'info') {
+                iconContainer.className = "w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-fuchsia-500/20 text-fuchsia-400";
+                iconContainer.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+            } else {
+                iconContainer.className = "w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400";
+                iconContainer.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+            }
+            
+            document.getElementById('toast-title').innerText = title; 
+            document.getElementById('toast-desc').innerText = desc;
+            toast.classList.remove('hidden'); 
+            setTimeout(() => { toast.classList.add('hidden'); }, 3000);
         }
 
         window.toggleIdentityMenu = function(event) {
@@ -324,6 +351,7 @@
                 const { data: tasks, error } = await window.supabase.from(window.DB_TABLE).select('id, title, status, creator, assignee, due_date, history_json, created_at').order('created_at', { ascending: false });
                 if (error) throw error;
 
+                window.allRawTasksData = tasks || []; // 留底全量数据供导出使用
                 window.ongoingTasksData = (tasks || []).filter(t => !['completed', 'archived', 'terminated'].includes(t.status));
                 window.completedTasksData = (tasks || []).filter(t => ['completed', 'archived', 'terminated'].includes(t.status));
                 const pendingTasks = window.ongoingTasksData.filter(t => ['pending', 'pending_accept', 'pending_approval', 'reviewing'].includes(t.status));
@@ -476,6 +504,87 @@
             } catch (err) { console.error(err); } finally { if(syncDot) setTimeout(() => syncDot.classList.add('hidden'), 500); }
         }
 
+        // ================= 💡 新增：核心当月数据异步导出引擎 =================
+        window.exportMonthlyData = async function() {
+            const syncDot = document.getElementById('sync-indicator');
+            if(syncDot) syncDot.classList.remove('hidden');
+            
+            try {
+                // 确保数据最新
+                if(!window.allRawTasksData || window.allRawTasksData.length === 0) {
+                    const { data: fetchTasks } = await window.supabase.from(window.DB_TABLE).select('id, title, status, creator, assignee, due_date, history_json, created_at');
+                    window.allRawTasksData = fetchTasks || [];
+                }
+
+                const now = new Date();
+                const currentYear = now.getFullYear();
+                const currentMonth = now.getMonth(); // 0-11
+
+                // 筛选范围：完结日期在当月，或者创建日期在当月
+                const monthlyTasks = window.allRawTasksData.filter(task => {
+                    let targetDate = new Date(task.created_at);
+                    
+                    // 尝试获取最后结案动作的时间作为精确评判标准
+                    try {
+                        let hArr = JSON.parse(task.history_json || '[]');
+                        if(hArr.length > 0 && ['completed', 'archived'].includes(task.status)) {
+                            let lastAct = hArr[hArr.length - 1];
+                            targetDate = new Date(lastAct.time || lastAct.created_at || task.created_at);
+                        }
+                    } catch(e){}
+
+                    return targetDate.getFullYear() === currentYear && targetDate.getMonth() === currentMonth;
+                });
+
+                if (monthlyTasks.length === 0) {
+                    window.showToast('导出提示', '当前月份暂无可导出的需求单据明细', 'info');
+                    return;
+                }
+
+                // 映射状态词条
+                const statusMap = {
+                    'pending': '待接单', 'pending_accept': '待确认', 'processing': '制作中',
+                    'pending_approval': '方案审批中', 'reviewing': '甲方验收中', 'rejected': '打回修改中',
+                    'completed': '验收完结', 'archived': '已归档', 'terminated': '强行终止'
+                };
+
+                // 拼接 CSV 字符串 (添加 UTF-8 BOM 确保 Excel 打开不乱码)
+                let csvContent = "\uFEFF"; 
+                csvContent += "工单ID,需求单名称,单据状态,发起方(创建人),设计执行方(指派人),期望交付日期,工单创建时间\n";
+
+                monthlyTasks.forEach(t => {
+                    const cleanTitle = (t.title || '').replace(/,/g, '，').replace(/\n/g, ' ');
+                    const statusText = statusMap[t.status] || t.status || '流转中';
+                    const creatorText = t.creator || '未命名';
+                    const assigneeText = t.assignee === 'none' ? '暂未分配' : (t.assignee || '暂未分配');
+                    const dueDate = t.due_date || '未定';
+                    const createTime = t.created_at ? new Date(t.created_at).toLocaleString() : '未知';
+
+                    csvContent += `${t.id},${cleanTitle},${statusText},${creatorText},${assigneeText},${dueDate},${createTime}\n`;
+                });
+
+                // 触发浏览器下拽下载流程
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                
+                const monthFileName = `${currentYear}年${currentMonth + 1}月_戴维斯设计统筹中心_需求效能明细.csv`;
+                link.setAttribute("href", url);
+                link.setAttribute("download", monthFileName);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                window.showToast('导出成功', `成功沉淀 ${monthlyTasks.length} 项工单流水`, 'success');
+            } catch(err) {
+                console.error("导出失败:", err);
+                window.showToast('导出失败', '引擎处理数据发生异动，请稍后重试', 'info');
+            } finally {
+                if(syncDot) syncDot.classList.add('hidden');
+            }
+        }
+
         // ================= 💡 Tab 切换与翻页系统 =================
         window.switchTab = function(tabName) {
             window.currentTab = tabName;
@@ -590,7 +699,7 @@
             const myName = (currentUser.displayName || currentUser.cnName || currentUser.enName || '').toLowerCase();
             const enName = (currentUser.enName || '').toLowerCase();
 
-            // 💡 修复：确保提权状态同步到通知引擎，强制给领导开天眼
+            // 💡 确定提权状态同步到通知引擎
             let isAdmin = (currentUser.perms || []).includes('admin');
             if (['davidxxu', 'davidxu', 'ponyxu', 'judyzzhang'].includes(enName)) isAdmin = true;
             const rolePrefix = isAdmin ? 'admin' : 'req';
@@ -609,7 +718,6 @@
                     const assigneeStr = (task.assignee || '').toLowerCase();
                     const isMyTask = creatorStr.includes(myName) || myName.includes(creatorStr) || assigneeStr.includes(myName) || myName.includes(assigneeStr);
                     
-                    // 管理员看全部预警，非管理员只看自己的
                     if (!isAdmin && !isMyTask) return;
 
                     let hist = [];
@@ -617,12 +725,9 @@
 
                     hist.forEach((h, index) => {
                         const op = (h.operator || '').toLowerCase();
-                        // 过滤掉自己产生的操作，不给自己发通知
                         if (op.includes(myName) && myName !== '') return;
 
                         let title = ''; let content = ''; let icon = 'bg-fuchsia-500';
-                        
-                        // 💡 强化：使用更宽泛的正则匹配动作，防止前后端拼写不一致
                         const act = (h.action || '').toLowerCase();
                         
                         if (act.includes('submit_framework')) { 
@@ -776,9 +881,6 @@
         };
 
         document.addEventListener('DOMContentLoaded', () => {
-            // 💡 修复：删除了这里的 addEventListener 导致与 onclick 的冲突！
-            
-            // 监听全局点击：包含收起消息通知和身份菜单
             document.addEventListener('click', (e) => { 
                 const notifMenu = document.getElementById('notifMenu');
                 const notifBtn = document.getElementById('notifBtn');
