@@ -268,7 +268,7 @@
                 <div class="space-y-2">
                     <label class="block text-[12px] font-bold text-zinc-400 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span> 汇报摘要与下一步优化建议 (Summary)</label>
                     <div class="w-full bg-[#09090b] border border-white/10 rounded-2xl p-4 text-[11px] leading-relaxed text-zinc-300 overflow-y-auto h-[120px] custom-scrollbar font-sans select-text" id="analysis-summary-text">
-                        正在聚合生成深度报告分析...
+                        正在群聚生成深度报告分析...
                     </div>
                 </div>
             </div>
@@ -312,7 +312,7 @@
         </div>
     </div>
 
-    <div id="long-paper-hidden-mirror" class="absolute left-[-9999px] top-[-9999px] w-[780px] bg-[#0c0c0e] text-zinc-300 p-8 space-y-6 rounded-3xl border border-white/10 flex flex-col overflow-visible"></div>
+    <div id="long-paper-hidden-mirror" class="absolute left-[-9999px] top-[-9999px] w-[780px] bg-[#0c0c0e] text-zinc-300 p-8 space-y-6 rounded-3xl border border-white/10 flex flex-col overflow-visible style-container-override"></div>
 
     <script type="module">
         import { supabase } from './supabase-config.js';
@@ -365,7 +365,6 @@
             const user = JSON.parse(userStr);
             const enName = user.enName ? user.enName.toLowerCase().trim() : '';
 
-            // 💡 提权防御，文哥（设计师）不参与拦截处理
             if (['davidxxu', 'davidxu', 'ponyxu'].includes(enName)) {
                 user.perms = ['req', 'design', 'admin'];
             } else if (enName === 'judyzzhang') {
@@ -425,7 +424,6 @@
                 if (users) {
                     users.forEach(u => {
                         const en = (u.en_name || '').toLowerCase().trim();
-                        // 💡 修复：此处移除了对文哥等任何设计师的过滤，仅剔除系统内无意义运营空号
                         const excludedUsers = ['judyzzhang', 'davidxxu'];
                         if(en && !excludedUsers.includes(en)) {
                             if(!window.systemUsersList.some(x => x.en === en)) {
@@ -460,13 +458,11 @@
                     if (cDate >= startOfMonth) monthC++;
                 });
 
-                // 初始化全景资源底卡
                 let designersMap = {};
                 window.systemUsersList.forEach(u => {
                     designersMap[u.en] = { en: u.en, display: u.display, hours: 0, count: 0, tasks: [], aiTools: {} };
                 });
 
-                // 注入真实自然月数据解析逻辑
                 window.allRawTasksData.forEach(t => {
                     try {
                         const hist = JSON.parse(t.history_json || '[]');
@@ -510,7 +506,6 @@
 
                     window.renderTasksList();
 
-                    // 渲染大厅右侧全员资源监控池（0工时完整兜底展示）
                     const poolContainer = document.getElementById('resource-pool');
                     let poolHtml = '';
                     const sortedDesigners = Object.values(designersMap).sort((a,b) => b.hours - a.hours || b.count - a.count);
@@ -581,7 +576,7 @@
             } catch (err) { console.error(err); } finally { if(syncDot) setTimeout(() => syncDot.classList.add('hidden'), 500); }
         }
 
-        // ================= 💡 月度分析诊断复盘（精算闭环） =================
+        // ================= 💡 月度分析诊断复盘 =================
         window.openAnalysisModal = function() {
             document.getElementById('analysis-modal-overlay').classList.remove('hidden');
             setTimeout(() => {
@@ -709,7 +704,7 @@
             };
         };
 
-        // ================= 💡 一键离屏长图无损渲染引擎 =================
+        // ================= 💡 核心修复：一键无损离屏长图生成渲染引擎 =================
         window.generateDataLongPaperImage = function() {
             const paperMirror = document.getElementById('long-paper-hidden-mirror');
             if(!paperMirror) return;
@@ -720,6 +715,7 @@
             const currentYear = now.getFullYear();
             const currentMonth = now.getMonth();
 
+            // 💡 彻底修复截断重叠问题：重新提取数据，重新拼接出无 max-h 限制、高度全自适应的纯平铺 DOM 结构
             let flatModulesHtml = document.getElementById('insight-modules-list').innerHTML;
             let flatStaffHtml = document.getElementById('insight-staff-hours').innerHTML;
             let flatAiHtml = document.getElementById('insight-ai-tools-list').innerHTML;
@@ -762,21 +758,21 @@
                 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
                     <div style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); padding: 16px; border-radius: 16px; display: flex; flex-direction: column;">
                         <h4 style="font-size: 12px; font-weight: bold; color: #d946ef; margin-bottom: 12px;">各项目当期工时消耗榜</h4>
-                        <div style="display: flex; flex-direction: column; gap: 6px;">${flatModulesHtml}</div>
+                        <div style="display: flex; flex-direction: column; gap: 6px; overflow: visible !important; height: auto !important; max-height: none !important;">${flatModulesHtml}</div>
                     </div>
                     <div style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); padding: 16px; border-radius: 16px; display: flex; flex-direction: column;">
                         <h4 style="font-size: 12px; font-weight: bold; color: #10b981; margin-bottom: 12px;">当期成员投入工时排行</h4>
-                        <div style="display: flex; flex-direction: column; gap: 6px;">${flatStaffHtml}</div>
+                        <div style="display: flex; flex-direction: column; gap: 6px; overflow: visible !important; height: auto !important; max-height: none !important;">${flatStaffHtml}</div>
                     </div>
                     <div style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); padding: 16px; border-radius: 16px; display: flex; flex-direction: column;">
                         <h4 style="font-size: 12px; font-weight: bold; color: #6366f1; margin-bottom: 12px;">AI 工具当期真实应用排行</h4>
-                        <div style="display: flex; flex-direction: column; gap: 6px;">${flatAiHtml}</div>
+                        <div style="display: flex; flex-direction: column; gap: 6px; overflow: visible !important; height: auto !important; max-height: none !important;">${flatAiHtml}</div>
                     </div>
                 </div>
 
                 <div style="margin-top: 16px;">
                     <label style="font-size: 12px; font-weight: bold; color: #a1a1aa; margin-bottom: 8px; display: block;">汇报摘要与下一步优化建议 (Summary)</label>
-                    <div style="background: #09090b; border: 1px solid rgba(255,255,255,0.1); padding: 16px; border-radius: 16px; font-size: 12px; line-height: 1.6; text-align: justify; color: #e4e4e7; white-space: pre-wrap;">${flatSummaryText}</div>
+                    <div style="background: #09090b; border: 1px solid rgba(255,255,255,0.1); padding: 16px; border-radius: 16px; font-size: 12px; line-height: 1.6; text-align: justify; color: #e4e4e7; white-space: pre-wrap; overflow: visible !important; height: auto !important; max-height: none !important;">${flatSummaryText}</div>
                 </div>
 
                 <div style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 16px; text-align: center; font-size: 11px; color: #3f3f46; font-family: monospace; margin-top: 24px;">
@@ -785,6 +781,14 @@
             `;
             
             paperMirror.innerHTML = clonedHtml;
+
+            // 💡 动态移除镜像中可能残留的 Tailwind 高度和滚动条限制类名，强行实现 100% 垂直全平铺
+            const scrollingBoxes = paperMirror.querySelectorAll('div');
+            scrollingBoxes.forEach(box => {
+                box.style.overflow = "visible";
+                box.style.height = "auto";
+                box.style.maxHeight = "none";
+            });
 
             setTimeout(() => {
                 html2canvas(paperMirror, {
@@ -821,7 +825,7 @@
         window.copySummaryText = function() {
             if(!window.currentGeneratedSummary) return;
             navigator.clipboard.writeText(window.currentGeneratedSummary).then(() => {
-                window.showToast('复制成功', '精算管理总结摘要已复制。', 'success');
+                window.showToast('复制成功', '高保真管理总结摘要已复制。', 'success');
             }).catch(() => {
                 window.showToast('复制失败', '请手动选中进行复制', 'info');
             });
@@ -943,8 +947,8 @@
                         case 'processing': sColor = 'orange'; sText = '制作中'; btnHtml = `<button class="text-orange-400 bg-orange-500/10 px-3 py-1 rounded text-[11px] font-bold">查看进度</button>`; break;
                         case 'pending_approval': sColor = 'amber'; sText = '框架审批中'; btnHtml = `<button onclick="event.stopPropagation(); window.location.href='task-detail-requester.html?id=${t.id}'" class="text-white bg-amber-600 hover:bg-amber-500 px-4 py-1.5 rounded-lg text-[11px] font-bold transition-colors shadow-lg btn-press">⚡ 去审批</button>`; break;
                         case 'reviewing': sColor = 'emerald'; sText = '待甲方验收'; btnHtml = `<button class="text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded text-[11px] font-bold">甲方验收中</button>`; break;
-                        case 'rejected': sColor = 'rose'; sText = '打回修改中'; btnHtml = `<button class="text-rose-400 bg-rose-500/10 px-3 py-1 rounded text-[11px] font-bold">督办催稿</button>`; break;
-                        default: sColor = 'zinc'; sText = '未知状态'; btnHtml = '';
+                        case 'rejected': sColor = 'rose'; sText = '打回修改中', btnHtml = `<button class="text-rose-400 bg-rose-500/10 px-3 py-1 rounded text-[11px] font-bold">督办催稿</button>`; break;
+                        default: sColor = 'zinc'; sText = '未知状态', btnHtml = '';
                     }
                 }
 
@@ -981,19 +985,6 @@
             `;
             pageControls.innerHTML = pHtml;
         }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            document.addEventListener('click', (e) => { 
-                const notifMenu = document.getElementById('notifMenu');
-                const notifBtn = document.getElementById('notifBtn');
-                if(notifMenu && !notifMenu.contains(e.target) && notifBtn && !notifBtn.contains(e.target)) notifMenu.classList.add('hidden'); 
-                const identityMenu = document.getElementById('identityMenu');
-                const identityBtn = document.getElementById('identityBtn');
-                if(identityMenu && !identityMenu.contains(e.target) && identityBtn && !identityBtn.contains(e.target)) identityMenu.classList.add('hidden');
-            });
-            setTimeout(() => { window.syncNotificationsFromCloud(true); }, 1500);
-            setInterval(() => { window.syncNotificationsFromCloud(true); }, 8000);
-        });
     </script>
 </body>
 </html>
