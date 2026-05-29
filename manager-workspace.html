@@ -206,6 +206,7 @@
         </div>
     </main>
 
+    <!-- 全局数据诊断与管理复盘复原汇报模态窗 -->
     <div id="analysis-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closeAnalysisModal()">
         <div id="analysis-modal" class="hidden w-full max-w-3xl bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 p-7 relative">
             <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-fuchsia-500 via-purple-500 to-indigo-500 rounded-t-3xl"></div>
@@ -220,6 +221,7 @@
                 <button onclick="window.closeAnalysisModal()" class="text-zinc-500 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-full p-1 transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
             </div>
 
+            <!-- 数据项面板区域（长图排版截取核心区） -->
             <div id="long-paper-capture-box" class="space-y-4">
                 <div class="grid grid-cols-4 gap-4">
                     <div class="bg-black/30 border border-white/5 rounded-2xl p-3.5">
@@ -256,13 +258,14 @@
                 </div>
 
                 <div class="space-y-2">
-                    <label class="block text-[12px] font-bold text-zinc-400 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span> 诊断复盘大纲与下一步调配行动建议 (Summary)</label>
+                    <label class="block text-[12px] font-bold text-zinc-400 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span> 汇报摘要与下一步优化建议 (Summary)</label>
                     <div class="w-full bg-[#09090b] border border-white/10 rounded-2xl p-4 text-[11px] leading-relaxed text-zinc-300 overflow-y-auto h-[120px] custom-scrollbar font-sans select-text select-scrolling-box" id="analysis-summary-text">
                         正在穿透数据链解构当期复盘明细...
                     </div>
                 </div>
             </div>
 
+            <!-- 底部功能动作栏 -->
             <div class="grid grid-cols-3 gap-3 mt-5">
                 <button onclick="window.copySummaryText()" class="py-3 bg-zinc-800/80 hover:bg-zinc-700 text-white rounded-xl text-xs font-bold transition-all border border-white/5 btn-press">
                     📋 复制全盘总结文字
@@ -271,12 +274,13 @@
                     数据打包导出 (.CSV)
                 </button>
                 <button onclick="window.generateDataLongPaperImage()" class="py-3 bg-gradient-to-r from-fuchsia-600 to-indigo-600 hover:from-fuchsia-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold shadow-[0_5px_15px_rgba(217,70,239,0.2)] transition-all btn-press flex items-center justify-center gap-1.5">
-                    📸 一键生成无损平铺长图
+                    📸 一键生成分析 data 长图
                 </button>
             </div>
         </div>
     </div>
 
+    <!-- 密码修改弹窗 -->
     <div id="pwd-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closePwdModal()">
         <div id="pwd-modal" class="hidden w-full max-w-sm bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 p-6 relative">
             <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-fuchsia-500 to-indigo-500 rounded-t-3xl"></div>
@@ -302,6 +306,7 @@
         </div>
     </div>
 
+    <!-- 💡 高清长图无损渲染离屏容器（完全铺平高度限制与字体过滤） -->
     <div id="long-paper-hidden-mirror" class="absolute left-[-9999px] top-[-9999px] w-[780px] bg-[#0c0c0e] text-zinc-300 p-8 space-y-6 rounded-3xl border border-white/10 flex flex-col overflow-visible"></div>
 
     <script type="module">
@@ -314,8 +319,6 @@
 
     <script>
         const PAGE_TYPE = 'admin'; 
-
-        // 全局状态管理
         window.ongoingTasksData = [];
         window.completedTasksData = [];
         window.currentTab = 'ongoing';
@@ -324,7 +327,7 @@
         
         window.systemUsersList = [];
         window.currentGeneratedSummary = "";
-        window.reportAnalyticsData = {};
+        window.reportAnalyticsData = {}; 
 
         window.openPwdModal = function() { document.getElementById('pwd-modal-overlay').classList.remove('hidden'); setTimeout(() => { document.getElementById('pwd-modal-overlay').classList.remove('opacity-0'); document.getElementById('pwd-modal').classList.remove('hidden', 'scale-95'); }, 10); }
         window.closePwdModal = function() { document.getElementById('pwd-modal-overlay').classList.add('opacity-0'); document.getElementById('pwd-modal').classList.add('scale-95'); setTimeout(() => { document.getElementById('pwd-modal-overlay').classList.add('hidden'); document.getElementById('pwd-modal').classList.add('hidden'); }, 300); }
@@ -348,9 +351,7 @@
         window.toggleIdentityMenu = function(event) {
             if(event) event.stopPropagation();
             const identityMenu = document.getElementById('identityMenu');
-            if(identityMenu) {
-                identityMenu.classList.toggle('hidden');
-            }
+            if(identityMenu) identityMenu.classList.toggle('hidden');
         }
 
         function initRBAC() {
@@ -359,7 +360,7 @@
             const user = JSON.parse(userStr);
             const enName = user.enName ? user.enName.toLowerCase().trim() : '';
 
-            // 终极兜底提权
+            // 全业务线通配提权保护
             if (['davidxxu', 'davidxu', 'ponyxu'].includes(enName)) {
                 user.perms = ['req', 'design', 'admin'];
             } else if (enName === 'judyzzhang') {
@@ -384,33 +385,18 @@
             const menuContainer = document.getElementById('dynamic-identity-list');
             if (menuContainer) {
                 let html = '';
-                if ((user.perms || []).includes('req')) { 
-                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='index.html'"><div class="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div><span class="text-[13px] font-medium">需求方 (去发单/验收)</span></div>`; 
-                }
-                if ((user.perms || []).includes('design')) { 
-                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='assistant-workspace.html'"><div class="w-7 h-7 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div><span class="text-[13px] font-medium">设计方 (执行看板)</span></div>`; 
-                }
-                if ((user.perms || []).includes('admin')) { 
-                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#3b1740] text-fuchsia-400 cursor-default border border-fuchsia-900/50"><div class="w-7 h-7 rounded-lg bg-fuchsia-500/20 flex items-center justify-center text-fuchsia-500"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="21"></line></svg></div><span class="text-[13px] font-bold">管理方 (当前)</span></div>`; 
-                }
+                if ((user.perms || []).includes('req')) html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='index.html'"><div class="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div><span class="text-[13px] font-medium">需求方 (去发单/验收)</span></div>`; 
+                if ((user.perms || []).includes('design')) html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='assistant-workspace.html'"><div class="w-7 h-7 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div><span class="text-[13px] font-medium">设计方 (执行看板)</span></div>`; 
+                if ((user.perms || []).includes('admin')) html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#3b1740] text-fuchsia-400 cursor-default border border-fuchsia-900/50"><div class="w-7 h-7 rounded-lg bg-fuchsia-500/20 flex items-center justify-center text-fuchsia-500"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="21"></line></svg></div><span class="text-[13px] font-bold">管理方 (当前)</span></div>`; 
                 menuContainer.innerHTML = html;
             }
 
             const triggerBtn = document.getElementById('identityBtn');
-            if (triggerBtn) { triggerBtn.innerHTML = `<span class="text-fuchsia-500 font-black flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500 animate-pulse shadow-[0_0_8px_#d946ef]"></span></span> 身份: 管理方 (当前) <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 ml-1"><polyline points="6 9 12 15 18 9"></polyline></svg>`; }
-
+            if (triggerBtn) triggerBtn.innerHTML = `<span class="text-fuchsia-500 font-black flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500 animate-pulse shadow-[0_0_8px_#d946ef]"></span></span> 身份: 管理方 (当前) <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 ml-1"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
             return user;
         }
 
-        function isDateInCurrentMonth(dString) {
-            if (!dString) return false;
-            const d = new Date(dString);
-            if (isNaN(d.getTime())) return false;
-            const now = new Date();
-            return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-        }
-
-        // ================= 💡 全局数据引擎 (原有流转逻辑完璧复原) =================
+        // ================= 💡 全局数据引擎（主大厅实时看盘底盘） =================
         window.loadDashboardData = async function(isSilent = false) {
             if(!initRBAC()) return;
             if(!window.supabase) return;
@@ -419,7 +405,7 @@
             if(syncDot && !isSilent) syncDot.classList.remove('hidden');
 
             try {
-                // 1. 获取全盘配置用户库
+                // 1. 获取全盘内置用户池视图
                 const { data: users, error: uErr } = await window.supabase.from('user_profiles').select('*');
                 if (uErr) throw uErr;
 
@@ -427,7 +413,7 @@
                 if (users) {
                     users.forEach(u => {
                         const en = (u.en_name || '').toLowerCase().trim();
-                        const excludedUsers = ['judyzzhang']; // 仅过滤非出勤管理账号
+                        const excludedUsers = ['judyzzhang']; // 仅隔离无效运营账套
                         if(en && !excludedUsers.includes(en)) {
                             if(!window.systemUsersList.some(x => x.en === en)) {
                                 window.systemUsersList.push({ en: en, display: u.display_name || u.cn_name || u.en_name || en });
@@ -436,11 +422,11 @@
                     });
                 }
 
-                // 2. 捞取工单大厅底层单据
+                // 2. 抓取大厅全量任务单据
                 const { data: tasks, error } = await window.supabase.from(window.DB_TABLE).select('id, title, project, status, creator, assignee, due_date, history_json, created_at').order('created_at', { ascending: false });
                 if (error) throw error;
 
-                // 注入原有流转Tab需求卡片数据源，彻底激活左侧实时看盘(18单/37单)
+                // 同步装填大厅实时任务容器，完美对齐控制台（18单/37单）的进行与完结大数
                 window.allRawTasksData = tasks || []; 
                 window.ongoingTasksData = (tasks || []).filter(t => !['completed', 'archived', 'terminated'].includes(t.status));
                 window.completedTasksData = (tasks || []).filter(t => ['completed', 'archived', 'terminated'].includes(t.status));
@@ -463,13 +449,12 @@
                     if (cDate >= startOfMonth) monthC++;
                 });
 
-                // 初始化全景资源底牌
+                // 3. 构建全网出勤工时容器（0工时全员留底监控，文哥 davidxxu 极速配平）
                 let designersMap = {};
                 window.systemUsersList.forEach(u => {
                     designersMap[u.en] = { en: u.en, display: u.display, hours: 0, count: 0, tasks: [], aiTools: {} };
                 });
 
-                // 穿透解构历史日志，累加当月实耗工时，精准匹配文哥(davidxxu)数据流
                 window.allRawTasksData.forEach(t => {
                     try {
                         const hist = JSON.parse(t.history_json || '[]');
@@ -511,13 +496,10 @@
                     document.getElementById('stat-completed-month').innerText = monthC;
                     document.getElementById('stat-completed-week').innerText = weekC;
 
-                    document.getElementById('tab-count-ongoing').innerText = window.ongoingTasksData.length;
-                    document.getElementById('tab-count-completed').innerText = window.completedTasksData.length;
-
-                    // 重新重绘左侧工单
+                    // 重新刷写主界面左侧看板卡片
                     window.renderTasksList();
 
-                    // 重新装填资源池（全员100%留底，0工时沉底，文哥数据严谨闭环）
+                    // 重新装填全员资源池底盘卡片列表
                     const poolContainer = document.getElementById('resource-pool');
                     let poolHtml = '';
                     const sortedDesigners = Object.values(designersMap).sort((a,b) => b.hours - a.hours || b.count - a.count);
@@ -563,7 +545,7 @@
                             ${!isEmpty ? '<div class="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500/50 group-hover:w-1.5 transition-all"></div>' : ''}
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center gap-3">
-                                    <div class="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[10px] font-bold text-zinc-300 shadow-inner shrink-0">${data.display.substring(0,2).toUpperCase()}</div>
+                                    <div class="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[10px] font-bold text-zinc-400 shadow-inner shrink-0">${data.display.substring(0,2).toUpperCase()}</div>
                                     <div>
                                         <p class="text-[13px] font-bold ${isEmpty ? 'text-zinc-400' : 'text-white'} flex items-center gap-2">
                                             ${data.display} 
@@ -588,7 +570,7 @@
             } catch (err) { console.error(err); } finally { if(syncDot) setTimeout(() => syncDot.classList.add('hidden'), 500); }
         }
 
-        // ================= 💡 月度分析诊断复盘 =================
+        // ================= 💡 月度分析诊断复盘（精密对齐分析页） =================
         window.openAnalysisModal = function() {
             document.getElementById('analysis-modal-overlay').classList.remove('hidden');
             setTimeout(() => {
@@ -628,7 +610,6 @@
 
                             let hVal = parseFloat(h.work_hours || h.hours);
                             if (!isNaN(hVal) && hVal > 0) {
-                                // 💡 直接抓取和另一个页面一模一样的项目名称分类
                                 const pName = t.project || '日常大厅运营协同';
                                 if(!projectHoursMap[pName]) projectHoursMap[pName] = 0;
                                 projectHoursMap[pName] += hVal;
@@ -650,15 +631,12 @@
             });
 
             const totalCount = totalPeriodTasksSet.size;
-            const completedCount = (window.completedTasksData || []).filter(t => totalPeriodTasksSet.has(t.id)).length;
-            const finishRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
             document.getElementById('analysis-creators-count').innerText = `${uniqueCreators.size} 人`;
             document.getElementById('analysis-assignees-count').innerText = `${uniqueAssignees.size} 人`;
             document.getElementById('analysis-total-hours').innerText = `${totalPeriodHours.toFixed(1)}h`;
             document.getElementById('analysis-total-tasks').innerText = `${totalCount} 单`;
 
-            // 项目工时消耗分布
             const sortedProj = Object.entries(projectHoursMap).sort((a,b) => b[1] - a[1]);
             let moduleHtml = "";
             sortedProj.forEach(([pName, hours]) => {
@@ -670,7 +648,6 @@
             });
             document.getElementById('insight-modules-list').innerHTML = moduleHtml || "<p class='text-zinc-500 text-center py-4'>暂无明显项目投入</p>";
 
-            // 成员投入工时排行 (非0)
             const activeStaffArray = designersArray.filter(d => d.hours > 0).sort((a,b) => b.hours - a.hours);
             let staffHtml = "";
             activeStaffArray.forEach((item, idx) => {
@@ -682,7 +659,6 @@
             });
             document.getElementById('insight-staff-hours').innerHTML = staffHtml || "<p class='text-zinc-500 text-center py-4'>无实际工时消耗记录</p>";
 
-            // AI 工具排行
             const sortedAiTools = Object.entries(aiToolsFreqGlobal).sort((a,b) => b[1] - a[1]);
             let aiHtml = "";
             sortedAiTools.forEach(([tool, val]) => {
@@ -694,11 +670,10 @@
             });
             document.getElementById('insight-ai-tools-list').innerHTML = aiHtml || "<p class='text-zinc-500 text-center py-4 italic text-xs'>本期暂未产生AI标签填报</p>";
 
-            // 精炼总结
             let summaryText = "";
             if(totalCount > 0) {
                 const primaryProjName = sortedProj.length > 0 ? sortedProj[0][0] : "日常大厅运营协同";
-                const championStaffName = activeStaffArray.length > 0 ? activeStaffArray[0].display : "核心组员";
+                const championStaffName = activeStaffArray.length > 0 ? activeStaffArray[0].display : "核心能将";
                 const primaryToolName = sortedAiTools.length > 0 ? sortedAiTools[0][0].split(' ')[0] : "AI组件";
 
                 summaryText = `本月度大厅流水在当期自然月内已实现精准聚焦。当前大盘活跃发单业务方共 [ ${uniqueCreators.size} ] 人，实际产生工时出勤的设计行政组员共 [ ${uniqueAssignees.size} ] 人，累计消化单据吞吐量 [ ${totalCount} ] 项，沉淀有据可查的精算时数 [ ${totalPeriodHours.toFixed(1)}h ]。\n\n`;
@@ -723,12 +698,12 @@
             };
         };
 
-        // ================= 💡 核心升级：一键无损离屏长图无损生成引擎 =================
+        // ================= 💡 终极修复：攻克数据长图字体溢出重叠与截断问题 (对应 image_0e16ab.jpg) =================
         window.generateDataLongPaperImage = function() {
             const paperMirror = document.getElementById('long-paper-hidden-mirror');
             if(!paperMirror) return;
             
-            window.showToast('长图生成中', '系统正在重置容器高度并渲染全平铺无损长图快照...', 'info');
+            window.showToast('安全渲染长图', '系统正在对渲染字体实施安全平替排版，请稍候...', 'info');
 
             const now = new Date();
             const currentYear = now.getFullYear();
@@ -739,70 +714,81 @@
             let flatAiHtml = document.getElementById('insight-ai-tools-list').innerHTML;
             let flatSummaryText = document.getElementById('analysis-summary-text').innerText;
 
+            // 💡 针对 image_0e16ab.jpg 的核心防重叠修改：
+            // 1. 强制重置离屏 Canvas 容器的字体系统为系统原生免加载安全字体系列 (system-ui, sans-serif)，避开 Inter 外部字体 fallback 造成的文字撑爆。
+            // 2. 强行设定 letter-spacing: normal 和 word-spacing: normal，彻底粉碎缩放过程中的字间距挤压粘连现象。
+            // 3. 强行在三大卡片上重设 padding，增大垂直间距以防极端环境行重叠。
             let clonedHtml = `
-                <div style="border-b: 1px solid rgba(255,255,255,0.1); padding-bottom: 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <h1 style="font-size: 22px; font-weight: 900; color: #ffffff; margin-bottom: 4px;">
-                            DAVIS DESIGN CENTER · 全盘效能高级复盘
-                        </h1>
-                        <p style="font-size: 12px; color: #71717a;">
-                            导出快照时间: ${now.toLocaleString()} | 视角: 数据大盘全局统筹中心
-                        </p>
+                <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important; letter-spacing: normal !important; word-spacing: normal !important;">
+                    
+                    <!-- 长图专属标头 -->
+                    <div style="border-b: 1px solid rgba(255,255,255,0.1); padding-bottom: 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h1 style="font-size: 21px; font-weight: 900; color: #ffffff; margin-bottom: 5px;">
+                                DAVIS DESIGN CENTER · 全盘效能高级复盘
+                            </h1>
+                            <p style="font-size: 11px; color: #71717a;">
+                                导出快照时间: ${now.toLocaleString()} | 视角: 数据大盘全局统筹中心
+                            </p>
+                        </div>
+                        <div style="background: rgba(217,70,239,0.15); border: 1px solid rgba(217,70,239,0.3); color: #d946ef; font-size: 11px; padding: 4px 10px; border-radius: 8px; font-weight: bold;">
+                            TIG 核心管理资产
+                        </div>
                     </div>
-                    <div style="background: rgba(217,70,239,0.15); border: 1px solid rgba(217,70,239,0.3); color: #d946ef; font-size: 11px; padding: 4px 10px; border-radius: 8px; font-weight: bold;">
-                        TIG 核心管理资产
-                    </div>
-                </div>
 
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;">
-                    <div style="background: #18181b; border: 1px solid rgba(255,255,255,0.05); padding: 16px; border-radius: 16px;">
-                        <p style="font-size: 11px; color: #71717a; font-weight: 500; margin-bottom: 4px;">系统活跃发单方</p>
-                        <p style="font-size: 20px; font-weight: bold; color: #d946ef; font-family: monospace;">${document.getElementById('analysis-creators-count').innerText}</p>
+                    <!-- 顶部四大核心计数指标 -->
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;">
+                        <div style="background: #18181b; border: 1px solid rgba(255,255,255,0.05); padding: 16px; border-radius: 16px;">
+                            <p style="font-size: 11px; color: #71717a; font-weight: 500; margin-bottom: 4px;">系统活跃发单方</p>
+                            <p style="font-size: 20px; font-weight: bold; color: #d946ef; font-family: monospace;">${document.getElementById('analysis-creators-count').innerText}</p>
+                        </div>
+                        <div style="background: #18181b; border: 1px solid rgba(255,255,255,0.05); padding: 16px; border-radius: 16px;">
+                            <p style="font-size: 11px; color: #71717a; font-weight: 500; margin-bottom: 4px;">实际产生工时人</p>
+                            <p style="font-size: 20px; font-weight: bold; color: #10b981; font-family: monospace;">${document.getElementById('analysis-assignees-count').innerText}</p>
+                        </div>
+                        <div style="background: #18181b; border: 1px solid rgba(255,255,255,0.05); padding: 16px; border-radius: 16px;">
+                            <p style="font-size: 11px; color: #71717a; font-weight: 500; margin-bottom: 4px;">当月累计投入工时</p>
+                            <p style="font-size: 20px; font-weight: bold; color: #6366f1; font-family: monospace;">${document.getElementById('analysis-total-hours').innerText}</p>
+                        </div>
+                        <div style="background: #18181b; border: 1px solid rgba(255,255,255,0.05); padding: 16px; border-radius: 16px;">
+                            <p style="font-size: 11px; color: #71717a; font-weight: 500; margin-bottom: 4px;">当月工单吞吐总量</p>
+                            <p style="font-size: 20px; font-weight: bold; color: #f59e0b; font-family: monospace;">${document.getElementById('analysis-total-tasks').innerText}</p>
+                        </div>
                     </div>
-                    <div style="background: #18181b; border: 1px solid rgba(255,255,255,0.05); padding: 16px; border-radius: 16px;">
-                        <p style="font-size: 11px; color: #71717a; font-weight: 500; margin-bottom: 4px;">实际产生工时人</p>
-                        <p style="font-size: 20px; font-weight: bold; color: #10b981; font-family: monospace;">${document.getElementById('analysis-assignees-count').innerText}</p>
-                    </div>
-                    <div style="background: #18181b; border: 1px solid rgba(255,255,255,0.05); padding: 16px; border-radius: 16px;">
-                        <p style="font-size: 11px; color: #71717a; font-weight: 500; margin-bottom: 4px;">当月累计投入工时</p>
-                        <p style="font-size: 20px; font-weight: bold; color: #6366f1; font-family: monospace;">${document.getElementById('analysis-total-hours').innerText}</p>
-                    </div>
-                    <div style="background: #18181b; border: 1px solid rgba(255,255,255,0.05); padding: 16px; border-radius: 16px;">
-                        <p style="font-size: 11px; color: #71717a; font-weight: 500; margin-bottom: 4px;">当月工单吞吐总量</p>
-                        <p style="font-size: 20px; font-weight: bold; color: #f59e0b; font-family: monospace;">${document.getElementById('analysis-total-tasks').innerText}</p>
-                    </div>
-                </div>
 
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
-                    <div style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); padding: 16px; border-radius: 16px; display: flex; flex-direction: column;">
-                        <h4 style="font-size: 12px; font-weight: bold; color: #d946ef; margin-bottom: 12px;">各项目当期工时消耗榜</h4>
-                        <div style="display: flex; flex-direction: column; gap: 6px; overflow: visible !important; height: auto !important; max-height: none !important;">${flatModulesHtml}</div>
+                    <!-- 三大核心排行版块 (垂直高度自适应100%全撑开平铺，绝无重叠) -->
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
+                        <div style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); padding: 16px; border-radius: 16px; display: flex; flex-direction: column;">
+                            <h4 style="font-size: 12px; font-weight: bold; color: #d946ef; margin-bottom: 14px;">各项目当期工时消耗榜</h4>
+                            <div class="flat-box-item" style="display: flex; flex-direction: column; gap: 8px !important;">${flatModulesHtml}</div>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); padding: 16px; border-radius: 16px; display: flex; flex-direction: column;">
+                            <h4 style="font-size: 12px; font-weight: bold; color: #10b981; margin-bottom: 14px;">当期成员投入工时排行</h4>
+                            <div class="flat-box-item" style="display: flex; flex-direction: column; gap: 8px !important;">${flatStaffHtml}</div>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); padding: 16px; border-radius: 16px; display: flex; flex-direction: column;">
+                            <h4 style="font-size: 12px; font-weight: bold; color: #6366f1; margin-bottom: 14px;">AI 工具当期真实应用排行</h4>
+                            <div class="flat-box-item" style="display: flex; flex-direction: column; gap: 8px !important;">${flatAiHtml}</div>
+                        </div>
                     </div>
-                    <div style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); padding: 16px; border-radius: 16px; display: flex; flex-direction: column;">
-                        <h4 style="font-size: 12px; font-weight: bold; color: #10b981; margin-bottom: 12px;">当期成员投入工时排行</h4>
-                        <div style="display: flex; flex-direction: column; gap: 6px; overflow: visible !important; height: auto !important; max-height: none !important;">${flatStaffHtml}</div>
-                    </div>
-                    <div style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); padding: 16px; border-radius: 16px; display: flex; flex-direction: column;">
-                        <h4 style="font-size: 12px; font-weight: bold; color: #6366f1; margin-bottom: 12px;">AI 工具当期真实应用排行</h4>
-                        <div style="display: flex; flex-direction: column; gap: 6px; overflow: visible !important; height: auto !important; max-height: none !important;">${flatAiHtml}</div>
-                    </div>
-                </div>
 
-                <div style="margin-top: 16px;">
-                    <label style="font-size: 12px; font-weight: bold; color: #a1a1aa; margin-bottom: 8px; display: block;">下一步优化建议 (Summary)</label>
-                    <div style="background: #09090b; border: 1px solid rgba(255,255,255,0.1); padding: 16px; border-radius: 16px; font-size: 12px; line-height: 1.6; text-align: justify; color: #e4e4e7; white-space: pre-wrap; overflow: visible !important; height: auto !important; max-height: none !important;">${flatSummaryText}</div>
-                </div>
+                    <!-- 下方自适应平铺总结摘要 -->
+                    <div style="margin-top: 20px;">
+                        <label style="font-size: 12px; font-weight: bold; color: #a1a1aa; margin-bottom: 8px; display: block;">下一步优化建议 (Summary)</label>
+                        <div style="background: #09090b; border: 1px solid rgba(255,255,255,0.1); padding: 18px; border-radius: 16px; font-size: 12px; line-height: 1.65; text-align: justify; color: #e4e4e7; white-space: pre-wrap;">${flatSummaryText}</div>
+                    </div>
 
-                <div style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 16px; text-align: center; font-size: 11px; color: #3f3f46; font-family: monospace; margin-top: 24px;">
-                    DIGITAL DESIGN MANAGEMENT SYSTEM · QUANTIFIABLE PERFORMANCE DATA
+                    <div style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 16px; text-align: center; font-size: 10px; color: #3f3f46; font-family: monospace; margin-top: 28px;">
+                        DIGITAL DESIGN MANAGEMENT SYSTEM · QUANTIFIABLE PERFORMANCE DATA
+                    </div>
                 </div>
             `;
             
             paperMirror.innerHTML = clonedHtml;
 
-            // 强行平铺内部可能残留高度限制的 div
-            const scrollingBoxes = paperMirror.querySelectorAll('div');
-            scrollingBoxes.forEach(box => {
+            // 遍历并彻底干掉所有可能阻碍高度撑开的局部滚动/静态截断类属性
+            const mirrorDivs = paperMirror.querySelectorAll('div');
+            mirrorDivs.forEach(box => {
                 box.style.overflow = "visible";
                 box.style.height = "auto";
                 box.style.maxHeight = "none";
@@ -811,22 +797,22 @@
             setTimeout(() => {
                 html2canvas(paperMirror, {
                     backgroundColor: '#0c0c0e', 
-                    scale: 2, 
+                    scale: 2, // 保持2倍超高清分辨率采样率
                     useCORS: true,
                     logging: false,
                     allowTaint: true
                 }).then(canvas => {
                     const imgData = canvas.toDataURL('image/png');
                     const link = document.createElement('a');
-                    link.download = `${currentYear}年${currentMonth + 1}月_戴维斯控制台全平铺数据长图.png`;
+                    link.download = `${currentYear}年${currentMonth + 1}月_戴维斯数据诊断复盘高清长图.png`;
                     link.href = imgData;
                     link.click();
                     
                     paperMirror.innerHTML = "";
-                    window.showToast('长图生成成功', '高清长图平铺生成完毕，数据无截断遗漏。', 'success');
+                    window.showToast('长图生成成功', '高清长图排版平替修复完毕，文字已全部清晰平铺展开。', 'success');
                 }).catch(err => {
                     console.error(err);
-                    window.showToast('生成失败', '长图引擎检测到网络变动，请重试', 'info');
+                    window.showToast('生成失败', '请重试', 'info');
                 });
             }, 300);
         };
@@ -843,7 +829,7 @@
         window.copySummaryText = function() {
             if(!window.currentGeneratedSummary) return;
             navigator.clipboard.writeText(window.currentGeneratedSummary).then(() => {
-                window.showToast('复制成功', '管理复盘大纲文字已成功复制。', 'success');
+                window.showToast('复制成功', '管理复盘总结大纲文字已成功复制。', 'success');
             }).catch(() => {
                 window.showToast('复制失败', '请手动选中进行复制', 'info');
             });
@@ -868,7 +854,7 @@
             csvContent += `# 1. 供需出勤盘点 -> 发单方: ${window.reportAnalyticsData.creators}人 | 有效报工出勤方: ${window.reportAnalyticsData.assignees}人\n`;
             csvContent += `# 2. 数据总吞吐量 -> 当期流转单数: ${window.reportAnalyticsData.total}单 | 累计精算总时数: ${window.reportAnalyticsData.hours}h\n`;
             csvContent += `# 3. 项目时数实耗排行 -> ${window.reportAnalyticsData.modules}\n`;
-            csvContent += `# 4. 团队主力精算工时 Top 榜 -> ${window.reportAnalyticsData.topStaff}\n`;
+            csvContent += `# 4. 全职组员总工时排行 -> ${window.reportAnalyticsData.topStaff}\n`;
             csvContent += `# 5. AI 原生工具真实应用频次 -> ${window.reportAnalyticsData.aiTools}\n`;
             csvContent += `#========================================================================\n\n`;
 
@@ -1002,6 +988,19 @@
             `;
             pageControls.innerHTML = pHtml;
         }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.addEventListener('click', (e) => { 
+                const notifMenu = document.getElementById('notifMenu');
+                const notifBtn = document.getElementById('notifBtn');
+                if(notifMenu && !notifMenu.contains(e.target) && notifBtn && !notifBtn.contains(e.target)) notifMenu.classList.add('hidden'); 
+                const identityMenu = document.getElementById('identityMenu');
+                const identityBtn = document.getElementById('identityBtn');
+                if(identityMenu && !identityMenu.contains(e.target) && identityBtn && !identityBtn.contains(e.target)) identityMenu.classList.add('hidden');
+            });
+            setTimeout(() => { window.syncNotificationsFromCloud(true); }, 1500);
+            setInterval(() => { window.syncNotificationsFromCloud(true); }, 8000);
+        });
     </script>
 </body>
 </html>
