@@ -3,10 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>项目投入分析 - 戴维斯设计需求管理中心</title>
+    <title>全局统筹中心 - 戴维斯设计需求管理中心</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 html2canvas 库用于实现纯前端报告卡片截图导出 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
         body { background-color: #09090b; color: #e4e4e7; font-family: 'Inter', system-ui, sans-serif; }
@@ -17,20 +15,16 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 10px; }
         .btn-press { transition: all 0.15s ease; cursor: pointer; }
         .btn-press:active { transform: scale(0.95); }
-        
-        .dropdown-enter { animation: dropIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; transform-origin: top center; }
-        @keyframes dropIn { 0% { opacity: 0; transform: scaleY(0.95) translateY(-5px); } 100% { opacity: 1; transform: scaleY(1) translateY(0); } }
-        
-        .bar-grow { animation: growUp 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; transform-origin: bottom; }
-        @keyframes growUp { 0% { transform: scaleY(0); } 100% { transform: scaleY(1); } }
-        .bar-grow-h { animation: growRight 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; transform-origin: left; }
-        @keyframes growRight { 0% { transform: scaleX(0); } 100% { transform: scaleX(1); } }
+        .dropdown-enter { animation: dropIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; transform-origin: top right; }
+        @keyframes dropIn { 0% { opacity: 0; transform: scale(0.95) translateY(-10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
+        .toast-slide-in { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-fuchsia-500/30 text-zinc-300">
 
     <div class="absolute inset-0 bg-[#09090b] z-0 pointer-events-none"></div>
-    <div class="absolute top-0 right-1/4 w-[800px] h-[600px] bg-fuchsia-900/10 rounded-full blur-[180px] pointer-events-none z-0"></div>
+    <div class="absolute top-0 right-1/4 w-[800px] h-[600px] bg-fuchsia-900/5 rounded-full blur-[180px] pointer-events-none z-0"></div>
 
     <aside class="w-[240px] border-r border-white/5 flex flex-col z-10 bg-[#09090b] shrink-0 h-full">
         <div class="p-7 border-b border-white/5 shrink-0">
@@ -43,17 +37,17 @@
         </div>
 
         <div class="flex-1 overflow-y-auto p-5 space-y-2">
-            <button onclick="window.location.href='manager-workspace.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+            <button class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl bg-fuchsia-500/10 text-fuchsia-400 border border-fuchsia-500/20 transition-all cursor-default">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
-                <span class="font-medium text-[14px]">总监控制台</span>
+                <span class="font-bold text-[14px]">管理控制台</span>
             </button>
             <button onclick="window.location.href='manager-dashboard.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                 <span class="font-medium text-[14px]">团队效能大盘</span>
             </button>
-            <button class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl bg-fuchsia-500/10 text-fuchsia-400 border border-fuchsia-500/20 transition-all cursor-default">
+            <button onclick="window.location.href='project-analysis.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-                <span class="font-bold text-[14px]">项目投入分析</span>
+                <span class="font-medium text-[14px]">项目投入分析</span>
             </button>
             <button onclick="window.location.href='org-chart.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
@@ -84,45 +78,18 @@
         </div>
     </aside>
 
-    <main class="flex-1 flex flex-col h-full overflow-hidden relative z-10 bg-[#0c0c0e]" id="main-content-area">
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative z-10 bg-[#0c0c0e]">
         <header class="h-[88px] px-10 flex justify-between items-center shrink-0 border-b border-white/5 bg-[#09090b]/80 backdrop-blur-xl z-20">
             <div>
-                <h2 class="text-[24px] font-bold text-white tracking-tight mb-1.5 flex items-center gap-3">
-                    多维项目投入分析
-                    <span class="bg-fuchsia-500/20 text-fuchsia-400 text-[11px] px-2.5 py-0.5 rounded-lg border border-fuchsia-500/30">管理视角</span>
+                <h2 class="text-2xl font-bold text-white tracking-tight mb-1.5 flex items-center gap-2">
+                    全局统筹中心
+                    <span class="bg-fuchsia-500/20 text-fuchsia-400 text-[11px] px-2.5 py-0.5 rounded-lg border border-fuchsia-500/30 ml-2">管理视角</span>
                     <div id="sync-indicator" class="hidden w-2 h-2 rounded-full bg-emerald-500 animate-pulse ml-2" title="云端连接中..."></div>
                 </h2>
-                <p class="text-[12px] text-zinc-500">基于客观填报数据，直观呈现每位成员的产能分布与项目的资源消耗情况。</p>
+                <p class="text-xs text-zinc-500">掌握全盘进度，合理调配全职设计与行政组的效能。</p>
             </div>
             
-            <div class="flex items-center gap-6">
-                <!-- 升级版：总结分析导出简报按钮 -->
-                <button onclick="window.openExportAnalysisModal()" class="px-5 py-2 bg-gradient-to-r from-fuchsia-600 via-purple-600 to-indigo-600 hover:from-fuchsia-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-[0_4px_20px_rgba(217,70,239,0.25)] hover:shadow-[0_4px_25px_rgba(217,70,239,0.4)] transition-all btn-press text-[13px] flex items-center gap-2 border border-white/10">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-                    全盘总结分析导出
-                </button>
-
-                <div class="flex bg-[#121217] border border-white/10 rounded-xl p-1 shadow-inner">
-                    <button id="btn-view-week" onclick="switchView('week')" class="px-5 py-1.5 text-[13px] font-medium text-zinc-400 hover:text-white transition-colors rounded-lg btn-press">周度</button>
-                    <button id="btn-view-month" onclick="switchView('month')" class="px-5 py-1.5 text-[13px] font-bold bg-fuchsia-500/20 text-fuchsia-400 border border-fuchsia-500/20 rounded-lg shadow-sm cursor-default">月度</button>
-                    <button id="btn-view-year" onclick="switchView('year')" class="px-5 py-1.5 text-[13px] font-medium text-zinc-400 hover:text-white transition-colors rounded-lg btn-press">年度</button>
-                </div>
-
-                <div class="flex gap-2">
-                    <div class="relative" id="date-selector-wrapper">
-                        <button onclick="toggleDropdown('date-dropdown')" class="px-6 py-2 bg-[#121217] border border-white/5 rounded-xl text-[15px] font-bold text-white min-w-[160px] text-center shadow-inner hover:bg-white/5 transition-colors btn-press flex items-center justify-center gap-2">
-                            <span id="current-date-text">计算中...</span>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                        </button>
-                        <div id="date-dropdown" class="hidden absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-[#1a1a24] border border-white/10 rounded-2xl shadow-2xl z-50 dropdown-enter max-h-64 overflow-y-auto custom-scrollbar">
-                        </div>
-                    </div>
-                </div>
-                
-                <button onclick="jumpToCurrent()" class="px-4 py-2 bg-fuchsia-600/20 text-fuchsia-400 font-bold border border-fuchsia-500/20 rounded-xl hover:bg-fuchsia-500/30 transition-colors btn-press text-[12px]" id="btn-jump-current">回到本期</button>
-
-                <div class="w-px h-8 bg-white/10 mx-1"></div>
-
+            <div class="flex items-center gap-5 relative">
                 <div class="relative z-[120]" id="notif-wrapper">
                     <button id="notifBtn" onclick="window.toggleNotificationPanel(event)" class="w-10 h-10 rounded-xl bg-[#141417] border border-white/5 flex items-center justify-center text-zinc-400 hover:text-white transition-colors btn-press relative">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
@@ -143,9 +110,12 @@
                 </div>
 
                 <div class="relative" id="identity-wrapper">
-                    <button id="identityBtn" class="bg-[#141417] border border-white/10 text-zinc-300 px-5 py-3 rounded-[14px] flex items-center gap-3 text-[13px] font-medium hover:bg-[#1a1a1f] transition-colors btn-press">
+                    <button id="identityBtn" onclick="window.toggleIdentityMenu(event)" class="bg-[#141417] border border-white/10 text-zinc-300 px-5 py-3 rounded-[14px] flex items-center gap-3 text-[13px] font-medium hover:bg-[#1a1a1f] transition-colors btn-press">
                         身份加载中...
                     </button>
+                    <div id="identityMenu" class="hidden absolute right-0 top-[120%] w-[240px] bg-[#1a1a1f] border border-white/10 rounded-2xl shadow-2xl py-2 dropdown-enter z-[9999]">
+                        <div class="px-2 space-y-1" id="dynamic-identity-list"></div>
+                    </div>
                 </div>
             </div>
         </header>
@@ -154,87 +124,89 @@
             
             <div id="dashboard-loading" class="absolute inset-0 bg-[#0c0c0e]/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
                 <svg class="animate-spin h-8 w-8 text-fuchsia-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                <p class="text-xs text-zinc-500 font-bold tracking-widest uppercase">SYNCING ANALYSIS DATA...</p>
+                <p class="text-xs text-zinc-500 font-bold tracking-widest uppercase">SYNCING GLOBAL DATA...</p>
             </div>
 
-            <div class="w-full max-w-[1400px] mx-auto flex flex-col gap-8 h-full">
-                
-                <div class="grid grid-cols-4 gap-6 shrink-0">
-                    <div class="bg-[#121217] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden group hover:border-indigo-500/30 transition-colors">
-                        <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-indigo-500"></div>
-                        <p class="text-[12px] text-zinc-500 font-bold mb-2">当期投入总人力 (h)</p>
-                        <p class="text-[40px] font-black text-white font-mono leading-none mb-1" id="metric-cur-hours">0.0</p>
-                        <p class="text-[11px] text-zinc-500 mt-2" id="metric-trend-hours">对比前期: --</p>
-                    </div>
-                    <div class="bg-[#121217] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden group hover:border-fuchsia-500/30 transition-colors">
-                        <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-fuchsia-500"></div>
-                        <p class="text-[12px] text-zinc-500 font-bold mb-2">当期有产出的总人数</p>
-                        <p class="text-[40px] font-black text-white font-mono leading-none mb-1" id="metric-cur-people">0</p>
-                        <p class="text-[11px] text-zinc-500 mt-2" id="metric-trend-people">对比前期: --</p>
-                    </div>
-                    <div class="bg-[#121217] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden group hover:border-emerald-500/30 transition-colors">
-                        <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-emerald-500"></div>
-                        <p class="text-[12px] text-zinc-500 font-bold mb-2">当期活跃/流转项目数</p>
-                        <p class="text-[40px] font-black text-white font-mono leading-none mb-1" id="metric-cur-projects">0</p>
-                        <p class="text-[11px] text-zinc-500 mt-2" id="metric-trend-projects">对比前期: --</p>
-                    </div>
-                    <div class="bg-[#121217] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden group hover:border-amber-500/30 transition-colors">
-                        <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-amber-500"></div>
-                        <p class="text-[12px] text-zinc-500 font-bold mb-2">当期 AI 工具介入频次</p>
-                        <p class="text-[40px] font-black text-amber-400 font-mono leading-none mb-1" id="metric-cur-ai">0</p>
-                        <p class="text-[11px] text-zinc-500 mt-2" id="metric-trend-ai">对比前期: --</p>
+            <div class="flex gap-6 mb-8 overflow-x-auto custom-scrollbar pb-2">
+                <div class="bg-[#16161d] border border-white/5 rounded-3xl p-5 flex flex-col gap-2 min-w-[240px] shadow-lg relative overflow-hidden">
+                    <div class="flex items-center gap-5 mb-1">
+                        <div class="w-14 h-14 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                        </div>
+                        <div>
+                            <p class="text-[12px] text-zinc-500 font-bold mb-1">进行中项目</p>
+                            <p class="text-[32px] font-black text-emerald-400 font-mono leading-none" id="stat-ongoing">0</p>
+                        </div>
                     </div>
                 </div>
 
-                <div class="flex gap-8 items-start flex-1 min-h-[400px]">
+                <div class="bg-[#16161d] border border-white/5 rounded-3xl p-5 flex flex-col gap-2 min-w-[240px] shadow-lg relative overflow-hidden">
+                    <div class="flex items-center gap-5 mb-1">
+                        <div class="w-14 h-14 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                        </div>
+                        <div>
+                            <p class="text-[12px] text-zinc-500 font-bold mb-1">待响应/审批数</p>
+                            <p class="text-[32px] font-black text-amber-400 font-mono leading-none" id="stat-pending">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-[#16161d] border border-white/5 rounded-3xl p-5 flex flex-col gap-2 min-w-[260px] shadow-lg relative overflow-hidden">
+                    <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-indigo-500/50"></div>
+                    <div class="flex items-center gap-5 mb-2">
+                        <div class="w-14 h-14 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                        </div>
+                        <div>
+                            <p class="text-[12px] text-zinc-500 font-bold mb-1">已完结工单 <span class="text-[10px] font-normal">(本月)</span></p>
+                            <p class="text-[32px] font-black text-indigo-400 font-mono leading-none" id="stat-completed-month">0</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4 text-[11px] text-zinc-500 mt-1 border-t border-white/5 pt-2">
+                        <span class="flex items-center gap-1">本周: <b id="stat-completed-week" class="text-zinc-300 font-mono">0</b></span>
+                        <span class="flex items-center gap-1">全年: <b id="stat-completed-year" class="text-zinc-300 font-mono">0</b></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-1 flex gap-10 min-h-0">
+                <div class="flex-[1.5] flex flex-col bg-[#121217]/50 border border-white/5 rounded-3xl p-6 shadow-xl relative min-w-0">
                     
-                    <div class="flex-1 flex flex-col bg-[#16161d] border border-white/5 rounded-3xl p-6 shadow-xl min-w-0 h-full">
-                        <div class="flex items-center justify-between mb-6 pb-4 border-b border-white/5 shrink-0">
-                            <h3 class="text-[15px] font-bold text-white flex items-center gap-2">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
-                                当期：各项目资源消耗榜 (按工时)
-                            </h3>
-                            
-                            <div class="relative z-[150]" id="project-selector-wrapper">
-                                <button onclick="toggleDropdown('project-dropdown')" class="px-4 py-2 h-full bg-[#1a1a24] border border-white/10 rounded-xl text-[12px] font-bold text-white hover:bg-white/5 transition-colors btn-press flex items-center gap-2 min-w-[160px] justify-between shadow-inner">
-                                    <span id="current-project-text" class="truncate">全部项目大盘</span>
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 shrink-0"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                                </button>
-                                <div id="project-dropdown" class="hidden absolute top-full right-0 mt-2 w-64 bg-[#1a1a24] border border-white/10 rounded-2xl shadow-2xl py-2 z-50 dropdown-enter max-h-[300px] overflow-y-auto custom-scrollbar">
-                                    <div class="px-4 py-2 border-b border-white/5 mb-1"><input type="text" id="project-search" oninput="filterProjectList()" class="w-full bg-[#09090b] border border-white/10 rounded-lg px-3 py-1.5 text-[12px] text-white outline-none focus:border-fuchsia-500" placeholder="检索项目..."></div>
-                                    <div id="project-dropdown-list"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-3 pb-4" id="project-list-container">
-                        </div>
+                    <div class="flex items-center gap-6 mb-4 border-b border-white/10 px-2 shrink-0">
+                        <button onclick="window.switchTab('ongoing')" id="tab-ongoing" class="text-[14px] font-bold text-emerald-400 border-b-2 border-emerald-500 pb-3 flex items-center gap-2 transition-colors btn-press">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></span>流转中 (<span id="tab-count-ongoing" class="font-mono">0</span>)
+                        </button>
+                        <button onclick="window.switchTab('completed')" id="tab-completed" class="text-[14px] font-bold text-zinc-500 border-b-2 border-transparent pb-3 flex items-center gap-2 hover:text-zinc-300 transition-colors btn-press">
+                            <span class="w-2 h-2 rounded-full bg-zinc-500"></span>已完结 (<span id="tab-count-completed" class="font-mono">0</span>)
+                        </button>
                     </div>
 
-                    <div class="flex-1 flex flex-col bg-[#16161d] border border-white/5 rounded-3xl p-6 shadow-xl min-w-0 h-full">
-                        <div class="flex items-center justify-between mb-6 pb-4 border-b border-white/5 shrink-0">
-                            <h3 class="text-[15px] font-bold text-white flex items-center gap-2">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                                当期：团队全员效能摸底
-                            </h3>
-                            <span class="text-[11px] text-zinc-500 bg-white/5 px-2 py-1 rounded-md border border-white/10">0 工时也会展示，最下为最闲</span>
-                        </div>
-                        <div class="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-3 pb-4" id="people-list-container">
-                        </div>
+                    <div class="flex-1 flex flex-col min-h-0 relative">
+                        <div class="absolute inset-0 overflow-y-auto custom-scrollbar pr-4 space-y-4" id="tasks-list-container"></div>
                     </div>
 
+                    <div class="pt-4 mt-2 border-t border-white/10 flex justify-end items-center gap-3 shrink-0" id="pagination-controls"></div>
+                </div>
+
+                <div class="flex-[1] flex flex-col">
+                    <div class="bg-[#121217] border border-white/5 rounded-3xl p-6 h-full flex flex-col shadow-2xl relative">
+                        <h3 class="text-[15px] font-bold text-white mb-2">实时资源池监控</h3>
+                        <p class="text-[11px] text-zinc-500 mb-6 pb-4 border-b border-white/5">全员名单已展出，透视所有成员的执行负荷，支持下拽到底。</p>
+                        
+                        <div class="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2" id="resource-pool"></div>
+                    </div>
                 </div>
             </div>
-
         </div>
     </main>
 
-    <!-- 修改密码弹窗 -->
     <div id="pwd-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closePwdModal()">
         <div id="pwd-modal" class="hidden w-full max-w-sm bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 p-6 relative">
             <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-fuchsia-500 to-indigo-500 rounded-t-3xl"></div>
             <div class="flex justify-between items-center mb-6 mt-2">
                 <h2 class="text-[16px] font-bold text-white flex items-center gap-2"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-fuchsia-500"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg> 修改登录密码</h2>
-                <button onclick="closePwdModal()" class="text-zinc-500 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-full p-1 transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+                <button onclick="window.closePwdModal()" class="text-zinc-500 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-full p-1 transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
             </div>
             <div class="space-y-4">
                 <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">当前密码</label><input type="password" id="old-pwd" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-fuchsia-500 transition-colors" placeholder="输入原密码"></div>
@@ -245,166 +217,12 @@
         </div>
     </div>
 
-    <!-- 深度重构核心分析看板弹窗 -->
-    <div id="export-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4 overflow-y-auto" onclick="if(event.target === this) closeExportAnalysisModal()">
-        <div id="export-modal" class="w-full max-w-4xl bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 relative my-auto">
-            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-fuchsia-500 via-purple-500 to-indigo-500 rounded-t-3xl"></div>
-            
-            <div class="p-6 border-b border-white/5 flex justify-between items-center">
-                <div>
-                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d946ef" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><circle cx="16" cy="13" r="2"></circle><circle cx="8" cy="13" r="2"></circle></svg>
-                        TIG 设计效能与类目工单双轨审计
-                    </h2>
-                    <p class="text-[11px] text-zinc-500 mt-0.5">深度多维穿透：发起人需求占比、类目单量及工时矩阵、工具使用分布占比</p>
-                </div>
-                <button onclick="closeExportAnalysisModal()" class="text-zinc-500 hover:text-white bg-zinc-800/80 hover:bg-zinc-700 rounded-full p-1.5 transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
-            </div>
-
-            <div class="p-6 overflow-y-auto max-h-[70vh] space-y-6 custom-scrollbar" id="export-capture-zone">
-                <div class="bg-[#09090b] border border-white/5 rounded-2xl p-6 relative space-y-6">
-                    
-                    <div class="flex justify-between items-start border-b border-white/5 pb-4">
-                        <div>
-                            <span class="text-[10px] font-bold tracking-widest text-fuchsia-400 bg-fuchsia-500/10 border border-fuchsia-500/20 px-2 py-0.5 rounded">TIG AUDIT TEAM REPORT</span>
-                            <h3 class="text-[20px] font-black text-white mt-1.5">设计资产流转与源头简报</h3>
-                            <p class="text-[11px] text-zinc-500 mt-1 flex items-center gap-2">
-                                <span id="report-view-tag" class="text-zinc-400 font-bold">月度分析</span> | 
-                                <span id="report-period-text">2026.05</span> | 
-                                <span id="report-project-scope">全部范围</span>
-                            </p>
-                        </div>
-                        <div class="text-right font-mono text-[11px] text-zinc-600">
-                            <p>METRIC CONTROL</p>
-                            <p id="report-gen-time">2026-05-29</p>
-                        </div>
-                    </div>
-
-                    <!-- 大盘四大指标 -->
-                    <div class="grid grid-cols-4 gap-4">
-                        <div class="bg-white/[0.01] border border-white/5 rounded-xl p-4">
-                            <p class="text-[11px] text-zinc-500 font-medium">总计记录需求量</p>
-                            <p class="text-xl font-black text-fuchsia-400 font-mono mt-1" id="rep-m-demand-count">0<span class="text-[10px] font-normal text-zinc-500 ml-0.5">单</span></p>
-                        </div>
-                        <div class="bg-white/[0.01] border border-white/5 rounded-xl p-4">
-                            <p class="text-[11px] text-zinc-500 font-medium">累计消耗设计工时</p>
-                            <p class="text-xl font-black text-white font-mono mt-1" id="rep-m-hours">0.0<span class="text-[10px] font-normal text-zinc-500 ml-0.5">h</span></p>
-                        </div>
-                        <div class="bg-white/[0.01] border border-white/5 rounded-xl p-4">
-                            <p class="text-[11px] text-zinc-500 font-medium">涵盖活跃类目项目</p>
-                            <p class="text-xl font-black text-white font-mono mt-1" id="rep-m-projects">0<span class="text-[10px] font-normal text-zinc-500 ml-0.5">个</span></p>
-                        </div>
-                        <div class="bg-white/[0.01] border border-white/5 rounded-xl p-4">
-                            <p class="text-[11px] text-zinc-500 font-medium">出勤跟进设计师</p>
-                            <p class="text-xl font-black text-white font-mono mt-1" id="rep-m-people">0<span class="text-[10px] font-normal text-zinc-500 ml-0.5">人</span></p>
-                        </div>
-                    </div>
-
-                    <!-- 穿透一：需求提报人占比排行（发起人分析） -->
-                    <div class="space-y-3">
-                        <h4 class="text-[13px] font-bold text-zinc-400 flex items-center gap-2">
-                            <span class="w-1 h-3 bg-indigo-500 rounded-full"></span>
-                            需求发起方大盘审计：每个人占了多少需求
-                        </h4>
-                        <div id="rep-creator-ranking" class="grid grid-cols-2 gap-4">
-                            <!-- 动态注入发起人占比卡片 -->
-                        </div>
-                    </div>
-
-                    <!-- 穿透二：各类目/项目双轨纵横对比（类目单量占比多 + 工时占比高） -->
-                    <div class="space-y-3">
-                        <h4 class="text-[13px] font-bold text-zinc-400 flex items-center gap-2">
-                            <span class="w-1 h-3 bg-fuchsia-500 rounded-full"></span>
-                            各类目/项目双轨对比分析：哪类需求多、哪类工时高
-                        </h4>
-                        <div class="border border-white/5 rounded-xl overflow-hidden bg-white/[0.005]">
-                            <table class="w-full text-left text-xs font-mono">
-                                <thead class="bg-white/5 text-zinc-400 font-sans">
-                                    <tr>
-                                        <th class="p-3">类目/项目名称</th>
-                                        <th class="p-3 text-right">独立需求单量 (占比)</th>
-                                        <th class="p-3 text-right">累计消耗工时 (占比)</th>
-                                        <th class="p-3 text-center">流转密集度</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="rep-category-dual-matrix" class="divide-y divide-white/5 text-zinc-300">
-                                    <!-- 动态注入明细行 -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- 穿透三：AI工具渗透比率 -->
-                    <div class="space-y-3">
-                        <h4 class="text-[13px] font-bold text-zinc-400 flex items-center gap-2">
-                            <span class="w-1 h-3 bg-amber-500 rounded-full"></span>
-                            当期生产力协同：AI 工具使用频次占比
-                        </h4>
-                        <div class="bg-white/[0.01] border border-white/5 rounded-xl p-4">
-                            <div id="rep-ai-tools-percentage-bar" class="w-full h-3 bg-zinc-900 rounded-full flex overflow-hidden mb-4"></div>
-                            <div id="rep-ai-tools-legend" class="grid grid-cols-2 gap-x-6 gap-y-2 text-xs font-mono text-zinc-400"></div>
-                        </div>
-                    </div>
-
-                    <!-- 穿透四：谁做的需求多（劳模双维度对比） -->
-                    <div class="grid grid-cols-2 gap-6 pt-2">
-                        <div class="space-y-3">
-                            <h4 class="text-[13px] font-bold text-zinc-400 flex items-center gap-2">
-                                <span class="w-1 h-3 bg-sky-500 rounded-full"></span>
-                                设计承接：谁做的独立需求单量多
-                            </h4>
-                            <div id="rep-people-tasks-ranking" class="space-y-2"></div>
-                        </div>
-                        <div class="space-y-3">
-                            <h4 class="text-[13px] font-bold text-zinc-400 flex items-center gap-2">
-                                <span class="w-1 h-3 bg-purple-500 rounded-full"></span>
-                                设计承接：谁的硬核堆栈工时高
-                            </h4>
-                            <div id="rep-people-hours-ranking" class="space-y-2"></div>
-                        </div>
-                    </div>
-
-                    <!-- 穿透五：穿透碰撞智能洞察提示 -->
-                    <div class="bg-fuchsia-500/[0.02] border border-fuchsia-500/10 rounded-xl p-4 space-y-2">
-                        <h4 class="text-[12px] font-bold text-fuchsia-400 flex items-center gap-1.5">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                            智能化大盘纵横交叉诊断洞察
-                        </h4>
-                        <p class="text-[11px] text-zinc-400 leading-relaxed font-sans" id="rep-intelligence-insight">
-                            系统多源撞轨分析中...
-                        </p>
-                    </div>
-
-                </div>
-            </div>
-
-            <!-- 控制盘面板 -->
-            <div class="p-6 border-t border-white/5 bg-[#16161d] rounded-b-3xl flex justify-between items-center gap-4">
-                <button onclick="window.copyMarkdownSummary()" class="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold rounded-xl text-[12px] btn-press transition-colors flex items-center gap-2 border border-white/5">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                    复制带有提报占比的 Markdown 简报
-                </button>
-                <div class="flex items-center gap-3">
-                    <!-- 核心改良：一键支持全量数据与占比的双轨电子表格 CSV 导出 -->
-                    <button onclick="window.exportToCSV()" class="px-5 py-2.5 bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30 font-bold rounded-xl text-[12px] btn-press transition-colors flex items-center gap-2 border border-indigo-500/20">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
-                        导出全量明细 Excel/CSV 表格
-                    </button>
-                    <button onclick="window.exportToPNGImage()" class="px-6 py-2.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-bold rounded-xl text-[12px] btn-press shadow-lg shadow-fuchsia-600/20 transition-all flex items-center gap-2">
-                        生成高清图片卡片
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 消息流转提示区 -->
-    <div id="action-toast" class="fixed top-8 right-8 z-[100000] hidden">
+    <div id="action-toast" class="fixed top-8 right-8 z-[100000] hidden toast-slide-in">
         <div class="bg-[#1a1a1f] border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-3 w-72">
             <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
             </div>
-            <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-[11px] text-zinc-400 mt-0.5">操作已执行。</p></div>
+            <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-zinc-400 text-[11px] mt-0.5">操作已执行。</p></div>
         </div>
     </div>
 
@@ -418,33 +236,31 @@
 
     <script>
         const PAGE_TYPE = 'admin'; 
-        let currentView = 'month'; 
-        let currentDate = new Date();
-        let myAllTasks = []; 
-        let systemUsers = []; 
-        let allProjects = [];
-        let currentSelectedProject = 'all'; 
-        let dropdownData = []; 
 
-        window.logout = function(e) { e.stopPropagation(); localStorage.removeItem('activeUserObj'); window.location.href = 'login.html'; }
+        // 全局状态管理
+        window.ongoingTasksData = [];
+        window.completedTasksData = [];
+        window.currentTab = 'ongoing';
+        window.currentPage = 1;
+        const ITEMS_PER_PAGE = 8;
+
         window.openPwdModal = function() { document.getElementById('pwd-modal-overlay').classList.remove('hidden'); setTimeout(() => { document.getElementById('pwd-modal-overlay').classList.remove('opacity-0'); document.getElementById('pwd-modal').classList.remove('hidden', 'scale-95'); }, 10); }
         window.closePwdModal = function() { document.getElementById('pwd-modal-overlay').classList.add('opacity-0'); document.getElementById('pwd-modal').classList.add('scale-95'); setTimeout(() => { document.getElementById('pwd-modal-overlay').classList.add('hidden'); document.getElementById('pwd-modal').classList.add('hidden'); }, 300); }
-        window.submitPwdChange = function() { window.showToast('提示', '系统演示环境暂不可修改密码', 'info'); window.closePwdModal(); }
+        window.submitPwdChange = function() { window.showToast('提示', '系统演示环境暂不可自助修改密码', 'info'); window.closePwdModal(); }
+        window.logout = function(e) { e.stopPropagation(); localStorage.removeItem('activeUserObj'); window.location.href = 'login.html'; }
+
         window.showToast = function(title, desc, type = 'success') {
             const toast = document.getElementById('action-toast');
-            const iconEl = document.getElementById('toast-icon');
-            if (type === 'error') {
-                iconEl.className = "w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-rose-500/20 text-rose-400";
-                iconEl.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
-            } else if (type === 'info') {
-                iconEl.className = "w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-indigo-500/20 text-indigo-400";
-                iconEl.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
-            } else {
-                iconEl.className = "w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400";
-                iconEl.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-            }
             document.getElementById('toast-title').innerText = title; document.getElementById('toast-desc').innerText = desc;
             toast.classList.remove('hidden'); setTimeout(() => { toast.classList.add('hidden'); }, 3000);
+        }
+
+        window.toggleIdentityMenu = function(event) {
+            if(event) event.stopPropagation();
+            const identityMenu = document.getElementById('identityMenu');
+            if(identityMenu) {
+                identityMenu.classList.toggle('hidden');
+            }
         }
 
         function initRBAC() {
@@ -453,183 +269,50 @@
             const user = JSON.parse(userStr);
             const enName = user.enName ? user.enName.toLowerCase().trim() : '';
 
+            // 终极兜底提权
             if (['davidxxu', 'davidxu', 'ponyxu'].includes(enName)) {
                 user.perms = ['req', 'design', 'admin'];
             } else if (enName === 'judyzzhang') {
                 if (!user.perms) user.perms = [];
                 if (!user.perms.includes('admin')) user.perms.push('admin');
+                if (!user.perms.includes('req')) user.perms.push('req');
             }
 
             if (!(user.perms || []).includes('admin')) {
                 alert("权限拦截：您没有总监控制台访问权限，为您退回大厅。");
-                window.location.href = 'index.html';
+                setTimeout(()=> window.location.href = 'index.html', 1500);
                 return false;
             }
 
             const avatarTxt = (user.displayName || user.name || user.cnName || user.enName || 'U').substring(0, 1).toUpperCase();
             const avatarEl = document.getElementById('sidebar-avatar');
             if(avatarEl) { avatarEl.innerText = avatarTxt; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-fuchsia-600'} border border-white/20 flex items-center justify-center text-white font-bold text-sm shadow-lg shrink-0`; }
-            if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.name || user.cnName || user.enName;
             
+            if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.name || user.cnName || user.enName;
+            if(document.getElementById('sidebar-role')) document.getElementById('sidebar-role').innerHTML = `<span class="text-fuchsia-400 font-bold">当前视角: 管理方</span>`;
+            
+            const menuContainer = document.getElementById('dynamic-identity-list');
+            if (menuContainer) {
+                let html = '';
+                if ((user.perms || []).includes('req')) { 
+                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='index.html'"><div class="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div><span class="text-[13px] font-medium">需求方 (去发单/验收)</span></div>`; 
+                }
+                if ((user.perms || []).includes('design')) { 
+                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='assistant-workspace.html'"><div class="w-7 h-7 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div><span class="text-[13px] font-medium">设计方 (执行看板)</span></div>`; 
+                }
+                if ((user.perms || []).includes('admin')) { 
+                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#3b1740] text-fuchsia-400 cursor-default border border-fuchsia-900/50"><div class="w-7 h-7 rounded-lg bg-fuchsia-500/20 flex items-center justify-center text-fuchsia-500"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="21"></line></svg></div><span class="text-[13px] font-bold">管理方 (当前)</span></div>`; 
+                }
+                menuContainer.innerHTML = html;
+            }
+
             const triggerBtn = document.getElementById('identityBtn');
-            if (triggerBtn) { triggerBtn.innerHTML = `<span class="text-fuchsia-500 font-black flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500 animate-pulse shadow-[0_0_8px_#d946ef]"></span>身份: 管理方 (当前)</span>`; }
+            if (triggerBtn) { triggerBtn.innerHTML = `<span class="text-fuchsia-500 font-black flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500 animate-pulse shadow-[0_0_8px_#d946ef]"></span></span> 身份: 管理方 (当前) <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 ml-1"><polyline points="6 9 12 15 18 9"></polyline></svg>`; }
 
             return user;
         }
 
-        // ================= 💡 三维时间引擎 =================
-        window.switchView = function(view) {
-            currentView = view;
-            const btns = ['week', 'month', 'year'];
-            btns.forEach(b => {
-                const btn = document.getElementById(`btn-view-${b}`);
-                if(b === view) {
-                    btn.className = "px-5 py-1.5 text-[13px] font-bold bg-fuchsia-500/20 text-fuchsia-400 border border-fuchsia-500/20 rounded-lg shadow-sm cursor-default";
-                } else {
-                    btn.className = "px-5 py-1.5 text-[13px] font-medium text-zinc-400 hover:text-white transition-colors rounded-lg btn-press";
-                    btn.setAttribute('onclick', `switchView('${b}')`);
-                }
-            });
-            const jumpBtn = document.getElementById('btn-jump-current');
-            if(view === 'month') jumpBtn.innerText = '回到本月';
-            else if(view === 'week') jumpBtn.innerText = '回到本周';
-            else jumpBtn.innerText = '回到今年';
-
-            updateDataAndRender();
-        }
-
-        function getStartOfWeek(d) {
-            d = new Date(d);
-            var day = d.getDay(), diff = d.getDate() - day + (day == 0 ? -6:1); 
-            return new Date(d.setDate(diff));
-        }
-
-        window.navDate = function(step) {
-            if (currentView === 'month') currentDate.setMonth(currentDate.getMonth() + step);
-            else if (currentView === 'week') currentDate.setDate(currentDate.getDate() + (step * 7));
-            else if (currentView === 'year') currentDate.setFullYear(currentDate.getFullYear() + step);
-            updateDataAndRender();
-        }
-
-        window.jumpToCurrent = function() {
-            currentDate = new Date();
-            updateDataAndRender();
-        }
-
-        window.toggleDropdown = function(id) {
-            const dropdown = document.getElementById(id);
-            if (id === 'project-dropdown') {
-                window.renderProjectList();
-            } else if (id === 'date-dropdown') {
-                const year = currentDate.getFullYear();
-                const month = currentDate.getMonth();
-                dropdownData = [];
-                if (currentView === 'month') {
-                    for(let i = -5; i <= 5; i++) {
-                        const d = new Date(year, month + i, 1);
-                        dropdownData.push({ text: `${d.getFullYear()}年 ${d.getMonth()+1}月`, date: d, isCurrent: i===0 });
-                    }
-                } else if (currentView === 'week') {
-                    const startWeek = getStartOfWeek(currentDate);
-                    for(let i = -5; i <= 5; i++) {
-                        const d = new Date(startWeek);
-                        d.setDate(d.getDate() + (i * 7));
-                        const end = new Date(d); end.setDate(end.getDate() + 6);
-                        dropdownData.push({ text: `周 (${d.getMonth()+1}.${d.getDate()}-${end.getMonth()+1}.${end.getDate()})`, date: d, isCurrent: i===0 });
-                    }
-                } else {
-                    for(let i = -3; i <= 3; i++) {
-                        const y = year + i;
-                        dropdownData.push({ text: `${y} 年度`, date: new Date(y, 0, 1), isCurrent: i===0 });
-                    }
-                }
-                
-                let html = '<div class="py-2">';
-                dropdownData.forEach((item, index) => {
-                    if(item.isCurrent) {
-                        html += `<div class="w-full text-left px-5 py-2.5 text-[14px] text-fuchsia-400 bg-fuchsia-500/10 font-bold cursor-default">${item.text} <span class="text-[10px] bg-fuchsia-500/20 px-1.5 py-0.5 rounded ml-2">当前</span></div>`;
-                    } else {
-                        html += `<button onclick="selectDropdownDate(${index})" class="w-full text-left px-5 py-2.5 text-[14px] text-zinc-400 hover:bg-white/5 hover:text-white transition-colors">${item.text}</button>`;
-                    }
-                });
-                dropdown.innerHTML = html + '</div>';
-            }
-            
-            dropdown.classList.toggle('hidden');
-            if(id === 'date-dropdown') {
-                setTimeout(() => { const act = dropdown.querySelector('.bg-fuchsia-500\\/10'); if(act) act.scrollIntoView({ block: 'center' }); }, 10);
-            }
-        }
-
-        window.selectDropdownDate = function(index) {
-            currentDate = dropdownData[index].date;
-            document.getElementById('date-dropdown').classList.add('hidden');
-            updateDataAndRender();
-        }
-
-        window.selectProject = function(pName) {
-            currentSelectedProject = pName;
-            document.getElementById('current-project-text').innerText = pName === 'all' ? '全部项目大盘' : pName;
-            document.getElementById('project-dropdown').classList.add('hidden');
-            updateDataAndRender();
-        }
-
-        window.filterProjectList = function() { window.renderProjectList(document.getElementById('project-search').value.toLowerCase()); }
-
-        window.renderProjectList = function(filterText = '') {
-            const listEl = document.getElementById('project-dropdown-list');
-            let filtered = allProjects.filter(p => p.toLowerCase().includes(filterText));
-            let html = `<button onclick="selectProject('all')" class="w-full text-left px-5 py-2 text-[13px] ${currentSelectedProject==='all'?'text-fuchsia-400 bg-fuchsia-500/10 font-bold':'text-zinc-300 hover:bg-white/5'} transition-colors">全部项目大盘</button>`;
-            
-            if(filtered.length === 0) {
-                html += `<div class="px-5 py-3 text-[12px] text-zinc-500 text-center">无相关项目</div>`;
-            } else {
-                filtered.forEach(p => {
-                    let isActive = currentSelectedProject === p;
-                    html += `<button onclick="selectProject('${p}')" class="w-full text-left px-5 py-2 text-[13px] truncate ${isActive?'text-fuchsia-400 bg-fuchsia-500/10 font-bold':'text-zinc-300 hover:bg-white/5'} transition-colors" title="${p}">${p}</button>`;
-                });
-            }
-            listEl.innerHTML = html;
-        }
-
-        document.addEventListener('click', (e) => {
-            const dateWrap = document.getElementById('date-selector-wrapper');
-            const dateDrop = document.getElementById('date-dropdown');
-            if (dateWrap && dateDrop && !dateWrap.contains(e.target)) dateDrop.classList.add('hidden');
-
-            const projWrap = document.getElementById('project-selector-wrapper');
-            const projDrop = document.getElementById('project-dropdown');
-            if (projWrap && projDrop && !projWrap.contains(e.target)) projDrop.classList.add('hidden');
-            
-            const notifMenu = document.getElementById('notifMenu');
-            const notifBtn = document.getElementById('notifBtn');
-            if(notifMenu && !notifMenu.contains(e.target) && notifBtn && !notifBtn.contains(e.target)) notifMenu.classList.add('hidden'); 
-        });
-
-        function isDateInPeriod(dString, targetDate, viewType) {
-            if (!dString) return false;
-            const d = new Date(dString);
-            if (isNaN(d.getTime())) return false;
-
-            const tYear = targetDate.getFullYear();
-            const tMonth = targetDate.getMonth();
-
-            if (viewType === 'year') {
-                return d.getFullYear() === tYear;
-            } else if (viewType === 'month') {
-                return d.getFullYear() === tYear && d.getMonth() === tMonth;
-            } else if (viewType === 'week') {
-                const sw = getStartOfWeek(targetDate);
-                sw.setHours(0,0,0,0);
-                const ew = new Date(sw);
-                ew.setDate(ew.getDate() + 6);
-                ew.setHours(23,59,59,999);
-                return d >= sw && d <= ew;
-            }
-            return false;
-        }
-
-        // ================= 💡 全量拉取基础底座 =================
+        // ================= 💡 全局数据引擎 (全员透视版) =================
         window.loadDashboardData = async function(isSilent = false) {
             if(!initRBAC()) return;
             if(!window.supabase) return;
@@ -638,616 +321,357 @@
             if(syncDot && !isSilent) syncDot.classList.remove('hidden');
 
             try {
-                const { data: users, error: uErr } = await window.supabase.from('user_profiles').select('*');
-                if (uErr) throw uErr;
-
-                systemUsers = [];
-                if (users) {
-                    users.forEach(u => {
-                        const en = (u.en_name || '').toLowerCase();
-                        const excludedUsers = ['judyzzhang', 'ponyxu', 'davidxu'];
-
-                        if(en && !excludedUsers.includes(en)) {
-                            if(!systemUsers.some(x => x.en === en)) {
-                                systemUsers.push({
-                                    en: en,
-                                    display: u.display_name || u.cn_name || u.en_name || en
-                                });
-                            }
-                        }
-                    });
-                }
-
-                const { data: tasks, error } = await window.supabase.from(window.DB_TABLE).select('id, title, project, status, creator, assignee, due_date, history_json, created_at').order('created_at', { ascending: false });
+                const { data: tasks, error } = await window.supabase.from(window.DB_TABLE).select('id, title, status, creator, assignee, due_date, history_json, created_at').order('created_at', { ascending: false });
                 if (error) throw error;
-                myAllTasks = tasks || [];
 
-                let pSet = new Set();
-                myAllTasks.forEach(t => { if(t.project) pSet.add(t.project); });
-                allProjects = Array.from(pSet).sort();
+                window.ongoingTasksData = (tasks || []).filter(t => !['completed', 'archived', 'terminated'].includes(t.status));
+                window.completedTasksData = (tasks || []).filter(t => ['completed', 'archived', 'terminated'].includes(t.status));
+                const pendingTasks = window.ongoingTasksData.filter(t => ['pending', 'pending_accept', 'pending_approval', 'reviewing'].includes(t.status));
 
-                switchView(currentView); 
-                document.getElementById('dashboard-loading').classList.add('hidden');
+                let weekC = 0, monthC = 0, yearC = 0;
+                const now = new Date();
+                const startOfYear = new Date(now.getFullYear(), 0, 1);
+                const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                const day = now.getDay() || 7;
+                const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day + 1);
+                startOfWeek.setHours(0,0,0,0);
 
-            } catch (err) {
-                console.error(err);
-                if(!isSilent) window.showToast('数据拉取异常', err.message, 'error');
-            } finally {
-                if(syncDot) setTimeout(() => syncDot.classList.add('hidden'), 500);
-            }
-        }
+                window.completedTasksData.forEach(t => {
+                    let dStr = t.created_at;
+                    try {
+                        let hArr = JSON.parse(t.history_json || '[]');
+                        if(hArr.length > 0) dStr = hArr[hArr.length-1].time || hArr[hArr.length-1].created_at || dStr;
+                    }catch(e){}
+                    
+                    const cDate = new Date(dStr);
+                    if (cDate >= startOfWeek) weekC++;
+                    if (cDate >= startOfMonth) monthC++;
+                    if (cDate >= startOfYear) yearC++;
+                });
 
-        // ================= 💡 三度重构升级：极其精准的多维交叉穿透核心计算引擎 =================
-        function extractDataForPeriod(targetDate, viewType) {
-            let totalHours = 0;
-            let aiFreq = {}; let aiCount = 0;
-            let activeTasksSet = new Set();
-            let projectSet = new Set();
-
-            // 提需求的人数据结构字典 (Creator Map)
-            let creatorMap = {};
-            // 各类目项目工单与耗时双轨字典
-            let activeProjects = {};
-
-            let peopleMap = {};
-            systemUsers.forEach(u => {
-                peopleMap[u.en] = { en: u.en, display: u.display, hours: 0, taskCount: 0, uniqueTasksSet: new Set(), projects: new Set(), aiTools: {} };
-            });
-
-            myAllTasks.forEach(t => {
-                if (currentSelectedProject !== 'all' && t.project !== currentSelectedProject) return;
-
-                let taskActiveInPeriod = false;
-                let taskHoursInPeriod = 0; // 该工单在当前筛选周期内的累加工时
-
+                let designersMap = {};
                 try {
-                    const hist = JSON.parse(t.history_json || '[]');
-                    hist.forEach(h => {
-                        if (isDateInPeriod(h.created_at || h.time, targetDate, viewType)) {
-                            taskActiveInPeriod = true;
-                            
-                            let hVal = parseFloat(h.work_hours || h.hours);
-                            if (!isNaN(hVal) && hVal > 0) {
-                                totalHours += hVal;
-                                taskHoursInPeriod += hVal;
-                                
-                                if (h.operator) {
-                                    let opLower = h.operator.toLowerCase();
-                                    let matchedUser = systemUsers.find(u => opLower.includes(u.en) || (u.display && opLower.includes(u.display.toLowerCase())));
-                                    
-                                    if (matchedUser && peopleMap[matchedUser.en]) {
-                                        peopleMap[matchedUser.en].hours += hVal;
-                                        peopleMap[matchedUser.en].taskCount += 1;
-                                        peopleMap[matchedUser.en].uniqueTasksSet.add(t.id);
-                                        if(t.project) peopleMap[matchedUser.en].projects.add(t.project);
-                                    } else {
-                                        const cleanName = h.operator.split(' ')[0].split('(')[0].trim();
-                                        const key = cleanName.toLowerCase();
-                                        const excludedUsers = ['judyzzhang', 'ponyxu', 'davidxu'];
-                                        if (!excludedUsers.some(ex => key.includes(ex))) {
-                                            if(!peopleMap[key]) {
-                                                peopleMap[key] = { en: key, display: cleanName, hours: 0, taskCount: 0, uniqueTasksSet: new Set(), projects: new Set(), aiTools: {} };
-                                            }
-                                            peopleMap[key].hours += hVal;
-                                            peopleMap[key].taskCount += 1;
-                                            peopleMap[key].uniqueTasksSet.add(t.id);
-                                            if(t.project) peopleMap[key].projects.add(t.project);
-                                            matchedUser = { en: key };
-                                        }
-                                    }
+                    const { data: users } = await window.supabase.from('users').select('enName, name, email, perms');
+                    if (users) {
+                        users.forEach(u => {
+                            let p = [];
+                            if (typeof u.perms === 'string') try { p = JSON.parse(u.perms); } catch(e){}
+                            else if (Array.isArray(u.perms)) p = u.perms;
 
-                                    if (h.action === 'submit_draft' || h.action === 'submit_framework') {
-                                        const tools = h.ai_tools || [];
-                                        tools.forEach(tool => {
-                                            if (tool && tool !== '无AI辅助') {
-                                                aiCount++;
-                                                if(!aiFreq[tool]) aiFreq[tool] = 0;
-                                                aiFreq[tool]++;
-                                                if(matchedUser && peopleMap[matchedUser.en]) {
-                                                    if(!peopleMap[matchedUser.en].aiTools[tool]) peopleMap[matchedUser.en].aiTools[tool] = 0;
-                                                    peopleMap[matchedUser.en].aiTools[tool]++;
-                                                }
-                                            }
-                                        });
-                                    }
+                            if(p.includes('design') || p.includes('admin')) {
+                                const en = (u.enName || (u.email ? u.email.split('@')[0] : '')).toLowerCase();
+                                if(en && !designersMap[en]) {
+                                    designersMap[en] = { en: en, display: u.name || u.enName || en, count: 0, hours: 0, tasks: [] };
                                 }
                             }
-                        }
-                    });
-                } catch(e){}
-
-                // 如果该工单在周期内是活跃的（或者其创建时间落在该范围内，实现双重兜底判定）
-                let isCreatedInPeriod = isDateInPeriod(t.created_at, targetDate, viewType);
-                if (taskActiveInPeriod || isCreatedInPeriod) {
-                    taskActiveInPeriod = true;
-                    activeTasksSet.add(t.id);
-                    const pName = t.project || '未归属类目';
-                    if(t.project) projectSet.add(t.project);
-
-                    // 1. 穿透累加项目类目的“独立单量数量”和“总消耗工时”双轨模型
-                    if (!activeProjects[pName]) {
-                        activeProjects[pName] = { hours: 0, count: 0, uniqueTasks: new Set() };
-                    }
-                    activeProjects[pName].hours += taskHoursInPeriod;
-                    activeProjects[pName].uniqueTasks.add(t.id);
-                    activeProjects[pName].count = activeProjects[pName].uniqueTasks.size;
-
-                    // 2. 穿透碰撞提需求人 (Creator审计模型)
-                    let rawCreator = t.creator || '外部提报/未知';
-                    let cleanCreator = rawCreator.split(' ')[0].split('(')[0].trim();
-                    if (!creatorMap[cleanCreator]) {
-                        creatorMap[cleanCreator] = { name: cleanCreator, uniqueTasks: new Set(), count: 0 };
-                    }
-                    creatorMap[cleanCreator].uniqueTasks.add(t.id);
-                    creatorMap[cleanCreator].count = creatorMap[cleanCreator].uniqueTasks.size;
-                }
-            });
-
-            return { 
-                totalHours, 
-                peopleMap, 
-                aiFreq, 
-                aiCount, 
-                activeProjects,
-                creatorMap,
-                tasksCount: activeTasksSet.size, // 独立需求总数
-                projectsCount: projectSet.size
-            };
-        }
-
-        // ================= 💡 主视角大盘数据重绘 =================
-        function updateDataAndRender() {
-            const year = currentDate.getFullYear();
-            const month = currentDate.getMonth();
-
-            if (currentView === 'month') {
-                document.getElementById('current-date-text').innerText = `${year}年 ${month+1}月`;
-            } else if (currentView === 'week') {
-                const startWeek = getStartOfWeek(currentDate);
-                const end = new Date(startWeek); end.setDate(end.getDate() + 6);
-                document.getElementById('current-date-text').innerText = `${startWeek.getMonth()+1}.${startWeek.getDate()} - ${end.getMonth()+1}.${end.getDate()}`;
-            } else {
-                document.getElementById('current-date-text').innerText = `${year} 年度`;
-            }
-
-            const currentData = extractDataForPeriod(currentDate, currentView);
-            
-            let prev1Data;
-            if (currentView === 'month') {
-                let p1Date = new Date(year, month - 1, 1);
-                prev1Data = extractDataForPeriod(p1Date, currentView);
-            } else if (currentView === 'week') {
-                let p1Date = new Date(currentDate); p1Date.setDate(p1Date.getDate() - 7);
-                prev1Data = extractDataForPeriod(p1Date, currentView);
-            } else {
-                let p1Date = new Date(year - 1, 0, 1);
-                prev1Data = extractDataForPeriod(p1Date, currentView);
-            }
-
-            document.getElementById('metric-cur-hours').innerText = currentData.totalHours.toFixed(1);
-            document.getElementById('metric-cur-projects').innerText = currentData.projectsCount; 
-            
-            const actualPeople = Object.values(currentData.peopleMap).filter(p => p.hours > 0).length;
-            const prevActualPeople = Object.values(prev1Data.peopleMap).filter(p => p.hours > 0).length;
-            document.getElementById('metric-cur-people').innerText = actualPeople;
-            document.getElementById('metric-cur-ai').innerText = currentData.aiCount;
-
-            const trendH = currentData.totalHours - prev1Data.totalHours;
-            document.getElementById('metric-trend-hours').innerHTML = prev1Data.totalHours === 0 ? `对比前期: <span class="text-zinc-400">无记录</span>` : `对比前期: <span class="${trendH>0?'text-rose-400':'text-emerald-400'} font-bold">${trendH>0?'↑':'↓'} ${Math.abs(Math.round((trendH/prev1Data.totalHours)*100))}%</span>`;
-            
-            const trendP = actualPeople - prevActualPeople;
-            document.getElementById('metric-trend-people').innerHTML = prevActualPeople === 0 ? `对比前期: <span class="text-zinc-400">无记录</span>` : `对比前期: <span class="${trendP>0?'text-rose-400':'text-emerald-400'} font-bold">${trendP>0?'↑':'↓'} ${Math.abs(Math.round((trendP/prevActualPeople)*100))}%</span>`;
-
-            const trendProj = currentData.projectsCount - prev1Data.projectsCount;
-            document.getElementById('metric-trend-projects').innerHTML = prev1Data.projectsCount === 0 ? `对比前期: <span class="text-zinc-400">无记录</span>` : `对比前期: <span class="${trendProj>0?'text-emerald-400':'text-rose-400'} font-bold">${trendProj>0?'↑':'↓'} ${Math.abs(Math.round((trendProj/prev1Data.projectsCount)*100))}%</span>`;
-
-            const trendA = currentData.aiCount - prev1Data.aiCount;
-            document.getElementById('metric-trend-ai').innerHTML = prev1Data.aiCount === 0 ? `对比前期: <span class="text-zinc-400">无记录</span>` : `对比前期: <span class="${trendA>0?'text-emerald-400':'text-rose-400'} font-bold">${trendA>0?'↑':'↓'} ${Math.abs(Math.round((trendA/prev1Data.aiCount)*100))}%</span>`;
-
-            const projContainer = document.getElementById('project-list-container');
-            const sortedProj = Object.keys(currentData.activeProjects).map(k => ({ name: k, data: currentData.activeProjects[k] })).sort((a,b) => b.data.hours - a.data.hours);
-            
-            if (sortedProj.length === 0) {
-                projContainer.innerHTML = '<div class="text-center py-20 text-zinc-500 text-sm">该周期无任何项目投入记录</div>';
-            } else {
-                let pHtml = '';
-                const pColors = ['fuchsia', 'emerald', 'sky', 'orange'];
-                sortedProj.forEach((p, idx) => {
-                    const col = pColors[idx % pColors.length];
-                    const pct = currentData.totalHours > 0 ? Math.round((p.data.hours / currentData.totalHours) * 100) : 0;
-                    
-                    pHtml += `
-                    <div class="bg-[#121217] border border-white/5 rounded-2xl p-4 shadow-sm relative overflow-hidden group hover:border-${col}-500/30 transition-colors mb-4">
-                        <div class="absolute left-0 top-0 bottom-0 w-1 bg-${col}-500/80 group-hover:w-1.5 transition-all"></div>
-                        <div class="flex justify-between items-start mb-2 pl-2">
-                            <h4 class="text-[14px] font-bold text-white group-hover:text-${col}-400 transition-colors">${p.name}</h4>
-                            <span class="text-[16px] font-mono font-black text-${col}-400 leading-none">${p.data.hours.toFixed(1)}<span class="text-[10px] text-zinc-500 ml-1 font-normal font-sans">h</span></span>
-                        </div>
-                        <div class="pl-2 mb-3">
-                            <p class="text-[11px] text-zinc-500 mt-0.5">涉及独立需求数: <span class="text-white font-bold font-mono">${p.data.count} 单</span></p>
-                        </div>
-                        <div class="w-full h-1.5 bg-zinc-900 rounded-full overflow-hidden ml-2"><div class="h-full bg-${col}-500 rounded-full opacity-80 bar-grow-h" style="width: ${pct}%"></div></div>
-                    </div>`;
-                });
-                projContainer.innerHTML = pHtml;
-            }
-
-            const pplContainer = document.getElementById('people-list-container');
-            const sortedPpl = Object.values(currentData.peopleMap).sort((a,b) => {
-                if (b.hours !== a.hours) return b.hours - a.hours;
-                return b.taskCount - a.taskCount;
-            });
-
-            if (sortedPpl.length === 0) {
-                pplContainer.innerHTML = '<div class="text-center py-20 text-zinc-500 text-sm">系统内暂无配置设计师/管理账号</div>';
-            } else {
-                let pHtml = '';
-                sortedPpl.forEach((p, index) => {
-                    const isEmpty = p.hours === 0;
-                    const bgClass = isEmpty ? 'bg-[#09090b] border-dashed border-zinc-800 opacity-60' : 'bg-[#121217] border-white/5 shadow-sm hover:border-white/10';
-                    const titleCol = isEmpty ? 'text-zinc-500' : 'text-zinc-200';
-                    const hourCol = isEmpty ? 'text-zinc-600' : 'text-white';
-                    
-                    let statusBadge = '';
-                    if (p.hours > 0 && index === 0) {
-                        statusBadge = `<span class="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">🔥 满负荷 / 最忙</span>`;
-                    } else if (p.hours === 0) {
-                        statusBadge = `<span class="text-[10px] font-bold text-zinc-500 bg-zinc-800/50 px-2 py-0.5 rounded border border-zinc-700/50">💤 极度空闲</span>`;
-                    } else {
-                        statusBadge = `<span class="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">✅ 输出中</span>`;
-                    }
-
-                    let pTags = '';
-                    if (!isEmpty && p.projects.size > 0) {
-                        Array.from(p.projects).forEach(proj => {
-                            pTags += `<span class="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-1.5 py-0.5 rounded text-[9px] truncate max-w-[120px] mr-1 mb-1 inline-block">${proj}</span>`;
                         });
                     }
+                } catch(e){}
 
-                    let aiTags = '';
-                    if (!isEmpty) {
-                        const aiKeys = Object.keys(p.aiTools);
-                        if (aiKeys.length > 0) {
-                            aiKeys.forEach(ai => {
-                                aiTags += `<span class="text-[10px] text-amber-400 border border-amber-500/30 px-1.5 rounded">${ai}: ${p.aiTools[ai]}次</span> `;
-                            });
+                window.ongoingTasksData.forEach(t => {
+                    if (t.assignee && t.assignee !== 'none' && t.status !== 'pending') {
+                        const assKey = t.assignee.toLowerCase();
+                        
+                        let matchedKey = null;
+                        for (let k in designersMap) {
+                            if (assKey.includes(k) || assKey.includes(designersMap[k].display.toLowerCase()) || designersMap[k].display.toLowerCase().includes(assKey)) {
+                                matchedKey = k;
+                                break;
+                            }
+                        }
+
+                        if (matchedKey) {
+                            designersMap[matchedKey].count += 1;
+                            designersMap[matchedKey].hours += 4.5;
+                            designersMap[matchedKey].tasks.push(t);
                         } else {
-                            aiTags = `<span class="text-[10px] text-zinc-500 italic">纯手绘 / 未用AI</span>`;
+                            if(!designersMap[assKey]) {
+                                designersMap[assKey] = { en: assKey, display: t.assignee, count: 0, hours: 0, tasks: [] };
+                            }
+                            designersMap[assKey].count += 1;
+                            designersMap[assKey].hours += 4.5;
+                            designersMap[assKey].tasks.push(t);
                         }
                     }
+                });
 
-                    pHtml += `
-                    <div class="${bgClass} border rounded-2xl p-4 relative overflow-hidden group transition-all mb-4">
-                        ${!isEmpty ? '<div class="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500/50 group-hover:w-1.5 transition-all"></div>' : ''}
-                        <div class="flex justify-between items-start mb-2 pl-2">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-400 shadow-inner">${p.display.substring(0,2).toUpperCase()}</div>
-                                <div>
-                                    <div class="flex items-center gap-2">
-                                        <h4 class="text-[14px] font-bold ${titleCol}">${p.display}</h4>
-                                        ${statusBadge}
+                if(!isSilent) {
+                    document.getElementById('stat-ongoing').innerText = window.ongoingTasksData.length;
+                    document.getElementById('stat-pending').innerText = pendingTasks.length;
+                    document.getElementById('stat-completed-month').innerText = monthC;
+                    document.getElementById('stat-completed-week').innerText = weekC;
+                    document.getElementById('stat-completed-year').innerText = yearC;
+
+                    document.getElementById('tab-count-ongoing').innerText = window.ongoingTasksData.length;
+                    document.getElementById('tab-count-completed').innerText = window.completedTasksData.length;
+
+                    window.renderTasksList();
+
+                    const poolContainer = document.getElementById('resource-pool');
+                    let poolHtml = '';
+                    const sortedDesigners = Object.values(designersMap).sort((a,b) => b.count - a.count);
+                    
+                    sortedDesigners.forEach(data => {
+                        const isEmpty = data.count === 0;
+                        const statusColor = isEmpty ? 'text-zinc-500' : (data.count > 2 ? 'text-rose-500' : 'text-emerald-500');
+                        const statusText = isEmpty ? '极度空闲' : (data.count > 2 ? '高负荷' : '状态适中');
+                        const opacityClass = isEmpty ? 'opacity-60 hover:opacity-100' : 'opacity-100';
+                        const bgClass = isEmpty ? 'bg-[#09090b] border-dashed border-white/5' : 'bg-[#18181b] border border-white/5 shadow-sm hover:border-white/10';
+
+                        let tasksHtml = '';
+                        if (!isEmpty) {
+                            tasksHtml = '<div class="mt-3 space-y-1.5 pt-3 border-t border-white/5">';
+                            data.tasks.forEach(task => {
+                                let sColor = 'zinc'; let sText = '流转中';
+                                if (task.status === 'processing') { sColor = 'orange'; sText = '制作中'; }
+                                else if (task.status === 'pending_approval') { sColor = 'amber'; sText = '待审批'; }
+                                else if (task.status === 'reviewing') { sColor = 'emerald'; sText = '验收中'; }
+                                else if (task.status === 'rejected') { sColor = 'rose'; sText = '被打回'; }
+                                else if (task.status === 'pending_accept') { sColor = 'sky'; sText = '待接单'; }
+                                
+                                tasksHtml += `
+                                    <div class="flex justify-between items-center bg-black/20 px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors cursor-pointer" onclick="window.location.href='task-detail-requester.html?id=${task.id}'">
+                                        <div class="flex items-center gap-2 min-w-0 pr-2">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-${sColor}-500 shrink-0"></span>
+                                            <span class="text-[11px] text-zinc-300 truncate hover:text-white" title="${task.title}">${task.title}</span>
+                                        </div>
+                                        <span class="text-[9px] text-${sColor}-400 shrink-0 bg-${sColor}-500/10 px-1.5 py-0.5 rounded border border-${sColor}-500/20">${sText}</span>
                                     </div>
-                                    <p class="text-[10px] text-zinc-600 font-mono mt-0.5">${p.en}</p>
+                                `;
+                            });
+                            tasksHtml += '</div>';
+                        }
+
+                        poolHtml += `
+                        <div class="${bgClass} rounded-2xl p-4 mb-3 transition-all relative overflow-hidden group ${opacityClass}">
+                            ${!isEmpty ? '<div class="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500/50 group-hover:w-1.5 transition-all"></div>' : ''}
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[10px] font-bold text-zinc-300 shadow-inner shrink-0">${data.display.substring(0,2).toUpperCase()}</div>
+                                    <div>
+                                        <p class="text-[13px] font-bold ${isEmpty ? 'text-zinc-400' : 'text-white'} flex items-center gap-2">
+                                            ${data.display} 
+                                            <span class="text-[10px] ${isEmpty ? 'text-zinc-600 bg-zinc-900/50' : 'text-zinc-400 bg-white/5'} px-1.5 rounded border border-white/5 font-mono">${data.count} 单</span>
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="text-right shrink-0">
+                                    <p class="text-[12px] font-bold ${statusColor} mb-0.5">${statusText}</p>
+                                    ${!isEmpty ? `<p class="text-[10px] text-zinc-500 font-mono">${data.hours.toFixed(1)}h 预估</p>` : `<p class="text-[10px] text-zinc-600">待指派</p>`}
                                 </div>
                             </div>
-                            <div class="text-right">
-                                <span class="text-[20px] font-mono font-black ${hourCol} leading-none">${p.hours.toFixed(1)}<span class="text-[10px] text-zinc-500 ml-1 font-normal font-sans">h</span></span>
-                                ${isEmpty ? '' : `<p class="text-[10px] text-zinc-500 mt-1">承接 ${p.uniqueTasksSet.size} 个独立工单</p>`}
-                            </div>
+                            ${tasksHtml}
                         </div>
-                        ${isEmpty ? `<p class="text-[10px] text-zinc-600 pl-3 mt-3 pt-3 border-t border-zinc-800/50">该人员在此筛选周期内无任何产出或审批动作。</p>` : `
-                        <div class="pl-2 mt-4 space-y-2 pt-3 border-t border-white/5">
-                            <div class="flex flex-wrap">${pTags}</div>
-                            <div class="flex items-center gap-1.5 pt-1.5">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                                ${aiTags}
-                            </div>
-                        </div>`}
-                    </div>`;
-                });
-                pplContainer.innerHTML = pHtml;
-            }
-        }
+                        `;
+                    });
 
-        // ================= 💡 重构升级版：全量数据智能审计导出面板交互引擎 =================
-        window.openExportAnalysisModal = function() {
-            const overlay = document.getElementById('export-modal-overlay');
-            const modal = document.getElementById('export-modal');
-            
-            const currentData = extractDataForPeriod(currentDate, currentView);
-            const totalDemands = currentData.tasksCount; // 总需求单数
-            const actualPeople = Object.values(currentData.peopleMap).filter(p => p.hours > 0).length;
-            
-            document.getElementById('rep-m-hours').innerText = currentData.totalHours.toFixed(1);
-            document.getElementById('rep-m-demand-count').innerText = totalDemands; 
-            document.getElementById('rep-m-projects').innerText = currentData.projectsCount;
-            document.getElementById('rep-m-people').innerText = actualPeople;
-            
-            const year = currentDate.getFullYear(); const month = currentDate.getMonth();
-            let periodStr = ''; let viewTag = '';
-            if (currentView === 'month') { viewTag = '月度设计流水审计'; periodStr = `${year}年 ${month+1}月`; }
-            else if (currentView === 'week') { viewTag = '周度敏捷迭代复盘'; const sw = getStartOfWeek(currentDate); const ew = new Date(sw); ew.setDate(ew.getDate() + 6); periodStr = `${sw.getMonth()+1}.${sw.getDate()} - ${ew.getMonth()+1}.${ew.getDate()}`; }
-            else { viewTag = '年度资源开销总览'; periodStr = `${year} 年度`; }
-            
-            document.getElementById('report-view-tag').innerText = viewTag;
-            document.getElementById('report-period-text').innerText = periodStr;
-            document.getElementById('report-project-scope').innerText = currentSelectedProject === 'all' ? '全部类目范围' : `类目: ${currentSelectedProject}`;
-            document.getElementById('report-gen-time').innerText = new Date().toISOString().split('T')[0] + ' ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-
-            // 1. 动态计算渲染：发起需求的人大盘审计（每个人占了多少需求占比）
-            const creatorContainer = document.getElementById('rep-creator-ranking');
-            const sortedCreators = Object.values(currentData.creatorMap).sort((a,b) => b.count - a.count);
-            if (sortedCreators.length === 0) {
-                creatorContainer.innerHTML = `<div class="col-span-2 text-xs text-zinc-500 italic py-2">暂无需求方提报数据</div>`;
-            } else {
-                let html = '';
-                sortedCreators.slice(0, 6).forEach((c, idx) => {
-                    const pct = totalDemands > 0 ? ((c.count / totalDemands) * 100).toFixed(1) : 0;
-                    html += `
-                    <div class="bg-white/[0.01] border border-white/5 rounded-xl p-3 flex items-center justify-between font-mono">
-                        <div class="flex items-center gap-2 min-w-0">
-                            <span class="w-5 h-5 rounded bg-zinc-800 text-[10px] text-zinc-500 flex items-center justify-center font-bold">#${idx+1}</span>
-                            <span class="text-xs font-bold text-zinc-200 truncate font-sans">${c.name}</span>
-                        </div>
-                        <div class="text-right shrink-0">
-                            <span class="text-xs font-bold text-white">${c.count} 单</span>
-                            <span class="text-[11px] text-indigo-400 font-black ml-2 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">${pct}%</span>
-                        </div>
-                    </div>`;
-                });
-                creatorContainer.innerHTML = html;
-            }
-
-            // 2. 动态计算渲染：各类目/项目双轨对比矩阵表格（哪类多，哪类高）
-            const dualMatrixBody = document.getElementById('rep-category-dual-matrix');
-            const sortedProj = Object.keys(currentData.activeProjects).map(k => ({ name: k, data: currentData.activeProjects[k] })).sort((a,b) => b.data.hours - a.data.hours);
-            if (sortedProj.length === 0) {
-                dualMatrixBody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-xs text-zinc-500 italic">当前大盘无撞轨数据流转</td></tr>`;
-            } else {
-                let html = '';
-                sortedProj.forEach(p => {
-                    const hoursPct = currentData.totalHours > 0 ? ((p.data.hours / currentData.totalHours) * 100).toFixed(1) : 0;
-                    const tasksPct = totalDemands > 0 ? ((p.data.count / totalDemands) * 100).toFixed(1) : 0;
-                    
-                    // 密集度系数计算
-                    let densityTag = '<span class="text-[10px] text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">正常流转</span>';
-                    if (parseFloat(tasksPct) > 25 && parseFloat(hoursPct) < 15) {
-                        densityTag = '<span class="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded font-bold">⚡️ 高频快钱需求</span>';
-                    } else if (parseFloat(hoursPct) > 30) {
-                        densityTag = '<span class="text-[10px] text-rose-400 bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded font-bold">🌋 资源重度黑洞</span>';
+                    if (sortedDesigners.length === 0) {
+                        poolContainer.innerHTML = '<div class="text-center py-10 text-zinc-500 text-xs">暂无团队人员数据</div>';
+                    } else {
+                        poolContainer.innerHTML = poolHtml;
                     }
+                }
+                document.getElementById('dashboard-loading').classList.add('hidden');
 
-                    html += `
-                    <tr class="hover:bg-white/[0.01] transition-colors">
-                        <td class="p-3 text-xs font-sans font-bold text-white max-w-[240px] truncate" title="${p.name}">${p.name}</td>
-                        <td class="p-3 text-right text-xs"><span class="text-zinc-100 font-bold">${p.data.count}单</span> <span class="text-zinc-500 text-[10px] ml-1">(${tasksPct}%)</span></td>
-                        <td class="p-3 text-right text-xs"><span class="text-fuchsia-400 font-black">${p.data.hours.toFixed(1)}h</span> <span class="text-zinc-500 text-[10px] ml-1">(${hoursPct}%)</span></td>
-                        <td class="p-3 text-center">${densityTag}</td>
-                    </tr>`;
-                });
-                dualMatrixBody.innerHTML = html;
+            } catch (err) { console.error(err); } finally { if(syncDot) setTimeout(() => syncDot.classList.add('hidden'), 500); }
+        }
+
+        // ================= 💡 Tab 切换与翻页系统 =================
+        window.switchTab = function(tabName) {
+            window.currentTab = tabName;
+            window.currentPage = 1; 
+            
+            const tOngoing = document.getElementById('tab-ongoing');
+            const tCompleted = document.getElementById('tab-completed');
+            
+            if (tabName === 'ongoing') {
+                tOngoing.className = "text-[14px] font-bold text-emerald-400 border-b-2 border-emerald-500 pb-3 flex items-center gap-2 transition-colors btn-press";
+                tOngoing.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></span>流转中 (<span id="tab-count-ongoing" class="font-mono">${window.ongoingTasksData.length}</span>)`;
+                tCompleted.className = "text-[14px] font-bold text-zinc-500 border-b-2 border-transparent pb-3 flex items-center gap-2 hover:text-zinc-300 transition-colors btn-press";
+                tCompleted.innerHTML = `<span class="w-2 h-2 rounded-full bg-zinc-500"></span>已完结 (<span id="tab-count-completed" class="font-mono">${window.completedTasksData.length}</span>)`;
+            } else {
+                tOngoing.className = "text-[14px] font-bold text-zinc-500 border-b-2 border-transparent pb-3 flex items-center gap-2 hover:text-zinc-300 transition-colors btn-press";
+                tOngoing.innerHTML = `<span class="w-2 h-2 rounded-full bg-zinc-500"></span>流转中 (<span id="tab-count-ongoing" class="font-mono">${window.ongoingTasksData.length}</span>)`;
+                tCompleted.className = "text-[14px] font-bold text-indigo-400 border-b-2 border-indigo-500 pb-3 flex items-center gap-2 transition-colors btn-press";
+                tCompleted.innerHTML = `<span class="w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_8px_#6366f1]"></span>已完结 (<span id="tab-count-completed" class="font-mono">${window.completedTasksData.length}</span>)`;
+            }
+            window.renderTasksList();
+        }
+
+        window.changePage = function(delta) {
+            const data = window.currentTab === 'ongoing' ? window.ongoingTasksData : window.completedTasksData;
+            const totalPages = Math.ceil(data.length / ITEMS_PER_PAGE) || 1;
+            const newPage = window.currentPage + delta;
+            if (newPage >= 1 && newPage <= totalPages) {
+                window.currentPage = newPage;
+                window.renderTasksList();
+            }
+        }
+
+        window.renderTasksList = function() {
+            const data = window.currentTab === 'ongoing' ? window.ongoingTasksData : window.completedTasksData;
+            const container = document.getElementById('tasks-list-container');
+            const pageControls = document.getElementById('pagination-controls');
+            
+            if (data.length === 0) {
+                container.innerHTML = `<div class="text-center py-10 opacity-50"><p class="text-zinc-500 text-sm">此列表暂无工单</p></div>`;
+                pageControls.innerHTML = '';
+                return;
             }
 
-            // 3. AI工具辅助占比百分比条
-            const aiBar = document.getElementById('rep-ai-tools-percentage-bar');
-            const aiLegend = document.getElementById('rep-ai-tools-legend');
-            const aiTotal = currentData.aiCount;
-            if (aiTotal === 0) {
-                aiBar.innerHTML = `<div class="w-full h-full bg-zinc-900 text-[9px] text-zinc-600 flex items-center justify-center italic">本期未开启动作级AI协同</div>`;
-                aiLegend.innerHTML = `<div class="col-span-2 text-zinc-500 italic text-xs">无可用生产力占比分布</div>`;
-            } else {
-                let barHtml = ''; let legendHtml = '';
-                const aiColors = ['bg-amber-500', 'bg-fuchsia-500', 'bg-sky-500', 'bg-emerald-500', 'bg-indigo-500'];
-                const textColors = ['text-amber-400', 'text-fuchsia-400', 'text-sky-400', 'text-emerald-400', 'text-indigo-400'];
-                Object.keys(currentData.aiFreq).map(k => ({ name: k, count: currentData.aiFreq[k] })).sort((a,b) => b.count - a.count).forEach((tool, idx) => {
-                    const c = aiColors[idx % aiColors.length]; const tc = textColors[idx % textColors.length];
-                    const pct = ((tool.count / aiTotal) * 100).toFixed(1);
-                    barHtml += `<div class="${c} h-full" style="width: ${pct}%"></div>`;
-                    legendHtml += `
-                    <div class="flex items-center justify-between px-2.5 py-1.5 border border-white/5 bg-white/[0.005] rounded-lg">
-                        <span class="flex items-center gap-1.5 truncate text-zinc-300 font-sans"><span class="w-1.5 h-1.5 rounded-full ${c}"></span>${tool.name}</span>
-                        <span class="${tc} font-bold">${pct}% <span class="text-zinc-600 font-normal text-[10px] ml-1">${tool.count}次</span></span>
-                    </div>`;
-                });
-                aiBar.innerHTML = barHtml; aiLegend.innerHTML = legendHtml;
-            }
-
-            // 4. 设计承接：独立需求单量劳模榜 (谁做的需求多)
-            const sortedPplByTasks = Object.values(currentData.peopleMap).filter(p => p.uniqueTasksSet.size > 0).sort((a,b) => b.uniqueTasksSet.size - a.uniqueTasksSet.size);
-            const pplTasksContainer = document.getElementById('rep-people-tasks-ranking');
-            if(sortedPplByTasks.length === 0) {
-                pplTasksContainer.innerHTML = `<div class="text-xs text-zinc-500 italic py-2">本期无承接单数记录</div>`;
-            } else {
-                let html = '';
-                sortedPplByTasks.slice(0, 4).forEach((p, idx) => {
-                    html += `
-                    <div class="flex justify-between items-center text-xs px-2 py-1.5 bg-white/[0.01] border border-white/5 rounded-lg font-mono">
-                        <span class="text-zinc-300"><span class="text-zinc-600 font-bold mr-2">0${idx+1}</span>${p.display}</span>
-                        <span class="text-emerald-400 font-bold">攻坚解题 ${p.uniqueTasksSet.size} 个独立需求</span>
-                    </div>`;
-                });
-                pplTasksContainer.innerHTML = html;
-            }
-
-            // 5. 设计承接：硬核堆栈工时劳模榜
-            const sortedPplByHours = Object.values(currentData.peopleMap).filter(p => p.hours > 0).sort((a,b) => b.hours - a.hours);
-            const pplHoursContainer = document.getElementById('rep-people-hours-ranking');
-            if(sortedPplByHours.length === 0) {
-                pplHoursContainer.innerHTML = `<div class="text-xs text-zinc-500 italic py-2">无设计师填报出勤工时</div>`;
-            } else {
-                let html = '';
-                sortedPplByHours.slice(0, 4).forEach((p, idx) => {
-                    html += `
-                    <div class="flex justify-between items-center text-xs px-2 py-1.5 bg-white/[0.01] border border-white/5 rounded-lg font-mono">
-                        <span class="text-zinc-300"><span class="text-zinc-600 font-bold mr-2">0${idx+1}</span>${p.display}</span>
-                        <span class="text-white font-bold">${p.hours.toFixed(1)} h</span>
-                    </div>`;
-                });
-                pplHoursContainer.innerHTML = html;
-            }
-
-            // 6. 双轨数据撞击融合智能 Insights 提示
-            const insightEl = document.getElementById('rep-intelligence-insight');
-            if (currentData.totalHours === 0) {
-                insightEl.innerText = "当期大盘无撞单及工时沉淀，无法出具多维审计诊断。";
-            } else {
-                let maxCreator = sortedCreators[0] ? sortedCreators[0].name : '未知';
-                let maxCreatorCount = sortedCreators[0] ? sortedCreators[0].count : 0;
-                let maxCreatorPct = totalDemands > 0 ? ((maxCreatorCount / totalDemands) * 100).toFixed(1) : 0;
+            const totalPages = Math.ceil(data.length / ITEMS_PER_PAGE);
+            if (window.currentPage > totalPages) window.currentPage = totalPages;
+            
+            const start = (window.currentPage - 1) * ITEMS_PER_PAGE;
+            const pageData = data.slice(start, start + ITEMS_PER_PAGE);
+            
+            let html = '';
+            pageData.forEach(t => {
+                let sColor, sText, btnHtml;
                 
-                let topProjByHours = sortedProj[0] ? sortedProj[0].name : '无';
-                let topProjHoursPct = sortedProj[0] ? ((sortedProj[0].data.hours / currentData.totalHours) * 100).toFixed(1) : 0;
-                
-                let sortedProjByCount = [...sortedProj].sort((a,b) => b.data.count - a.data.count);
-                let topProjByCount = sortedProjByCount[0] ? sortedProjByCount[0].name : '无';
-                let topProjCountPct = sortedProjByCount[0] ? ((sortedProjByCount[0].data.count / totalDemands) * 100).toFixed(1) : 0;
+                if (window.currentTab === 'completed') {
+                    sColor = t.status === 'terminated' ? 'rose' : 'zinc'; 
+                    sText = t.status === 'terminated' ? '已强行终止' : '已验收完结';
+                    btnHtml = `<button onclick="event.stopPropagation(); window.location.href='task-detail-requester.html?id=${t.id}'" class="text-zinc-300 bg-zinc-800 hover:bg-zinc-700 px-4 py-1.5 rounded-lg text-[11px] font-bold transition-colors btn-press border border-zinc-700 shadow-sm">查看详情快照</button>`;
+                } else {
+                    switch(t.status) {
+                        case 'pending': sColor = 'sky'; sText = '待接单'; btnHtml = `<button class="text-sky-400 bg-sky-500/10 px-3 py-1 rounded text-[11px] font-bold">待响应</button>`; break;
+                        case 'pending_accept': sColor = 'amber'; sText = '待确认接单'; btnHtml = `<button class="text-amber-400 bg-amber-500/10 px-3 py-1 rounded text-[11px] font-bold">待接单</button>`; break;
+                        case 'processing': sColor = 'orange'; sText = '制作中'; btnHtml = `<button class="text-orange-400 bg-orange-500/10 px-3 py-1 rounded text-[11px] font-bold">查看进度</button>`; break;
+                        case 'pending_approval': sColor = 'amber'; sText = '框架审批中'; btnHtml = `<button onclick="event.stopPropagation(); window.location.href='task-detail-requester.html?id=${t.id}'" class="text-white bg-amber-600 hover:bg-amber-500 px-4 py-1.5 rounded-lg text-[11px] font-bold transition-colors shadow-lg btn-press">⚡ 去审批</button>`; break;
+                        case 'reviewing': sColor = 'emerald'; sText = '待甲方验收'; btnHtml = `<button class="text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded text-[11px] font-bold">甲方验收中</button>`; break;
+                        case 'rejected': sColor = 'rose'; sText = '打回修改中'; btnHtml = `<button class="text-rose-400 bg-rose-500/10 px-3 py-1 rounded text-[11px] font-bold">督办催稿</button>`; break;
+                        default: sColor = 'zinc'; sText = '未知状态'; btnHtml = '';
+                    }
+                }
 
-                let topDoer = sortedPplByTasks[0] ? sortedPplByTasks[0].display : '暂无';
-                let topDoerCount = sortedPplByTasks[0] ? sortedPplByTasks[0].uniqueTasksSet.size : 0;
+                const opacityClass = window.currentTab === 'completed' ? 'opacity-70 hover:opacity-100' : '';
 
-                insightEl.innerHTML = `本期在大盘需求源头审计中，<span class="text-white font-black">【${maxCreator}】</span> 属于本期最具统治力的发起方，一个人就狂砸了 <span class="text-indigo-400 font-bold">${maxCreatorCount} 单</span> 需求，强占全量流水提报的 <span class="text-indigo-400 font-bold">${maxCreatorPct}%</span>。纵观需求类目双轨矩阵，独立需求单量占比最高的类目为 <span class="text-white font-bold">《${topProjByCount}》</span>（占总单量的 ${topProjCountPct}%）；而疯狂吞噬团队工时、工时占比高居榜首的重度黑洞类目则是 <span class="text-fuchsia-400 font-bold">《${topProjByHours}》</span>（工时拦截率达 ${topProjHoursPct}%）。在下游了承接设计执行侧，设计师 <span class="text-emerald-400 font-bold">【${topDoer}】</span> 业务吞吐响应最为频繁，独立解题消化了 <span class="text-emerald-400 font-bold">${topDoerCount} 项独立工单</span>，属于本期名副其实的需求消化劳模。`;
-            }
+                html += `
+                <div class="bg-[#18181b] border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-colors cursor-pointer relative overflow-hidden group ${opacityClass}" onclick="window.location.href='task-detail-requester.html?id=${t.id}'">
+                    <div class="absolute left-0 top-0 bottom-0 w-1 bg-${sColor}-500 group-hover:w-1.5 transition-all"></div>
+                    <div class="flex justify-between items-center mb-4 pl-1">
+                        <div class="flex items-center gap-3">
+                            <span class="text-[10px] font-mono font-bold bg-white/5 px-2 py-0.5 rounded border border-white/10 text-zinc-400">${t.id}</span>
+                            <span class="text-[14px] font-bold text-white group-hover:text-${sColor}-400 transition-colors">${t.title}</span>
+                        </div>
+                        ${btnHtml}
+                    </div>
+                    <div class="flex justify-between items-center text-[12px] text-zinc-500 pl-1">
+                        <div class="flex items-center gap-4">
+                            <span class="flex items-center gap-1.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> 委派: <strong class="text-zinc-300 font-normal">${t.assignee === 'none' ? '暂未分配' : t.assignee}</strong></span>
+                            <span class="flex items-center gap-1.5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> 状态: <span class="text-${sColor}-400 font-bold">${sText}</span></span>
+                        </div>
+                        <span class="font-mono">期望交付: ${t.due_date || '未定'}</span>
+                    </div>
+                </div>
+                `;
+            });
+            container.innerHTML = html;
 
-            overlay.classList.remove('hidden');
-            setTimeout(() => { overlay.classList.remove('opacity-0'); modal.classList.remove('scale-95'); }, 10);
+            let pHtml = `
+                <button onclick="window.changePage(-1)" class="px-4 py-2 rounded-xl text-[12px] font-bold ${window.currentPage === 1 ? 'bg-zinc-800/50 text-zinc-600 cursor-not-allowed border border-transparent' : 'bg-[#18181b] text-zinc-300 hover:text-white border border-white/10 hover:border-white/30 btn-press'} transition-all flex items-center gap-1"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg> 上一页</button>
+                <div class="bg-[#18181b] border border-white/5 rounded-xl px-4 py-2 flex items-center justify-center min-w-[80px]">
+                    <span class="text-[12px] text-white font-bold font-mono">${window.currentPage} <span class="text-zinc-500 font-normal mx-1">/</span> ${totalPages}</span>
+                </div>
+                <button onclick="window.changePage(1)" class="px-4 py-2 rounded-xl text-[12px] font-bold ${window.currentPage === totalPages ? 'bg-zinc-800/50 text-zinc-600 cursor-not-allowed border border-transparent' : 'bg-[#18181b] text-zinc-300 hover:text-white border border-white/10 hover:border-white/30 btn-press'} transition-all flex items-center gap-1">下一页 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+            `;
+            pageControls.innerHTML = pHtml;
         }
 
-        window.closeExportAnalysisModal = function() {
-            const overlay = document.getElementById('export-modal-overlay');
-            const modal = document.getElementById('export-modal');
-            overlay.classList.add('opacity-0'); modal.classList.add('scale-95');
-            setTimeout(() => { overlay.classList.add('hidden'); }, 300);
-        }
-
-        // 按钮功能：一键生成带有各方占比、类目单量和工时比对的 Markdown 摘要
-        window.copyMarkdownSummary = function() {
-            const currentData = extractDataForPeriod(currentDate, currentView);
-            const totalDemands = currentData.tasksCount;
-            const sortedCreators = Object.values(currentData.creatorMap).sort((a,b) => b.count - a.count);
-            const sortedProj = Object.keys(currentData.activeProjects).map(k => ({ name: k, data: currentData.activeProjects[k] })).sort((a,b) => b.data.hours - a.data.hours);
-            const sortedPplByTasks = Object.values(currentData.peopleMap).filter(p => p.uniqueTasksSet.size > 0).sort((a,b) => b.uniqueTasksSet.size - a.uniqueTasksSet.size);
-            const range = document.getElementById('report-period-text').innerText;
-
-            let md = `### 📊 TIG 设计资产流转与提报人源头多维分析简报\n`;
-            md += `* **盘点范围与周期**: ${range} (${document.getElementById('report-view-tag').innerText})\n`;
-            md += `* **核心指标**: 独立需求总量 \`${totalDemands}单\` | 设计硬核总耗时 \`${currentData.totalHours.toFixed(1)}h\`\n\n`;
-            
-            md += `#### 1️⃣ 需求提报发起方大盘占比排行:\n`;
-            sortedCreators.slice(0, 4).forEach((c, i) => {
-                md += `${i+1}. 【${c.name}】发起独立需求: ${c.count}单 | 大盘占比: ${((c.count/totalDemands)*100).toFixed(1)}%\n`;
-            });
-            
-            md += `\n#### 2️⃣ 类目/项目双轨纵横盘点（单量与工时对照）:\n`;
-            sortedProj.slice(0, 5).forEach((p, i) => {
-                const hPct = currentData.totalHours > 0 ? ((p.data.hours/currentData.totalHours)*100).toFixed(1) : 0;
-                const tPct = totalDemands > 0 ? ((p.data.count/totalDemands)*100).toFixed(1) : 0;
-                md += `${i+1}. 【${p.name}】需求数: ${p.data.count}单(${tPct}%) ➔ 消耗设计工时: ${p.data.hours.toFixed(1)}h(${hPct}%)\n`;
-            });
-            
-            md += `\n#### 3️⃣ 设计承接高效劳模排行 (谁做的需求多):\n`;
-            sortedPplByTasks.slice(0, 4).forEach((p, i) => {
-                md += `${i+1}. 【${p.display}】独立设计需求消化量: ${p.uniqueTasksSet.size}单 (累计工时: ${p.hours.toFixed(1)}h)\n`;
-            });
-            
-            md += `\n#### 4️⃣ 穿透诊断管理层提示:\n${document.getElementById('rep-intelligence-insight').innerText}\n\n`;
-            md += `*报告导出源于戴维斯自动化数据中心 • ${document.getElementById('report-gen-time').innerText}*`;
-
-            navigator.clipboard.writeText(md).then(() => {
-                window.showToast("复制成功", "带有发起占比与类目对照的 Markdown 简报已就绪", "success");
-            });
-        }
-
-        // ================= 💡 核心改良功能：一键无损将提报人明细、类目工时占比等核心数据打成电子表格 CSV 导出 =================
-        window.exportToCSV = function() {
-            const currentData = extractDataForPeriod(currentDate, currentView);
-            const totalDemands = currentData.tasksCount;
-            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
-            
-            // 写入全功能表格表头
-            csvContent += "度量分类层级,归属分类/人名,记录需求单数/消耗工时,数据大盘占比百分比\n";
-            csvContent += `核心摘要盘点,大盘累计记录需求量,${totalDemands} 单,-\n`;
-            csvContent += `核心摘要盘点,大盘设计总工时开销,${currentData.totalHours.toFixed(1)} 小时,-\n`;
-            
-            // 发起方数据写入
-            Object.values(currentData.creatorMap).sort((a,b) => b.count - a.count).forEach(c => {
-                csvContent += `需求发起方审计(Creator),${c.name},${c.count} 单,占总需求提报 ${((c.count/totalDemands)*100).toFixed(1)}%\n`;
-            });
-
-            // 类目与项目工时单数双轨撞击数据写入
-            Object.keys(currentData.activeProjects).map(k => ({ name: k, data: currentData.activeProjects[k] })).sort((a,b) => b.data.hours - a.data.hours).forEach(p => {
-                const hPct = currentData.totalHours > 0 ? ((p.data.hours/currentData.totalHours)*100).toFixed(1) : 0;
-                const tPct = totalDemands > 0 ? ((p.data.count/totalDemands)*100).toFixed(1) : 0;
-                csvContent += `类目纵横双轨矩阵,${p.name.replace(/,/g, '，')}(单量数据),${p.data.count} 单,占总单量 ${tPct}%\n`;
-                csvContent += `类目纵横双轨矩阵,${p.name.replace(/,/g, '，')}(设计耗时),${p.data.hours.toFixed(1)} 小时,占总工时 ${hPct}%\n`;
-            });
-
-            // 设计执行侧吞吐需求数据写入
-            Object.values(currentData.peopleMap).sort((a,b) => b.uniqueTasksSet.size - a.uniqueTasksSet.size).forEach(p => {
-                csvContent += `设计执行侧吞吐(Assignee),${p.display},独立消化需求: ${p.uniqueTasksSet.size} 单,硬核沉淀工时: ${p.hours.toFixed(1)}h\n`;
-            });
-
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `TIG_需求发起及类目工时占比纵横分析表_${document.getElementById('report-period-text').innerText}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            window.showToast("导出表格成功", "全维度多要素交叉撞轨复盘表格已成功下载", "success");
-        }
-
-        window.exportToPNGImage = function() {
-            const captureZone = document.getElementById('export-capture-zone');
-            window.showToast("正在生成", "高保真全屏报告截图渲染中...", "info");
-            html2canvas(captureZone, { backgroundColor: '#121217', scale: 2, logging: false, useCORS: true }).then(canvas => {
-                const imgData = canvas.toDataURL('image/png');
-                const link = document.createElement('a');
-                link.download = `TIG_多维双轨效能简报_${document.getElementById('report-period-text').innerText}.png`;
-                link.href = imgData; document.body.appendChild(link); link.click(); document.body.removeChild(link);
-                window.showToast("卡片下载成功", "高保真图片简报已下载", "success");
-            });
-        }
-
-        // ================= 🔔 全局消息预警监听引擎 =================
+        // ================= 🔔 全局消息通知引擎 (修复强化版) =================
         let lastNotifHash = '';
+
         window.syncNotificationsFromCloud = async function(isSilent = true) {
             if(!window.supabase) return;
             const userStr = localStorage.getItem('activeUserObj');
             if(!userStr) return;
             const currentUser = JSON.parse(userStr);
             const myName = (currentUser.displayName || currentUser.cnName || currentUser.enName || '').toLowerCase();
+            const enName = (currentUser.enName || '').toLowerCase();
+
+            // 💡 修复：确保提权状态同步到通知引擎，强制给领导开天眼
+            let isAdmin = (currentUser.perms || []).includes('admin');
+            if (['davidxxu', 'davidxu', 'ponyxu', 'judyzzhang'].includes(enName)) isAdmin = true;
+            const rolePrefix = isAdmin ? 'admin' : 'req';
 
             try {
-                const { data: tasks, error } = await window.supabase.from(window.DB_TABLE).select('id, title, creator, history_json').order('created_at', { ascending: false });
+                const { data: tasks, error } = await window.supabase.from(window.DB_TABLE)
+                    .select('id, title, creator, assignee, history_json')
+                    .order('created_at', { ascending: false });
+                
                 if (error) throw error;
 
                 let myNotifs = [];
 
                 tasks.forEach(task => {
-                    let hist = []; try { hist = JSON.parse(task.history_json || '[]'); } catch(e){}
+                    const creatorStr = (task.creator || '').toLowerCase();
+                    const assigneeStr = (task.assignee || '').toLowerCase();
+                    const isMyTask = creatorStr.includes(myName) || myName.includes(creatorStr) || assigneeStr.includes(myName) || myName.includes(assigneeStr);
+                    
+                    // 管理员看全部预警，非管理员只看自己的
+                    if (!isAdmin && !isMyTask) return;
+
+                    let hist = [];
+                    try { hist = JSON.parse(task.history_json || '[]'); } catch(e){}
+
                     hist.forEach((h, index) => {
                         const op = (h.operator || '').toLowerCase();
-                        if (op.includes(myName)) return;
+                        // 过滤掉自己产生的操作，不给自己发通知
+                        if (op.includes(myName) && myName !== '') return;
 
                         let title = ''; let content = ''; let icon = 'bg-fuchsia-500';
                         
-                        if (h.action === 'submit_framework') { title = '👀 框架待审批'; content = `${h.operator} 提交了中期方案，等待审批：《${task.title}》`; icon = 'bg-amber-500'; }
-                        else if (h.action === 'submit_draft') { title = '🎁 正稿待验收'; content = `${h.operator} 交付了正式稿，等待甲方验收：《${task.title}》`; icon = 'bg-emerald-500'; }
-                        else if (h.action === 'reject_framework' || h.action === 'reject_draft' || h.is_rejected) { title = '💥 方案被打回'; content = `单据发生打回重修：《${task.title}》`; icon = 'bg-rose-500'; }
-                        else if (h.action === 'complete') { title = '✅ 任务圆满结案'; content = `甲方已验收通过：《${task.title}》`; icon = 'bg-emerald-500'; }
-                        else if (h.action && h.action.includes('urge')) { title = '🚨 紧急催办'; content = `单据产生催办行为：《${task.title}》`; icon = 'bg-rose-500'; }
+                        // 💡 强化：使用更宽泛的正则匹配动作，防止前后端拼写不一致
+                        const act = (h.action || '').toLowerCase();
+                        
+                        if (act.includes('submit_framework')) { 
+                            title = '👀 框架待审批'; content = `${h.operator} 提交了中期方案，等待把关：《${task.title}》`; icon = 'bg-amber-500'; 
+                        }
+                        else if (act.includes('approve') || act.includes('pass')) { 
+                            title = '✅ 审批已通过'; content = `${h.operator} 审批通过了阶段方案：《${task.title}》`; icon = 'bg-emerald-500'; 
+                        }
+                        else if (act.includes('submit_draft') || act.includes('submit_final')) { 
+                            title = '🎁 正稿待验收'; content = `${h.operator} 交付了正式稿，等待验收：《${task.title}》`; icon = 'bg-sky-500'; 
+                        }
+                        else if (act.includes('reject') || h.is_rejected) { 
+                            title = '💥 方案被打回'; content = `单据发生打回重修：《${task.title}》`; icon = 'bg-rose-500'; 
+                        }
+                        else if (act.includes('complete') || act.includes('accept_draft') || act.includes('finish')) { 
+                            title = '✅ 任务圆满结案'; content = `甲方已验收通过：《${task.title}》`; icon = 'bg-emerald-500'; 
+                        }
+                        else if (act.includes('urge')) { 
+                            title = '🚨 紧急催办'; content = `系统触发了催办提醒，请及时跟进：《${task.title}》`; icon = 'bg-rose-500'; 
+                        }
+                        else if (act.includes('transfer') || act.includes('reassign')) { 
+                            title = '🔄 任务转移'; content = `单据发生了人员转单或退回大厅：《${task.title}》`; icon = 'bg-orange-500'; 
+                        }
+                        else if (act.includes('create') && isAdmin) { 
+                            title = '🆕 新需求发布'; content = `大厅有新的需求发布：《${task.title}》`; icon = 'bg-indigo-500'; 
+                        }
+                        else if (act.includes('terminate')) { 
+                            title = '🚨 任务终止'; content = `单据已被撤销或强行终止：《${task.title}》`; icon = 'bg-rose-500'; 
+                        }
 
                         if (title) {
                             const notifId = `${task.id}_${index}_${title}`;
                             if (!myNotifs.some(n => n.id === notifId)) {
-                                myNotifs.push({ id: notifId, taskId: task.id, title: title, content: content, time: h.time || h.created_at || new Date().toISOString(), icon: icon });
+                                myNotifs.push({
+                                    id: notifId,
+                                    taskId: task.id,
+                                    title: title,
+                                    content: content,
+                                    time: h.time || h.created_at || new Date().toISOString(),
+                                    icon: icon
+                                });
                             }
                         }
                     });
                 });
 
                 myNotifs.sort((a, b) => new Date(b.time) - new Date(a.time));
-                let readReceipts = JSON.parse(localStorage.getItem('notif_read_admin_' + myName) || '[]');
+
+                let readReceipts = JSON.parse(localStorage.getItem(`notif_read_${rolePrefix}_` + myName) || '[]');
                 const unreadNotifs = myNotifs.filter(n => !readReceipts.includes(n.id));
                 const unreadCount = unreadNotifs.length;
 
@@ -1255,33 +679,52 @@
                 if (isSilent && newHash === lastNotifHash) return;
                 lastNotifHash = newHash;
 
+                let prevUnreadCount = parseInt(localStorage.getItem(`prevUnreadCount_${rolePrefix}_` + myName) || '0');
+                if (isSilent && unreadCount > prevUnreadCount) {
+                    const newCount = unreadCount - prevUnreadCount;
+                    if(window.showToast) window.showToast('🔔 收到新消息', `您有 ${newCount} 条系统动态，请点击右上角铃铛查看。`, 'info');
+                }
+                localStorage.setItem(`prevUnreadCount_${rolePrefix}_` + myName, unreadCount.toString());
+
                 const bellDot = document.getElementById('bell-dot');
                 if (bellDot) {
-                    if (unreadCount > 0) { bellDot.classList.remove('hidden', 'bg-zinc-600', 'border-transparent'); bellDot.classList.add('bg-rose-500', 'animate-pulse', 'border-[#141417]'); } 
-                    else { bellDot.classList.add('hidden'); }
+                    if (unreadCount > 0) {
+                        bellDot.classList.remove('hidden', 'bg-zinc-600', 'border-transparent');
+                        bellDot.classList.add('bg-rose-500', 'animate-pulse', 'border-[#141417]');
+                    } else {
+                        bellDot.classList.add('hidden');
+                    }
                 }
+
                 const notifContainer = document.getElementById('notif-list-container');
                 if (notifContainer) {
-                    if (unreadCount === 0) { notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读消息</div>'; } 
-                    else {
+                    if (unreadCount === 0) {
+                        notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读消息</div>';
+                    } else {
                         notifContainer.innerHTML = unreadNotifs.map(n => {
                             const dateStr = new Date(n.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                             return `
                             <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors" onclick="window.markSingleAsRead('${n.id}', '${n.taskId}')">
-                                <div class="flex justify-between items-start mb-1"><h4 class="text-[13px] font-bold text-white flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full ${n.icon} shrink-0 shadow-[0_0_8px_currentColor]"></span>${n.title}</h4><span class="text-[10px] text-zinc-500">${dateStr}</span></div>
+                                <div class="flex justify-between items-start mb-1">
+                                    <h4 class="text-[13px] font-bold text-white flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full ${n.icon} shrink-0 shadow-[0_0_8px_currentColor]"></span>${n.title}</h4>
+                                    <span class="text-[10px] text-zinc-500">${dateStr}</span>
+                                </div>
                                 <p class="text-[11px] text-zinc-400 pl-4 line-clamp-2">${n.content}</p>
                             </div>`;
                         }).join('');
                     }
                 }
                 window.currentMyUnreadIds = unreadNotifs.map(n => n.id);
-            } catch(e) {}
+            } catch(e) { console.error("通知同步失败", e); }
         };
 
         window.toggleNotificationPanel = function(event) {
             if(event) event.stopPropagation();
             const dropdown = document.getElementById('notifMenu');
-            if(dropdown) { dropdown.classList.toggle('hidden'); if (!dropdown.classList.contains('hidden')) window.syncNotificationsFromCloud(true); }
+            if(dropdown) {
+                dropdown.classList.toggle('hidden');
+                if (!dropdown.classList.contains('hidden')) { window.syncNotificationsFromCloud(true); }
+            }
         }
 
         window.markSingleAsRead = function(id, taskId) {
@@ -1289,33 +732,69 @@
             if(!userStr) return;
             const currentUser = JSON.parse(userStr);
             const myName = (currentUser.displayName || currentUser.cnName || currentUser.enName || '').toLowerCase();
-            let readReceipts = JSON.parse(localStorage.getItem('notif_read_admin_' + myName) || '[]');
-            if (!readReceipts.includes(id)) { readReceipts.push(id); localStorage.setItem('notif_read_admin_' + myName, JSON.stringify(readReceipts)); }
+            const enName = (currentUser.enName || '').toLowerCase();
+            
+            let isAdmin = (currentUser.perms || []).includes('admin');
+            if (['davidxxu', 'davidxu', 'ponyxu', 'judyzzhang'].includes(enName)) isAdmin = true;
+            const rolePrefix = isAdmin ? 'admin' : 'req';
+            
+            let readReceipts = JSON.parse(localStorage.getItem(`notif_read_${rolePrefix}_` + myName) || '[]');
+            if (!readReceipts.includes(id)) {
+                readReceipts.push(id);
+                localStorage.setItem(`notif_read_${rolePrefix}_` + myName, JSON.stringify(readReceipts));
+            }
+            
             window.location.href = 'task-detail-requester.html?id=' + taskId;
         };
 
         window.markAllAsRead = function(event) {
             if(event) event.stopPropagation();
             if (!window.currentMyUnreadIds || window.currentMyUnreadIds.length === 0) return;
+            
             const userStr = localStorage.getItem('activeUserObj');
             if(!userStr) return;
             const currentUser = JSON.parse(userStr);
             const myName = (currentUser.displayName || currentUser.cnName || currentUser.enName || '').toLowerCase();
-            const btn = event.currentTarget; const originalText = btn.innerHTML; btn.innerHTML = "处理中...";
-            let readReceipts = JSON.parse(localStorage.getItem('notif_read_admin_' + myName) || '[]');
+            const enName = (currentUser.enName || '').toLowerCase();
+            
+            let isAdmin = (currentUser.perms || []).includes('admin');
+            if (['davidxxu', 'davidxu', 'ponyxu', 'judyzzhang'].includes(enName)) isAdmin = true;
+            const rolePrefix = isAdmin ? 'admin' : 'req';
+
+            const btn = event.currentTarget;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "处理中...";
+
+            let readReceipts = JSON.parse(localStorage.getItem(`notif_read_${rolePrefix}_` + myName) || '[]');
             readReceipts = [...new Set([...readReceipts, ...window.currentMyUnreadIds])];
-            localStorage.setItem('notif_read_admin_' + myName, JSON.stringify(readReceipts));
-            window.syncNotificationsFromCloud(true); btn.innerHTML = originalText;
+            localStorage.setItem(`notif_read_${rolePrefix}_` + myName, JSON.stringify(readReceipts));
+            
+            window.syncNotificationsFromCloud(true);
+            if(window.showToast) window.showToast('全部已读', '消息红点已清除。', 'success');
+            
+            btn.innerHTML = originalText;
         };
 
         document.addEventListener('DOMContentLoaded', () => {
+            // 💡 修复：删除了这里的 addEventListener 导致与 onclick 的冲突！
+            
+            // 监听全局点击：包含收起消息通知和身份菜单
             document.addEventListener('click', (e) => { 
-                const notifMenu = document.getElementById('notifMenu'); const notifBtn = document.getElementById('notifBtn');
-                if(notifMenu && !notifMenu.contains(e.target) && notifBtn && !notifBtn.contains(e.target)) notifMenu.classList.add('hidden'); 
+                const notifMenu = document.getElementById('notifMenu');
+                const notifBtn = document.getElementById('notifBtn');
+                if(notifMenu && !notifMenu.contains(e.target) && notifBtn && !notifBtn.contains(e.target)) {
+                    notifMenu.classList.add('hidden'); 
+                }
+                const identityMenu = document.getElementById('identityMenu');
+                const identityBtn = document.getElementById('identityBtn');
+                if(identityMenu && !identityMenu.contains(e.target) && identityBtn && !identityBtn.contains(e.target)) {
+                    identityMenu.classList.add('hidden');
+                }
             });
-            window.loadDashboardData();
+
+            // 启动轮询
             setTimeout(() => { window.syncNotificationsFromCloud(true); }, 1500);
-            setInterval(() => { window.loadDashboardData(true); window.syncNotificationsFromCloud(true); }, 8000);
+            setInterval(() => { window.syncNotificationsFromCloud(true); }, 8000);
         });
     </script>
 </body>
