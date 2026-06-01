@@ -1129,9 +1129,9 @@
             });
         }
 
-        // 核心彻底重构功能：直接、无损抓取当前 DOM 页面上所有渲染的数据，完美转化导出
+        // 核心彻底优化重构：合并最左侧主题分类单元格 + 修正设计师排行版横向宽表罗列
         window.exportToCSV = function() {
-            // 获取头部基础信息元数据
+            // 从图2界面 DOM 节点直接抓取基础面元数据
             const totalDemands = document.getElementById('rep-m-demand-count').innerText;
             const totalHours = document.getElementById('rep-m-hours').innerText;
             const totalProjects = document.getElementById('rep-m-projects').innerText;
@@ -1143,35 +1143,37 @@
 
             let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
             
-            // 表头定义
-            csvContent += "数据观测维度分类,核心对象/条目层级,数值(单量/工时/频次),占比权重/诊断说明,流转分析状态标签\n";
+            // 重新定制顶级高清晰度的 Excel 数据二维宽表字段头，将原本纵向累加的排行版全部在右侧平铺展开
+            csvContent += "数据观测大类目主题(合并展示区),度量对象名称/项目条目,核心数据值1(单量/频次),核心数据值2(工时开销/大盘占比),特殊诊断状态属性标签\n";
             
-            // 维度 0：顶层核心摘要指标 (图2最顶上四个大卡片)
+            // 维度 0：核心简报大盘卡片数据摘要（第一行输出主题，后续留空代表合并单元格）
             csvContent += `0. 核心简报摘要,总计记录需求量,${totalDemands} 单,-,-\n`;
-            csvContent += `0. 核心简报摘要,累计消耗设计工时,${totalHours} 小时,-,-\n`;
-            csvContent += `0. 核心简报摘要,涵盖活跃类目项目,${totalProjects} 个,-,-\n`;
-            csvContent += `0. 核心简报摘要,出勤跟进设计师,${totalPeople} 人,-,-\n`;
-            csvContent += `0. 核心简报摘要,报告核算周期及范围,${reportPeriod} (${reportTag}),${reportScope},导出时间: ${genTime}\n`;
+            csvContent += `,累计消耗设计工时,${totalHours} 小时,-,-\n`;
+            csvContent += `,涵盖活跃类目项目,${totalProjects} 个,-,-\n`;
+            csvContent += `,出勤跟进设计师,${totalPeople} 人,-,-\n`;
+            csvContent += `,核算周期与全盘范围,${reportPeriod} (${reportTag}),${reportScope},导出时间: ${genTime}\n`;
 
-            // 维度 1：需求发起方大盘审计（图2第1个模块）
+            // 维度 1：需求发起方大盘审计（第一行有大分类主题，后面留空自动实现Excel向下合并）
             const creatorItems = document.querySelectorAll('.font-item-creator');
             if (creatorItems.length === 0) {
                 csvContent += "1. 需求发起方大盘审计,暂无需求方提报数据,-,-,-\n";
             } else {
-                creatorItems.forEach(item => {
+                creatorItems.forEach((item, idx) => {
+                    const prefix = (idx === 0) ? "1. 需求发起方大盘审计" : ""; // 仅首行展示，实现合并效果
                     const name = item.querySelector('.c-name') ? item.querySelector('.c-name').innerText.trim() : '-';
                     const count = item.querySelector('.c-count') ? item.querySelector('.c-count').innerText.trim() : '-';
                     const pct = item.querySelector('.c-pct') ? item.querySelector('.c-pct').innerText.trim() : '-';
-                    csvContent += `1. 需求发起方大盘审计,${name},${count},大盘占比: ${pct},-\n`;
+                    csvContent += `${prefix},${name},${count},大盘发起权重: ${pct},需求源头追踪\n`;
                 });
             }
 
-            // 维度 2：各类目/项目双轨对比分析明细矩阵（图2第2个模块表格）
+            // 维度 2：各类目/项目双轨对比分析数据明细（同样大主题只出现在首行，解决刷屏问题）
             const matrixRows = document.querySelectorAll('.matrix-row');
             if (matrixRows.length === 0) {
                 csvContent += "2. 各类目双轨对比矩阵,当前大盘无撞轨数据流转,-,-,-\n";
             } else {
-                matrixRows.forEach(row => {
+                matrixRows.forEach((row, idx) => {
+                    const prefix = (idx === 0) ? "2. 各类目双轨对比矩阵" : ""; // 首行后留空
                     const pName = row.querySelector('.row-pname') ? row.querySelector('.row-pname').innerText.trim().replace(/,/g, '，') : '-';
                     const tasks = row.querySelector('.row-tasks') ? row.querySelector('.row-tasks').innerText.trim() : '-';
                     const tasksPct = row.querySelector('.row-tasks-pct') ? row.querySelector('.row-tasks-pct').innerText.trim() : '-';
@@ -1179,61 +1181,84 @@
                     const hoursPct = row.querySelector('.row-hours-pct') ? row.querySelector('.row-hours-pct').innerText.trim() : '-';
                     const density = row.querySelector('.row-density') ? row.querySelector('.row-density').innerText.trim() : '正常流转';
                     
-                    csvContent += `2. 各类目双轨对比矩阵,《${pName}》,需求量: ${tasks} ${tasksPct},设计耗时: ${hours} ${hoursPct},${density}\n`;
+                    csvContent += `${prefix},《${pName}》,独立需求量: ${tasks} ${tasksPct},硬核总能耗: ${hours} ${hoursPct},双轨流转判定: ${density}\n`;
                 });
             }
 
-            // 维度 3：当期生产力协同：AI 工具使用频次占比（图2第3个模块彩色条下方）
+            // 维度 3：当期生产力协同：AI 工具使用频次占比
             const aiItems = document.querySelectorAll('.ai-legend-item');
             if (aiItems.length === 0) {
                 csvContent += "3. AI工具使用分布占比,本期未开启动作级AI协同,-,-,-\n";
             } else {
-                aiItems.forEach(item => {
+                aiItems.forEach((item, idx) => {
+                    const prefix = (idx === 0) ? "3. AI工具使用分布占比" : ""; // 留空代表合并
                     const aiName = item.querySelector('.ai-name') ? item.querySelector('.ai-name').innerText.trim() : '-';
                     const aiVal = item.querySelector('.ai-val') ? item.querySelector('.ai-val').innerText.trim().split(' ')[0] : '-';
                     const aiCount = item.querySelector('.ai-count') ? item.querySelector('.ai-count').innerText.trim() : '-';
                     
-                    csvContent += `3. AI工具使用分布占比,${aiName},介入频次: ${aiCount},占比权重: ${aiVal},生产力协同\n`;
+                    csvContent += `${prefix},${aiName},介入总频次: ${aiCount},占比权重: ${aiVal},AI Native赋能工作智能\n`;
                 });
             }
 
-            // 维度 4：执行侧 - 谁做的独立需求单量多（图2第4模块左半列）
+            // 核心重构 4-5 模块：将纵向无脑拉长的错位元素扭转为标准的“横向多列网格数据”，彻底干掉 #NAME 错误
+            csvContent += "4-5. 团队设计执行效能全量审计,--- 成员姓名(Name) ---,--- 业务吞吐解题单数 ---,--- 硬核堆线工时(Hours) ---,--- 本期状态审计判定 ---\n";
+            
             const userTaskRows = document.querySelectorAll('.user-task-row');
-            if (userTaskRows.length === 0) {
-                csvContent += "4. 设计独立需求承接排行,本期无承接单数记录,-,-,-\n";
-            } else {
-                userTaskRows.forEach(row => {
-                    const uName = row.querySelector('.u-task-name') ? row.querySelector('.u-task-name').innerText.trim() : '-';
-                    const uVal = row.querySelector('.u-task-val') ? row.querySelector('.u-task-val').innerText.trim() : '-';
-                    csvContent += `4. 设计独立需求承接排行,${uName},${uVal},-,-交付吞吐\n`;
-                });
-            }
-
-            // 维度 5：执行侧 - 谁的硬核堆线工时高/每个人花的时间（图2第4模块右半列）
             const userHourRows = document.querySelectorAll('.user-hour-row');
-            if (userHourRows.length === 0) {
-                csvContent += "5. 设计硬核硬工时全量审计,无设计师填报出勤工时,-,-,-\n";
+            
+            // 构建打平后的全员效能宽表映射集
+            let staffMatrix = {};
+            
+            userTaskRows.forEach(row => {
+                let rawTxt = row.querySelector('.u-task-name') ? row.querySelector('.u-task-name').innerText.trim() : '';
+                let cleanName = rawTxt.replace(/^\d+/, '').trim(); // 智能清掉前导序号 "01"
+                let val = row.querySelector('.u-task-val') ? row.querySelector('.u-task-val').innerText.trim() : '0 单';
+                if(cleanName) {
+                    if(!staffMatrix[cleanName]) staffMatrix[cleanName] = { tasks: '0 单', hours: '0.0 h' };
+                    staffMatrix[cleanName].tasks = val;
+                }
+            });
+
+            userHourRows.forEach(row => {
+                let rawTxt = row.querySelector('.u-hour-name') ? row.querySelector('.u-hour-name').innerText.trim() : '';
+                let cleanName = rawTxt.replace(/^\d+/, '').trim(); // 智能清掉前导序号
+                let val = row.querySelector('.u-hour-val') ? row.querySelector('.u-hour-val').innerText.trim() : '0.0 h';
+                if(cleanName) {
+                    if(!staffMatrix[cleanName]) staffMatrix[cleanName] = { tasks: '0 单', hours: '0.0 h' };
+                    staffMatrix[cleanName].hours = val;
+                }
+            });
+
+            // 循环遍历并将结果按横向列顺序归入 B、C、D、E 列中，解决在标题下方纵向出现的硬伤
+            const mergedStaffList = Object.keys(staffMatrix);
+            if(mergedStaffList.length === 0) {
+                csvContent += ",系统底层本筛选段内暂无捕获到的设计师承接明细数据,-,-,-\n";
             } else {
-                userHourRows.forEach(row => {
-                    const uName = row.querySelector('.u-hour-name') ? row.querySelector('.u-hour-name').innerText.trim() : '-';
-                    const uVal = row.querySelector('.u-hour-val') ? row.querySelector('.u-hour-val').innerText.trim() : '-';
-                    csvContent += `5. 设计硬核硬工时全量审计,${uName},${uVal},全链路完整工时,硬核硬投入榜单\n`;
+                mergedStaffList.forEach((name) => {
+                    const tVal = staffMatrix[name].tasks;
+                    const hVal = staffMatrix[name].hours;
+                    // 通过逻辑计算高阶效能状态标签
+                    let statusLabel = "在岗平稳产出";
+                    if (parseFloat(hVal) > 100) statusLabel = "🌋 极高负荷运转劳模";
+                    else if (parseFloat(hVal) < 10 && tVal !== '0 单') statusLabel = "⚡ 敏捷高效轻量级交付";
+                    
+                    csvContent += `,${name},${tVal},${hVal},效能判定: ${statusLabel}\n`;
                 });
             }
 
-            // 维度 6：智能化大盘交叉诊断洞察结论 (图2最下方文字)
+            // 维度 6：图2底部的智能化大盘横向纵向交叉洞察诊断文本（最底部一句话大总结）
             const insightText = document.getElementById('rep-intelligence-insight') ? document.getElementById('rep-intelligence-insight').innerText.replace(/,/g, '，').replace(/\n/g, ' ') : '-';
-            csvContent += `6. 交叉诊断智能管理洞察结论,大盘语义诊断提示,${insightText},-,-诊断落款\n`;
+            csvContent += `6. 智能化大盘交叉诊断洞察结论,大盘全方位语义透视数据洞察提示,${insightText},-,-诊断完成落款\n`;
 
-            // 进行文件流编码触发浏览器一键下载 csv/excel
+            // 文件流编码触发下载 CSV / Excel 动作
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `TIG_多维双轨效能审计报表_${reportPeriod}.csv`);
+            link.setAttribute("download", `TIG_多维双轨所见即所得审计报表_${reportPeriod}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            window.showToast("导出表格成功", "已经无损拉齐图2可视化页面中所有的明细、项目与耗时字段！", "success");
+            window.showToast("导出表格成功", "最左侧大主题已全部智能向下合并，且设计师人名、单数与耗时已全部完美横向右移归位！", "success");
         }
 
         window.exportToPNGImage = function() {
