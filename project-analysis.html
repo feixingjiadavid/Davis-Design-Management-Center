@@ -86,7 +86,7 @@
         <header class="h-[88px] px-10 flex justify-between items-center shrink-0 border-b border-white/5 bg-[#09090b]/80 backdrop-blur-xl z-20">
             <div>
                 <h2 class="text-[24px] font-bold text-white tracking-tight mb-1.5 flex items-center gap-3">
-                    多维项目投入分析
+                    多维项目投入 analysis
                     <span class="bg-fuchsia-500/20 text-fuchsia-400 text-[11px] px-2.5 py-0.5 rounded-lg border border-fuchsia-500/30">管理视角</span>
                     <div id="sync-indicator" class="hidden w-2 h-2 rounded-full bg-emerald-500 animate-pulse ml-2" title="云端连接中..."></div>
                 </h2>
@@ -1025,7 +1025,7 @@
                 aiBar.innerHTML = barHtml; aiLegend.innerHTML = legendHtml;
             }
 
-            // 4. 设计独立需求单量排行 (按产生独立单量的人进行全覆盖输出)
+            // 4. 设计独立需求单量排行
             const sortedPplByTasks = Object.values(currentData.peopleMap).filter(p => p.uniqueTasksSet.size > 0).sort((a,b) => b.uniqueTasksSet.size - a.uniqueTasksSet.size);
             const pplTasksContainer = document.getElementById('rep-people-tasks-ranking');
             if(sortedPplByTasks.length === 0) {
@@ -1042,7 +1042,7 @@
                 pplTasksContainer.innerHTML = html;
             }
 
-            // 5. 设计投入时长全量审计 (不漏任何一个产生工时的人)
+            // 5. 设计投入时长全量审计
             const sortedPplByHours = Object.values(currentData.peopleMap).filter(p => p.hours > 0).sort((a,b) => b.hours - a.hours);
             const pplHoursContainer = document.getElementById('rep-people-hours-ranking');
             if(sortedPplByHours.length === 0) {
@@ -1092,7 +1092,6 @@
             setTimeout(() => { overlay.classList.add('hidden'); }, 300);
         }
 
-        // 核心功能重构：生成包含所有人完整时长的 Markdown 摘要
         window.copyMarkdownSummary = function() {
             const currentData = extractDataForPeriod(currentDate, currentView);
             const totalDemands = currentData.tasksCount;
@@ -1130,40 +1129,74 @@
             });
         }
 
-        // 核心功能重构：一键无损将所有人明细、类目工时占比等核心数据打成电子表格 CSV 导出
+        // 核心功能对齐重构：确保 CSV 文件中的表头字段与弹窗中 6 项可视化看板无缝撞轨映射
         window.exportToCSV = function() {
             const currentData = extractDataForPeriod(currentDate, currentView);
             const totalDemands = currentData.tasksCount;
+            const actualPeople = Object.values(currentData.peopleMap).filter(p => p.hours > 0).length;
+            
             let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
             
-            csvContent += "度量分类层级,归属分类/人名,记录需求单数/消耗工时,数据大盘占比百分比\n";
-            csvContent += `核心摘要盘点,大盘累计记录需求量,${totalDemands} 单,-\n`;
-            csvContent += `核心摘要盘点,大盘设计总工时开销,${currentData.totalHours.toFixed(1)} 小时,-\n`;
+            // 维度 0：基本面元数据基本信息摘要
+            csvContent += "核心维度分层,主元项目/成员,度量指标1 (需求单量/工时/介入频次),度量指标2 (大盘全局权重占比),特殊流转诊断标签\n";
+            csvContent += `0. 核心简报摘要,总计记录需求量,${totalDemands} 单,-,-\n`;
+            csvContent += `0. 核心简报摘要,累计消耗设计工时,${currentData.totalHours.toFixed(1)} 小时,-,-\n`;
+            csvContent += `0. 核心简报摘要,涵盖活跃类目项目,${currentData.projectsCount} 个,-,-\n`;
+            csvContent += `0. 核心简报摘要,出勤跟进设计师,${actualPeople} 人,-,-\n`;
             
-            Object.values(currentData.creatorMap).sort((a,b) => b.count - a.count).forEach(c => {
-                csvContent += `需求发起方审计(Creator),${c.name},${c.count} 单,占总需求提报 ${((c.count/totalDemands)*100).toFixed(1)}%\n`;
+            // 维度 1：提报发起方大盘审计排行层级映射
+            Object.values(currentData.creatorMap).sort((a,b) => b.count - a.count).forEach((c, idx) => {
+                const pct = totalDemands > 0 ? ((c.count / totalDemands) * 100).toFixed(1) : 0;
+                csvContent += `1. 需求发起方大盘审计,#${idx+1} ${c.name},${c.count} 单,占总流水比 ${pct}%,-\n`;
             });
 
+            // 维度 2：类目纵横双轨矩阵交叉穿透（单量、工时、黑洞标签全部保留）
             Object.keys(currentData.activeProjects).map(k => ({ name: k, data: currentData.activeProjects[k] })).sort((a,b) => b.data.hours - a.data.hours).forEach(p => {
-                const hPct = currentData.totalHours > 0 ? ((p.data.hours/currentData.totalHours)*100).toFixed(1) : 0;
-                const tPct = totalDemands > 0 ? ((p.data.count/totalDemands)*100).toFixed(1) : 0;
-                csvContent += `类目纵横双轨矩阵,${p.name.replace(/,/g, '，')}(单量数据),${p.data.count} 单,占总单量 ${tPct}%\n`;
-                csvContent += `类目纵横双轨矩阵,${p.name.replace(/,/g, '，')}(设计耗时),${p.data.hours.toFixed(1)} 小时,占总工时 ${hPct}%\n`;
+                const hoursPct = currentData.totalHours > 0 ? ((p.data.hours / currentData.totalHours) * 100).toFixed(1) : 0;
+                const tasksPct = totalDemands > 0 ? ((p.data.count / totalDemands) * 100).toFixed(1) : 0;
+                let densityTag = '正常流转';
+                if (parseFloat(tasksPct) > 25 && parseFloat(hoursPct) < 15) {
+                    densityTag = '⚡️ 高频快钱需求';
+                } else if (parseFloat(hoursPct) > 30) {
+                    densityTag = '🌋 资源重度黑洞';
+                }
+                const safeName = p.name.replace(/,/g, '，');
+                csvContent += `2. 各类目双轨对比矩阵,《${safeName}》,独立需求单数: ${p.data.count}单 (占比 ${tasksPct}%),累计消耗工时: ${p.data.hours.toFixed(1)}h (占比 ${hoursPct}%),${densityTag}\n`;
             });
 
-            // 覆盖全员的工时数据导出
-            Object.values(currentData.peopleMap).filter(p => p.hours > 0).sort((a,b) => b.hours - a.hours).forEach(p => {
-                csvContent += `设计投入时长审计(Assignee),${p.display},独立消化需求: ${p.uniqueTasksSet.size} 单,硬核沉淀工时: ${p.hours.toFixed(1)} 小时\n`;
+            // 维度 3：AI Native 协同生产力大盘占比
+            const aiTotal = currentData.aiCount;
+            if (aiTotal === 0) {
+                csvContent += `3. AI工具使用分布占比,全盘未介入AI组件,0 次,0.0%,纯手绘模式\n`;
+            } else {
+                Object.keys(currentData.aiFreq).map(k => ({ name: k, count: currentData.aiFreq[k] })).sort((a,b) => b.count - a.count).forEach(tool => {
+                    const pct = ((tool.count / aiTotal) * 100).toFixed(1);
+                    csvContent += `3. AI工具使用分布占比,${tool.name},介入频次: ${tool.count} 次,占比: ${pct}%,生产力辅助\n`;
+                });
+            }
+
+            // 维度 4：执行侧 - 独立设计需求承接吞吐量排行 (按产生独立单量进行全覆盖输出)
+            Object.values(currentData.peopleMap).filter(p => p.uniqueTasksSet.size > 0).sort((a,b) => b.uniqueTasksSet.size - a.uniqueTasksSet.size).forEach((p, idx) => {
+                csvContent += `4. 设计独立需求承接量排行,#0${idx+1} ${p.display},${p.uniqueTasksSet.size} 单,-,解题响应中\n`;
             });
+
+            // 维度 5：执行侧 - 硬核时长投入榜单深度穿透不漏一人
+            Object.values(currentData.peopleMap).filter(p => p.hours > 0).sort((a,b) => b.hours - a.hours).forEach((p, idx) => {
+                csvContent += `5. 设计硬核硬耗时全量审计,#0${idx+1} ${p.display},${p.hours.toFixed(1)} 小时,-,时长追踪\n`;
+            });
+
+            // 维度 6：自动化语义层多维融合诊断报告落款
+            const insightText = document.getElementById('rep-intelligence-insight').innerText.replace(/,/g, '，').replace(/\n/g, ' ');
+            csvContent += `6. 交叉智能化深度洞察大盘诊断结论,${insightText},-,-,-\n`;
 
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `TIG_需求发起及全员类目工时占比分析表_${document.getElementById('report-period-text').innerText}.csv`);
+            link.setAttribute("download", `TIG_设计效能多维双轨分析报告_${document.getElementById('report-period-text').innerText}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            window.showToast("导出表格成功", "全维度多要素交叉撞轨复盘表格已成功下载", "success");
+            window.showToast("导出表格成功", "一页式全要素对齐审计 Excel/CSV 已成功下载", "success");
         }
 
         window.exportToPNGImage = function() {
