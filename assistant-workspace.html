@@ -228,6 +228,37 @@
         </div>
     </div>
 
+
+    <div id="self-todo-reminder-overlay" class="fixed inset-0 bg-black/85 backdrop-blur-md z-[999999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-6">
+        <div id="self-todo-reminder-modal" class="w-full max-w-2xl bg-[#121217] border border-orange-500/30 rounded-3xl shadow-[0_25px_80px_-15px_rgba(249,115,22,0.35)] flex flex-col scale-95 transition-transform duration-300 overflow-hidden relative">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 via-amber-500 to-rose-500"></div>
+            <div class="p-7 border-b border-white/5 bg-[#16161d]">
+                <div class="flex items-start justify-between gap-5">
+                    <div>
+                        <div class="inline-flex items-center gap-2 bg-orange-500/10 border border-orange-500/20 text-orange-400 px-3 py-1 rounded-full text-[11px] font-bold mb-3">
+                            <span class="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span>
+                            待办提醒
+                        </div>
+                        <h2 class="text-xl font-black text-white tracking-tight mb-2">有需求卡在你这里，需要处理</h2>
+                        <p class="text-[13px] text-zinc-400 leading-relaxed">请优先完成接单确认、被打回修改或当前制作中的交付动作，避免需求继续阻塞流转。</p>
+                    </div>
+                    <button onclick="window.closeSelfTodoReminder()" class="text-zinc-500 hover:text-white bg-white/5 hover:bg-white/10 rounded-full p-2 transition-colors btn-press shrink-0">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="p-6 max-h-[52vh] overflow-y-auto custom-scrollbar" id="self-todo-reminder-list"></div>
+            <div class="p-6 border-t border-white/5 bg-[#09090b] flex items-center justify-between gap-3">
+                <button onclick="window.closeSelfTodoReminder()" class="px-5 py-3 bg-transparent border border-zinc-700 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl text-[13px] font-bold transition-colors btn-press">稍后处理</button>
+                <button onclick="window.goFirstSelfTodo()" class="px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-[13px] font-bold shadow-[0_8px_20px_rgba(249,115,22,0.3)] transition-all btn-press flex items-center gap-2">
+                    立即处理最紧急需求
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"></path><path d="M12 5l7 7-7 7"></path></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+
     <div id="transfer-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closeTransferModal()">
         <div id="transfer-modal" class="hidden w-full max-w-lg bg-[#121217] border border-orange-500/20 rounded-3xl shadow-[0_20px_50px_-10px_rgba(249,115,22,0.2)] flex flex-col scale-95 transition-transform duration-300">
             <div class="px-6 py-5 border-b border-white/5 flex justify-between items-center bg-[#1a1a1f] rounded-t-3xl">
@@ -365,6 +396,92 @@
             `;
             document.getElementById('dialog-confirm-btn').onclick = () => { closeCustomDialog(); onConfirm(); };
             showDialogUI();
+        }
+
+
+        // ================= 💡 进入页面待办弹窗：提醒设计师处理卡在自己这的需求 =================
+        window.selfTodoReminderShown = false;
+        window.selfTodoReminderTasks = [];
+
+        function getSelfTodoMeta(task) {
+            if (task.status === 'rejected') return { color: 'rose', label: '被打回重画', action: '修改后重新提交', priority: 0 };
+            if (task.status === 'pending_accept') return { color: 'sky', label: '待确认接单', action: '确认接单排期', priority: 1 };
+            if (task.status === 'processing') return { color: 'orange', label: '设计制作中', action: '处理并上传方案', priority: 2 };
+            return { color: 'zinc', label: '待处理', action: '查看详情', priority: 9 };
+        }
+
+        function sortSelfTodoTasks(tasks) {
+            return [...tasks].sort((a, b) => {
+                const ma = getSelfTodoMeta(a);
+                const mb = getSelfTodoMeta(b);
+                if (ma.priority !== mb.priority) return ma.priority - mb.priority;
+                const da = a.due_date ? new Date(a.due_date).getTime() : Number.MAX_SAFE_INTEGER;
+                const db = b.due_date ? new Date(b.due_date).getTime() : Number.MAX_SAFE_INTEGER;
+                return da - db;
+            });
+        }
+
+        window.openSelfTodoReminder = function(tasks) {
+            if (!tasks || tasks.length === 0) return;
+            window.selfTodoReminderTasks = sortSelfTodoTasks(tasks);
+            const overlay = document.getElementById('self-todo-reminder-overlay');
+            const modal = document.getElementById('self-todo-reminder-modal');
+            const list = document.getElementById('self-todo-reminder-list');
+            if (!overlay || !modal || !list) return;
+
+            list.innerHTML = `
+                <div class="mb-4 bg-orange-500/10 border border-orange-500/20 rounded-2xl p-4 flex items-center justify-between">
+                    <div>
+                        <p class="text-[13px] text-orange-300 font-bold">当前共有 ${window.selfTodoReminderTasks.length} 个未办事项需要你处理</p>
+                        <p class="text-[11px] text-orange-200/60 mt-1">已按状态优先级和截止日期自动排序，越靠前越建议优先处理。</p>
+                    </div>
+                    <div class="text-[28px] font-black text-orange-400 font-mono">${window.selfTodoReminderTasks.length}</div>
+                </div>
+                <div class="space-y-3">
+                    ${window.selfTodoReminderTasks.map(task => {
+                        const meta = getSelfTodoMeta(task);
+                        return `
+                        <div class="bg-[#18181b] border border-${meta.color}-500/20 rounded-2xl p-4 hover:border-${meta.color}-500/50 transition-colors">
+                            <div class="flex items-start justify-between gap-4 mb-3">
+                                <div class="min-w-0">
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <span class="font-mono text-[10px] font-black text-${meta.color}-400 bg-${meta.color}-500/10 px-2 py-0.5 rounded border border-${meta.color}-500/20">${task.id}</span>
+                                        <span class="text-[11px] font-bold text-${meta.color}-400">${meta.label}</span>
+                                    </div>
+                                    <h3 class="text-[15px] font-bold text-white leading-snug truncate">${task.title || '无标题需求'}</h3>
+                                </div>
+                                <button onclick="event.stopPropagation(); window.location.href='task-detail-designer.html?id=${task.id}'" class="shrink-0 px-3 py-2 bg-${meta.color}-600 hover:bg-${meta.color}-500 text-white rounded-lg text-[12px] font-bold btn-press transition-colors">${meta.action}</button>
+                            </div>
+                            <div class="grid grid-cols-3 gap-3 text-[11px] text-zinc-500 border-t border-white/5 pt-3">
+                                <span class="truncate">发起人：<b class="text-zinc-300">${task.creator || '--'}</b></span>
+                                <span class="truncate">项目：<b class="text-zinc-300">${task.project || '--'}</b></span>
+                                <span class="text-right">截止：<b class="text-rose-400">${task.due_date || '未定'}</b></span>
+                            </div>
+                        </div>`;
+                    }).join('')}
+                </div>
+            `;
+
+            overlay.classList.remove('hidden');
+            setTimeout(() => {
+                overlay.classList.remove('opacity-0');
+                modal.classList.remove('scale-95');
+            }, 10);
+        }
+
+        window.closeSelfTodoReminder = function() {
+            const overlay = document.getElementById('self-todo-reminder-overlay');
+            const modal = document.getElementById('self-todo-reminder-modal');
+            if (!overlay || !modal) return;
+            overlay.classList.add('opacity-0');
+            modal.classList.add('scale-95');
+            setTimeout(() => overlay.classList.add('hidden'), 300);
+        }
+
+        window.goFirstSelfTodo = function() {
+            if (window.selfTodoReminderTasks && window.selfTodoReminderTasks.length > 0) {
+                window.location.href = `task-detail-designer.html?id=${window.selfTodoReminderTasks[0].id}`;
+            }
         }
 
         // ================= 基础交互 =================
@@ -731,6 +848,7 @@
 
                 let myTodoCount = 0; let myRejectedCount = 0; let myMonthCompletedCount = 0; const now = new Date();
                 let designNotifs = [];
+                let selfBlockingTasks = [];
 
                 (data || []).forEach(task => {
                     const taskAssignee = task.assignee ? task.assignee.toLowerCase() : 'none';
@@ -739,6 +857,9 @@
                     const isMyDesignTask = myIdentities.some(id => taskAssignee.includes(id) || id.includes(taskAssignee));
                     
                     if (isMyDesignTask) {
+                        if (['pending_accept', 'processing', 'rejected'].includes(task.status)) {
+                            selfBlockingTasks.push(task);
+                        }
                         if (!['completed', 'archived', 'terminated'].includes(task.status)) myTodoCount++;
                         if (task.status === 'rejected') myRejectedCount++;
                         if (['completed', 'archived'].includes(task.status)) {
@@ -789,6 +910,11 @@
                     Object.values(lanes).forEach(lane => {
                         if(lane && lane.innerHTML === '') lane.innerHTML = `<div class="text-center py-10 opacity-50"><div class="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-2 text-zinc-600"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></div><p class="text-[11px] text-zinc-600">当前状态暂无需求</p></div>`;
                     });
+
+                    if (!window.selfTodoReminderShown && selfBlockingTasks.length > 0) {
+                        window.selfTodoReminderShown = true;
+                        setTimeout(() => window.openSelfTodoReminder(selfBlockingTasks), 450);
+                    }
                 }
 
                 // 按时间倒序
