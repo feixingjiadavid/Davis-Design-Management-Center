@@ -196,6 +196,15 @@
                                 </div>
                             </div>
 
+                            <div class="mt-8 pt-8 border-t border-white/5">
+                                <h3 class="text-sm font-bold text-violet-400 flex items-center gap-2.5 mb-1 shrink-0">
+                                    <span class="w-1.5 h-1.5 bg-violet-500 rounded-full shadow-[0_0_8px_#8b5cf6]"></span>已撤销需求存档
+                                </h3>
+                                <p class="text-[11px] text-zinc-600 mb-4">项目延期或暂停的需求会保存在这里，后续可重新打开并基于上一轮信息继续编辑。</p>
+                                <div class="space-y-4 transition-opacity duration-300 relative" id="cancelled-tasks-container">
+                                </div>
+                            </div>
+
                         </div>
                     </div>
                 </div>
@@ -359,6 +368,8 @@
         const PAGE_TYPE = 'req'; 
         // 💡 核心全局变量：存储多个文件对象的数组 [{name, data}, ...]
         window.currentUploadedFiles = [];
+        window.reopenArchiveTaskId = null;
+        window.reopenArchiveOriginalTask = null;
 
         // ================= UI与弹窗功能 =================
         window.closeCustomDialog = function() {
@@ -531,14 +542,37 @@
 
         window.cancelTask = async function(taskId) {
             if(!window.supabase) return;
-            window.showConfirm("确认撤销", `确定要彻底撤销并删除需求单 ${taskId} 吗？此操作不可恢复。`, async () => {
+            window.showConfirm("确认撤销并存档", `确定要撤销需求单 ${taskId} 吗？<br><br>撤销后不会删除，会进入「已撤销需求存档」。后续项目恢复时，可以从存档里重新打开并继续编辑上一轮信息。`, async () => {
                 try {
-                    const { error } = await window.supabase.from(window.DB_TABLE).delete().eq('id', taskId);
+                    const { data: oldTask, error: fetchErr } = await window.supabase
+                        .from(window.DB_TABLE)
+                        .select('history_json')
+                        .eq('id', taskId)
+                        .single();
+                    if (fetchErr) throw fetchErr;
+
+                    let hist = [];
+                    try { hist = JSON.parse(oldTask.history_json || '[]'); } catch(e) { hist = []; }
+                    const user = JSON.parse(localStorage.getItem('activeUserObj') || '{}');
+                    const operator = user.displayName || user.cnName || user.enName || '需求方';
+                    hist.push({
+                        action: 'cancel_archive',
+                        operator: `${operator} (需求方)`,
+                        time: new Date().toISOString(),
+                        reply: '因项目延期/暂停，需求方撤销该需求并归入存档，可后续重新编辑恢复。'
+                    });
+
+                    const { error } = await window.supabase.from(window.DB_TABLE).update({
+                        status: 'cancelled',
+                        summary_desc: '需求已撤销并存档，后续可重新编辑恢复。',
+                        history_json: JSON.stringify(hist)
+                    }).eq('id', taskId);
                     if (error) throw error;
+
                     const card = document.getElementById('card-' + taskId);
                     if(card) card.remove();
-                    window.showToast('已撤销', `需求单 ${taskId} 已被彻底删除。`, 'info');
-                    setTimeout(async () => { await window.loadTasksFromCloud(true); }, 300);
+                    window.showToast('已撤销并存档', `需求单 ${taskId} 已进入撤销存档，可随时重新编辑恢复。`, 'info');
+                    setTimeout(async () => { await window.loadTasksFromCloud(false); }, 300);
                 } catch(e) { window.showAlert("撤销失败", e.message, "danger"); }
             }, "danger");
         }
@@ -566,13 +600,13 @@
             let isJudy = currentUserEn === 'judyzzhang';
             let isSuperAdmin = currentUserEn === 'davidxxu' || currentUserEn === 'davidxu'; 
             
-            if(!isOwner && !isSuperAdmin && !(isJudy && ['pending_approval', 'reviewing', 'completed', 'archived', 'terminated'].includes(task.status))) return null;
+            if(!isOwner && !isSuperAdmin && !(isJudy && ['pending_approval', 'reviewing', 'completed', 'archived', 'terminated', 'cancelled'].includes(task.status))) return null;
 
             let sColor, sText;
             let targetUrl = `task-detail-requester.html?id=${task.id}`; 
             let isUrgent = false;
 
-            if(task.due_date && !['completed','archived','terminated'].includes(task.status)) {
+            if(task.due_date && !['completed','archived','terminated','cancelled'].includes(task.status)) {
                 const due = new Date(task.due_date);
                 const today = new Date();
                 due.setHours(0,0,0,0); today.setHours(0,0,0,0);
@@ -604,30 +638,35 @@
                 case 'terminated': 
                     sColor = 'text-rose-700'; sText = '已强行终止'; 
                     break;
+                case 'cancelled':
+                    sColor = 'text-violet-400'; sText = '已撤销存档';
+                    break;
                 default: 
                     sColor = 'text-sky-400'; sText = '待排期/待分配'; 
             }
 
             const isCompleted = ['completed','archived','terminated'].includes(task.status);
-            const borderColBase = isUrgent ? 'rgba(244,63,94,0.7)' : sColor.replace('text-', 'rgba(').replace('sky','56,189,248').replace('amber','251,191,36').replace('emerald','16,185,129').replace('rose','244,63,94').replace('orange','249,115,22').replace('zinc','113,113,122') + ',0.3)';
+            const isCancelled = task.status === 'cancelled';
+            const borderColBase = isUrgent ? 'rgba(244,63,94,0.7)' : sColor.replace('text-', 'rgba(').replace('sky','56,189,248').replace('amber','251,191,36').replace('emerald','16,185,129').replace('rose','244,63,94').replace('orange','249,115,22').replace('zinc','113,113,122').replace('violet','139,92,246') + ',0.3)';
             const breatheClass = isUrgent ? 'breathe-rose' : '';
             const canCancel = (task.status === 'pending' || task.status === 'pending_accept' || task.status === 'rejected') && isOwner;
             const cancelBtn = canCancel ? `<button onclick="event.stopPropagation(); window.cancelTask('${task.id}')" class="text-[10px] text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded ml-2 hover:bg-rose-500 hover:text-white transition-colors">撤销</button>` : '';
+            const reopenBtn = isCancelled ? `<button onclick="event.stopPropagation(); window.openArchivedTaskForEdit('${task.id}')" class="text-[10px] text-violet-300 bg-violet-500/10 px-2.5 py-1 rounded ml-2 hover:bg-violet-500 hover:text-white transition-colors font-bold">重新编辑</button>` : '';
 
-            const iconHtml = (task.status === 'reviewing' || task.status === 'rejected' || isCompleted) ? '' : `<svg class="animate-spin h-3.5 w-3.5 ${sColor}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+            const iconHtml = (task.status === 'reviewing' || task.status === 'rejected' || isCompleted || isCancelled) ? '' : `<svg class="animate-spin h-3.5 w-3.5 ${sColor}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
 
             const cardHTML = `
-                <div class="rounded-2xl p-5 interactive-card flex flex-col relative overflow-hidden ${breatheClass} mb-4 ${isCompleted ? 'opacity-60' : ''}" style="border-color: ${borderColBase}" id="card-${task.id}" onmouseenter="window.previewTask('${task.id}', '${task.title}', '${sColor}')" onclick="window.location.href='${targetUrl}'">
+                <div class="rounded-2xl p-5 interactive-card flex flex-col relative overflow-hidden ${breatheClass} mb-4 ${(isCompleted || isCancelled) ? 'opacity-70' : ''}" style="border-color: ${borderColBase}" id="card-${task.id}" onmouseenter="window.previewTask('${task.id}', '${task.title}', '${sColor}')" onclick="${isCancelled ? `window.openArchivedTaskForEdit('${task.id}')` : `window.location.href='${targetUrl}'`}">
                     ${isUrgent ? '<div class="absolute top-0 right-0 bg-rose-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl z-10 animate-pulse">临期预警</div>' : ''}
                     <div class="flex items-center justify-between mb-3 mt-1 relative z-10">
                         <div class="flex gap-2 items-center">
                             <span class="font-mono text-[10px] font-bold ${sColor} bg-white/5 px-2 py-0.5 rounded border border-white/5">${task.id}</span>
                             <span class="text-xs ${sColor} font-bold tracking-wide flex items-center gap-1.5">${iconHtml} ${sText}</span>
                         </div>
-                        ${cancelBtn || `<span class="text-[11px] ${sColor} font-bold opacity-0 group-hover:opacity-100 transition-opacity">查看详情 ↗</span>`}
+                        ${reopenBtn || cancelBtn || `<span class="text-[11px] ${sColor} font-bold opacity-0 group-hover:opacity-100 transition-opacity">查看详情 ↗</span>`}
                     </div>
                     <h4 class="text-[17px] font-bold text-zinc-100 mb-2 relative z-10">${task.title}</h4>
-                    ${isCompleted ? '' : `<p class="text-xs text-zinc-400 mb-4 line-clamp-1 relative z-10">${task.summary_desc || ''}</p>`}
+                    ${(isCompleted || isCancelled) ? `<p class="text-xs text-zinc-500 mb-4 line-clamp-1 relative z-10">${isCancelled ? '已撤销存档，可点击重新编辑恢复提单。' : (task.summary_desc || '')}</p>` : `<p class="text-xs text-zinc-400 mb-4 line-clamp-1 relative z-10">${task.summary_desc || ''}</p>`}
                     <div class="flex items-center justify-between text-[11px] text-zinc-400 border-t border-white/5 pt-3 relative z-10">
                         <span>归属: ${task.project}</span>
                         <span>执行人: ${task.assignee === 'none' ? '待定' : task.assignee}</span>
@@ -654,6 +693,8 @@
                     else if(h.action === 'submit_framework') { dotColor = 'amber'; actionTxt = '设计师上传框架 ' + (h.version||''); }
                     else if(h.action === 'complete') { dotColor = 'emerald'; actionTxt = '甲方验收成功完结'; }
                     else if(h.action === 'terminate') { dotColor = 'rose'; actionTxt = '任务被强行终止'; subTxt = h.reply || ''; }
+                    else if(h.action === 'cancel_archive') { dotColor = 'violet'; actionTxt = '需求撤销并存档'; subTxt = h.reply || ''; }
+                    else if(h.action === 'reopen_cancelled') { dotColor = 'sky'; actionTxt = '从撤销存档恢复提交'; subTxt = h.reply || ''; }
                     else if(h.action === 'transfer') { dotColor = 'orange'; actionTxt = '任务发生转单'; subTxt = h.reply || ''; }
                     else { actionTxt = h.action || '状态更新'; subTxt = h.reply || h.desc || ''; }
                     
@@ -684,7 +725,7 @@
                 </div>
             </div>`;
 
-            return { isCompleted, cardHTML, timelineHTML };
+            return { isCompleted, isCancelled, cardHTML, timelineHTML };
         }
 
         window.loadTasksFromCloud = async function(isSilent = false) {
@@ -703,23 +744,27 @@
             if(syncDot && isSilent) syncDot.classList.remove('hidden');
             
             try {
-                const [ongoingRes, completedRes] = await Promise.all([
-                    window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS).not('status', 'in', '("completed","archived","terminated")').order('created_at', { ascending: false }),
-                    window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS).in('status', ['completed', 'archived', 'terminated']).order('created_at', { ascending: false }).limit(20)
+                const [ongoingRes, completedRes, cancelledRes] = await Promise.all([
+                    window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS).not('status', 'in', '("completed","archived","terminated","cancelled")').order('created_at', { ascending: false }),
+                    window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS).in('status', ['completed', 'archived', 'terminated']).order('created_at', { ascending: false }).limit(20),
+                    window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS).eq('status', 'cancelled').order('created_at', { ascending: false }).limit(50)
                 ]);
 
                 const ongoingC = document.getElementById('ongoing-tasks-container');
                 const completedC = document.getElementById('completed-tasks-container');
+                const cancelledC = document.getElementById('cancelled-tasks-container');
                 const timelineC = document.getElementById('all-timelines-container');
 
                 if(!isSilent && ongoingC) ongoingC.querySelectorAll('.interactive-card:not(#draft-card)').forEach(el => el.remove());
                 if(!isSilent && completedC) completedC.innerHTML = ''; 
+                if(!isSilent && cancelledC) cancelledC.innerHTML = '';
                 if(!isSilent && timelineC) timelineC.innerHTML = '';
 
-                const allData = [...(ongoingRes.data || []), ...(completedRes.data || [])];
+                const allData = [...(ongoingRes.data || []), ...(completedRes.data || []), ...(cancelledRes.data || [])];
                 
                 let ongoingCount = 0;
                 let completedCount = 0;
+                let cancelledCount = 0;
 
                 allData.forEach(task => {
                     const creator = task.creator || '';
@@ -730,7 +775,9 @@
                     if (!isSilent) {
                         const res = createTaskHTML(task, currentUser);
                         if(res) { 
-                            if(res.isCompleted) {
+                            if(res.isCancelled) {
+                                if(cancelledC) { cancelledC.insertAdjacentHTML('beforeend', res.cardHTML); cancelledCount++; }
+                            } else if(res.isCompleted) {
                                 if(completedC) { completedC.insertAdjacentHTML('beforeend', res.cardHTML); completedCount++; }
                             } else {
                                 if(ongoingC) { ongoingC.insertAdjacentHTML('beforeend', res.cardHTML); ongoingCount++; }
@@ -755,6 +802,9 @@
                     }
                     if(completedC && completedCount === 0) {
                         completedC.innerHTML = `<div class="text-center py-8 text-zinc-600 text-sm">暂无已完结/归档的工单</div>`;
+                    }
+                    if(cancelledC && cancelledCount === 0) {
+                        cancelledC.innerHTML = `<div class="text-center py-8 text-zinc-600 text-sm border border-white/5 border-dashed rounded-2xl">暂无已撤销存档需求</div>`;
                     }
 
                     if (localStorage.getItem('myDraftTask')) {
@@ -785,6 +835,11 @@
                 document.getElementById(modalId).classList.add('modal-enter');
             }, 10);
             if(modalId === 'create-modal' && !isEdit) {
+                window.reopenArchiveTaskId = null;
+                window.reopenArchiveOriginalTask = null;
+                document.getElementById('modal-title-text').innerText = '新建设计需求';
+                const submitBtn = document.querySelector('button[onclick="submitNewReq()"]');
+                if(submitBtn) submitBtn.innerText = '确认提交';
                 document.getElementById('req-short-title').value = '';
                 document.getElementById('req-title').value = '';
                 document.getElementById('req-project').value = '';
@@ -928,6 +983,7 @@
 
         // ================= 存储草稿重构 =================
         window.saveDraft = function() { 
+            if(window.reopenArchiveTaskId) return window.showAlert('暂存不可用', '正在恢复撤销存档需求，请直接重新提交或取消返回。', 'info');
             const shortTitle = document.getElementById('req-short-title').value.trim();
             const fullDesc = document.getElementById('req-title').value.trim();
             if(!shortTitle || !fullDesc) return window.showAlert('暂存失败', '请至少填写标题和需求描述！', 'danger');
@@ -965,6 +1021,10 @@
 
         // ================= 读取草稿重构 =================
         window.editDraft = function() {
+            window.reopenArchiveTaskId = null;
+            window.reopenArchiveOriginalTask = null;
+            const submitBtn = document.querySelector('button[onclick="submitNewReq()"]');
+            if(submitBtn) submitBtn.innerText = '确认提交';
             document.getElementById('modal-title-text').innerText = '继续编辑草稿';
             const draftStr = localStorage.getItem('myDraftTask');
             if(draftStr) {
@@ -1023,6 +1083,65 @@
                     }
                 }, 300);
             }, "danger");
+        }
+
+        function setFormFromTaskData(task) {
+            document.getElementById('req-short-title').value = task.title || '';
+            document.getElementById('req-title').value = task.full_desc || task.summary_desc || '';
+            document.getElementById('req-project').value = task.project || '';
+            const assVal = task.assignee || 'none';
+            document.getElementById('req-assignee').value = assVal;
+            const assInput = document.getElementById('req-assignee-input');
+            if(assInput) assInput.value = assVal === 'none' ? '不指定 (系统统筹)' : assVal;
+            document.getElementById('req-date').value = task.due_date || '';
+            document.getElementById('req-link').value = task.link || '';
+
+            document.querySelectorAll('.req-channel').forEach(cb => { cb.checked = false; });
+            document.getElementById('req-channel-other').value = '';
+            const channels = Array.isArray(task.channels) ? task.channels : [];
+            channels.forEach(ch => {
+                if((ch || '').startsWith('其他:')) {
+                    document.getElementById('channel-other-cb').checked = true;
+                    document.getElementById('req-channel-other').value = ch.replace(/^其他:\s*/, '');
+                } else {
+                    const cb = Array.from(document.querySelectorAll('.req-channel')).find(x => x.value === ch);
+                    if(cb) cb.checked = true;
+                }
+            });
+            window.toggleOtherInput();
+
+            window.currentUploadedFiles = [];
+            if(task.file_data) {
+                try {
+                    const parsed = JSON.parse(task.file_data);
+                    if(Array.isArray(parsed)) window.currentUploadedFiles = parsed;
+                    else if(task.file_name) window.currentUploadedFiles = [{ name: task.file_name, data: task.file_data }];
+                } catch(e) {
+                    if(task.file_name) window.currentUploadedFiles = [{ name: task.file_name, data: task.file_data }];
+                }
+            }
+            window.renderFileListUI();
+        }
+
+        window.openArchivedTaskForEdit = async function(taskId) {
+            if(!window.supabase) return;
+            try {
+                const { data, error } = await window.supabase.from(window.DB_TABLE).select('*').eq('id', taskId).single();
+                if(error || !data) throw error || new Error('未找到该撤销需求');
+                if(data.status !== 'cancelled') {
+                    window.showAlert('无法恢复编辑', '该需求当前不在撤销存档状态，不能从存档恢复。', 'danger');
+                    return;
+                }
+                window.reopenArchiveTaskId = taskId;
+                window.reopenArchiveOriginalTask = data;
+                document.getElementById('modal-title-text').innerText = `重新编辑撤销需求 ${taskId}`;
+                const submitBtn = document.querySelector('button[onclick="submitNewReq()"]');
+                if(submitBtn) submitBtn.innerText = '重新提交需求';
+                setFormFromTaskData(data);
+                window.openModal('create-modal', true);
+            } catch(e) {
+                window.showAlert('读取存档失败', e.message, 'danger');
+            }
         }
 
         // ================= 💡 提交发单：打包多文件上传 =================
@@ -1087,27 +1206,65 @@
                 finalFileData = JSON.stringify(window.currentUploadedFiles); 
             }
 
-            const taskData = {
-                id: newId, title: shortTitle, full_desc: fullDesc, summary_desc: finalDesc, project: projectVal,
-                due_date: dateInput, assignee: assigneeVal, link: linkInput, channels: selectedChannels,
-                file_name: finalFileName, file_data: finalFileData, status: finalStatus, creator: creatorDisplay,
-                history_json: JSON.stringify(initialHistory) 
-            };
+            let savedTaskId = newId;
+            let saveError = null;
 
-            const { error } = await window.supabase.from(window.DB_TABLE).insert([taskData]);
+            if (window.reopenArchiveTaskId) {
+                savedTaskId = window.reopenArchiveTaskId;
+                let oldHist = [];
+                try { oldHist = JSON.parse((window.reopenArchiveOriginalTask && window.reopenArchiveOriginalTask.history_json) || '[]'); } catch(e) { oldHist = []; }
+                oldHist.push({
+                    action: 'reopen_cancelled',
+                    operator: `${creatorDisplay} (需求方)`,
+                    time: new Date().toISOString(),
+                    reply: actionReply.replace('向大厅发起了新需求', '从撤销存档重新恢复需求')
+                });
+
+                const updateData = {
+                    title: shortTitle,
+                    full_desc: fullDesc,
+                    summary_desc: finalDesc,
+                    project: projectVal,
+                    due_date: dateInput,
+                    assignee: assigneeVal,
+                    link: linkInput,
+                    channels: selectedChannels,
+                    file_name: finalFileName,
+                    file_data: finalFileData,
+                    status: finalStatus,
+                    creator: creatorDisplay,
+                    history_json: JSON.stringify(oldHist)
+                };
+
+                const { error } = await window.supabase.from(window.DB_TABLE).update(updateData).eq('id', savedTaskId);
+                saveError = error;
+            } else {
+                const taskData = {
+                    id: newId, title: shortTitle, full_desc: fullDesc, summary_desc: finalDesc, project: projectVal,
+                    due_date: dateInput, assignee: assigneeVal, link: linkInput, channels: selectedChannels,
+                    file_name: finalFileName, file_data: finalFileData, status: finalStatus, creator: creatorDisplay,
+                    history_json: JSON.stringify(initialHistory) 
+                };
+                const { error } = await window.supabase.from(window.DB_TABLE).insert([taskData]);
+                saveError = error;
+            }
 
             btn.innerText = originalText;
             btn.disabled = false;
 
-            if (error) {
-                return window.showAlert("写入失败", error.message, "danger");
+            if (saveError) {
+                return window.showAlert(window.reopenArchiveTaskId ? "恢复提交失败" : "写入失败", saveError.message, "danger");
             }
 
+            const wasReopen = !!window.reopenArchiveTaskId;
+            window.reopenArchiveTaskId = null;
+            window.reopenArchiveOriginalTask = null;
             localStorage.removeItem('myDraftTask');
             window.closeAllModals();
             
             const successOverlay = document.getElementById('success-overlay'); 
             successOverlay.classList.remove('hidden'); void successOverlay.offsetWidth; successOverlay.classList.remove('opacity-0');
+            document.querySelector('#success-content h2').innerText = wasReopen ? '需求已恢复提交' : '需求提单成功';
 
             await window.loadTasksFromCloud(true);
 
@@ -1115,8 +1272,9 @@
                 successOverlay.classList.add('opacity-0');
                 setTimeout(() => {
                     successOverlay.classList.add('hidden');
-                    window.previewTask(newId, shortTitle, 'text-sky-400');
-                    document.getElementById('card-' + newId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    window.previewTask(savedTaskId, shortTitle, 'text-sky-400');
+                    document.getElementById('card-' + savedTaskId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    document.querySelector('#success-content h2').innerText = '需求提单成功';
                 }, 300);
             }, 1000);
         }
