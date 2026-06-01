@@ -798,19 +798,22 @@
                     
                     if(!isOwner && !isSuperAdmin) return;
 
-                    if (!isSilent) {
-                        const res = createTaskHTML(task, currentUser);
-                        if(res) { 
-                            if(res.isCancelled) {
-                                if(cancelledC) { cancelledC.insertAdjacentHTML('beforeend', res.cardHTML); cancelledCount++; }
-                            } else if(res.isCompleted) {
-                                if(completedC) { completedC.insertAdjacentHTML('beforeend', res.cardHTML); completedCount++; }
-                            } else {
-                                if(ongoingC) { ongoingC.insertAdjacentHTML('beforeend', res.cardHTML); ongoingCount++; }
-                            }
-                            if(timelineC) timelineC.insertAdjacentHTML('beforeend', res.timelineHTML); 
-                        }
+                    // 先生成可见性结果，再统计数量。注意：静默刷新时也必须统计，不能把数量统计放在 !isSilent 里，否则页面会被刷新成 0。
+                    const res = createTaskHTML(task, currentUser);
+                    if(!res) return;
+
+                    if(res.isCancelled) {
+                        cancelledCount++;
+                        if(!isSilent && cancelledC) cancelledC.insertAdjacentHTML('beforeend', res.cardHTML);
+                    } else if(res.isCompleted) {
+                        completedCount++;
+                        if(!isSilent && completedC) completedC.insertAdjacentHTML('beforeend', res.cardHTML);
+                    } else {
+                        ongoingCount++;
+                        if(!isSilent && ongoingC) ongoingC.insertAdjacentHTML('beforeend', res.cardHTML);
                     }
+
+                    if(!isSilent && timelineC) timelineC.insertAdjacentHTML('beforeend', res.timelineHTML);
                 });
 
                 const countOngoingEl = document.getElementById('count-ongoing');
