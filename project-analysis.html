@@ -130,7 +130,7 @@
                             <button onclick="window.markAllAsRead(event)" class="text-[11px] text-fuchsia-400 hover:text-fuchsia-300 btn-press transition-colors">全部已读</button>
                         </div>
                         <div class="max-h-[300px] overflow-y-auto custom-scrollbar" id="notif-list-container">
-                            <div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无新消息</div>
+                            <div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读消息</div>
                         </div>
                         <div class="pt-3 px-5 border-t border-white/5 text-center">
                             <button onclick="window.location.href='message-center.html?role=admin'" class="text-[11px] text-zinc-500 hover:text-white transition-colors btn-press">进入全局消息中心 ↗</button>
@@ -621,11 +621,11 @@
             return toolName.trim();
         }
 
-        // 核心多维时效清洗算法重构（严防跨月混淆，锁死动作发生时间窗口）
+        // 中心效能审计分析多源数据引擎核心逻辑 (全局统一种子)
         function extractDataForPeriod(targetDate, viewType) {
             let totalHours = 0;
             let aiFreq = {}; let aiCount = 0;
-            let activeTasksSet = new Set(); // 只存放本期新建需求ID
+            let activeTasksSet = new Set(); 
             let projectSet = new Set();
 
             let creatorMap = {};
@@ -643,7 +643,7 @@
                 let taskHoursInPeriod = 0; 
                 let taskUserHours = {};
 
-                // 穿透历史行为流水，只抽取抓取严格属于当期时间窗口内产生的动作、工时、AI
+                // 1. 穿透拆解日志，动作发生时间不符的工时绝对剥离计入对应月份
                 try {
                     const hist = JSON.parse(t.history_json || '[]');
                     hist.forEach(h => {
@@ -691,7 +691,7 @@
                     });
                 } catch(e){}
 
-                // 设计工时时效切割落位：每个人本期有工时产生，才进行账目关联，1:1拉齐明细
+                // 2. 只有当月真正发生设计堆线的成员才会计入工作量，绑定1:1明细账目不缩水
                 Object.keys(taskUserHours).forEach(key => {
                     if (taskUserHours[key].hours > 0) {
                         if (!peopleMap[key]) {
@@ -701,7 +701,7 @@
                         
                         if (!peopleMap[key].uniqueTasksSet.has(t.id)) {
                             peopleMap[key].uniqueTasksSet.add(t.id);
-                            peopleMap[key].taskTitles.push(t.title); // 使用 1:1 精准阵列装入，拒绝任何去重合并干扰
+                            peopleMap[key].taskTitles.push(t.title); // 按序列推入标题，坚决不去重防吃单 Bug
                             peopleMap[key].taskCount = peopleMap[key].uniqueTasksSet.size;
                         }
                         if (t.project) peopleMap[key].projects.add(t.project);
@@ -713,7 +713,7 @@
                     }
                 });
 
-                // 各类目项目流转归位：当月新增单量只计算当月提的，工时计算当月发生的
+                // 3. 各项目类目流转单量与工时双轨落位
                 if (isCreatedInPeriod || taskHoursInPeriod > 0) {
                     const pName = t.project || '未归属类目';
                     if (t.project) projectSet.add(t.project);
@@ -722,15 +722,13 @@
                         activeProjects[pName] = { hours: 0, count: 0, uniqueTasks: new Set() };
                     }
                     if (isCreatedInPeriod) {
-                        if (!activeProjects[pName].uniqueTasks.has(t.id)) {
-                            activeProjects[pName].uniqueTasks.add(t.id);
-                        }
+                        activeProjects[pName].uniqueTasks.add(t.id);
                     }
                     activeProjects[pName].count = activeProjects[pName].uniqueTasks.size;
-                    activeProjects[pName].hours += taskHoursInPeriod; // 工时属于它发生的月份
+                    activeProjects[pName].hours += taskHoursInPeriod; 
                 }
 
-                // 提单方大盘精细洗涤：上月结转遗留不计入本月新增提单量范围
+                // 4. 需求提报发起方：严格限制当月新建提单（上月遗留结转的不予计入）
                 if (isCreatedInPeriod) {
                     activeTasksSet.add(t.id);
                     
@@ -741,7 +739,7 @@
                     }
                     if (!creatorMap[cleanCreator].uniqueTasks.has(t.id)) {
                         creatorMap[cleanCreator].uniqueTasks.add(t.id);
-                        creatorMap[cleanCreator].taskTitles.push(t.title); // 1:1 数值咬合
+                        creatorMap[cleanCreator].taskTitles.push(t.title); 
                     }
                     creatorMap[cleanCreator].count = creatorMap[cleanCreator].uniqueTasks.size;
                 }
@@ -759,54 +757,7 @@
             };
         }
 
-        window.loadDashboardData = async function(isSilent = false) {
-            if(!initRBAC()) return;
-            if(!window.supabase) return;
-
-            const syncDot = document.getElementById('sync-indicator');
-            if(syncDot && !isSilent) syncDot.classList.remove('hidden');
-
-            try {
-                const { data: users, error: uErr } = await window.supabase.from('user_profiles').select('*');
-                if (uErr) throw uErr;
-
-                systemUsers = [];
-                if (users) {
-                    users.forEach(u => {
-                        const en = (u.en_name || '').toLowerCase();
-                        const excludedUsers = ['judyzzhang', 'ponyxu', 'davidxu'];
-
-                        if(en && !excludedUsers.includes(en)) {
-                            if(!systemUsers.some(x => x.en === en)) {
-                                systemUsers.push({
-                                    en: en,
-                                    display: u.display_name || u.cn_name || u.en_name || en
-                                });
-                            }
-                        }
-                    });
-                }
-
-                const { data: tasks, error } = await window.supabase.from(window.DB_TABLE).select('id, title, project, status, creator, assignee, due_date, history_json, created_at').order('created_at', { ascending: false });
-                if (error) throw error;
-                myAllTasks = tasks || [];
-
-                let pSet = new Set();
-                myAllTasks.forEach(t => { if(t.project) pSet.add(t.project); });
-                allProjects = Array.from(pSet).sort();
-
-                switchView(currentView); 
-                document.getElementById('dashboard-loading').classList.add('hidden');
-
-            } catch (err) {
-                console.error(err);
-                if(!isSilent) window.showToast('数据拉取异常', err.message, 'error');
-            } finally {
-                if(syncDot) setTimeout(() => syncDot.classList.add('hidden'), 500);
-            }
-        }
-
-        function updateDataAndRender() {
+        window.updateDataAndRender = function() {
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
 
@@ -874,7 +825,7 @@
                             <span class="text-[16px] font-mono font-black text-${col}-400 leading-none">${p.data.hours.toFixed(1)}<span class="text-[10px] text-zinc-500 ml-1 font-normal font-sans">h</span></span>
                         </div>
                         <div class="pl-2 mb-3">
-                            <p class="text-[11px] text-zinc-500 mt-0.5">涉及独立需求数: <span class="text-white font-bold font-mono">${p.data.count} 单</span></p>
+                            <p class="text-[11px] text-zinc-500 mt-0.5">涉及当月新独立需求: <span class="text-white font-bold font-mono">${p.data.count} 单</span></p>
                         </div>
                         <div class="w-full h-1.5 bg-zinc-900 rounded-full overflow-hidden ml-2"><div class="h-full bg-${col}-500 rounded-full opacity-80 bar-grow-h" style="width: ${pct}%"></div></div>
                     </div>`;
@@ -883,81 +834,61 @@
             }
 
             const pplContainer = document.getElementById('people-list-container');
-            const sortedPpl = Object.values(currentData.peopleMap).sort((a,b) => {
-                if (b.hours !== a.hours) return b.hours - a.hours;
-                return b.taskCount - a.taskCount;
-            });
+            const sortedPpl = Object.values(currentData.peopleMap).filter(p => p.hours > 0).sort((a,b) => b.hours - a.hours);
 
             if (sortedPpl.length === 0) {
-                pplContainer.innerHTML = '<div class="text-center py-20 text-zinc-500 text-sm">系统内暂无配置设计师/管理账号</div>';
+                pplContainer.innerHTML = '<div class="text-center py-20 text-zinc-500 text-sm">此筛选周期内无任何发生工出的设计师</div>';
             } else {
                 let pHtml = '';
                 sortedPpl.forEach((p, index) => {
-                    const isEmpty = p.hours === 0;
-                    const bgClass = isEmpty ? 'bg-[#09090b] border-dashed border-zinc-800 opacity-60' : 'bg-[#121217] border-white/5 shadow-sm hover:border-white/10';
-                    const titleCol = isEmpty ? 'text-zinc-500' : 'text-zinc-200';
-                    const hourCol = isEmpty ? 'text-zinc-600' : 'text-white';
-                    
-                    let statusBadge = '';
-                    if (p.hours > 0 && index === 0) {
-                        statusBadge = `<span class="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">🔥 满负荷 / 最忙</span>`;
-                    } else if (p.hours === 0) {
-                        statusBadge = `<span class="text-[10px] font-bold text-zinc-500 bg-zinc-800/50 px-2 py-0.5 rounded border border-zinc-700/50">💤 极度空闲</span>`;
-                    } else {
-                        statusBadge = `<span class="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">✅ 输出中</span>`;
-                    }
+                    let statusBadge = index === 0 ? `<span class="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">🔥 满负荷 / 最忙</span>` : `<span class="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">✅ 输出中</span>`;
 
                     let pTags = '';
-                    if (!isEmpty && p.projects.size > 0) {
+                    if (p.projects.size > 0) {
                         Array.from(p.projects).forEach(proj => {
                             pTags += `<span class="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-1.5 py-0.5 rounded text-[9px] truncate max-w-[120px] mr-1 mb-1 inline-block">${proj}</span>`;
                         });
                     }
 
                     let aiTags = '';
-                    if (!isEmpty) {
-                        const aiKeys = Object.keys(p.aiTools);
-                        if (aiKeys.length > 0) {
-                            aiKeys.forEach(ai => {
-                                aiTags += `<span class="text-[10px] text-amber-400 border border-amber-500/30 px-1.5 rounded">${ai}: ${p.aiTools[ai]}次</span> `;
-                            });
-                        } else {
-                            aiTags = `<span class="text-[10px] text-zinc-500 italic">纯手绘 / 未用AI</span>`;
-                        }
+                    const aiKeys = Object.keys(p.aiTools);
+                    if (aiKeys.length > 0) {
+                        aiKeys.forEach(ai => { aiTags += `<span class="text-[10px] text-amber-400 border border-amber-500/30 px-1.5 rounded">${ai}: ${p.aiTools[ai]}次</span> `; });
+                    } else {
+                        aiTags = `<span class="text-[10px] text-zinc-500 italic">纯手绘 / 未用AI</span>`;
                     }
 
                     pHtml += `
-                    <div class="${bgClass} border rounded-2xl p-4 relative overflow-hidden group transition-all mb-4">
-                        ${!isEmpty ? '<div class="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500/50 group-hover:w-1.5 transition-all"></div>' : ''}
+                    <div class="bg-[#121217] border-white/5 shadow-sm hover:border-white/10 border rounded-2xl p-4 relative overflow-hidden group transition-all mb-4">
+                        <div class="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500/50 group-hover:w-1.5 transition-all"></div>
                         <div class="flex justify-between items-start mb-2 pl-2">
                             <div class="flex items-center gap-3">
                                 <div class="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-400 shadow-inner">${p.display.substring(0,2).toUpperCase()}</div>
                                 <div>
                                     <div class="flex items-center gap-2">
-                                        <h4 class="text-[14px] font-bold ${titleCol}">${p.display}</h4>
+                                        <h4 class="text-[14px] font-bold text-zinc-200">${p.display}</h4>
                                         ${statusBadge}
                                     </div>
                                     <p class="text-[10px] text-zinc-600 font-mono mt-0.5">${p.en}</p>
                                 </div>
                             </div>
                             <div class="text-right">
-                                <span class="text-[20px] font-mono font-black ${hourCol} leading-none">${p.hours.toFixed(1)}<span class="text-[10px] text-zinc-500 ml-1 font-normal font-sans">h</span></span>
-                                ${isEmpty ? '' : `<p class="text-[10px] text-zinc-500 mt-1">承接 ${p.uniqueTasksSet.size} 个独立工单</p>`}
+                                <span class="text-[20px] font-mono font-black text-white leading-none">${p.hours.toFixed(1)}<span class="text-[10px] text-zinc-500 ml-1 font-normal font-sans">h</span></span>
+                                <p class="text-[10px] text-zinc-500 mt-1">当月参与 ${p.uniqueTasksSet.size} 个设计项</p>
                             </div>
                         </div>
-                        ${isEmpty ? `<p class="text-[10px] text-zinc-600 pl-3 mt-3 pt-3 border-t border-zinc-800/50">该人员在此筛选周期内无 any 产出或审批动作。</p>` : `
                         <div class="pl-2 mt-4 space-y-2 pt-3 border-t border-white/5">
                             <div class="flex flex-wrap">${pTags}</div>
                             <div class="flex items-center gap-1.5 pt-1.5">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                                 ${aiTags}
                             </div>
-                        </div>`}
+                        </div>
                     </div>`;
                 });
                 pplContainer.innerHTML = pHtml;
             }
-        }
+        };
 
         window.openExportAnalysisModal = function() {
             const overlay = document.getElementById('export-modal-overlay');
@@ -983,11 +914,11 @@
             document.getElementById('report-project-scope').innerText = currentSelectedProject === 'all' ? '全部类目范围' : `类目: ${currentSelectedProject}`;
             document.getElementById('report-gen-time').innerText = new Date().toISOString().split('T')[0] + ' ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
-            // 1. 发起需求的人大盘审计 (注入精准无去重的 1:1 发起需求明细旁白清单)
+            // 1. 发起需求的人大盘审计 (旁白注入精准 1:1 当月新建提单清单)
             const creatorContainer = document.getElementById('rep-creator-ranking');
             const sortedCreators = Object.values(currentData.creatorMap).sort((a,b) => b.count - a.count);
             if (sortedCreators.length === 0) {
-                creatorContainer.innerHTML = `<div class="col-span-2 text-xs text-zinc-500 italic py-2">暂无需求方提报数据</div>`;
+                creatorContainer.innerHTML = `<div class="col-span-2 text-xs text-zinc-500 italic py-2">暂无当月新增提单数据</div>`;
             } else {
                 let html = '';
                 sortedCreators.slice(0, 6).forEach((c, idx) => {
@@ -1066,7 +997,7 @@
                 aiBar.innerHTML = barHtml; aiLegend.innerHTML = legendHtml;
             }
 
-            // 4. 设计独立需求单量排行 (注入 1:1 绝对严密对应的工单明细旁白)
+            // 4. 设计独立需求单量排行 (旁白注入全量完成的需求明细)
             const sortedPplByTasks = Object.values(currentData.peopleMap).filter(p => p.uniqueTasksSet.size > 0 || p.hours > 0).sort((a,b) => b.uniqueTasksSet.size - a.uniqueTasksSet.size);
             const pplTasksContainer = document.getElementById('rep-people-tasks-ranking');
             if(sortedPplByTasks.length === 0) {
@@ -1089,7 +1020,7 @@
                 pplTasksContainer.innerHTML = html;
             }
 
-            // 5. 设计投入时长全量审计 (基于本月动作工时绑定的需求标题 1:1 拉齐展现)
+            // 5. 设计投入时长全量审计
             const sortedPplByHours = Object.values(currentData.peopleMap).filter(p => p.hours > 0 || p.uniqueTasksSet.size > 0).sort((a,b) => b.hours - a.hours);
             const pplHoursContainer = document.getElementById('rep-people-hours-ranking');
             if(sortedPplByHours.length === 0) {
@@ -1136,7 +1067,7 @@
 
             overlay.classList.remove('hidden');
             setTimeout(() => { overlay.classList.remove('opacity-0'); modal.classList.remove('scale-95'); }, 10);
-        }
+        };
 
         window.closeExportAnalysisModal = function() {
             const overlay = document.getElementById('export-modal-overlay');
@@ -1158,248 +1089,4 @@
             md += `* **核心指标**: 独立需求总量 \`${totalDemands}单\` | 设计硬核总耗时 \`${currentData.totalHours.toFixed(1)}h\`\n\n`;
             
             md += `#### 1️⃣ 需求提报发起方大盘占比排行:\n`;
-            sortedCreators.slice(0, 5).forEach((c, i) => {
-                md += `${i+1}. 【${c.name}】发起独立需求: ${c.count}单 | 大盘占比: ${((c.count/totalDemands)*100).toFixed(1)}%\n`;
-            });
-            
-            md += `\n#### 2️⃣ 类目/项目双轨纵横盘点（单量与工时对照）:\n`;
-            sortedProj.slice(0, 5).forEach((p, i) => {
-                const hPct = currentData.totalHours > 0 ? ((p.data.hours/currentData.totalHours)*100).toFixed(1) : 0;
-                const tPct = totalDemands > 0 ? ((p.data.count/totalDemands)*100).toFixed(1) : 0;
-                md += `${i+1}. 【${p.name}】需求数: ${p.data.count}单(${tPct}%) ➔ 消耗设计工时: ${p.data.hours.toFixed(1)}h(${hPct}%)\n`;
-            });
-            
-            md += `\n#### 3️⃣ 设计承接全员硬核投入工时总榜 (全员覆盖不漏一人):\n`;
-            sortedPplByHours.forEach((p, i) => {
-                md += `${i+1}. 【${p.display}】独立需求消化数: ${p.uniqueTasksSet.size}单 | 累计设计工时: ${p.hours.toFixed(1)}h\n`;
-            });
-            
-            md += `\n#### 4️⃣ 穿透诊断管理层提示:\n${document.getElementById('rep-intelligence-insight').innerText}\n\n`;
-            md += `*报告导出源于戴维斯自动化数据中心 • ${document.getElementById('report-gen-time').innerText}*`;
-
-            navigator.clipboard.writeText(md).then(() => {
-                window.showToast("复制成功", "带有全员完整工时排行的 Markdown 简报已就绪", "success");
-            });
-        }
-
-        // 终极无损数据平铺大导出引擎：严格执行后勤4列宽表标准，实现见屏即所得与1:1明细无缝嵌套
-        window.exportToCSV = function() {
-            const currentData = extractDataForPeriod(currentDate, currentView);
-            const totalDemands = currentData.tasksCount;
-            const totalHours = currentData.totalHours;
-            const totalProjects = currentData.projectsCount;
-            const actualPeople = Object.values(currentData.peopleMap).filter(p => p.hours > 0 || p.uniqueTasksSet.size > 0).length;
-            const reportPeriod = document.getElementById('report-period-text').innerText;
-            const reportTag = document.getElementById('report-view-tag').innerText;
-            const reportScope = document.getElementById('report-project-scope').innerText;
-            const genTime = document.getElementById('report-gen-time').innerText;
-
-            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
-            
-            // 严开后勤标准4列表头
-            csvContent += "数据大类,项目条目,单量/频次,工时/大盘占比\n";
-            
-            // ================== 1. 核心摘要大类 ==================
-            csvContent += `核心摘要,总计需求量,${totalDemands} 单,-\n`;
-            csvContent += `,累计设计工时,${totalHours.toFixed(1)} 小时,- \n`;
-            csvContent += `,活跃类目,${totalProjects} 个,-\n`;
-            csvContent += `,投入设计人力,${actualPeople} 人,-\n`;
-            csvContent += `,时效口径判定,${reportPeriod} (${reportTag}),范围: ${reportScope},导出校验戳: ${genTime}\n`;
-
-            // ================== 2. 设计人力总结大类（单数和明细1:1数组横向打包包裹，绝不再产生去重差额） ==================
-            const sortedPpl = Object.values(currentData.peopleMap).filter(p => p.hours > 0 || p.uniqueTasksSet.size > 0).sort((a, b) => b.hours - a.hours);
-            if (sortedPpl.length === 0) {
-                csvContent += "设计人力总结,暂无匹配人员效能流水,-,-\n";
-            } else {
-                sortedPpl.forEach((p, idx) => {
-                    const prefix = (idx === 0) ? "设计人力总结" : ""; 
-                    // 从1:1阵列中抓取最全的工单标题流水
-                    const safeTitles = (p.taskTitles || []).join('；').replace(/,/g, '，').replace(/\n/g, ' ');
-                    csvContent += `${prefix},${p.display},${p.uniqueTasksSet.size} 单 (明细：${safeTitles}),${p.hours.toFixed(1)} h\n`;
-                });
-            }
-
-            // ================== 3. 需求发起方大盘审计大类（发起总量与提单明细1:1完美结合包裹） ==================
-            const sortedCreators = Object.values(currentData.creatorMap).sort((a,b) => b.count - a.count);
-            if (sortedCreators.length === 0) {
-                csvContent += "需求发起方大盘审计,暂无需求方提报数据,-,-\n";
-            } else {
-                sortedCreators.forEach((c, idx) => {
-                    const prefix = (idx === 0) ? "需求发起方大盘审计" : ""; 
-                    const pct = totalDemands > 0 ? ((c.count / totalDemands) * 100).toFixed(1) : 0;
-                    const safeTitles = (c.taskTitles || []).join('；').replace(/,/g, '，').replace(/\n/g, ' ');
-                    csvContent += `${prefix},${c.name},${c.count} 单 (明细：${safeTitles}),总权重: ${pct}%\n`;
-                });
-            }
-
-            // ================== 4. 各类目双轨对比矩阵大类 ==================
-            const sortedProj = Object.keys(currentData.activeProjects).map(k => ({ name: k, data: currentData.activeProjects[k] })).sort((a,b) => b.data.hours - a.data.hours);
-            if (sortedProj.length === 0) {
-                csvContent += "各类目双轨对比矩阵,当前大盘无撞轨数据流转,-,-\n";
-            } else {
-                sortedProj.forEach((p, idx) => {
-                    const prefix = (idx === 0) ? "各类目双轨对比矩阵" : ""; 
-                    const hoursPct = currentData.totalHours > 0 ? ((p.data.hours / currentData.totalHours) * 100).toFixed(1) : 0;
-                    const tasksPct = totalDemands > 0 ? ((p.data.count / totalDemands) * 100).toFixed(1) : 0;
-                    let densityTag = '正常流转';
-                    if (parseFloat(tasksPct) > 25 && parseFloat(hoursPct) < 15) {
-                        densityTag = '⚡️ 高频快钱需求';
-                    } else if (parseFloat(hoursPct) > 30) {
-                        densityTag = '🌋 资源重度黑洞';
-                    }
-                    const safeName = p.name.replace(/,/g, '，');
-                    csvContent += `${prefix},《${safeName}》,需求比: ${p.data.count}单 (${tasksPct}%),工时比: ${p.data.hours.toFixed(1)}h (${hoursPct}%),流转判定: ${densityTag}\n`;
-                });
-            }
-
-            // ================== 5. AI工具分布大类 ==================
-            const aiTotal = currentData.aiCount;
-            const sortedAi = Object.keys(currentData.aiFreq).map(k => ({ name: k, count: currentData.aiFreq[k] })).sort((a,b) => b.count - a.count);
-            if (aiTotal === 0 || sortedAi.length === 0) {
-                csvContent += "AI工具分布,本期未开启动作级AI协同,-,-\n";
-            } else {
-                sortedAi.forEach((tool, idx) => {
-                    const prefix = (idx === 0) ? "AI工具分布" : ""; 
-                    const pct = ((tool.count / aiTotal) * 100).toFixed(1);
-                    csvContent += `${prefix},${tool.name},调用频次: ${tool.count}次,使用占比: ${pct}%\n`;
-                });
-            }
-
-            // ================== 6. 智能化大盘纵横交叉诊断洞察结论大类 ==================
-            const insightText = document.getElementById('rep-intelligence-insight') ? document.getElementById('rep-intelligence-insight').innerText.replace(/,/g, '，').replace(/\n/g, ' ') : '-';
-            csvContent += `智能化诊断洞察,管理层核心提示结论,${insightText},-\n`;
-
-            // 进行文件流调起标准的 Excel 下载流
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `TIG_多维双轨效能审计全盘数据表_${reportPeriod}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            window.showToast("导出表格成功", "时效边界修正校验完成！宏观总计与微观明细1:1严密拉齐下载。", "success");
-        }
-
-        window.exportToPNGImage = function() {
-            const captureZone = document.getElementById('export-capture-zone');
-            window.showToast("正在生成", "高保真全屏报告截图渲染中...", "info");
-            html2canvas(captureZone, { backgroundColor: '#121217', scale: 2, logging: false, useCORS: true }).then(canvas => {
-                const imgData = canvas.toDataURL('image/png');
-                const link = document.createElement('a');
-                link.download = `TIG_多维双轨效能简报_${document.getElementById('report-period-text').innerText}.png`;
-                link.href = imgData; document.body.appendChild(link); link.click(); document.body.removeChild(link);
-                window.showToast("卡片下载成功", "高保真图片简报已下载", "success");
-            });
-        }
-
-        let lastNotifHash = '';
-        window.syncNotificationsFromCloud = async function(isSilent = true) {
-            if(!window.supabase) return;
-            const userStr = localStorage.getItem('activeUserObj');
-            if(!userStr) return;
-            const currentUser = JSON.parse(userStr);
-            const myName = (currentUser.displayName || currentUser.cnName || currentUser.enName || '').toLowerCase();
-
-            try {
-                const { data: tasks, error } = await window.supabase.from(window.DB_TABLE).select('id, title, creator, history_json').order('created_at', { ascending: false });
-                if (error) throw error;
-
-                let myNotifs = [];
-
-                tasks.forEach(task => {
-                    let hist = []; try { hist = JSON.parse(task.history_json || '[]'); } catch(e){}
-                    hist.forEach((h, index) => {
-                        const op = (h.operator || '').toLowerCase();
-                        if (op.includes(myName)) return;
-
-                        let title = ''; let content = ''; let icon = 'bg-fuchsia-500';
-                        
-                        if (h.action === 'submit_framework') { title = '👀 框架待审批'; content = `${h.operator} 提交了中期方案，等待审批：《task.title}》`; icon = 'bg-amber-500'; }
-                        else if (h.action === 'submit_draft') { title = '🎁 正稿待验收'; content = `${h.operator} 交付了正式稿，等待甲方验收：《task.title}》`; icon = 'bg-emerald-500'; }
-                        else if (h.action === 'reject_framework' || h.action === 'reject_draft' || h.is_rejected) { title = '💥 方案被打回'; content = `单据发生打回重修：《task.title}》`; icon = 'bg-rose-500'; }
-                        else if (h.action === 'complete') { title = '✅ 任务圆满结案'; content = `甲方已验收通过：《task.title}》`; icon = 'bg-emerald-500'; }
-                        else if (h.action && h.action.includes('urge')) { title = '🚨 紧急催办'; content = `单据产生催办行为：《task.title}》`; icon = 'bg-rose-500'; }
-
-                        if (title) {
-                            const notifId = `${task.id}_${index}_${title}`;
-                            if (!myNotifs.some(n => n.id === notifId)) {
-                                myNotifs.push({ id: notifId, taskId: task.id, title: title, content: content, time: h.time || h.created_at || new Date().toISOString(), icon: icon });
-                            }
-                        }
-                    });
-                });
-
-                myNotifs.sort((a, b) => new Date(b.time) - new Date(a.time));
-                let readReceipts = JSON.parse(localStorage.getItem('notif_read_admin_' + myName) || '[]');
-                const unreadNotifs = myNotifs.filter(n => !readReceipts.includes(n.id));
-                const unreadCount = unreadNotifs.length;
-
-                const newHash = myNotifs.map(n => n.id + (readReceipts.includes(n.id) ? '_r' : '_u')).join(',');
-                if (isSilent && newHash === lastNotifHash) return;
-                lastNotifHash = newHash;
-
-                const bellDot = document.getElementById('bell-dot');
-                if (bellDot) {
-                    if (unreadCount > 0) { bellDot.classList.remove('hidden', 'bg-zinc-600', 'border-transparent'); bellDot.classList.add('bg-rose-500', 'animate-pulse', 'border-[#141417]'); } 
-                    else { bellDot.classList.add('hidden'); }
-                }
-                const notifContainer = document.getElementById('notif-list-container');
-                if (notifContainer) {
-                    if (unreadCount === 0) { notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读消息</div>'; } 
-                    else {
-                        notifContainer.innerHTML = unreadNotifs.map(n => {
-                            const dateStr = new Date(n.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                            return `
-                            <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors" onclick="window.markSingleAsRead('${n.id}', '${n.taskId}')">
-                                <div class="flex justify-between items-start mb-1"><h4 class="text-[13px] font-bold text-white flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full ${n.icon} shrink-0 shadow-[0_0_8px_currentColor]"></span>${n.title}</h4><span class="text-[10px] text-zinc-500">${dateStr}</span></div>
-                                <p class="text-[11px] text-zinc-400 pl-4 line-clamp-2">${n.content}</p>
-                            </div>`;
-                        }).join('');
-                    }
-                }
-                window.currentMyUnreadIds = unreadNotifs.map(n => n.id);
-            } catch(e) {}
-        }
-
-        window.toggleNotificationPanel = function(event) {
-            if(event) event.stopPropagation();
-            const dropdown = document.getElementById('notifMenu');
-            if(dropdown) { dropdown.classList.toggle('hidden'); if (!dropdown.classList.contains('hidden')) window.syncNotificationsFromCloud(true); }
-        }
-
-        window.markSingleAsRead = function(id, taskId) {
-            const userStr = localStorage.getItem('activeUserObj');
-            if(!userStr) return;
-            const currentUser = JSON.parse(userStr);
-            const myName = (currentUser.displayName || currentUser.cnName || currentUser.enName || '').toLowerCase();
-            let readReceipts = JSON.parse(localStorage.getItem('notif_read_admin_' + myName) || '[]');
-            if (!readReceipts.includes(id)) { readReceipts.push(id); localStorage.setItem('notif_read_admin_' + myName, JSON.stringify(readReceipts)); }
-            window.location.href = 'task-detail-requester.html?id=' + taskId;
-        }
-
-        window.markAllAsRead = function(event) {
-            if(event) event.stopPropagation();
-            if (!window.currentMyUnreadIds || window.currentMyUnreadIds.length === 0) return;
-            const userStr = localStorage.getItem('activeUserObj');
-            if(!userStr) return;
-            const currentUser = JSON.parse(userStr);
-            const myName = (currentUser.displayName || currentUser.cnName || currentUser.enName || '').toLowerCase();
-            const btn = event.currentTarget; const originalText = btn.innerHTML; btn.innerHTML = "处理中...";
-            let readReceipts = JSON.parse(localStorage.getItem('notif_read_admin_' + myName) || '[]');
-            readReceipts = [...new Set([...readReceipts, ...window.currentMyUnreadIds])];
-            localStorage.setItem('notif_read_admin_' + myName, JSON.stringify(readReceipts));
-            window.syncNotificationsFromCloud(true); btn.innerHTML = originalText;
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            document.addEventListener('click', (e) => { 
-                const notifMenu = document.getElementById('notifMenu'); const notifBtn = document.getElementById('notifBtn');
-                if(notifMenu && !notifMenu.contains(e.target) && notifBtn && !notifBtn.contains(e.target)) notifMenu.classList.add('hidden'); 
-            });
-            window.loadDashboardData();
-            setTimeout(() => { window.syncNotificationsFromCloud(true); }, 1500);
-            setInterval(() => { window.loadDashboardData(true); window.syncNotificationsFromCloud(true); }, 8000);
-        });
-    </script>
-</body>
-</html>
+            sortedCreators.slice(0, 5).forEach
