@@ -26,9 +26,13 @@
         .view-section { display: none; opacity: 0; transition: opacity 0.3s ease; }
         .view-section.active { display: flex; opacity: 1; }
 
-        .calendar-cell { transition: background-color 0.2s ease; cursor: pointer; min-height: 120px; display: flex; flex-direction: column; border-right: 1px solid rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.02); }
+        .calendar-cell { transition: background-color 0.2s ease; cursor: pointer; min-height: 120px; height: auto; display: flex; flex-direction: column; border-right: 1px solid rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.02); }
         .calendar-cell:hover { background-color: rgba(255, 255, 255, 0.03); }
         .calendar-cell.muted { background-color: #0c0c0e; opacity: 0.4; pointer-events: none; }
+        #month-grid { overflow-y: auto; align-content: start; grid-auto-rows: minmax(120px, auto) !important; padding-right: 8px; scroll-behavior: smooth; }
+        #month-grid::-webkit-scrollbar { width: 6px; }
+        #month-grid::-webkit-scrollbar-track { background: transparent; }
+        #month-grid::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 10px; }
         
         .event-pill { transition: all 0.2s ease; cursor: pointer; border: 1px solid transparent; }
         .event-pill:hover { filter: brightness(1.3); border-color: rgba(255,255,255,0.2); background-color: rgba(255,255,255,0.05); }
@@ -173,7 +177,7 @@
                         <div class="grid grid-cols-7 border-b border-white/5 bg-[#16161d] shrink-0">
                             <div class="py-4 text-center text-[12px] font-bold text-zinc-500">周日</div><div class="py-4 text-center text-[12px] font-bold text-zinc-500">周一</div><div class="py-4 text-center text-[12px] font-bold text-zinc-500">周二</div><div class="py-4 text-center text-[12px] font-bold text-zinc-500">周三</div><div class="py-4 text-center text-[12px] font-bold text-zinc-500">周四</div><div class="py-4 text-center text-[12px] font-bold text-zinc-500">周五</div><div class="py-4 text-center text-[12px] font-bold text-orange-400/50">周六</div>
                         </div>
-                        <div id="month-grid" class="flex-1 grid grid-cols-7 auto-rows-fr bg-[#121217]"></div>
+                        <div id="month-grid" class="flex-1 grid grid-cols-7 bg-[#121217] custom-scrollbar"></div>
                     </div>
 
                     <div id="view-week" class="view-section flex-col h-full bg-transparent border-none shadow-none">
@@ -350,6 +354,11 @@
             let btnColor = type === 'danger' ? 'bg-rose-600 hover:bg-rose-500' : (type === 'success' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-orange-600 hover:bg-orange-500');
             btnContainer.innerHTML = `<button onclick="closeCustomDialog()" class="w-full py-2.5 ${btnColor} text-white rounded-xl text-[13px] font-bold shadow-lg transition-all btn-press">我知道了</button>`;
             showDialogUI();
+        }
+
+        window.showToast = function(title, message, type="info") {
+            // 轻量提示：避免导出流程因未定义 showToast 而中断
+            console.log(`[${type}] ${title}: ${message}`);
         }
 
         // ================= 基础交互 =================
@@ -874,7 +883,7 @@
                 
                 let loadHtml = '';
                 let cellOutline = isToday ? 'border border-orange-500/50 shadow-[inset_0_0_15px_rgba(249,115,22,0.15)] relative z-10' : '';
-                let dayNumClass = isToday ? 'text-orange-400 bg-orange-500/20 w-5 h-5 flex items-center justify-center rounded-full ml-auto' : 'text-zinc-400';
+                let dayNumClass = isToday ? 'text-orange-400 bg-orange-500/20 w-5 h-5 flex items-center justify-center rounded-full' : 'text-zinc-400';
                 
                 if (dayInfo.totalHours > 0) {
                     let loadClass = 'workload-safe'; let loadPulse = '';
@@ -897,11 +906,11 @@
                 html += `
                     <div class="calendar-cell relative ${cellOutline}" onclick="openPeriodDetail('${year}年${month+1}月${i}日', '${safeTasks}')">
                         ${isToday ? '<div class="absolute top-0 left-0 right-0 h-0.5 bg-orange-500"></div>' : ''}
-                        <div class="flex justify-between items-start mb-2">
+                        <div class="flex justify-between items-start mb-2 gap-2">
+                            <span class="text-xs font-bold ${dayNumClass}">${i}</span>
                             ${loadHtml}
-                            <span class="text-xs font-bold ${dayNumClass} ${!isToday ? 'self-end' : ''}">${i}</span>
                         </div>
-                        <div class="flex-1 overflow-y-auto custom-scrollbar pr-1">${pillsHtml}</div>
+                        <div class="pr-1 pb-1">${pillsHtml}</div>
                     </div>`;
             }
 
@@ -1123,83 +1132,134 @@
 
         window.exportMyExcel = function() {
             const btn = document.querySelector('button[onclick="exportMyExcel()"]');
-            const txt = document.getElementById('export-btn-text');
-            btn.disabled = true; txt.innerText = "数据打包中...";
-            
-            window.showToast('开始生成', '正在为您生成本期报表...', 'info');
+            const btnText = document.getElementById('export-btn-text');
+            const originalText = btnText ? btnText.innerText : '导出本期绩效报表 (CSV)';
+            if (btn) btn.disabled = true;
+            if (btnText) btnText.innerText = "数据打包中...";
 
-            setTimeout(() => {
+            try {
                 const year = currentDate.getFullYear();
                 const month = currentDate.getMonth();
-                
-                let csvContent = "工单编号,需求标题,归属项目,状态,期望交付日,填报工时总计,AI辅助工具\n";
+
+                const escapeCsv = (value) => {
+                    const str = (value === null || value === undefined) ? '' : String(value);
+                    return `"${str.replace(/"/g, '""')}"`;
+                };
+
+                const getPeriodInfo = () => {
+                    if (currentView === 'month') {
+                        const start = new Date(year, month, 1);
+                        const end = new Date(year, month + 1, 0);
+                        return { start, end, label: `${year}年${month + 1}月` };
+                    }
+                    if (currentView === 'year') {
+                        return { start: new Date(year, 0, 1), end: new Date(year, 11, 31), label: `${year}年` };
+                    }
+                    const start = getStartOfWeek(currentDate);
+                    const end = new Date(start);
+                    end.setDate(end.getDate() + 6);
+                    return { start, end, label: `${start.getFullYear()}年${start.getMonth()+1}月${start.getDate()}日-${end.getMonth()+1}月${end.getDate()}日` };
+                };
+
+                const { start: periodStart, end: periodEnd, label: periodLabel } = getPeriodInfo();
+                periodStart.setHours(0, 0, 0, 0);
+                periodEnd.setHours(23, 59, 59, 999);
+
+                const isInPeriod = (dateLike) => {
+                    if (!dateLike) return false;
+                    const d = new Date(dateLike);
+                    if (Number.isNaN(d.getTime())) return false;
+                    return d >= periodStart && d <= periodEnd;
+                };
+
+                const rows = [[
+                    '统计周期',
+                    '工单编号',
+                    '需求标题',
+                    '归属项目',
+                    '当前状态',
+                    '需求发起人',
+                    '设计执行人',
+                    '期望交付日',
+                    '本期填报工时',
+                    'AI辅助工具',
+                    '是否本期排期',
+                    '是否本期填报'
+                ]];
+
                 let hasData = false;
 
                 myAllTasks.forEach(task => {
                     let taskHours = 0;
-                    let isTaskInPeriod = false;
+                    let hasWorkLogInPeriod = false;
                     let aiTools = new Set();
 
                     try {
                         const hist = JSON.parse(task.history_json || '[]');
                         hist.forEach(h => {
-                            if (h.operator && (h.operator.includes(currentUserData.enName) || h.operator.includes(currentUserData.displayName))) {
-                                const hDate = new Date(h.created_at || h.time);
-                                
-                                let matchPeriod = false;
-                                if (currentView === 'month') matchPeriod = (hDate.getFullYear() === year && hDate.getMonth() === month);
-                                else if (currentView === 'year') matchPeriod = (hDate.getFullYear() === year);
-                                else {
-                                    const sw = getStartOfWeek(currentDate); const ew = new Date(sw); ew.setDate(ew.getDate()+6);
-                                    hDate.setHours(0,0,0,0); sw.setHours(0,0,0,0); ew.setHours(0,0,0,0);
-                                    matchPeriod = (hDate >= sw && hDate <= ew);
-                                }
+                            const isMyLog = h.operator && (
+                                h.operator.includes(currentUserData.enName || '') ||
+                                h.operator.includes(currentUserData.displayName || '')
+                            );
 
-                                if (matchPeriod) {
-                                    taskHours += parseFloat(h.work_hours) || 0;
-                                    isTaskInPeriod = true;
+                            if (isMyLog && isInPeriod(h.created_at || h.time)) {
+                                hasWorkLogInPeriod = true;
+                                taskHours += parseFloat(h.work_hours) || 0;
+
+                                if (Array.isArray(h.ai_tools)) {
+                                    h.ai_tools.forEach(tool => {
+                                        if (tool && tool !== '无AI辅助') aiTools.add(tool);
+                                    });
                                 }
-                                
-                                if (h.ai_tools) h.ai_tools.forEach(t => { if(t !== '无AI辅助') aiTools.add(t); });
                             }
                         });
-                    } catch(e){}
+                    } catch(e) {}
 
-                    if (task.due_date) {
-                        const d = new Date(task.due_date);
-                        if (currentView === 'month' && d.getFullYear() === year && d.getMonth() === month) isTaskInPeriod = true;
-                        else if (currentView === 'year' && d.getFullYear() === year) isTaskInPeriod = true;
-                        else if (currentView === 'week') {
-                            const sw = getStartOfWeek(currentDate); const ew = new Date(sw); ew.setDate(ew.getDate()+6);
-                            d.setHours(0,0,0,0); sw.setHours(0,0,0,0); ew.setHours(0,0,0,0);
-                            if(d >= sw && d <= ew) isTaskInPeriod = true;
-                        }
-                    }
+                    const hasDueInPeriod = isInPeriod(task.due_date);
 
-                    if (isTaskInPeriod) {
-                        const title = `"${(task.title || '').replace(/"/g, '""')}"`;
-                        const aiStr = aiTools.size > 0 ? Array.from(aiTools).join(' / ') : '无';
-                        csvContent += `${task.id},${title},${task.project},${task.status},${task.due_date || '未定'},${taskHours.toFixed(1)},${aiStr}\n`;
+                    if (hasWorkLogInPeriod || hasDueInPeriod) {
+                        rows.push([
+                            periodLabel,
+                            task.id || '',
+                            task.title || '',
+                            task.project || '',
+                            task.status || '',
+                            task.creator || '',
+                            task.assignee || '',
+                            task.due_date || '未定',
+                            taskHours.toFixed(1),
+                            aiTools.size > 0 ? Array.from(aiTools).join(' / ') : '无',
+                            hasDueInPeriod ? '是' : '否',
+                            hasWorkLogInPeriod ? '是' : '否'
+                        ]);
                         hasData = true;
                     }
                 });
 
-                btn.disabled = false; txt.innerText = "导出本期绩效报表 (CSV)";
+                if(!hasData) {
+                    window.showAlert('导出失败', '当前选定周期内没有工单或工时记录！', 'danger');
+                    return;
+                }
 
-                if(!hasData) return window.showAlert('导出失败', '当前选定周期内没有工单或工时记录！', 'error');
-
-                const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' }); 
+                const csvContent = rows.map(row => row.map(escapeCsv).join(',')).join('\n');
+                const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
-                link.setAttribute('href', url);
-                const periodLabel = currentView === 'month' ? `${year}年${month+1}月` : (currentView === 'year' ? `${year}年` : `第XX周`);
-                link.setAttribute('download', `我的设计绩效台账_${periodLabel}.csv`);
+                link.href = url;
+                link.download = `我的设计绩效台账_${periodLabel}.csv`;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
+                URL.revokeObjectURL(url);
 
-                window.showToast('导出成功', 'Excel 报表已下载至本地。', 'success');
-            }, 1000);
+                window.showAlert('导出成功', `已生成并下载「我的设计绩效台账_${periodLabel}.csv」。`, 'success');
+            } catch (err) {
+                console.error('CSV 导出失败：', err);
+                window.showAlert('导出失败', `生成数据表时出错：${err.message || err}`, 'danger');
+            } finally {
+                if (btn) btn.disabled = false;
+                if (btnText) btnText.innerText = originalText;
+            }
         }
 
         window.syncNotificationsFromCloud = async function() {
