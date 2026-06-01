@@ -86,7 +86,7 @@
         <header class="h-[88px] px-10 flex justify-between items-center shrink-0 border-b border-white/5 bg-[#09090b]/80 backdrop-blur-xl z-20">
             <div>
                 <h2 class="text-[24px] font-bold text-white tracking-tight mb-1.5 flex items-center gap-3">
-                    多维项目投入 analysis
+                    多维项目投入分析
                     <span class="bg-fuchsia-500/20 text-fuchsia-400 text-[11px] px-2.5 py-0.5 rounded-lg border border-fuchsia-500/30">管理视角</span>
                     <div id="sync-indicator" class="hidden w-2 h-2 rounded-full bg-emerald-500 animate-pulse ml-2" title="云端连接中..."></div>
                 </h2>
@@ -808,16 +808,16 @@
             document.getElementById('metric-cur-ai').innerText = currentData.aiCount;
 
             const trendH = currentData.totalHours - prev1Data.totalHours;
-            document.getElementById('metric-trend-hours').innerHTML = prev1Data.totalHours === 0 ? `对比前期: <span class="text-zinc-400">无记录</span>` : `对比前期: <span class="${trendH>0?'text-rose-400':'text-emerald-400'} font-bold">${trendH>0?'↑':'↓'} ${Math.abs(Math.round((trendH/prev1Data.totalHours)*100))}%</span>`;
+            document.getElementById('metric-trend-hours').innerHTML = prev1Data.totalHours === 0 ? `Contrast with previous period: <span class="text-zinc-400">无记录</span>` : `Contrast with previous period: <span class="${trendH>0?'text-rose-400':'text-emerald-400'} font-bold">${trendH>0?'↑':'↓'} ${Math.abs(Math.round((trendH/prev1Data.totalHours)*100))}%</span>`;
             
             const trendP = actualPeople - prevActualPeople;
-            document.getElementById('metric-trend-people').innerHTML = prevActualPeople === 0 ? `对比前期: <span class="text-zinc-400">无记录</span>` : `对比前期: <span class="${trendP>0?'text-rose-400':'text-emerald-400'} font-bold">${trendP>0?'↑':'↓'} ${Math.abs(Math.round((trendP/prevActualPeople)*100))}%</span>`;
+            document.getElementById('metric-trend-people').innerHTML = prevActualPeople === 0 ? `Contrast with previous period: <span class="text-zinc-400">无记录</span>` : `Contrast with previous period: <span class="${trendP>0?'text-rose-400':'text-emerald-400'} font-bold">${trendP>0?'↑':'↓'} ${Math.abs(Math.round((trendP/prevActualPeople)*100))}%</span>`;
 
             const trendProj = currentData.projectsCount - prev1Data.projectsCount;
-            document.getElementById('metric-trend-projects').innerHTML = prev1Data.projectsCount === 0 ? `对比前期: <span class="text-zinc-400">无记录</span>` : `对比前期: <span class="${trendProj>0?'text-emerald-400':'text-rose-400'} font-bold">${trendProj>0?'↑':'↓'} ${Math.abs(Math.round((trendProj/prev1Data.projectsCount)*100))}%</span>`;
+            document.getElementById('metric-trend-projects').innerHTML = prev1Data.projectsCount === 0 ? `Contrast with previous period: <span class="text-zinc-400">无记录</span>` : `Contrast with previous period: <span class="${trendProj>0?'text-emerald-400':'text-rose-400'} font-bold">${trendProj>0?'↑':'↓'} ${Math.abs(Math.round((trendProj/prev1Data.projectsCount)*100))}%</span>`;
 
             const trendA = currentData.aiCount - prev1Data.aiCount;
-            document.getElementById('metric-trend-ai').innerHTML = prev1Data.aiCount === 0 ? `对比前期: <span class="text-zinc-400">无记录</span>` : `对比前期: <span class="${trendA>0?'text-emerald-400':'text-rose-400'} font-bold">${trendA>0?'↑':'↓'} ${Math.abs(Math.round((trendA/prev1Data.aiCount)*100))}%</span>`;
+            document.getElementById('metric-trend-ai').innerHTML = prev1Data.aiCount === 0 ? `Contrast with previous period: <span class="text-zinc-400">无记录</span>` : `Contrast with previous period: <span class="${trendA>0?'text-emerald-400':'text-rose-400'} font-bold">${trendA>0?'↑':'↓'} ${Math.abs(Math.round((trendA/prev1Data.aiCount)*100))}%</span>`;
 
             const projContainer = document.getElementById('project-list-container');
             const sortedProj = Object.keys(currentData.activeProjects).map(k => ({ name: k, data: currentData.activeProjects[k] })).sort((a,b) => b.data.hours - a.data.hours);
@@ -1129,7 +1129,7 @@
             });
         }
 
-        // 核心功能对齐重构：确保 CSV 文件中的表头字段与弹窗中 6 项可视化看板无缝撞轨映射
+        // 核心功能全面升级：完美拉齐6维看盘统计，并追加“全量数据流水工单明细行”
         window.exportToCSV = function() {
             const currentData = extractDataForPeriod(currentDate, currentView);
             const totalDemands = currentData.tasksCount;
@@ -1137,20 +1137,23 @@
             
             let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
             
-            // 维度 0：基本面元数据基本信息摘要
-            csvContent += "核心维度分层,主元项目/成员,度量指标1 (需求单量/工时/介入频次),度量指标2 (大盘全局权重占比),特殊流转诊断标签\n";
+            // ------------------ 第一部分：可视化面板的 6 个核心维度总结统计 ------------------
+            csvContent += "=== PART 1: 大盘核心效能多维统计分析 ===\n";
+            csvContent += "数据观测维度,分析主元对象,核心度量指标值,大盘全局占比权重,流转诊断分析标签\n";
+            
+            // 0. 核心基本面摘要
             csvContent += `0. 核心简报摘要,总计记录需求量,${totalDemands} 单,-,-\n`;
             csvContent += `0. 核心简报摘要,累计消耗设计工时,${currentData.totalHours.toFixed(1)} 小时,-,-\n`;
             csvContent += `0. 核心简报摘要,涵盖活跃类目项目,${currentData.projectsCount} 个,-,-\n`;
             csvContent += `0. 核心简报摘要,出勤跟进设计师,${actualPeople} 人,-,-\n`;
             
-            // 维度 1：提报发起方大盘审计排行层级映射
+            // 1. 发起方大盘审计
             Object.values(currentData.creatorMap).sort((a,b) => b.count - a.count).forEach((c, idx) => {
                 const pct = totalDemands > 0 ? ((c.count / totalDemands) * 100).toFixed(1) : 0;
                 csvContent += `1. 需求发起方大盘审计,#${idx+1} ${c.name},${c.count} 单,占总流水比 ${pct}%,-\n`;
             });
 
-            // 维度 2：类目纵横双轨矩阵交叉穿透（单量、工时、黑洞标签全部保留）
+            // 2. 类目/项目双轨对比矩阵
             Object.keys(currentData.activeProjects).map(k => ({ name: k, data: currentData.activeProjects[k] })).sort((a,b) => b.data.hours - a.data.hours).forEach(p => {
                 const hoursPct = currentData.totalHours > 0 ? ((p.data.hours / currentData.totalHours) * 100).toFixed(1) : 0;
                 const tasksPct = totalDemands > 0 ? ((p.data.count / totalDemands) * 100).toFixed(1) : 0;
@@ -1164,39 +1167,83 @@
                 csvContent += `2. 各类目双轨对比矩阵,《${safeName}》,独立需求单数: ${p.data.count}单 (占比 ${tasksPct}%),累计消耗工时: ${p.data.hours.toFixed(1)}h (占比 ${hoursPct}%),${densityTag}\n`;
             });
 
-            // 维度 3：AI Native 协同生产力大盘占比
+            // 3. AI工具辅助占比分布
             const aiTotal = currentData.aiCount;
             if (aiTotal === 0) {
-                csvContent += `3. AI工具使用分布占比,全盘未介入AI组件,0 次,0.0%,纯手绘模式\n`;
+                csvContent += `3. AI工具使用分布占比,全盘未开启动作级AI组件,0 次,0.0%,纯手绘模式\n`;
             } else {
                 Object.keys(currentData.aiFreq).map(k => ({ name: k, count: currentData.aiFreq[k] })).sort((a,b) => b.count - a.count).forEach(tool => {
                     const pct = ((tool.count / aiTotal) * 100).toFixed(1);
-                    csvContent += `3. AI工具使用分布占比,${tool.name},介入频次: ${tool.count} 次,占比: ${pct}%,生产力辅助\n`;
+                    csvContent += `3. AI工具使用分布占比,${tool.name},介入频次: ${tool.count} 次,占比: ${pct}%,生产力协同\n`;
                 });
             }
 
-            // 维度 4：执行侧 - 独立设计需求承接吞吐量排行 (按产生独立单量进行全覆盖输出)
+            // 4. 设计独立需求单量排行
             Object.values(currentData.peopleMap).filter(p => p.uniqueTasksSet.size > 0).sort((a,b) => b.uniqueTasksSet.size - a.uniqueTasksSet.size).forEach((p, idx) => {
-                csvContent += `4. 设计独立需求承接量排行,#0${idx+1} ${p.display},${p.uniqueTasksSet.size} 单,-,解题响应中\n`;
+                csvContent += `4. 设计独立需求承接排行,#0${idx+1} ${p.display},承接消化工单数: ${p.uniqueTasksSet.size} 单,-,下游承接输出中\n`;
             });
 
-            // 维度 5：执行侧 - 硬核时长投入榜单深度穿透不漏一人
+            // 5. 设计投入时长全量审计
             Object.values(currentData.peopleMap).filter(p => p.hours > 0).sort((a,b) => b.hours - a.hours).forEach((p, idx) => {
-                csvContent += `5. 设计硬核硬耗时全量审计,#0${idx+1} ${p.display},${p.hours.toFixed(1)} 小时,-,时长追踪\n`;
+                csvContent += `5. 设计投入时长全量审计,#0${idx+1} ${p.display},硬核沉淀工时: ${p.hours.toFixed(1)} 小时,-,全链路无遗漏覆盖\n`;
             });
 
-            // 维度 6：自动化语义层多维融合诊断报告落款
+            // 6. 智能化大盘交叉诊断洞察结论
             const insightText = document.getElementById('rep-intelligence-insight').innerText.replace(/,/g, '，').replace(/\n/g, ' ');
-            csvContent += `6. 交叉智能化深度洞察大盘诊断结论,${insightText},-,-,-\n`;
+            csvContent += `6. 智能化交叉诊断洞察结论,大盘语义分析提示,${insightText},-,复合撞轨诊断\n\n`;
+
+
+            // ------------------ 第二部分：全量底层数据单工单流水明细 ------------------
+            csvContent += "=== PART 2: 周期内全量工单流水原始明细数据明细表 ===\n";
+            csvContent += "工单唯一ID,设计工单名称/任务主题,所属项目分类/业务类目,需求发起人(Creator),设计承接人(Assignee),工单当前流转状态,当前阶段沉淀工时(h),提报创建时间\n";
+            
+            let matchCount = 0;
+            myAllTasks.forEach(t => {
+                // 判断该工单在当前筛选的时间段内是否处于活跃、有工时提交或属于新建状态
+                let taskActiveInPeriod = false;
+                let currentPeriodHours = 0;
+                try {
+                    const hist = JSON.parse(t.history_json || '[]');
+                    hist.forEach(h => {
+                        if (isDateInPeriod(h.created_at || h.time, currentDate, currentView)) {
+                            taskActiveInPeriod = true;
+                            let hVal = parseFloat(h.work_hours || h.hours);
+                            if (!isNaN(hVal) && hVal > 0) {
+                                currentPeriodHours += hVal;
+                            }
+                        }
+                    });
+                } catch(e){}
+                
+                let isCreatedInPeriod = isDateInPeriod(t.created_at, currentDate, currentView);
+                
+                // 如果满足当前时间与类目筛选范围，则作为流水明细导出一条记录
+                if ((currentSelectedProject === 'all' || t.project === currentSelectedProject) && (taskActiveInPeriod || isCreatedInPeriod)) {
+                    matchCount++;
+                    const safeId = t.id || '-';
+                    const safeTitle = (t.title || '无主题').replace(/,/g, '，').replace(/\n/g, ' ');
+                    const safeProject = (t.project || '未归属类目').replace(/,/g, '，');
+                    const safeCreator = (t.creator || '未知').replace(/,/g, '，');
+                    const safeAssignee = (t.assignee || '未指派').replace(/,/g, '，');
+                    const safeStatus = t.status || '-';
+                    const formattedDate = t.created_at ? new Date(t.created_at).toISOString().split('T')[0] : '-';
+                    
+                    csvContent += `${safeId},${safeTitle},${safeProject},${safeCreator},${safeAssignee},${safeStatus},${currentPeriodHours.toFixed(1)} h,${formattedDate}\n`;
+                }
+            });
+
+            if (matchCount === 0) {
+                csvContent += "数据状态提示,该筛选周期内底层大盘无任何匹配的原始工单流水记录,-,-,-,-,-,-\n";
+            }
 
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `TIG_设计效能多维双轨分析报告_${document.getElementById('report-period-text').innerText}.csv`);
+            link.setAttribute("download", `TIG_多维审计及全量明细流水表_${document.getElementById('report-period-text').innerText}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            window.showToast("导出表格成功", "一页式全要素对齐审计 Excel/CSV 已成功下载", "success");
+            window.showToast("导出表格成功", "全维度可视化面板 + 底层全量流说明细表已无损下载", "success");
         }
 
         window.exportToPNGImage = function() {
