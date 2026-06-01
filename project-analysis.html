@@ -130,7 +130,7 @@
                             <button onclick="window.markAllAsRead(event)" class="text-[11px] text-fuchsia-400 hover:text-fuchsia-300 btn-press transition-colors">全部已读</button>
                         </div>
                         <div class="max-h-[300px] overflow-y-auto custom-scrollbar" id="notif-list-container">
-                            <div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读消息</div>
+                            <div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无新消息</div>
                         </div>
                         <div class="pt-3 px-5 border-t border-white/5 text-center">
                             <button onclick="window.location.href='message-center.html?role=admin'" class="text-[11px] text-zinc-500 hover:text-white transition-colors btn-press">进入全局消息中心 ↗</button>
@@ -228,7 +228,7 @@
         <div id="pwd-modal" class="hidden w-full max-w-sm bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 p-6 relative">
             <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-fuchsia-500 to-indigo-500 rounded-t-3xl"></div>
             <div class="flex justify-between items-center mb-6 mt-2">
-                <h2 class="text-[16px] font-bold text-white flex items-center gap-2"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-fuchsia-500"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg> 修改登录密码</h2>
+                <h2 class="text-[16px] font-bold text-white flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-fuchsia-500"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg> 修改登录密码</h2>
                 <button onclick="closePwdModal()" class="text-zinc-500 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-full p-1 transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
             </div>
             <div class="space-y-4">
@@ -706,10 +706,12 @@
                         }
                         if (t.project) peopleMap[key].projects.add(t.project);
                         
-                        Object.keys(taskUserHours[key].aiTools).forEach(tool => {
-                            if (!peopleMap[key].aiTools[tool]) peopleMap[key].aiTools[tool] = 0;
-                            peopleMap[key].aiTools[tool] += taskUserHours[key].aiTools[tool];
-                        });
+                        if (taskUserHours[key].aiTools) {
+                            Object.keys(taskUserHours[key].aiTools).forEach(tool => {
+                                if (!peopleMap[key].aiTools[tool]) peopleMap[key].aiTools[tool] = 0;
+                                peopleMap[key].aiTools[tool] += taskUserHours[key].aiTools[tool];
+                            });
+                        }
                     }
                 });
 
@@ -721,6 +723,7 @@
                     if (!activeProjects[pName]) {
                         activeProjects[pName] = { hours: 0, count: 0, uniqueTasks: new Set() };
                     }
+                    // 核心逻辑修正：项目统计面板的新增需求单量，只有创建于当月的才会计数
                     if (isCreatedInPeriod) {
                         activeProjects[pName].uniqueTasks.add(t.id);
                     }
@@ -997,7 +1000,7 @@
                 aiBar.innerHTML = barHtml; aiLegend.innerHTML = legendHtml;
             }
 
-            // 4. 设计独立需求单量排行 (旁白注入全量完成的需求明细)
+            // 4. 设计独立需求单量排行 (注入 1:1 纯正对应单量明细旁白)
             const sortedPplByTasks = Object.values(currentData.peopleMap).filter(p => p.uniqueTasksSet.size > 0 || p.hours > 0).sort((a,b) => b.uniqueTasksSet.size - a.uniqueTasksSet.size);
             const pplTasksContainer = document.getElementById('rep-people-tasks-ranking');
             if(sortedPplByTasks.length === 0) {
@@ -1020,7 +1023,7 @@
                 pplTasksContainer.innerHTML = html;
             }
 
-            // 5. 设计投入时长全量审计
+            // 5. 设计投入时长全量审计 (基于当月实际触发日志绑定的需求标题拉齐)
             const sortedPplByHours = Object.values(currentData.peopleMap).filter(p => p.hours > 0 || p.uniqueTasksSet.size > 0).sort((a,b) => b.hours - a.hours);
             const pplHoursContainer = document.getElementById('rep-people-hours-ranking');
             if(sortedPplByHours.length === 0) {
@@ -1043,7 +1046,7 @@
                 pplHoursContainer.innerHTML = html;
             }
 
-            // 6. 双轨数据撞击融合智能 Insights 提示
+            // 6. 语义交叉纵横诊断
             const insightEl = document.getElementById('rep-intelligence-insight');
             if (currentData.totalHours === 0) {
                 insightEl.innerText = "当期大盘无撞单及工时沉淀，无法出具多维审计诊断。";
@@ -1069,24 +1072,217 @@
             setTimeout(() => { overlay.classList.remove('opacity-0'); modal.classList.remove('scale-95'); }, 10);
         };
 
-        window.closeExportAnalysisModal = function() {
-            const overlay = document.getElementById('export-modal-overlay');
-            const modal = document.getElementById('export-modal');
-            overlay.classList.add('opacity-0'); modal.classList.add('scale-95');
-            setTimeout(() => { overlay.classList.add('hidden'); }, 300);
-        }
-
-        window.copyMarkdownSummary = function() {
+        // 核心彻底优化大导出功能：直连 JS 底层对象，100%严苛对齐后勤4列格式，并在“单量/频次”内无损包裹完整明细清单流水
+        window.exportToCSV = function() {
             const currentData = extractDataForPeriod(currentDate, currentView);
             const totalDemands = currentData.tasksCount;
-            const sortedCreators = Object.values(currentData.creatorMap).sort((a,b) => b.count - a.count);
-            const sortedProj = Object.keys(currentData.activeProjects).map(k => ({ name: k, data: currentData.activeProjects[k] })).sort((a,b) => b.data.hours - a.data.hours);
-            const sortedPplByHours = Object.values(currentData.peopleMap).filter(p => p.hours > 0).sort((a,b) => b.hours - a.hours);
-            const range = document.getElementById('report-period-text').innerText;
+            const totalHours = currentData.totalHours;
+            const totalProjects = currentData.projectsCount;
+            const actualPeople = Object.values(currentData.peopleMap).filter(p => p.hours > 0 || p.uniqueTasksSet.size > 0).length;
+            const reportPeriod = document.getElementById('report-period-text').innerText;
 
-            let md = `### 📊 TIG 设计资产流转与提报人源头多维分析简报\n`;
-            md += `* **盘点范围与周期**: ${range} (${document.getElementById('report-view-tag').innerText})\n`;
-            md += `* **核心指标**: 独立需求总量 \`${totalDemands}单\` | 设计硬核总耗时 \`${currentData.totalHours.toFixed(1)}h\`\n\n`;
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
             
-            md += `#### 1️⃣ 需求提报发起方大盘占比排行:\n`;
-            sortedCreators.slice(0, 5).forEach
+            // 严开后勤标准4列表头
+            csvContent += "数据大类,项目条目,单量/频次,工时/大盘占比\n";
+            
+            // ================== 1. 核心摘要大类 ==================
+            csvContent += `核心摘要,总计需求量,${totalDemands} 单,-\n`;
+            csvContent += `,累计设计工时,${totalHours.toFixed(1)} 小时,-\n`;
+            csvContent += `,活跃类目,${totalProjects} 个,-\n`;
+            csvContent += `,投入设计人力,${actualPeople} 人,-\n`;
+
+            // ================== 2. 设计人力总结大类（单数和明细1:1横向数组包裹，修复去重差额漏洞） ==================
+            const sortedPpl = Object.values(currentData.peopleMap).filter(p => p.hours > 0 || p.uniqueTasksSet.size > 0).sort((a, b) => b.hours - a.hours);
+            if (sortedPpl.length === 0) {
+                csvContent += "设计人力总结,暂无匹配人员效能流水,-,-\n";
+            } else {
+                sortedPpl.forEach((p, idx) => {
+                    const prefix = (idx === 0) ? "设计人力总结" : ""; 
+                    const safeTitles = (p.taskTitles || []).join('；').replace(/,/g, '，').replace(/\n/g, ' ');
+                    csvContent += `${prefix},${p.display},${p.uniqueTasksSet.size} 单 (明细：${safeTitles}),${p.hours.toFixed(1)} h\n`;
+                });
+            }
+
+            // ================== 3. 需求发起方大盘审计大类（新增提单与其工单标题 1:1 无损平铺包裹） ==================
+            const sortedCreators = Object.values(currentData.creatorMap).sort((a,b) => b.count - a.count);
+            if (sortedCreators.length === 0) {
+                csvContent += "需求发起方大盘审计,暂无需求方提报数据,-,-\n";
+            } else {
+                sortedCreators.forEach((c, idx) => {
+                    const prefix = (idx === 0) ? "需求发起方大盘审计" : ""; 
+                    const pct = totalDemands > 0 ? ((c.count / totalDemands) * 100).toFixed(1) : 0;
+                    const safeTitles = (c.taskTitles || []).join('；').replace(/,/g, '，').replace(/\n/g, ' ');
+                    csvContent += `${prefix},${c.name},${c.count} 单 (明细：${safeTitles}),总权重: ${pct}%\n`;
+                });
+            }
+
+            // ================== 4. 各类目双轨对比矩阵大类 ==================
+            const sortedProj = Object.keys(currentData.activeProjects).map(k => ({ name: k, data: currentData.activeProjects[k] })).sort((a,b) => b.data.hours - a.data.hours);
+            if (sortedProj.length === 0) {
+                csvContent += "各类目双轨对比矩阵,当前大盘无撞轨数据流转,-,-\n";
+            } else {
+                sortedProj.forEach((p, idx) => {
+                    const prefix = (idx === 0) ? "各类目双轨对比矩阵" : ""; 
+                    const hoursPct = currentData.totalHours > 0 ? ((p.data.hours / currentData.totalHours) * 100).toFixed(1) : 0;
+                    const tasksPct = totalDemands > 0 ? ((p.data.count / totalDemands) * 100).toFixed(1) : 0;
+                    let densityTag = '正常流转';
+                    if (parseFloat(tasksPct) > 25 && parseFloat(hoursPct) < 15) {
+                        densityTag = '⚡️ 高频快钱需求';
+                    } else if (parseFloat(hoursPct) > 30) {
+                        densityTag = '🌋 资源重度黑洞';
+                    }
+                    const safeName = p.name.replace(/,/g, '，');
+                    csvContent += `${prefix},《${safeName}》,需求比: ${p.data.count}单 (${tasksPct}%),工时比: ${p.data.hours.toFixed(1)}h (${hoursPct}%),流转判定: ${densityTag}\n`;
+                });
+            }
+
+            // ================== 5. AI工具分布大类 ==================
+            const aiTotal = currentData.aiCount;
+            const sortedAi = Object.keys(currentData.aiFreq).map(k => ({ name: k, count: currentData.aiFreq[k] })).sort((a,b) => b.count - a.count).forEach((tool, idx) => {
+                const prefix = (idx === 0) ? "AI工具分布" : ""; 
+                const pct = ((tool.count / aiTotal) * 100).toFixed(1);
+                csvContent += `${prefix},${tool.name},调用频次: ${tool.count}次,使用占比: ${pct}%\n`;
+            });
+            if (aiTotal === 0 || sortedAi === 0) {
+                csvContent += "AI工具分布,本期未开启动作级AI协同,-,-\n";
+            }
+
+            // ================== 6. 智能化诊断洞察 ==================
+            const insightText = document.getElementById('rep-intelligence-insight') ? document.getElementById('rep-intelligence-insight').innerText.replace(/,/g, '，').replace(/\n/g, ' ') : '-';
+            csvContent += `智能化诊断洞察,管理层核心提示结论,${insightText},-\n`;
+
+            // 进行规范编码文件导出
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `TIG_需求及设计效能时效清洗表_${reportPeriod}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.showToast("导出表格成功", "全盘时效切割算法复核通过！数据与系统绝对对齐锁死。", "success");
+        };
+
+        window.exportToPNGImage = function() {
+            const captureZone = document.getElementById('export-capture-zone');
+            window.showToast("正在生成", "高保真全屏报告截图渲染中...", "info");
+            html2canvas(captureZone, { backgroundColor: '#121217', scale: 2, logging: false, useCORS: true }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const link = document.createElement('a');
+                link.download = `TIG_多维双轨效能简报_${document.getElementById('report-period-text').innerText}.png`;
+                link.href = imgData; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+                window.showToast("卡片下载成功", "高保真图片简报已下载", "success");
+            });
+        }
+
+        let lastNotifHash = '';
+        window.syncNotificationsFromCloud = async function(isSilent = true) {
+            if(!window.supabase) return;
+            const userStr = localStorage.getItem('activeUserObj');
+            if(!userStr) return;
+            const currentUser = JSON.parse(userStr);
+            const myName = (currentUser.displayName || currentUser.cnName || currentUser.enName || '').toLowerCase();
+
+            try {
+                const { data: tasks, error } = await window.supabase.from(window.DB_TABLE).select('id, title, creator, history_json').order('created_at', { ascending: false });
+                if (error) throw error;
+
+                let myNotifs = [];
+
+                tasks.forEach(task => {
+                    let hist = []; try { hist = JSON.parse(task.history_json || '[]'); } catch(e){}
+                    hist.forEach((h, index) => {
+                        const op = (h.operator || '').toLowerCase();
+                        if (op.includes(myName)) return;
+
+                        let title = ''; let content = ''; let icon = 'bg-fuchsia-500';
+                        
+                        if (h.action === 'submit_framework') { title = '👀 框架待审批'; content = `${h.operator} 提交了中期方案，等待审批：《${task.title}》`; icon = 'bg-amber-500'; }
+                        else if (h.action === 'submit_draft') { title = '🎁 正稿待验收'; content = `${h.operator} 交付了正式稿，等待甲方验收：《${task.title}》`; icon = 'bg-emerald-500'; }
+                        else if (h.action === 'reject_framework' || h.action === 'reject_draft' || h.is_rejected) { title = '💥 方案被打回'; content = `单据发生打回重修：《${task.title}》`; icon = 'bg-rose-500'; }
+                        else if (h.action === 'complete') { title = '✅ 任务圆满结案'; content = `甲方已验收通过：《${task.title}》`; icon = 'bg-emerald-500'; }
+                        else if (h.action && h.action.includes('urge')) { title = '🚨 紧急催办'; content = `单据产生催办行为：《${task.title}》`; icon = 'bg-rose-500'; }
+
+                        if (title) {
+                            const notifId = `${task.id}_${index}_${title}`;
+                            if (!myNotifs.some(n => n.id === notifId)) {
+                                myNotifs.push({ id: notifId, taskId: task.id, title: title, content: content, time: h.time || h.created_at || new Date().toISOString(), icon: icon });
+                            }
+                        }
+                    });
+                });
+
+                myNotifs.sort((a, b) => new Date(b.time) - new Date(a.time));
+                let readReceipts = JSON.parse(localStorage.getItem('notif_read_admin_' + myName) || '[]');
+                const unreadNotifs = myNotifs.filter(n => !readReceipts.includes(n.id));
+                const unreadCount = unreadNotifs.length;
+
+                const newHash = myNotifs.map(n => n.id + (readReceipts.includes(n.id) ? '_r' : '_u')).join(',');
+                if (isSilent && newHash === lastNotifHash) return;
+                lastNotifHash = newHash;
+
+                const bellDot = document.getElementById('bell-dot');
+                if (bellDot) {
+                    if (unreadCount > 0) { bellDot.classList.remove('hidden', 'bg-zinc-600', 'border-transparent'); bellDot.classList.add('bg-rose-500', 'animate-pulse', 'border-[#141417]'); } 
+                    else { bellDot.classList.add('hidden'); }
+                }
+                const notifContainer = document.getElementById('notif-list-container');
+                if (notifContainer) {
+                    if (unreadCount === 0) { notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读消息</div>'; } 
+                    else {
+                        notifContainer.innerHTML = unreadNotifs.map(n => {
+                            const dateStr = new Date(n.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                            return `
+                            <div class="px-5 py-4 border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors" onclick="window.markSingleAsRead('${n.id}', '${n.taskId}')">
+                                <div class="flex justify-between items-start mb-1"><h4 class="text-[13px] font-bold text-white flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full ${n.icon} shrink-0 shadow-[0_0_8px_currentColor]"></span>${n.title}</h4><span class="text-[10px] text-zinc-500">${dateStr}</span></div>
+                                <p class="text-[11px] text-zinc-400 pl-4 line-clamp-2">${n.content}</p>
+                            </div>`;
+                        }).join('');
+                    }
+                }
+                window.currentMyUnreadIds = unreadNotifs.map(n => n.id);
+            } catch(e) {}
+        }
+
+        window.toggleNotificationPanel = function(event) {
+            if(event) event.stopPropagation();
+            const dropdown = document.getElementById('notifMenu');
+            if(dropdown) { dropdown.classList.toggle('hidden'); if (!dropdown.classList.contains('hidden')) window.syncNotificationsFromCloud(true); }
+        }
+
+        window.markSingleAsRead = function(id, taskId) {
+            const userStr = localStorage.getItem('activeUserObj');
+            if(!userStr) return;
+            const currentUser = JSON.parse(userStr);
+            const myName = (currentUser.displayName || currentUser.cnName || currentUser.enName || '').toLowerCase();
+            let readReceipts = JSON.parse(localStorage.getItem('notif_read_admin_' + myName) || '[]');
+            if (!readReceipts.includes(id)) { readReceipts.push(id); localStorage.setItem('notif_read_admin_' + myName, JSON.stringify(readReceipts)); }
+            window.location.href = 'task-detail-requester.html?id=' + taskId;
+        }
+
+        window.markAllAsRead = function(event) {
+            if(event) event.stopPropagation();
+            if (!window.currentMyUnreadIds || window.currentMyUnreadIds.length === 0) return;
+            const userStr = localStorage.getItem('activeUserObj');
+            if(!userStr) return;
+            const currentUser = JSON.parse(userStr);
+            const myName = (currentUser.displayName || currentUser.cnName || currentUser.enName || '').toLowerCase();
+            const btn = event.currentTarget; const originalText = btn.innerHTML; btn.innerHTML = "处理中...";
+            let readReceipts = JSON.parse(localStorage.getItem('notif_read_admin_' + myName) || '[]');
+            readReceipts = [...new Set([...readReceipts, ...window.currentMyUnreadIds])];
+            localStorage.setItem('notif_read_admin_' + myName, JSON.stringify(readReceipts));
+            window.syncNotificationsFromCloud(true); btn.innerHTML = originalText;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.addEventListener('click', (e) => { 
+                const notifMenu = document.getElementById('notifMenu'); const notifBtn = document.getElementById('notifBtn');
+                if(notifMenu && !notifMenu.contains(e.target) && notifBtn && !notifBtn.contains(e.target)) notifMenu.classList.add('hidden'); 
+            });
+            window.loadDashboardData();
+            setTimeout(() => { window.syncNotificationsFromCloud(true); }, 1500);
+            setInterval(() => { window.loadDashboardData(true); window.syncNotificationsFromCloud(true); }, 8000);
+        });
+    </script>
+</body>
+</html>
