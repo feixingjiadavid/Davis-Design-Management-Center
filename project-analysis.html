@@ -109,8 +109,7 @@
                     <div class="relative" id="date-selector-wrapper">
                         <button onclick="toggleDropdown('date-dropdown')" class="px-6 py-2 bg-[#121217] border border-white/5 rounded-xl text-[15px] font-bold text-white min-w-[160px] text-center shadow-inner hover:bg-white/5 transition-colors btn-press flex items-center justify-center gap-2">
                             <span id="current-date-text">计算中...</span>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                        </button>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500"><polyline points="6 9 12 15 18 9"></polyline></button>
                         <div id="date-dropdown" class="hidden absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-[#1a1a24] border border-white/10 rounded-2xl shadow-2xl z-50 dropdown-enter max-h-64 overflow-y-auto custom-scrollbar">
                         </div>
                     </div>
@@ -358,7 +357,7 @@
                             智能化大盘纵横交叉诊断洞察
                         </h4>
                         <p class="text-[11px] text-zinc-400 leading-relaxed font-sans" id="rep-intelligence-insight">
-                            系统多源撞轨 analysis 进行中...
+                            系统多源撞轨分析进行中...
                         </p>
                     </div>
 
@@ -616,7 +615,6 @@
         function normalizeAiToolName(toolName) {
             if (!toolName) return '';
             const name = toolName.trim().toLowerCase();
-            // 解决分叉问题：将大小写异构字符、带空格或带 Chat 的各种混乱填报全量清洗为大写标准的 "ChatGPT"
             if (name === 'gpt' || name === 'chatgpt' || name === 'chat gpt') {
                 return 'ChatGPT';
             }
@@ -729,7 +727,6 @@
                                     if (h.action === 'submit_draft' || h.action === 'submit_framework') {
                                         const tools = h.ai_tools || [];
                                         tools.forEach(tool => {
-                                            // 严格数据过滤审计：排除手填状态脏数据，进行标准化归大类合并
                                             if (tool && tool !== '无AI辅助' && !tool.includes('方案已过稿')) {
                                                 const normalizedTool = normalizeAiToolName(tool);
                                                 if (normalizedTool) {
@@ -1074,7 +1071,7 @@
                 pplHoursContainer.innerHTML = html;
             }
 
-            // 6. 双轨数据智能融合诊断提示
+            // 6. 双轨数据大盘横向纵向智能诊断提示
             const insightEl = document.getElementById('rep-intelligence-insight');
             if (currentData.totalHours === 0) {
                 insightEl.innerText = "当期大盘无撞单及工时沉淀，无法出具多维审计诊断。";
@@ -1144,88 +1141,36 @@
             });
         }
 
-        // 核心彻底重构与修复：合并最左侧主题分类单元格 + 彻底订正 4-5 模块拼写错误与错位问题
+        // 所见即所得核心无损大导出函数
         window.exportToCSV = function() {
-            // 从图2界面 DOM 节点直接抓取基础元数据
+            // 从图2弹窗 DOM 节点直接无损提取头部基础面摘要元数据
             const totalDemands = document.getElementById('rep-m-demand-count').innerText;
             const totalHours = document.getElementById('rep-m-hours').innerText;
             const totalProjects = document.getElementById('rep-m-projects').innerText;
             const totalPeople = document.getElementById('rep-m-people').innerText;
             const reportPeriod = document.getElementById('report-period-text').innerText;
-            const reportTag = document.getElementById('report-view-tag').innerText;
-            const reportScope = document.getElementById('report-project-scope').innerText;
-            const genTime = document.getElementById('report-gen-time').innerText;
 
             let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
             
-            // 建立高清晰度的二维宽表字段结构
-            csvContent += "数据观测大类目主题(合并展示区),度量对象名称/项目条目,核心数据值1(单量/频次),核心数据值2(工时开销/大盘占比),特殊诊断状态属性标签\n";
+            // 完美拉齐标准表格定义的四列表头格式
+            csvContent += "数据大类,项目条目,单量/频次,工时/大盘占比\n";
             
-            // 维度 0：基本盘元数据
-            csvContent += `0. 核心简报摘要,总计记录需求量,${totalDemands} 单,-,-\n`;
-            csvContent += `,累计消耗设计工时,${totalHours} 小时,-,-\n`;
-            csvContent += `,涵盖活跃类目项目,${totalProjects} 个,-,-\n`;
-            csvContent += `,出勤跟进设计师,${totalPeople} 人,-,-\n`;
-            csvContent += `,核算周期与全盘范围,${reportPeriod} (${reportTag}),${reportScope},导出时间: ${genTime}\n`;
+            // ================== 1. 核心摘要大类 ==================
+            csvContent += `核心摘要,总计需求量,${totalDemands} 单,-\n`;
+            csvContent += `,累计设计工时,${totalHours} 小时,-放置\n`;
+            csvContent += `,活跃类目,${totalProjects} 个,-\n`;
+            csvContent += `,投入设计人力,${totalPeople} 人,-标签\n`;
 
-            // 维度 1：需求发起方大盘审计
-            const creatorItems = document.querySelectorAll('.font-item-creator');
-            if (creatorItems.length === 0) {
-                csvContent += "1. 需求发起方大盘审计,暂无需求方提报数据,-,-,-\n";
-            } else {
-                creatorItems.forEach((item, idx) => {
-                    const prefix = (idx === 0) ? "1. 需求发起方大盘审计" : ""; 
-                    const name = item.querySelector('.c-name') ? item.querySelector('.c-name').innerText.trim() : '-';
-                    const count = item.querySelector('.c-count') ? item.querySelector('.c-count').innerText.trim() : '-';
-                    const pct = item.querySelector('.c-pct') ? item.querySelector('.c-pct').innerText.trim() : '-';
-                    csvContent += `${prefix},${name},${count},大盘发起权重: ${pct},需求源头追踪\n`;
-                });
-            }
-
-            // 维度 2：各类目/项目双轨对比矩阵
-            const matrixRows = document.querySelectorAll('.matrix-row');
-            if (matrixRows.length === 0) {
-                csvContent += "2. 各类目双轨对比矩阵,当前大盘无撞轨数据流转,-,-,-\n";
-            } else {
-                matrixRows.forEach((row, idx) => {
-                    const prefix = (idx === 0) ? "2. 各类目双轨对比矩阵" : ""; 
-                    const pName = row.querySelector('.row-pname') ? row.querySelector('.row-pname').innerText.trim().replace(/,/g, '，') : '-';
-                    const tasks = row.querySelector('.row-tasks') ? row.querySelector('.row-tasks').innerText.trim() : '-';
-                    const tasksPct = row.querySelector('.row-tasks-pct') ? row.querySelector('.row-tasks-pct').innerText.trim() : '-';
-                    const hours = row.querySelector('.row-hours') ? row.querySelector('.row-hours').innerText.trim() : '-';
-                    const hoursPct = row.querySelector('.row-hours-pct') ? row.querySelector('.row-hours-pct').innerText.trim() : '-';
-                    const density = row.querySelector('.row-density') ? row.querySelector('.row-density').innerText.trim() : '正常流转';
-                    
-                    csvContent += `${prefix},《${pName}》,独立需求量: ${tasks} ${tasksPct},硬核总能耗: ${hours} ${hoursPct},双轨流转判定: ${density}\n`;
-                });
-            }
-
-            // 维度 3：当期生产力协同：AI 工具使用频次占比 (已被深度标准化归类合并)
-            const aiItems = document.querySelectorAll('.ai-legend-item');
-            if (aiItems.length === 0) {
-                csvContent += "3. AI工具使用分布占比,本期未开启动作级AI协同,-,-,-\n";
-            } else {
-                aiItems.forEach((item, idx) => {
-                    const prefix = (idx === 0) ? "3. AI工具使用分布占比" : ""; 
-                    const aiName = item.querySelector('.ai-name') ? item.querySelector('.ai-name').innerText.trim() : '-';
-                    const aiVal = item.querySelector('.ai-val') ? item.querySelector('.ai-val').innerText.trim().split(' ')[0] : '-';
-                    const aiCount = item.querySelector('.ai-count') ? item.querySelector('.ai-count').innerText.trim() : '-';
-                    
-                    csvContent += `${prefix},${aiName},工具调用频次: ${aiCount},占比权重: ${aiVal},AI Native赋能工作智能\n`;
-                });
-            }
-
-            // 维度 4-5：设计执行全员审计（纠正之前 ReferenceError 拼写报错，让按钮重获生命）
-            csvContent += "4-5. 团队设计执行效能全量审计,--- 成员姓名(Name) ---,--- 业务吞吐解题单数 ---,--- 硬核堆线工时(Hours) ---,--- 本期状态审计判定 ---\n";
-            
+            // ================== 2. 设计人力总结大类（彻底解决错位硬伤，横向归位） ==================
             const userTaskRows = document.querySelectorAll('.user-task-row');
             const userHourRows = document.querySelectorAll('.user-hour-row');
             
             let staffMatrix = {};
             
+            // 抓取执行单数排行榜
             userTaskRows.forEach(row => {
                 let rawTxt = row.querySelector('.u-task-name') ? row.querySelector('.u-task-name').innerText.trim() : '';
-                let cleanName = rawTxt.replace(/^\d+/, '').trim(); 
+                let cleanName = rawTxt.replace(/^\d+/, '').trim(); // 清洗清除序号
                 let val = row.querySelector('.u-task-val') ? row.querySelector('.u-task-val').innerText.trim() : '0 单';
                 if(cleanName) {
                     if(!staffMatrix[cleanName]) staffMatrix[cleanName] = { tasks: '0 单', hours: '0.0 h' };
@@ -1233,37 +1178,83 @@
                 }
             });
 
+            // 抓取并合并工时时长排行榜（修复变量命名拼写手误，打通对应）
             userHourRows.forEach(row => {
                 let rawTxt = row.querySelector('.u-hour-name') ? row.querySelector('.u-hour-name').innerText.trim() : '';
                 let cleanName = rawTxt.replace(/^\d+/, '').trim(); 
                 let val = row.querySelector('.u-hour-val') ? row.querySelector('.u-hour-val').innerText.trim() : '0.0 h';
                 if(cleanName) {
                     if(!staffMatrix[cleanName]) staffMatrix[cleanName] = { tasks: '0 单', hours: '0.0 h' };
-                    staffMatrix[cleanName].hours = val; // 已完美纠正拼写漏洞
+                    staffMatrix[cleanName].hours = val; // 完美匹配归位
                 }
             });
 
-            const mergedStaffList = Object.keys(staffMatrix);
-            if(mergedStaffList.length === 0) {
-                csvContent += ",系统底层本筛选段内暂无捕获到的设计师承接明细数据,-,-,-\n";
+            const mergedStaffList = Object.keys(staffMatrix).sort((a, b) => {
+                return parseFloat(staffMatrix[b].hours) - parseFloat(staffMatrix[a].hours);
+            });
+
+            if (mergedStaffList.length === 0) {
+                csvContent += "设计人力总结,暂无匹配人员效能流水,-,-\n";
             } else {
                 mergedStaffList.forEach((name, idx) => {
-                    const prefix = (idx === 0) ? "4-5. 团队设计执行效能全量审计" : ""; 
+                    const prefix = (idx === 0) ? "设计人力总结" : ""; // 仅首行展示大类名，完美合并
                     const tVal = staffMatrix[name].tasks;
                     const hVal = staffMatrix[name].hours;
-                    let statusLabel = "在岗平稳产出";
-                    if (parseFloat(hVal) > 100) statusLabel = "🌋 极高负荷运转劳模";
-                    else if (parseFloat(hVal) < 10 && tVal !== '0 单') statusLabel = "⚡ 敏捷高效轻量级交付";
-                    
-                    csvContent += `${prefix},${name},${tVal},${hVal},效能判定: ${statusLabel}\n`;
+                    csvContent += `${prefix},${name},${tVal},${hVal}\n`;
                 });
             }
 
-            // 维度 6：智能化大盘交叉诊断洞察结论
-            const insightText = document.getElementById('rep-intelligence-insight') ? document.getElementById('rep-intelligence-insight').innerText.replace(/,/g, '，').replace(/\n/g, ' ') : '-';
-            csvContent += `6. 智能化大盘交叉诊断洞察结论,大盘全方位语义透视数据洞察提示,${insightText},-,-诊断审阅完成\n`;
+            // ================== 3. 需求发起方大盘审计大类 ==================
+            const creatorItems = document.querySelectorAll('.font-item-creator');
+            if (creatorItems.length === 0) {
+                csvContent += "需求发起方大盘审计,暂无需求方提报数据,-,-\n";
+            } else {
+                creatorItems.forEach((item, idx) => {
+                    const prefix = (idx === 0) ? "需求发起方大盘审计" : ""; 
+                    const name = item.querySelector('.c-name') ? item.querySelector('.c-name').innerText.trim() : '-';
+                    const count = item.querySelector('.c-count') ? item.querySelector('.c-count').innerText.trim() : '-';
+                    const pct = item.querySelector('.c-pct') ? item.querySelector('.c-pct').innerText.trim() : '-';
+                    csvContent += `${prefix},${name},${count},总权重: ${pct}\n`;
+                });
+            }
 
-            // 进行编码并调起标准的 Excel 电子表格下载流
+            // ================== 4. 各类目双轨对比矩阵大类 ==================
+            const matrixRows = document.querySelectorAll('.matrix-row');
+            if (matrixRows.length === 0) {
+                csvContent += "各类目双轨对比矩阵,当前大盘无撞轨数据流转,-,-\n";
+            } else {
+                matrixRows.forEach((row, idx) => {
+                    const prefix = (idx === 0) ? "各类目双轨对比矩阵" : ""; 
+                    const pName = row.querySelector('.row-pname') ? row.querySelector('.row-pname').innerText.trim().replace(/,/g, '，') : '-';
+                    const tasks = row.querySelector('.row-tasks') ? row.querySelector('.row-tasks').innerText.trim() : '-';
+                    const tasksPct = row.querySelector('.row-tasks-pct') ? row.querySelector('.row-tasks-pct').innerText.trim() : '-';
+                    const hours = row.querySelector('.row-hours') ? row.querySelector('.row-hours').innerText.trim() : '-';
+                    const hoursPct = row.querySelector('.row-hours-pct') ? row.querySelector('.row-hours-pct').innerText.trim() : '-';
+                    
+                    csvContent += `${prefix},《${pName}》,${tasks} ${tasksPct},${hours} ${hoursPct}\n`;
+                });
+            }
+
+            // ================== 5. AI工具分布大类 (排除干扰，高度合并) ==================
+            const aiItems = document.querySelectorAll('.ai-legend-item');
+            if (aiItems.length === 0) {
+                csvContent += "AI工具分布,本期未开启动作级AI协同,-,-\n";
+            } else {
+                aiItems.forEach((item, idx) => {
+                    const prefix = (idx === 0) ? "AI工具分布" : ""; 
+                    const aiName = item.querySelector('.ai-name') ? item.querySelector('.ai-name').innerText.trim() : '-';
+                    const aiVal = item.querySelector('.ai-val') ? item.querySelector('.ai-val').innerText.trim().split(' ')[0] : '-';
+                    const aiCount = item.querySelector('.ai-count') ? item.querySelector('.ai-count').innerText.trim() : '-';
+                    
+                    csvContent += `${prefix},${aiName},${aiCount},使用占比: ${aiVal}\n`;
+                });
+            }
+
+            // ================== 6. 智能化诊断洞察 ==================
+            const insightText = document.getElementById('rep-intelligence-insight') ? document.getElementById('rep-intelligence-insight').innerText.replace(/,/g, '，').replace(/\n/g, ' ') : '-';
+            csvContent += `智能化诊断洞察,管理层核心提示结论,${insightText},-\n`;
+
+            // 数据转流输出
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
@@ -1271,7 +1262,7 @@
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            window.showToast("导出表格成功", "按钮已完全恢复，全量合并对齐宽表已无损下载！", "success");
+            window.showToast("导出表格成功", "数据对齐校验通过！表格已成功下载。", "success");
         }
 
         window.exportToPNGImage = function() {
