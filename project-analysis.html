@@ -130,7 +130,7 @@
                             <button onclick="window.markAllAsRead(event)" class="text-[11px] text-fuchsia-400 hover:text-fuchsia-300 btn-press transition-colors">全部已读</button>
                         </div>
                         <div class="max-h-[300px] overflow-y-auto custom-scrollbar" id="notif-list-container">
-                            <div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无新消息</div>
+                            <div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读消息</div>
                         </div>
                         <div class="pt-3 px-5 border-t border-white/5 text-center">
                             <button onclick="window.location.href='message-center.html?role=admin'" class="text-[11px] text-zinc-500 hover:text-white transition-colors btn-press">进入全局消息中心 ↗</button>
@@ -370,7 +370,7 @@
                     复制带有完整工时与提报占比的 Markdown 简报
                 </button>
                 <div class="flex items-center gap-3">
-                    <button onclick="window.exportToCSV()" class="px-5 py-2.5 bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30 font-bold rounded-xl text-[12px] btn-press transition-colors flex items-center gap-2 border border-indigo-500/20">
+                    <button id="btn-csv-export" onclick="window.exportToCSV()" class="px-5 py-2.5 bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30 font-bold rounded-xl text-[12px] btn-press transition-colors flex items-center gap-2 border border-indigo-500/20">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
                         导出全量明细 Excel/CSV 表格
                     </button>
@@ -679,7 +679,7 @@
 
             let peopleMap = {};
             systemUsers.forEach(u => {
-                peopleMap[u.en] = { en: u.en, display: u.display, hours: 0, taskCount: 0, uniqueTasksSet: new Set(), projects: new Set(), aiTools: {} };
+                peopleMap[u.en] = { en: u.en, display: u.display, hours: 0, taskCount: 0, uniqueTasksSet: new Set(), projects: new Set(), aiTools: {}, taskTitles: new Set() };
             });
 
             myAllTasks.forEach(t => {
@@ -707,6 +707,7 @@
                                         peopleMap[matchedUser.en].hours += hVal;
                                         peopleMap[matchedUser.en].taskCount += 1;
                                         peopleMap[matchedUser.en].uniqueTasksSet.add(t.id);
+                                        peopleMap[matchedUser.en].taskTitles.add(t.title);
                                         if(t.project) peopleMap[matchedUser.en].projects.add(t.project);
                                     } else {
                                         const cleanName = h.operator.split(' ')[0].split('(')[0].trim();
@@ -714,11 +715,12 @@
                                         const excludedUsers = ['judyzzhang', 'ponyxu', 'davidxu'];
                                         if (!excludedUsers.some(ex => key.includes(ex))) {
                                             if(!peopleMap[key]) {
-                                                peopleMap[key] = { en: key, display: cleanName, hours: 0, taskCount: 0, uniqueTasksSet: new Set(), projects: new Set(), aiTools: {} };
+                                                peopleMap[key] = { en: key, display: cleanName, hours: 0, taskCount: 0, uniqueTasksSet: new Set(), projects: new Set(), aiTools: {}, taskTitles: new Set() };
                                             }
                                             peopleMap[key].hours += hVal;
                                             peopleMap[key].taskCount += 1;
                                             peopleMap[key].uniqueTasksSet.add(t.id);
+                                            peopleMap[key].taskTitles.add(t.title);
                                             if(t.project) peopleMap[key].projects.add(t.project);
                                             matchedUser = { en: key };
                                         }
@@ -764,10 +766,11 @@
                     let rawCreator = t.creator || '外部提报/未知';
                     let cleanCreator = rawCreator.split(' ')[0].split('(')[0].trim();
                     if (!creatorMap[cleanCreator]) {
-                        creatorMap[cleanCreator] = { name: cleanCreator, uniqueTasks: new Set(), count: 0 };
+                        creatorMap[cleanCreator] = { name: cleanCreator, uniqueTasks: new Set(), count: 0, taskTitles: new Set() };
                     }
                     creatorMap[cleanCreator].uniqueTasks.add(t.id);
                     creatorMap[cleanCreator].count = creatorMap[cleanCreator].uniqueTasks.size;
+                    creatorMap[cleanCreator].taskTitles.add(t.title);
                 }
             });
 
@@ -960,7 +963,7 @@
             document.getElementById('report-project-scope').innerText = currentSelectedProject === 'all' ? '全部类目范围' : `类目: ${currentSelectedProject}`;
             document.getElementById('report-gen-time').innerText = new Date().toISOString().split('T')[0] + ' ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
-            // 1. 发起需求的人大盘审计
+            // 1. 发起需求的人大盘审计 (注入所提需求明细旁白)
             const creatorContainer = document.getElementById('rep-creator-ranking');
             const sortedCreators = Object.values(currentData.creatorMap).sort((a,b) => b.count - a.count);
             if (sortedCreators.length === 0) {
@@ -969,15 +972,21 @@
                 let html = '';
                 sortedCreators.slice(0, 6).forEach((c, idx) => {
                     const pct = totalDemands > 0 ? ((c.count / totalDemands) * 100).toFixed(1) : 0;
+                    const titleListStr = Array.from(c.taskTitles || []).join('；');
                     html += `
-                    <div class="bg-white/[0.01] border border-white/5 rounded-xl p-3 flex items-center justify-between font-mono font-item-creator">
-                        <div class="flex items-center gap-2 min-w-0">
-                            <span class="w-5 h-5 rounded bg-zinc-800 text-[10px] text-zinc-500 flex items-center justify-center font-bold">#${idx+1}</span>
-                            <span class="text-xs font-bold text-zinc-200 truncate font-sans c-name">${c.name}</span>
+                    <div class="bg-white/[0.01] border border-white/5 rounded-xl p-3 flex flex-col font-mono font-item-creator">
+                        <div class="flex justify-between items-center w-full">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <span class="w-5 h-5 rounded bg-zinc-800 text-[10px] text-zinc-500 flex items-center justify-center font-bold">#${idx+1}</span>
+                                <span class="text-xs font-bold text-zinc-200 truncate font-sans c-name">${c.name}</span>
+                            </div>
+                            <div class="text-right shrink-0">
+                                <span class="text-xs font-bold text-white c-count">${c.count} 单</span>
+                                <span class="text-[11px] text-indigo-400 font-black ml-2 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20 c-pct">${pct}%</span>
+                            </div>
                         </div>
-                        <div class="text-right shrink-0">
-                            <span class="text-xs font-bold text-white c-count">${c.count} 单</span>
-                            <span class="text-[11px] text-indigo-400 font-black ml-2 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20 c-pct">${pct}%</span>
+                        <div class="text-[10px] text-zinc-500 mt-2 pl-7 text-left line-clamp-1 truncate select-text" title="${titleListStr}">
+                            <span class="text-zinc-600 font-bold">提报明细:</span> ${titleListStr}
                         </div>
                     </div>`;
                 });
@@ -1037,7 +1046,7 @@
                 aiBar.innerHTML = barHtml; aiLegend.innerHTML = legendHtml;
             }
 
-            // 4. 设计独立需求单量排行
+            // 4. 设计独立需求单量排行 (注入所完成需求明细旁白)
             const sortedPplByTasks = Object.values(currentData.peopleMap).filter(p => p.uniqueTasksSet.size > 0).sort((a,b) => b.uniqueTasksSet.size - a.uniqueTasksSet.size);
             const pplTasksContainer = document.getElementById('rep-people-tasks-ranking');
             if(sortedPplByTasks.length === 0) {
@@ -1045,16 +1054,22 @@
             } else {
                 let html = '';
                 sortedPplByTasks.forEach((p, idx) => {
+                    const titleListStr = Array.from(p.taskTitles || []).join('；');
                     html += `
-                    <div class="flex justify-between items-center text-xs px-2 py-1.5 bg-white/[0.01] border border-white/5 rounded-lg font-mono user-task-row">
-                        <span class="text-zinc-300 flex items-center gap-1.5 truncate font-sans u-task-name"><span class="text-zinc-600 font-bold">0${idx+1}</span>${p.display}</span>
-                        <span class="text-emerald-400 font-bold shrink-0 u-task-val">${p.uniqueTasksSet.size} 单</span>
+                    <div class="flex flex-col text-xs p-2.5 bg-white/[0.01] border border-white/5 rounded-lg font-mono user-task-row">
+                        <div class="flex justify-between items-center w-full">
+                            <span class="text-zinc-300 flex items-center gap-1.5 truncate font-sans u-task-name"><span class="text-zinc-600 font-bold">0${idx+1}</span>${p.display}</span>
+                            <span class="text-emerald-400 font-bold shrink-0 u-task-val">${p.uniqueTasksSet.size} 单</span>
+                        </div>
+                        <div class="text-[10px] text-zinc-500 mt-1 pl-4 text-left line-clamp-1 truncate select-text" title="${titleListStr}">
+                            <span class="text-zinc-600 font-bold">完成明细:</span> ${titleListStr}
+                        </div>
                     </div>`;
                 });
                 pplTasksContainer.innerHTML = html;
             }
 
-            // 5. 设计投入时长全量审计
+            // 5. 设计投入时长全量审计 (注入所完成需求明细旁白)
             const sortedPplByHours = Object.values(currentData.peopleMap).filter(p => p.hours > 0).sort((a,b) => b.hours - a.hours);
             const pplHoursContainer = document.getElementById('rep-people-hours-ranking');
             if(sortedPplByHours.length === 0) {
@@ -1062,16 +1077,22 @@
             } else {
                 let html = '';
                 sortedPplByHours.forEach((p, idx) => {
+                    const titleListStr = Array.from(p.taskTitles || []).join('；');
                     html += `
-                    <div class="flex justify-between items-center text-xs px-2 py-1.5 bg-white/[0.01] border border-white/5 rounded-lg font-mono hover:border-purple-500/20 transition-colors user-hour-row">
-                        <span class="text-zinc-300 flex items-center gap-1.5 truncate font-sans u-hour-name"><span class="text-zinc-600 font-bold">0${idx+1}</span>${p.display}</span>
-                        <span class="text-fuchsia-400 font-black shrink-0 u-hour-val">${p.hours.toFixed(1)} h</span>
+                    <div class="flex flex-col text-xs p-2.5 bg-white/[0.01] border border-white/5 rounded-lg font-mono hover:border-purple-500/20 transition-colors user-hour-row">
+                        <div class="flex justify-between items-center w-full">
+                            <span class="text-zinc-300 flex items-center gap-1.5 truncate font-sans u-hour-name"><span class="text-zinc-600 font-bold">0${idx+1}</span>${p.display}</span>
+                            <span class="text-fuchsia-400 font-black shrink-0 u-hour-val">${p.hours.toFixed(1)} h</span>
+                        </div>
+                        <div class="text-[10px] text-zinc-500 mt-1 pl-4 text-left line-clamp-1 truncate select-text" title="${titleListStr}">
+                            <span class="text-zinc-600 font-bold">工时明细:</span> ${titleListStr}
+                        </div>
                     </div>`;
                 });
                 pplHoursContainer.innerHTML = html;
             }
 
-            // 6. 双轨数据大盘横向纵向智能诊断提示
+            // 6. 双轨数据智能融合诊断提示
             const insightEl = document.getElementById('rep-intelligence-insight');
             if (currentData.totalHours === 0) {
                 insightEl.innerText = "当期大盘无撞单及工时沉淀，无法出具多维审计诊断。";
@@ -1141,128 +1162,103 @@
             });
         }
 
-        // 所见即所得核心无损大导出函数
+        // 核心重构升级函数：完全拉齐后勤标准规格（数据打平大对齐，新增第 5 列：具体需求明细清单，彻底解决错位）
         window.exportToCSV = function() {
-            // 从图2弹窗 DOM 节点直接无损提取头部基础面摘要元数据
-            const totalDemands = document.getElementById('rep-m-demand-count').innerText;
-            const totalHours = document.getElementById('rep-m-hours').innerText;
-            const totalProjects = document.getElementById('rep-m-projects').innerText;
-            const totalPeople = document.getElementById('rep-m-people').innerText;
+            const currentData = extractDataForPeriod(currentDate, currentView);
+            const totalDemands = currentData.tasksCount;
+            const totalHours = currentData.totalHours;
+            const totalProjects = currentData.projectsCount;
+            const actualPeople = Object.values(currentData.peopleMap).filter(p => p.hours > 0 || p.uniqueTasksSet.size > 0).length;
             const reportPeriod = document.getElementById('report-period-text').innerText;
+            const reportTag = document.getElementById('report-view-tag').innerText;
+            const reportScope = document.getElementById('report-project-scope').innerText;
+            const genTime = document.getElementById('report-gen-time').innerText;
 
             let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
             
-            // 完美拉齐标准表格定义的四列表头格式
-            csvContent += "数据大类,项目条目,单量/频次,工时/大盘占比\n";
+            // 建立 100% 对应的标准五列表头格式，新增具体关联需求清单列
+            csvContent += "数据大类,项目条目,单量/频次,工时/大盘占比,关联具体设计需求明细清单\n";
             
             // ================== 1. 核心摘要大类 ==================
-            csvContent += `核心摘要,总计需求量,${totalDemands} 单,-\n`;
-            csvContent += `,累计设计工时,${totalHours} 小时,-放置\n`;
-            csvContent += `,活跃类目,${totalProjects} 个,-\n`;
-            csvContent += `,投入设计人力,${totalPeople} 人,-标签\n`;
+            csvContent += `核心摘要,总计需求量,${totalDemands} 单,-,-\n`;
+            csvContent += `,累计设计工时,${totalHours.toFixed(1)} 小时,-,-\n`;
+            csvContent += `,活跃类目,${totalProjects} 个,-,-\n`;
+            csvContent += `,投入设计人力,${actualPeople} 人,-,-\n`;
+            csvContent += `,核算周期范围,${reportPeriod} (${reportTag}),${reportScope},导出时间: ${genTime},-\n`;
 
-            // ================== 2. 设计人力总结大类（彻底解决错位硬伤，横向归位） ==================
-            const userTaskRows = document.querySelectorAll('.user-task-row');
-            const userHourRows = document.querySelectorAll('.user-hour-row');
-            
-            let staffMatrix = {};
-            
-            // 抓取执行单数排行榜
-            userTaskRows.forEach(row => {
-                let rawTxt = row.querySelector('.u-task-name') ? row.querySelector('.u-task-name').innerText.trim() : '';
-                let cleanName = rawTxt.replace(/^\d+/, '').trim(); // 清洗清除序号
-                let val = row.querySelector('.u-task-val') ? row.querySelector('.u-task-val').innerText.trim() : '0 单';
-                if(cleanName) {
-                    if(!staffMatrix[cleanName]) staffMatrix[cleanName] = { tasks: '0 单', hours: '0.0 h' };
-                    staffMatrix[cleanName].tasks = val;
-                }
-            });
-
-            // 抓取并合并工时时长排行榜（修复变量命名拼写手误，打通对应）
-            userHourRows.forEach(row => {
-                let rawTxt = row.querySelector('.u-hour-name') ? row.querySelector('.u-hour-name').innerText.trim() : '';
-                let cleanName = rawTxt.replace(/^\d+/, '').trim(); 
-                let val = row.querySelector('.u-hour-val') ? row.querySelector('.u-hour-val').innerText.trim() : '0.0 h';
-                if(cleanName) {
-                    if(!staffMatrix[cleanName]) staffMatrix[cleanName] = { tasks: '0 单', hours: '0.0 h' };
-                    staffMatrix[cleanName].hours = val; // 完美匹配归位
-                }
-            });
-
-            const mergedStaffList = Object.keys(staffMatrix).sort((a, b) => {
-                return parseFloat(staffMatrix[b].hours) - parseFloat(staffMatrix[a].hours);
-            });
-
-            if (mergedStaffList.length === 0) {
-                csvContent += "设计人力总结,暂无匹配人员效能流水,-,-\n";
+            // ================== 2. 设计人力总结大类（单数、工时、完成需求明细横向1:1对齐输出） ==================
+            const sortedPpl = Object.values(currentData.peopleMap).filter(p => p.hours > 0 || p.uniqueTasksSet.size > 0).sort((a, b) => b.hours - a.hours);
+            if (sortedPpl.length === 0) {
+                csvContent += "设计人力总结,暂无匹配人员效能流水,-,-,-\n";
             } else {
-                mergedStaffList.forEach((name, idx) => {
-                    const prefix = (idx === 0) ? "设计人力总结" : ""; // 仅首行展示大类名，完美合并
-                    const tVal = staffMatrix[name].tasks;
-                    const hVal = staffMatrix[name].hours;
-                    csvContent += `${prefix},${name},${tVal},${hVal}\n`;
+                sortedPpl.forEach((p, idx) => {
+                    const prefix = (idx === 0) ? "设计人力总结" : ""; 
+                    // 提取每个人完成的需求标题清单明细，用中文分号分隔，并清洗掉换行和逗号防止乱格
+                    const safeTitles = Array.from(p.taskTitles || []).join('；').replace(/,/g, '，').replace(/\n/g, ' ');
+                    csvContent += `${prefix},${p.display},${p.uniqueTasksSet.size} 单,${p.hours.toFixed(1)} h,${safeTitles}\n`;
                 });
             }
 
-            // ================== 3. 需求发起方大盘审计大类 ==================
-            const creatorItems = document.querySelectorAll('.font-item-creator');
-            if (creatorItems.length === 0) {
-                csvContent += "需求发起方大盘审计,暂无需求方提报数据,-,-\n";
+            // ================== 3. 需求发起方大盘审计大类（人名、发起单数、占比、发起需求明细1:1对齐输出） ==================
+            const sortedCreators = Object.values(currentData.creatorMap).sort((a,b) => b.count - a.count);
+            if (sortedCreators.length === 0) {
+                csvContent += "需求发起方大盘审计,暂无需求方提报数据,-,-,-\n";
             } else {
-                creatorItems.forEach((item, idx) => {
+                sortedCreators.forEach((c, idx) => {
                     const prefix = (idx === 0) ? "需求发起方大盘审计" : ""; 
-                    const name = item.querySelector('.c-name') ? item.querySelector('.c-name').innerText.trim() : '-';
-                    const count = item.querySelector('.c-count') ? item.querySelector('.c-count').innerText.trim() : '-';
-                    const pct = item.querySelector('.c-pct') ? item.querySelector('.c-pct').innerText.trim() : '-';
-                    csvContent += `${prefix},${name},${count},总权重: ${pct}\n`;
+                    const pct = totalDemands > 0 ? ((c.count / totalDemands) * 100).toFixed(1) : 0;
+                    // 提取每个人发起的需求标题清单明细
+                    const safeTitles = Array.from(c.taskTitles || []).join('；').replace(/,/g, '，').replace(/\n/g, ' ');
+                    csvContent += `${prefix},${c.name},${c.count} 单,总权重: ${pct}%,${safeTitles}\n`;
                 });
             }
 
             // ================== 4. 各类目双轨对比矩阵大类 ==================
-            const matrixRows = document.querySelectorAll('.matrix-row');
-            if (matrixRows.length === 0) {
-                csvContent += "各类目双轨对比矩阵,当前大盘无撞轨数据流转,-,-\n";
+            const sortedProj = Object.keys(currentData.activeProjects).map(k => ({ name: k, data: currentData.activeProjects[k] })).sort((a,b) => b.data.hours - a.data.hours);
+            if (sortedProj.length === 0) {
+                csvContent += "各类目双轨对比矩阵,当前大盘无撞轨数据流转,-,-,-\n";
             } else {
-                matrixRows.forEach((row, idx) => {
+                sortedProj.forEach((p, idx) => {
                     const prefix = (idx === 0) ? "各类目双轨对比矩阵" : ""; 
-                    const pName = row.querySelector('.row-pname') ? row.querySelector('.row-pname').innerText.trim().replace(/,/g, '，') : '-';
-                    const tasks = row.querySelector('.row-tasks') ? row.querySelector('.row-tasks').innerText.trim() : '-';
-                    const tasksPct = row.querySelector('.row-tasks-pct') ? row.querySelector('.row-tasks-pct').innerText.trim() : '-';
-                    const hours = row.querySelector('.row-hours') ? row.querySelector('.row-hours').innerText.trim() : '-';
-                    const hoursPct = row.querySelector('.row-hours-pct') ? row.querySelector('.row-hours-pct').innerText.trim() : '-';
-                    
-                    csvContent += `${prefix},《${pName}》,${tasks} ${tasksPct},${hours} ${hoursPct}\n`;
+                    const hoursPct = currentData.totalHours > 0 ? ((p.data.hours / currentData.totalHours) * 100).toFixed(1) : 0;
+                    const tasksPct = totalDemands > 0 ? ((p.data.count / totalDemands) * 100).toFixed(1) : 0;
+                    let densityTag = '正常流转';
+                    if (parseFloat(tasksPct) > 25 && parseFloat(hoursPct) < 15) {
+                        densityTag = '⚡️ 高频快钱需求';
+                    } else if (parseFloat(hoursPct) > 30) {
+                        densityTag = '🌋 资源重度黑洞';
+                    }
+                    const safeName = p.name.replace(/,/g, '，');
+                    csvContent += `${prefix},《${safeName}》,需求比: ${p.data.count}单 (${tasksPct}%),工时比: ${p.data.hours.toFixed(1)}h (${hoursPct}%),流转判定: ${densityTag}\n`;
                 });
             }
 
-            // ================== 5. AI工具分布大类 (排除干扰，高度合并) ==================
-            const aiItems = document.querySelectorAll('.ai-legend-item');
-            if (aiItems.length === 0) {
-                csvContent += "AI工具分布,本期未开启动作级AI协同,-,-\n";
+            // ================== 5. AI工具分布大类 ==================
+            const aiTotal = currentData.aiCount;
+            const sortedAi = Object.keys(currentData.aiFreq).map(k => ({ name: k, count: currentData.aiFreq[k] })).sort((a,b) => b.count - a.count);
+            if (aiTotal === 0 || sortedAi.length === 0) {
+                csvContent += "AI工具分布,本期未开启动作级AI协同,-,-,-\n";
             } else {
-                aiItems.forEach((item, idx) => {
+                sortedAi.forEach((tool, idx) => {
                     const prefix = (idx === 0) ? "AI工具分布" : ""; 
-                    const aiName = item.querySelector('.ai-name') ? item.querySelector('.ai-name').innerText.trim() : '-';
-                    const aiVal = item.querySelector('.ai-val') ? item.querySelector('.ai-val').innerText.trim().split(' ')[0] : '-';
-                    const aiCount = item.querySelector('.ai-count') ? item.querySelector('.ai-count').innerText.trim() : '-';
-                    
-                    csvContent += `${prefix},${aiName},${aiCount},使用占比: ${aiVal}\n`;
+                    const pct = ((tool.count / aiTotal) * 100).toFixed(1);
+                    csvContent += `${prefix},${tool.name},调用频次: ${tool.count}次,使用占比: ${pct}%,生产力协同\n`;
                 });
             }
 
-            // ================== 6. 智能化诊断洞察 ==================
+            // ================== 6. 智能化大盘纵横交叉诊断洞察结论大类 ==================
             const insightText = document.getElementById('rep-intelligence-insight') ? document.getElementById('rep-intelligence-insight').innerText.replace(/,/g, '，').replace(/\n/g, ' ') : '-';
-            csvContent += `智能化诊断洞察,管理层核心提示结论,${insightText},-\n`;
+            csvContent += `智能化诊断洞察,管理层核心提示结论,${insightText},-,-诊断审阅完成\n`;
 
-            // 数据转流输出
+            // 进行规范的文件编码并调起标准的 Excel 电子表格下载流
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `TIG_多维双轨效能审计全盘数据表_${reportPeriod}.csv`);
+            link.setAttribute("download", `TIG_设计投入多维双轨效能审计表_含发起与交付明细_${reportPeriod}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            window.showToast("导出表格成功", "数据对齐校验通过！表格已成功下载。", "success");
+            window.showToast("导出表格成功", "数据精准对应拉齐！含每个人提报及完成的完整工单流水清单已下载。", "success");
         }
 
         window.exportToPNGImage = function() {
@@ -1286,7 +1282,7 @@
             const myName = (currentUser.displayName || currentUser.cnName || currentUser.enName || '').toLowerCase();
 
             try {
-                const { data: tasks, error } = await window.supabase.from(window.DB_TABLE).select('id, title, creator, history_json').order('created_at', { ascending: false });
+                const { data: tasks, error = null } = await window.supabase.from(window.DB_TABLE).select('id, title, creator, history_json').order('created_at', { ascending: false });
                 if (error) throw error;
 
                 let myNotifs = [];
