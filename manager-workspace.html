@@ -596,6 +596,75 @@
             let statusCounts = { pending_accept: 0, processing: 0, pending_approval: 0, reviewing: 0, rejected: 0, completed: 0 };
             let peopleMap = {};
 
+            // 计算当前筛选周期的起止时间。用于判断“未审批待办”是否需要跨月延续展示。
+            function getPeriodBounds(date, type) {
+                const base = new Date(date);
+                let start, end;
+
+                if (type === 'year') {
+                    start = new Date(base.getFullYear(), 0, 1, 0, 0, 0, 0);
+                    end = new Date(base.getFullYear(), 11, 31, 23, 59, 59, 999);
+                } else if (type === 'month') {
+                    start = new Date(base.getFullYear(), base.getMonth(), 1, 0, 0, 0, 0);
+                    end = new Date(base.getFullYear(), base.getMonth() + 1, 0, 23, 59, 59, 999);
+                } else {
+                    start = getStartOfWeek(base);
+                    start.setHours(0, 0, 0, 0);
+                    end = new Date(start);
+                    end.setDate(end.getDate() + 6);
+                    end.setHours(23, 59, 59, 999);
+                }
+
+                return { start, end };
+            }
+
+            function getValidDate(value) {
+                if (!value) return null;
+                const d = new Date(value);
+                return isNaN(d.getTime()) ? null : d;
+            }
+
+            function getTaskHistory(task) {
+                try {
+                    return JSON.parse(task.history_json || '[]');
+                } catch(e) {
+                    return [];
+                }
+            }
+
+            // 找出工单进入“主管/领导待审批”阶段的时间。
+            // 如果历史里没有明确 submit_framework 时间，则用创建时间兜底，保证未审批的老单不会跨月丢失。
+            function getPendingApprovalStartDate(task, hist) {
+                let candidates = [];
+
+                hist.forEach(h => {
+                    const action = (h.action || '').toLowerCase();
+                    const state = (h.status || h.to_status || h.next_status || '').toLowerCase();
+                    const desc = `${h.reply || ''} ${h.desc || ''} ${h.note || ''}`;
+
+                    if (
+                        action === 'submit_framework' ||
+                        action === 'pending_approval' ||
+                        action === 'urge_leader' ||
+                        state === 'pending_approval' ||
+                        desc.includes('主管') ||
+                        desc.includes('领导') ||
+                        desc.includes('审批')
+                    ) {
+                        const d = getValidDate(h.created_at || h.time);
+                        if (d) candidates.push(d);
+                    }
+                });
+
+                const createdDate = getValidDate(task.created_at);
+                if (createdDate) candidates.push(createdDate);
+
+                if (candidates.length === 0) return null;
+                return new Date(Math.min(...candidates.map(d => d.getTime())));
+            }
+
+            const periodBounds = getPeriodBounds(targetDate, viewType);
+
             // 用系统常驻用户建立兜底矩阵
             systemUsers.forEach(u => {
                 peopleMap[u.en] = { en: u.en, display: u.display, count: 0, hours: 0, tasks: [] };
@@ -604,42 +673,50 @@
             myAllTasks.forEach(t => {
                 let taskActiveInPeriod = false;
                 let taskHoursInPeriod = 0;
+                const hist = getTaskHistory(t);
 
                 // 穿透历史动作流判断该工单是否在当前选定周期内活跃
-                try {
-                    const hist = JSON.parse(t.history_json || '[]');
-                    hist.forEach(h => {
-                        if (isDateInPeriod(h.created_at || h.time, targetDate, viewType)) {
-                            taskActiveInPeriod = true;
-                            let hVal = parseFloat(h.work_hours || h.hours);
-                            if (!isNaN(hVal) && hVal > 0) {
-                                taskHoursInPeriod += hVal;
-                                
-                                if (h.operator) {
-                                    let opLower = h.operator.toLowerCase();
-                                    let matchedUser = systemUsers.find(u => opLower.includes(u.en) || (u.display && opLower.includes(u.display.toLowerCase())));
-                                    let key = matchedUser ? matchedUser.en : h.operator.split(' ')[0].split('(')[0].trim().toLowerCase();
-                                    let displayTitle = matchedUser ? matchedUser.display : h.operator.split(' ')[0].split('(')[0].trim();
+                hist.forEach(h => {
+                    if (isDateInPeriod(h.created_at || h.time, targetDate, viewType)) {
+                        taskActiveInPeriod = true;
+                        let hVal = parseFloat(h.work_hours || h.hours);
+                        if (!isNaN(hVal) && hVal > 0) {
+                            taskHoursInPeriod += hVal;
 
-                                    const excludedUsers = ['judyzzhang', 'ponyxu', 'davidxu'];
-                                    if (!excludedUsers.some(ex => key.includes(ex))) {
-                                        // 核心自适应点：动态扩容，保障数据真实性
-                                        if(!peopleMap[key]) {
-                                            peopleMap[key] = { en: key, display: displayTitle, count: 0, hours: 0, tasks: [] };
-                                        }
-                                        peopleMap[key].hours += hVal;
+                            if (h.operator) {
+                                let opLower = h.operator.toLowerCase();
+                                let matchedUser = systemUsers.find(u => opLower.includes(u.en) || (u.display && opLower.includes(u.display.toLowerCase())));
+                                let key = matchedUser ? matchedUser.en : h.operator.split(' ')[0].split('(')[0].trim().toLowerCase();
+                                let displayTitle = matchedUser ? matchedUser.display : h.operator.split(' ')[0].split('(')[0].trim();
+
+                                const excludedUsers = ['judyzzhang', 'ponyxu', 'davidxu'];
+                                if (!excludedUsers.some(ex => key.includes(ex))) {
+                                    // 核心自适应点：动态扩容，保障数据真实性
+                                    if(!peopleMap[key]) {
+                                        peopleMap[key] = { en: key, display: displayTitle, count: 0, hours: 0, tasks: [] };
                                     }
+                                    peopleMap[key].hours += hVal;
                                 }
                             }
                         }
-                    });
-                } catch(e){}
+                    }
+                });
 
                 let isCreatedInPeriod = isDateInPeriod(t.created_at, targetDate, viewType);
-                // 只要在周期内有动作、或者是在周期内创建的，均纳入当前时间范围的统筹大盘中
-                if (taskActiveInPeriod || isCreatedInPeriod) {
+
+                // 💡 跨月待办延续规则：
+                // 当前仍处于 pending_approval 的工单，只要它已经在本周期结束前进入过待审批，
+                // 就持续出现在本周期“流转中/待审批”里；直到它被审批通过、打回、终止或完结后，后续月份不再作为待审批延续。
+                const pendingApprovalStartDate = getPendingApprovalStartDate(t, hist);
+                const shouldCarryPendingApproval =
+                    t.status === 'pending_approval' &&
+                    pendingApprovalStartDate &&
+                    pendingApprovalStartDate <= periodBounds.end;
+
+                // 只要在周期内有动作、或者是在周期内创建的、或者是历史遗留未审批待办，均纳入当前时间范围的统筹大盘中
+                if (taskActiveInPeriod || isCreatedInPeriod || shouldCarryPendingApproval) {
                     totalAbsoluteCount++;
-                    
+
                     // 进行状态分流归类
                     if (['completed', 'archived', 'terminated'].includes(t.status)) {
                         completedTasks.push(t);
@@ -666,7 +743,7 @@
                                 peopleMap[aKey] = { en: aKey, display: aDisplay, count: 0, hours: 0, tasks: [] };
                             }
                             peopleMap[aKey].count += 1;
-                            // 将此周期内活跃的工单镜像关联进此人名下
+                            // 将此周期内活跃或跨月延续的工单镜像关联进此人名下
                             if(!peopleMap[aKey].tasks.some(x => x.id === t.id)) {
                                 peopleMap[aKey].tasks.push(t);
                             }
@@ -678,7 +755,8 @@
             return { ongoingTasks, completedTasks, pendingApprovalCount, totalAbsoluteCount, statusCounts, peopleMap };
         }
 
-        // ================= 💡 大盘高保真数据同步重绘机制 =================
+
+                // ================= 💡 大盘高保真数据同步重绘机制 =================
         function updateDataAndRender() {
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
