@@ -20,6 +20,8 @@
         @keyframes dropIn { 0% { opacity: 0; transform: scaleY(0.95) translateY(-10px); } 100% { opacity: 1; transform: scaleY(1) translateY(0); } }
         .toast-slide-in { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .bar-grow-h { animation: growRight 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; transform-origin: left; }
+        @keyframes growRight { 0% { transform: scaleX(0); } 100% { transform: scaleX(1); } }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-fuchsia-500/30 text-zinc-300">
@@ -96,6 +98,27 @@
                     全局统筹数据分析导出
                 </button>
 
+                <div class="flex bg-[#121217] border border-white/10 rounded-xl p-1 shadow-inner">
+                    <button id="btn-view-week" onclick="switchView('week')" class="px-5 py-1.5 text-[13px] font-medium text-zinc-400 hover:text-white transition-colors rounded-lg btn-press">周度</button>
+                    <button id="btn-view-month" onclick="switchView('month')" class="px-5 py-1.5 text-[13px] font-bold bg-fuchsia-500/20 text-fuchsia-400 border border-fuchsia-500/20 rounded-lg shadow-sm cursor-default">月度</button>
+                    <button id="btn-view-year" onclick="switchView('year')" class="px-5 py-1.5 text-[13px] font-medium text-zinc-400 hover:text-white transition-colors rounded-lg btn-press">年度</button>
+                </div>
+
+                <div class="flex gap-2">
+                    <div class="relative" id="date-selector-wrapper">
+                        <button onclick="toggleDropdown('date-dropdown')" class="px-6 py-2 bg-[#121217] border border-white/5 rounded-xl text-[15px] font-bold text-white min-w-[160px] text-center shadow-inner hover:bg-white/5 transition-colors btn-press flex items-center justify-center gap-2">
+                            <span id="current-date-text">计算中...</span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </button>
+                        <div id="date-dropdown" class="hidden absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-[#1a1a24] border border-white/10 rounded-2xl shadow-2xl z-50 dropdown-enter max-h-64 overflow-y-auto custom-scrollbar">
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="jumpToCurrent()" class="px-4 py-2 bg-fuchsia-600/20 text-fuchsia-400 font-bold border border-fuchsia-500/20 rounded-xl hover:bg-fuchsia-500/30 transition-colors btn-press text-[12px]" id="btn-jump-current">回到本月</button>
+
+                <div class="w-px h-8 bg-white/10 mx-1"></div>
+
                 <div class="relative z-[120]" id="notif-wrapper">
                     <button id="notifBtn" onclick="window.toggleNotificationPanel(event)" class="w-10 h-10 rounded-xl bg-[#141417] border border-white/5 flex items-center justify-center text-zinc-400 hover:text-white transition-colors btn-press relative">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
@@ -140,7 +163,7 @@
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
                         </div>
                         <div>
-                            <p class="text-[12px] text-zinc-500 font-bold mb-1">进行中项目</p>
+                            <p class="text-[12px] text-zinc-500 font-bold mb-1">当期进行中工单</p>
                             <p class="text-[32px] font-black text-emerald-400 font-mono leading-none" id="stat-ongoing">0</p>
                         </div>
                     </div>
@@ -152,7 +175,7 @@
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                         </div>
                         <div>
-                            <p class="text-[12px] text-zinc-500 font-bold mb-1">待响应/审批数</p>
+                            <p class="text-[12px] text-zinc-500 font-bold mb-1">当期挂滞审批数</p>
                             <p class="text-[32px] font-black text-amber-400 font-mono leading-none" id="stat-pending">0</p>
                         </div>
                     </div>
@@ -165,13 +188,9 @@
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
                         </div>
                         <div>
-                            <p class="text-[12px] text-zinc-500 font-bold mb-1">已完结工单 <span class="text-[10px] font-normal">(本月)</span></p>
+                            <p class="text-[12px] text-zinc-500 font-bold mb-1">当期完结工单数</p>
                             <p class="text-[32px] font-black text-indigo-400 font-mono leading-none" id="stat-completed-month">0</p>
                         </div>
-                    </div>
-                    <div class="flex gap-4 text-[11px] text-zinc-500 mt-1 border-t border-white/5 pt-2">
-                        <span class="flex items-center gap-1">本周: <b id="stat-completed-week" class="text-zinc-300 font-mono">0</b></span>
-                        <span class="flex items-center gap-1">全年: <b id="stat-completed-year" class="text-zinc-300 font-mono">0</b></span>
                     </div>
                 </div>
             </div>
@@ -198,14 +217,14 @@
                 <div class="flex-[1] flex flex-col">
                     <div class="bg-[#121217] border border-white/5 rounded-3xl p-6 h-full flex flex-col shadow-2xl relative">
                         <h3 class="text-[15px] font-bold text-white mb-2">实时资源池监控</h3>
-                        <p class="text-[11px] text-zinc-500 mb-6 pb-4 border-b border-white/5">全员名单已展出，透视所有成员的执行负荷，支持下拽到底。</p>
+                        <p class="text-[11px] text-zinc-500 mb-6 pb-4 border-b border-white/5">基于选定时间周期，深度盘点承接负荷与出勤人效，支持下拽到底。</p>
                         
                         <div class="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2" id="resource-pool"></div>
                     </div>
                 </div>
             </div>
         </div>
-    </main>
+    </body-end-zone>
 
     <div id="pwd-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closePwdModal()">
         <div id="pwd-modal" class="hidden w-full max-w-sm bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 p-6 relative">
@@ -243,11 +262,11 @@
                     
                     <div class="flex justify-between items-start border-b border-white/5 pb-4">
                         <div>
-                            <span class="text-[10px] font-bold tracking-widest text-fuchsia-400 bg-fuchsia-500/10 border border-fuchsia-500/20 px-2 py-0.5 rounded">TIG ORCHESTRATION Dispatches</span>
+                            <span class="text-[10px] font-bold tracking-widest text-fuchsia-400 bg-fuchsia-500/10 border border-fuchsia-500/20 px-2 py-0.5 rounded">TIG ORCHESTRATION DISPATCHES</span>
                             <h3 class="text-[20px] font-black text-white mt-1.5">生产就绪度与阻塞盘点简报</h3>
                             <p class="text-[11px] text-zinc-500 mt-1 flex items-center gap-2">
-                                <span class="text-zinc-400 font-bold">全盘即时快照</span> | 
-                                <span id="report-period-text">2026年05月</span>
+                                <span id="report-view-tag" class="text-zinc-400 font-bold">周期快照分析</span> | 
+                                <span id="report-period-text-modal">计算中...</span>
                             </p>
                         </div>
                         <div class="text-right font-mono text-[11px] text-zinc-600">
@@ -262,30 +281,28 @@
                             当前大盘各流转节点工单堆积占比明细
                         </h4>
                         <div class="bg-white/[0.01] border border-white/5 rounded-xl p-4">
-                            <div id="rep-status-percentage-bar" class="w-full h-3 bg-zinc-900 rounded-full flex overflow-hidden mb-4">
-                                </div>
-                            <div id="rep-status-legend" class="grid grid-cols-3 gap-3 text-xs font-mono text-zinc-400">
-                                </div>
+                            <div id="rep-status-percentage-bar" class="w-full h-3 bg-zinc-900 rounded-full flex overflow-hidden mb-4"></div>
+                            <div id="rep-status-legend" class="grid grid-cols-2 gap-x-6 gap-y-2 text-xs font-mono text-zinc-400"></div>
                         </div>
                     </div>
 
                     <div class="space-y-3">
                         <h4 class="text-[13px] font-bold text-zinc-400 flex items-center gap-2">
                             <span class="w-1 h-3 bg-indigo-500 rounded-full"></span>
-                            实时设计资源负荷与任务吞吐排查明细
+                            实时设计资源负荷与任务吞吐排查明细 (按时长全量审计)
                         </h4>
                         <div class="border border-white/5 rounded-xl overflow-hidden bg-white/[0.005]">
                             <table class="w-full text-left text-xs font-mono">
                                 <thead class="bg-white/5 text-zinc-400 font-sans">
                                     <tr>
                                         <th class="p-3">执行设计师</th>
-                                        <th class="p-3 text-right">当前承接独立工单数</th>
-                                        <th class="p-3 text-right">锁定负荷工时 (估)</th>
+                                        <th class="p-3 text-right">独立需求单量</th>
+                                        <th class="p-3 text-right">当期硬核投入工时</th>
                                         <th class="p-3 text-center">实时就绪度状态</th>
                                     </tr>
                                 </thead>
                                 <tbody id="rep-resource-pool-matrix" class="divide-y divide-white/5 text-zinc-300">
-                                    </tbody>
+                                </tbody>
                             </table>
                         </div>
                     </div>
@@ -343,10 +360,12 @@
 
     <script>
         const PAGE_TYPE = 'admin'; 
+        let currentView = 'month'; 
+        let currentDate = new Date();
 
         window.ongoingTasksData = [];
         window.completedTasksData = [];
-        window.designersMapGlobalRef = {}; // 为分析导出模态框特设的临时全局快照指针
+        window.finalPeriodDataSnapshot = null; // 核心时间锁死数据底座指引
         window.currentTab = 'ongoing';
         window.currentPage = 1;
         const ITEMS_PER_PAGE = 8;
@@ -426,7 +445,109 @@
             return user;
         }
 
-        // ================= 💡 全局数据引擎 (全员透视版) =================
+        // ================= 💡 时间视图控制与切换 =================
+        window.switchView = function(view) {
+            currentView = view;
+            const btns = ['week', 'month', 'year'];
+            btns.forEach(b => {
+                const btn = document.getElementById(`btn-view-${b}`);
+                if (btn) {
+                    if(b === view) {
+                        btn.className = "px-5 py-1.5 text-[13px] font-bold bg-fuchsia-500/20 text-fuchsia-400 border border-fuchsia-500/20 rounded-lg shadow-sm cursor-default";
+                    } else {
+                        btn.className = "px-5 py-1.5 text-[13px] font-medium text-zinc-400 hover:text-white transition-colors rounded-lg btn-press";
+                        btn.setAttribute('onclick', `switchView('${b}')`);
+                    }
+                }
+            });
+            const jumpBtn = document.getElementById('btn-jump-current');
+            if(view === 'month') jumpBtn.innerText = '回到本月';
+            else if(view === 'week') jumpBtn.innerText = '回到本周';
+            else jumpBtn.innerText = '回到今年';
+
+            updateDataAndRender();
+        }
+
+        function getStartOfWeek(d) {
+            d = new Date(d);
+            var day = d.getDay(), diff = d.getDate() - day + (day == 0 ? -6:1); 
+            return new Date(d.setDate(diff));
+        }
+
+        window.jumpToCurrent = function() {
+            currentDate = new Date();
+            updateDataAndRender();
+        }
+
+        window.toggleDropdown = function(id) {
+            const dropdown = document.getElementById(id);
+            if (id === 'date-dropdown') {
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth();
+                dropdownData = [];
+                if (currentView === 'month') {
+                    for(let i = -5; i <= 5; i++) {
+                        const d = new Date(year, month + i, 1);
+                        dropdownData.push({ text: `${d.getFullYear()}年 ${d.getMonth()+1}月`, date: d, isCurrent: i===0 });
+                    }
+                } else if (currentView === 'week') {
+                    const startWeek = getStartOfWeek(currentDate);
+                    for(let i = -5; i <= 5; i++) {
+                        const d = new Date(startWeek);
+                        d.setDate(d.getDate() + (i * 7));
+                        const end = new Date(d); end.setDate(end.getDate() + 6);
+                        dropdownData.push({ text: `周 (${d.getMonth()+1}.${d.getDate()}-${end.getMonth()+1}.${end.getDate()})`, date: d, isCurrent: i===0 });
+                    }
+                } else {
+                    for(let i = -3; i <= 3; i++) {
+                        const y = year + i;
+                        dropdownData.push({ text: `${y} 年度`, date: new Date(y, 0, 1), isCurrent: i===0 });
+                    }
+                }
+                
+                let html = '<div class="py-2">';
+                dropdownData.forEach((item, index) => {
+                    if(item.isCurrent) {
+                        html += `<div class="w-full text-left px-5 py-2.5 text-[14px] text-fuchsia-400 bg-fuchsia-500/10 font-bold cursor-default">${item.text} <span class="text-[10px] bg-fuchsia-500/20 px-1.5 py-0.5 rounded ml-2">当前</span></div>`;
+                    } else {
+                        html += `<button onclick="selectDropdownDate(${index})" class="w-full text-left px-5 py-2.5 text-[14px] text-zinc-400 hover:bg-white/5 hover:text-white transition-colors">${item.text}</button>`;
+                    }
+                });
+                dropdown.innerHTML = html + '</div>';
+            }
+            dropdown.classList.toggle('hidden');
+        }
+
+        window.selectDropdownDate = function(index) {
+            currentDate = dropdownData[index].date;
+            document.getElementById('date-dropdown').classList.add('hidden');
+            updateDataAndRender();
+        }
+
+        function isDateInPeriod(dString, targetDate, viewType) {
+            if (!dString) return false;
+            const d = new Date(dString);
+            if (isNaN(d.getTime())) return false;
+
+            const tYear = targetDate.getFullYear();
+            const tMonth = targetDate.getMonth();
+
+            if (viewType === 'year') {
+                return d.getFullYear() === tYear;
+            } else if (viewType === 'month') {
+                return d.getFullYear() === tYear && d.getMonth() === tMonth;
+            } else if (viewType === 'week') {
+                const sw = getStartOfWeek(targetDate);
+                sw.setHours(0,0,0,0);
+                const ew = new Date(sw);
+                ew.setDate(ew.getDate() + 6);
+                ew.setHours(23,59,59,999);
+                return d >= sw && d <= ew;
+            }
+            return false;
+        }
+
+        // ================= 💡 数据基础拉取底座 =================
         window.loadDashboardData = async function(isSilent = false) {
             if(!initRBAC()) return;
             if(!window.supabase) return;
@@ -435,165 +556,226 @@
             if(syncDot && !isSilent) syncDot.classList.remove('hidden');
 
             try {
-                const { data: tasks, error } = await window.supabase.from(window.DB_TABLE).select('id, title, status, creator, assignee, due_date, history_json, created_at').order('created_at', { ascending: false });
-                if (error) throw error;
-
-                window.ongoingTasksData = (tasks || []).filter(t => !['completed', 'archived', 'terminated'].includes(t.status));
-                window.completedTasksData = (tasks || []).filter(t => ['completed', 'archived', 'terminated'].includes(t.status));
-                const pendingTasks = window.ongoingTasksData.filter(t => ['pending', 'pending_accept', 'pending_approval', 'reviewing'].includes(t.status));
-
-                let weekC = 0, monthC = 0, yearC = 0;
-                const now = new Date();
-                const startOfYear = new Date(now.getFullYear(), 0, 1);
-                const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-                const day = now.getDay() || 7;
-                const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day + 1);
-                startOfWeek.setHours(0,0,0,0);
-
-                window.completedTasksData.forEach(t => {
-                    let dStr = t.created_at;
-                    try {
-                        let hArr = JSON.parse(t.history_json || '[]');
-                        if(hArr.length > 0) dStr = hArr[hArr.length-1].time || hArr[hArr.length-1].created_at || dStr;
-                    }catch(e){}
-                    
-                    const cDate = new Date(dStr);
-                    if (cDate >= startOfWeek) weekC++;
-                    if (cDate >= startOfMonth) monthC++;
-                    if (cDate >= startOfYear) yearC++;
-                });
-
-                let designersMap = {};
-                try {
-                    const { data: users } = await window.supabase.from('users').select('enName, name, email, perms');
-                    if (users) {
-                        users.forEach(u => {
-                            let p = [];
-                            if (typeof u.perms === 'string') try { p = JSON.parse(u.perms); } catch(e){}
-                            else if (Array.isArray(u.perms)) p = u.perms;
-
-                            if(p.includes('design') || p.includes('admin')) {
-                                const en = (u.enName || (u.email ? u.email.split('@')[0] : '')).toLowerCase();
-                                if(en && !designersMap[en]) {
-                                    designersMap[en] = { en: en, display: u.name || u.enName || en, count: 0, hours: 0, tasks: [] };
-                                }
-                            }
-                        });
-                    }
-                } catch(e){}
-
-                window.ongoingTasksData.forEach(t => {
-                    if (t.assignee && t.assignee !== 'none' && t.status !== 'pending') {
-                        const assKey = t.assignee.toLowerCase();
-                        
-                        let matchedKey = null;
-                        for (let k in designersMap) {
-                            if (assKey.includes(k) || assKey.includes(designersMap[k].display.toLowerCase()) || designersMap[k].display.toLowerCase().includes(assKey)) {
-                                matchedKey = k;
-                                break;
+                // 拉取用户配置表
+                const { data: users, error: uErr } = await window.supabase.from('user_profiles').select('*');
+                systemUsers = [];
+                if (!uErr && users) {
+                    users.forEach(u => {
+                        const en = (u.en_name || '').toLowerCase();
+                        const excludedUsers = ['judyzzhang', 'ponyxu', 'davidxu'];
+                        if(en && !excludedUsers.includes(en)) {
+                            if(!systemUsers.some(x => x.en === en)) {
+                                systemUsers.push({ en: en, display: u.display_name || u.cn_name || u.en_name || en });
                             }
                         }
-
-                        if (matchedKey) {
-                            designersMap[matchedKey].count += 1;
-                            designersMap[matchedKey].hours += 4.5;
-                            designersMap[matchedKey].tasks.push(t);
-                        } else {
-                            if(!designersMap[assKey]) {
-                                designersMap[assKey] = { en: assKey, display: t.assignee, count: 0, hours: 0, tasks: [] };
-                            }
-                            designersMap[assKey].count += 1;
-                            designersMap[assKey].hours += 4.5;
-                            designersMap[assKey].tasks.push(t);
-                        }
-                    }
-                });
-
-                // 锁死全局快照引用
-                window.designersMapGlobalRef = designersMap;
-
-                if(!isSilent) {
-                    document.getElementById('stat-ongoing').innerText = window.ongoingTasksData.length;
-                    document.getElementById('stat-pending').innerText = pendingTasks.length;
-                    document.getElementById('stat-completed-month').innerText = monthC;
-                    document.getElementById('stat-completed-week').innerText = weekC;
-                    document.getElementById('stat-completed-year').innerText = yearC;
-
-                    document.getElementById('tab-count-ongoing').innerText = window.ongoingTasksData.length;
-                    document.getElementById('tab-count-completed').innerText = window.completedTasksData.length;
-
-                    window.renderTasksList();
-
-                    const poolContainer = document.getElementById('resource-pool');
-                    let poolHtml = '';
-                    const sortedDesigners = Object.values(designersMap).sort((a,b) => b.count - a.count);
-                    
-                    sortedDesigners.forEach(data => {
-                        const isEmpty = data.count === 0;
-                        const statusColor = isEmpty ? 'text-zinc-500' : (data.count > 2 ? 'text-rose-500' : 'text-emerald-500');
-                        const statusText = isEmpty ? '极度空闲' : (data.count > 2 ? '高负荷' : '状态适中');
-                        const opacityClass = isEmpty ? 'opacity-60 hover:opacity-100' : 'opacity-100';
-                        const bgClass = isEmpty ? 'bg-[#09090b] border-dashed border-white/5' : 'bg-[#18181b] border border-white/5 shadow-sm hover:border-white/10';
-
-                        let tasksHtml = '';
-                        if (!isEmpty) {
-                            tasksHtml = '<div class="mt-3 space-y-1.5 pt-3 border-t border-white/5">';
-                            data.tasks.forEach(task => {
-                                let sColor = 'zinc'; let sText = '流转中';
-                                if (task.status === 'processing') { sColor = 'orange'; sText = '制作中'; }
-                                else if (task.status === 'pending_approval') { sColor = 'amber'; sText = '待审批'; }
-                                else if (task.status === 'reviewing') { sColor = 'emerald'; sText = '验收中'; }
-                                else if (task.status === 'rejected') { sColor = 'rose'; sText = '被打回'; }
-                                else if (task.status === 'pending_accept') { sColor = 'sky'; sText = '待接单'; }
-                                
-                                tasksHtml += `
-                                    <div class="flex justify-between items-center bg-black/20 px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors cursor-pointer" onclick="window.location.href='task-detail-requester.html?id=${task.id}'">
-                                        <div class="flex items-center gap-2 min-w-0 pr-2">
-                                            <span class="w-1.5 h-1.5 rounded-full bg-${sColor}-500 shrink-0"></span>
-                                            <span class="text-[11px] text-zinc-300 truncate hover:text-white" title="${task.title}">${task.title}</span>
-                                        </div>
-                                        <span class="text-[9px] text-${sColor}-400 shrink-0 bg-${sColor}-500/10 px-1.5 py-0.5 rounded border border-${sColor}-500/20">${sText}</span>
-                                    </div>
-                                `;
-                            });
-                            tasksHtml += '</div>';
-                        }
-
-                        poolHtml += `
-                        <div class="${bgClass} rounded-2xl p-4 mb-3 transition-all relative overflow-hidden group ${opacityClass}">
-                            ${!isEmpty ? '<div class="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500/50 group-hover:w-1.5 transition-all"></div>' : ''}
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[10px] font-bold text-zinc-300 shadow-inner shrink-0">${data.display.substring(0,2).toUpperCase()}</div>
-                                    <div>
-                                        <p class="text-[13px] font-bold ${isEmpty ? 'text-zinc-400' : 'text-white'} flex items-center gap-2">
-                                            ${data.display} 
-                                            <span class="text-[10px] ${isEmpty ? 'text-zinc-600 bg-zinc-900/50' : 'text-zinc-400 bg-white/5'} px-1.5 rounded border border-white/5 font-mono">${data.count} 单</span>
-                                        </p>
-                                    </div>
-                                </div>
-                                <div class="text-right shrink-0">
-                                    <p class="text-[12px] font-bold ${statusColor} mb-0.5">${statusText}</p>
-                                    ${!isEmpty ? `<p class="text-[10px] text-zinc-500 font-mono">${data.hours.toFixed(1)}h 预估</p>` : `<p class="text-[10px] text-zinc-600">待指派</p>`}
-                                </div>
-                            </div>
-                            ${tasksHtml}
-                        </div>
-                        `;
                     });
-
-                    if (sortedDesigners.length === 0) {
-                        poolContainer.innerHTML = '<div class="text-center py-10 text-zinc-500 text-xs">暂无团队人员数据</div>';
-                    } else {
-                        poolContainer.innerHTML = poolHtml;
-                    }
                 }
+
+                const { data: tasks, error } = await window.supabase.from(window.DB_TABLE).select('id, title, project, status, creator, assignee, due_date, history_json, created_at').order('created_at', { ascending: false });
+                if (error) throw error;
+                myAllTasks = tasks || [];
+
+                switchView(currentView);
                 document.getElementById('dashboard-loading').classList.add('hidden');
 
-            } catch (err) { console.error(err); } finally { if(syncDot) setTimeout(() => syncDot.classList.add('hidden'), 500); }
+            } catch (err) { 
+                console.error(err); 
+                if(!isSilent) window.showToast('数据拉取异常', err.message, 'error');
+            } finally { 
+                if(syncDot) setTimeout(() => syncDot.classList.add('hidden'), 500); 
+            }
         }
 
-        // ================= 💡 Tab 切换与翻页系统 =================
+        // ================= 💡 极其精准的多维自适应交叉穿透统筹引擎 =================
+        function extractGlobalDataForPeriod(targetDate, viewType) {
+            let ongoingTasks = [];
+            let completedTasks = [];
+            let pendingApprovalCount = 0;
+            let totalAbsoluteCount = 0;
+
+            let statusCounts = { pending_accept: 0, processing: 0, pending_approval: 0, reviewing: 0, rejected: 0, completed: 0 };
+            let peopleMap = {};
+
+            // 用系统常驻用户建立兜底矩阵
+            systemUsers.forEach(u => {
+                peopleMap[u.en] = { en: u.en, display: u.display, count: 0, hours: 0, tasks: [] };
+            });
+
+            myAllTasks.forEach(t => {
+                let taskActiveInPeriod = false;
+                let taskHoursInPeriod = 0;
+
+                // 穿透历史动作流判断该工单是否在当前选定周期内活跃
+                try {
+                    const hist = JSON.parse(t.history_json || '[]');
+                    hist.forEach(h => {
+                        if (isDateInPeriod(h.created_at || h.time, targetDate, viewType)) {
+                            taskActiveInPeriod = true;
+                            let hVal = parseFloat(h.work_hours || h.hours);
+                            if (!isNaN(hVal) && hVal > 0) {
+                                taskHoursInPeriod += hVal;
+                                
+                                if (h.operator) {
+                                    let opLower = h.operator.toLowerCase();
+                                    let matchedUser = systemUsers.find(u => opLower.includes(u.en) || (u.display && opLower.includes(u.display.toLowerCase())));
+                                    let key = matchedUser ? matchedUser.en : h.operator.split(' ')[0].split('(')[0].trim().toLowerCase();
+                                    let displayTitle = matchedUser ? matchedUser.display : h.operator.split(' ')[0].split('(')[0].trim();
+
+                                    const excludedUsers = ['judyzzhang', 'ponyxu', 'davidxu'];
+                                    if (!excludedUsers.some(ex => key.includes(ex))) {
+                                        // 核心自适应点：动态扩容，保障数据真实性
+                                        if(!peopleMap[key]) {
+                                            peopleMap[key] = { en: key, display: displayTitle, count: 0, hours: 0, tasks: [] };
+                                        }
+                                        peopleMap[key].hours += hVal;
+                                    }
+                                }
+                            }
+                        }
+                    });
+                } catch(e){}
+
+                let isCreatedInPeriod = isDateInPeriod(t.created_at, targetDate, viewType);
+                // 只要在周期内有动作、或者是在周期内创建的，均纳入当前时间范围的统筹大盘中
+                if (taskActiveInPeriod || isCreatedInPeriod) {
+                    totalAbsoluteCount++;
+                    
+                    // 进行状态分流归类
+                    if (['completed', 'archived', 'terminated'].includes(t.status)) {
+                        completedTasks.push(t);
+                        statusCounts.completed++;
+                    } else {
+                        ongoingTasks.push(t);
+                        if (['pending', 'pending_accept'].includes(t.status)) statusCounts.pending_accept++;
+                        else if (t.status === 'processing') statusCounts.processing++;
+                        else if (t.status === 'pending_approval') { statusCounts.pending_approval++; pendingApprovalCount++; }
+                        else if (t.status === 'reviewing') statusCounts.reviewing++;
+                        else if (t.status === 'rejected') statusCounts.rejected++;
+                    }
+
+                    // 映射下游承接设计师的即时任务堆叠
+                    if (t.assignee && t.assignee !== 'none' && t.status !== 'pending') {
+                        let assLower = t.assignee.toLowerCase();
+                        let matchedAssignee = systemUsers.find(u => assLower.includes(u.en) || (u.display && assLower.includes(u.display.toLowerCase())));
+                        let aKey = matchedAssignee ? matchedAssignee.en : t.assignee.split(' ')[0].split('(')[0].trim().toLowerCase();
+                        let aDisplay = matchedAssignee ? matchedAssignee.display : t.assignee.split(' ')[0].split('(')[0].trim();
+
+                        const excludedUsers = ['judyzzhang', 'ponyxu', 'davidxu'];
+                        if (!excludedUsers.some(ex => aKey.includes(ex))) {
+                            if(!peopleMap[aKey]) {
+                                peopleMap[aKey] = { en: aKey, display: aDisplay, count: 0, hours: 0, tasks: [] };
+                            }
+                            peopleMap[aKey].count += 1;
+                            // 将此周期内活跃的工单镜像关联进此人名下
+                            if(!peopleMap[aKey].tasks.some(x => x.id === t.id)) {
+                                peopleMap[aKey].tasks.push(t);
+                            }
+                        }
+                    }
+                }
+            });
+
+            return { ongoingTasks, completedTasks, pendingApprovalCount, totalAbsoluteCount, statusCounts, peopleMap };
+        }
+
+        // ================= 💡 大盘高保真数据同步重绘机制 =================
+        function updateDataAndRender() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+
+            if (currentView === 'month') {
+                document.getElementById('current-date-text').innerText = `${year}年 ${month+1}月`;
+            } else if (currentView === 'week') {
+                const startWeek = getStartOfWeek(currentDate);
+                const end = new Date(startWeek); end.setDate(end.getDate() + 6);
+                document.getElementById('current-date-text').innerText = `${startWeek.getMonth()+1}.${startWeek.getDate()} - ${end.getMonth()+1}.${end.getDate()}`;
+            } else {
+                document.getElementById('current-date-text').innerText = `${year} 年度`;
+            }
+
+            // 锁定当前筛选周期的全量数据快照
+            const periodData = extractGlobalDataForPeriod(currentDate, currentView);
+            window.finalPeriodDataSnapshot = periodData;
+
+            // 拆分给Tab分页器使用的内部状态池
+            window.ongoingTasksData = periodData.ongoingTasks;
+            window.completedTasksData = periodData.completedTasks;
+
+            // 绘制顶部精细化四大看板
+            document.getElementById('stat-ongoing').innerText = periodData.ongoingTasks.length;
+            document.getElementById('stat-pending').innerText = periodData.pendingApprovalCount;
+            document.getElementById('stat-completed-month').innerText = periodData.completedTasks.length;
+
+            document.getElementById('tab-count-ongoing').innerText = periodData.ongoingTasks.length;
+            document.getElementById('tab-count-completed').innerText = periodData.completedTasks.length;
+
+            // 渲染主工单分页列表
+            window.renderTasksList();
+
+            // 渲染右侧：实时监控池，按独立单量与实际工时深度呈现
+            const poolContainer = document.getElementById('resource-pool');
+            let poolHtml = '';
+            const sortedDesigners = Object.values(periodData.peopleMap).sort((a,b) => {
+                if(b.count !== a.count) return b.count - a.count;
+                return b.hours - a.hours;
+            });
+
+            sortedDesigners.forEach(data => {
+                const isEmpty = data.count === 0 && data.hours === 0;
+                const statusColor = isEmpty ? 'text-zinc-500' : (data.count > 2 ? 'text-rose-500' : 'text-emerald-500');
+                const statusText = isEmpty ? '极度空闲' : (data.count > 2 ? '高负荷' : '状态适中');
+                const opacityClass = isEmpty ? 'opacity-60 hover:opacity-100' : 'opacity-100';
+                const bgClass = isEmpty ? 'bg-[#09090b] border-dashed border-white/5' : 'bg-[#18181b] border border-white/5 shadow-sm hover:border-white/10';
+
+                let tasksHtml = '';
+                if (data.tasks.length > 0) {
+                    tasksHtml = '<div class="mt-3 space-y-1.5 pt-3 border-t border-white/5">';
+                    data.tasks.forEach(task => {
+                        let sColor = 'zinc'; let sText = '流转中';
+                        if (task.status === 'processing') { sColor = 'orange'; sText = '制作中'; }
+                        else if (task.status === 'pending_approval') { sColor = 'amber'; sText = '待审批'; }
+                        else if (task.status === 'reviewing') { sColor = 'emerald'; sText = '验收中'; }
+                        else if (task.status === 'rejected') { sColor = 'rose'; sText = '被打回'; }
+                        else if (task.status === 'pending_accept') { sColor = 'sky'; sText = '待接单'; }
+                        
+                        tasksHtml += `
+                            <div class="flex justify-between items-center bg-black/20 px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors cursor-pointer" onclick="window.location.href='task-detail-requester.html?id=${task.id}'">
+                                <div class="flex items-center gap-2 min-w-0 pr-2">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-${sColor}-500 shrink-0"></span>
+                                    <span class="text-[11px] text-zinc-300 truncate hover:text-white" title="${task.title}">${task.title}</span>
+                                </div>
+                                <span class="text-[9px] text-${sColor}-400 shrink-0 bg-${sColor}-500/10 px-1.5 py-0.5 rounded border border-${sColor}-500/20">${sText}</span>
+                            </div>`;
+                    });
+                    tasksHtml += '</div>';
+                }
+
+                poolHtml += `
+                <div class="${bgClass} rounded-2xl p-4 mb-3 transition-all relative overflow-hidden group ${opacityClass}">
+                    ${!isEmpty ? '<div class="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500/50 group-hover:w-1.5 transition-all"></div>' : ''}
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[10px] font-bold text-zinc-300 shadow-inner shrink-0">${data.display.substring(0,2).toUpperCase()}</div>
+                            <div>
+                                <p class="text-[13px] font-bold ${isEmpty ? 'text-zinc-400' : 'text-white'} flex items-center gap-2">
+                                    ${data.display} 
+                                    <span class="text-[10px] ${isEmpty ? 'text-zinc-600 bg-zinc-900/50' : 'text-zinc-400 bg-white/5'} px-1.5 rounded border border-white/5 font-mono">${data.count} 单活跃</span>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <p class="text-[12px] font-bold ${statusColor} mb-0.5">${statusText}</p>
+                            <p class="text-[10px] text-zinc-500 font-mono">${data.hours.toFixed(1)}h 当期投入</p>
+                        </div>
+                    </div>
+                    ${tasksHtml}
+                </div>`;
+            });
+
+            poolContainer.innerHTML = sortedDesigners.length === 0 ? '<div class="text-center py-10 text-zinc-500 text-xs">当期无任何常驻人员变动</div>' : poolHtml;
+        }
+
+        // ================= 💡 Tab 切换与翻页调度 =================
         window.switchTab = function(tabName) {
             window.currentTab = tabName;
             window.currentPage = 1; 
@@ -603,14 +785,10 @@
             
             if (tabName === 'ongoing') {
                 tOngoing.className = "text-[14px] font-bold text-emerald-400 border-b-2 border-emerald-500 pb-3 flex items-center gap-2 transition-colors btn-press";
-                tOngoing.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></span>流转中 (<span id="tab-count-ongoing" class="font-mono">${window.ongoingTasksData.length}</span>)`;
                 tCompleted.className = "text-[14px] font-bold text-zinc-500 border-b-2 border-transparent pb-3 flex items-center gap-2 hover:text-zinc-300 transition-colors btn-press";
-                tCompleted.innerHTML = `<span class="w-2 h-2 rounded-full bg-zinc-500"></span>已完结 (<span id="tab-count-completed" class="font-mono">${window.completedTasksData.length}</span>)`;
             } else {
                 tOngoing.className = "text-[14px] font-bold text-zinc-500 border-b-2 border-transparent pb-3 flex items-center gap-2 hover:text-zinc-300 transition-colors btn-press";
-                tOngoing.innerHTML = `<span class="w-2 h-2 rounded-full bg-zinc-500"></span>流转中 (<span id="tab-count-ongoing" class="font-mono">${window.ongoingTasksData.length}</span>)`;
                 tCompleted.className = "text-[14px] font-bold text-indigo-400 border-b-2 border-indigo-500 pb-3 flex items-center gap-2 transition-colors btn-press";
-                tCompleted.innerHTML = `<span class="w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_8px_#6366f1]"></span>已完结 (<span id="tab-count-completed" class="font-mono">${window.completedTasksData.length}</span>)`;
             }
             window.renderTasksList();
         }
@@ -631,7 +809,7 @@
             const pageControls = document.getElementById('pagination-controls');
             
             if (data.length === 0) {
-                container.innerHTML = `<div class="text-center py-10 opacity-50"><p class="text-zinc-500 text-sm">此列表暂无工单</p></div>`;
+                container.innerHTML = `<div class="text-center py-10 opacity-50"><p class="text-zinc-500 text-sm">当前筛选周期下该列表暂无工单资产</p></div>`;
                 pageControls.innerHTML = '';
                 return;
             }
@@ -645,7 +823,6 @@
             let html = '';
             pageData.forEach(t => {
                 let sColor, sText, btnHtml;
-                
                 if (window.currentTab === 'completed') {
                     sColor = t.status === 'terminated' ? 'rose' : 'zinc'; 
                     sText = t.status === 'terminated' ? '已强行终止' : '已验收完结';
@@ -662,10 +839,8 @@
                     }
                 }
 
-                const opacityClass = window.currentTab === 'completed' ? 'opacity-70 hover:opacity-100' : '';
-
                 html += `
-                <div class="bg-[#18181b] border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-colors cursor-pointer relative overflow-hidden group ${opacityClass}" onclick="window.location.href='task-detail-requester.html?id=${t.id}'">
+                <div class="bg-[#18181b] border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-colors cursor-pointer relative overflow-hidden group" onclick="window.location.href='task-detail-requester.html?id=${t.id}'">
                     <div class="absolute left-0 top-0 bottom-0 w-1 bg-${sColor}-500 group-hover:w-1.5 transition-all"></div>
                     <div class="flex justify-between items-center mb-4 pl-1">
                         <div class="flex items-center gap-3">
@@ -681,216 +856,177 @@
                         </div>
                         <span class="font-mono">期望交付: ${t.due_date || '未定'}</span>
                     </div>
-                </div>
-                `;
+                </div>`;
             });
             container.innerHTML = html;
 
-            let pHtml = `
+            pageControls.innerHTML = `
                 <button onclick="window.changePage(-1)" class="px-4 py-2 rounded-xl text-[12px] font-bold ${window.currentPage === 1 ? 'bg-zinc-800/50 text-zinc-600 cursor-not-allowed border border-transparent' : 'bg-[#18181b] text-zinc-300 hover:text-white border border-white/10 hover:border-white/30 btn-press'} transition-all flex items-center gap-1"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg> 上一页</button>
                 <div class="bg-[#18181b] border border-white/5 rounded-xl px-4 py-2 flex items-center justify-center min-w-[80px]">
-                    <span class="text-[12px] text-white font-bold font-mono">${window.currentPage} <span class="text-zinc-500 font-normal mx-1">/</span> ${totalPages}</span>
+                    <span class="text-[12px] text-white font-bold font-mono">${window.currentPage} <span class="text-zinc-500 font-normal mx-1">/</span> ${totalPages || 1}</span>
                 </div>
-                <button onclick="window.changePage(1)" class="px-4 py-2 rounded-xl text-[12px] font-bold ${window.currentPage === totalPages ? 'bg-zinc-800/50 text-zinc-600 cursor-not-allowed border border-transparent' : 'bg-[#18181b] text-zinc-300 hover:text-white border border-white/10 hover:border-white/30 btn-press'} transition-all flex items-center gap-1">下一页 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+                <button onclick="window.changePage(1)" class="px-4 py-2 rounded-xl text-[12px] font-bold ${window.currentPage === totalPages || totalPages === 0 ? 'bg-zinc-800/50 text-zinc-600 cursor-not-allowed border border-transparent' : 'bg-[#18181b] text-zinc-300 hover:text-white border border-white/10 hover:border-white/30 btn-press'} transition-all flex items-center gap-1">下一页 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
             `;
-            pageControls.innerHTML = pHtml;
         }
 
-        // ================= 💡 新增：全盘就绪度与阻塞审计交互引擎 =================
+        // ================= 💡 全量真实数据：审计导出面板交互引擎 =================
         window.openExportAnalysisModal = function() {
             const overlay = document.getElementById('export-modal-overlay');
             const modal = document.getElementById('export-modal');
             
-            // 拼接并校准全大盘统计
-            const totalOngoing = window.ongoingTasksData.length;
-            const totalCompleted = window.completedTasksData.length;
-            const absoluteTotal = totalOngoing + totalCompleted;
+            const snap = window.finalPeriodDataSnapshot;
+            if(!snap) return;
 
-            // 各状态底层穿透抓取计数
-            let statPendingAccept = 0; // 待指派/待接单
-            let statProcessing = 0;    // 制作中
-            let statApproval = 0;     // 待总监把关审批
-            let statReviewing = 0;    // 甲方验收中
-            let statRejected = 0;     // 打回重修
+            const absoluteTotal = snap.totalAbsoluteCount;
+            const rangeText = document.getElementById('current-date-text').innerText;
             
-            window.ongoingTasksData.forEach(t => {
-                if(['pending', 'pending_accept'].includes(t.status)) statPendingAccept++;
-                else if(t.status === 'processing') statProcessing++;
-                else if(t.status === 'pending_approval') statApproval++;
-                else if(t.status === 'reviewing') statReviewing++;
-                else if(t.status === 'rejected') statRejected++;
-            });
+            document.getElementById('report-period-text-modal').innerText = rangeText;
+            document.getElementById('report-gen-time').innerText = new Date().toISOString().split('T')[0] + ' ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
-            // 1. 注入绝对节点百分比状态条 (多彩矩阵)
+            // 1. 动态绘制生命周期分布状态条
             const statusBar = document.getElementById('rep-status-percentage-bar');
             const statusLegend = document.getElementById('rep-status-legend');
             
             if (absoluteTotal === 0) {
-                statusBar.innerHTML = `<div class="w-full h-full bg-zinc-900 text-zinc-600 italic flex items-center justify-center text-[10px]">系统大厅内暂无工单资产记录</div>`;
-                statusLegend.innerHTML = `<div class="col-span-3 text-zinc-500 italic">无可用生命周期数据</div>`;
+                statusBar.innerHTML = `<div class="w-full h-full bg-zinc-900 text-zinc-600 italic flex items-center justify-center text-[10px]">当前周期无工单资产流转</div>`;
+                statusLegend.innerHTML = `<div class="col-span-2 text-zinc-500 italic text-xs">暂无生命周期分布占比</div>`;
             } else {
-                const pctPending = ((statPendingAccept / absoluteTotal) * 100).toFixed(1);
-                const pctProc = ((statProcessing / absoluteTotal) * 100).toFixed(1);
-                const pctAppr = ((statApproval / absoluteTotal) * 100).toFixed(1);
-                const pctReview = ((statReviewing / absoluteTotal) * 100).toFixed(1);
-                const pctReject = ((statRejected / absoluteTotal) * 100).toFixed(1);
-                const pctComp = ((totalCompleted / absoluteTotal) * 100).toFixed(1);
+                const pctPending = ((snap.statusCounts.pending_accept / absoluteTotal) * 100).toFixed(1);
+                const pctProc = ((snap.statusCounts.processing / absoluteTotal) * 100).toFixed(1);
+                const pctAppr = ((snap.statusCounts.pending_approval / absoluteTotal) * 100).toFixed(1);
+                const pctReview = ((snap.statusCounts.reviewing / absoluteTotal) * 100).toFixed(1);
+                const pctReject = ((snap.statusCounts.rejected / absoluteTotal) * 100).toFixed(1);
+                const pctComp = ((snap.statusCounts.completed / absoluteTotal) * 100).toFixed(1);
 
                 statusBar.innerHTML = `
-                    <div class="bg-sky-500 h-full" style="width: ${pctPending}%" title="待指派"></div>
-                    <div class="bg-orange-500 h-full" style="width: ${pctProc}%" title="制作中"></div>
-                    <div class="bg-amber-500 h-full" style="width: ${pctAppr}%" title="待把关"></div>
-                    <div class="bg-emerald-500 h-full" style="width: ${pctReview}%" title="验收中"></div>
-                    <div class="bg-rose-500 h-full" style="width: ${pctReject}%" title="被打回"></div>
-                    <div class="bg-zinc-700 h-full" style="width: ${pctComp}%" title="已结案"></div>
+                    <div class="bg-sky-500 h-full" style="width: ${pctPending}%"></div>
+                    <div class="bg-orange-500 h-full" style="width: ${pctProc}%"></div>
+                    <div class="bg-amber-500 h-full" style="width: ${pctAppr}%"></div>
+                    <div class="bg-emerald-500 h-full" style="width: ${pctReview}%"></div>
+                    <div class="bg-rose-500 h-full" style="width: ${pctReject}%"></div>
+                    <div class="bg-zinc-700 h-full" style="width: ${pctComp}%"></div>
                 `;
 
                 statusLegend.innerHTML = `
-                    <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-sky-500"></span>待接单: <b>${statPendingAccept}单</b> <span class="text-zinc-600">(${pctPending}%)</span></div>
-                    <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-orange-500"></span>制作中: <b>${statProcessing}单</b> <span class="text-zinc-600">(${pctProc}%)</span></div>
-                    <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span>待把关: <b>${statApproval}单</b> <span class="text-zinc-600">(${pctAppr}%)</span></div>
-                    <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>验收中: <b>${statReviewing}单</b> <span class="text-zinc-600">(${pctReview}%)</span></div>
-                    <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-500"></span>被打回: <b>${statRejected}单</b> <span class="text-zinc-600">(${pctReject}%)</span></div>
-                    <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-zinc-600"></span>已结案: <b>${totalCompleted}单</b> <span class="text-zinc-600">(${pctComp}%)</span></div>
+                    <div class="flex items-center justify-between px-2.5 py-1.5 border border-white/5 bg-white/[0.005] rounded-lg"><span class="flex items-center gap-1.5 text-zinc-300"><span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>待接单</span><span class="text-sky-400 font-bold">${snap.statusCounts.pending_accept}单 <span class="text-zinc-600 text-[10px]">(${pctPending}%)</span></span></div>
+                    <div class="flex items-center justify-between px-2.5 py-1.5 border border-white/5 bg-white/[0.005] rounded-lg"><span class="flex items-center gap-1.5 text-zinc-300"><span class="w-1.5 h-1.5 rounded-full bg-orange-500"></span>制作中</span><span class="text-orange-400 font-bold">${snap.statusCounts.processing}单 <span class="text-zinc-600 text-[10px]">(${pctProc}%)</span></span></div>
+                    <div class="flex items-center justify-between px-2.5 py-1.5 border border-white/5 bg-white/[0.005] rounded-lg"><span class="flex items-center gap-1.5 text-zinc-300"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>待把关</span><span class="text-amber-400 font-bold">${snap.statusCounts.pending_approval}单 <span class="text-zinc-600 text-[10px]">(${pctAppr}%)</span></span></div>
+                    <div class="flex items-center justify-between px-2.5 py-1.5 border border-white/5 bg-white/[0.005] rounded-lg"><span class="flex items-center gap-1.5 text-zinc-300"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>验收中</span><span class="text-emerald-400 font-bold">${snap.statusCounts.reviewing}单 <span class="text-zinc-600 text-[10px]">(${pctReview}%)</span></span></div>
+                    <div class="flex items-center justify-between px-2.5 py-1.5 border border-white/5 bg-white/[0.005] rounded-lg"><span class="flex items-center gap-1.5 text-zinc-300"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>被打回</span><span class="text-rose-400 font-bold">${snap.statusCounts.rejected}单 <span class="text-zinc-600 text-[10px]">(${pctReject}%)</span></span></div>
+                    <div class="flex items-center justify-between px-2.5 py-1.5 border border-white/5 bg-white/[0.005] rounded-lg"><span class="flex items-center gap-1.5 text-zinc-300"><span class="w-1.5 h-1.5 rounded-full bg-zinc-600"></span>已结案</span><span class="text-zinc-400 font-bold">${snap.statusCounts.completed}单 <span class="text-zinc-600 text-[10px]">(${pctComp}%)</span></span></div>
                 `;
             }
 
-            // 2. 注入动态实时资源负荷与任务吞吐矩阵表格
+            // 2. 动态注入审计表格：包含所有有产出、有活跃单的设计资源，一格不漏
             const matrixBody = document.getElementById('rep-resource-pool-matrix');
-            const targetPool = window.designersMapGlobalRef || {};
-            const sortedDesigners = Object.values(targetPool).sort((a,b) => b.count - a.count);
+            const sortedDesigners = Object.values(snap.peopleMap).sort((a,b) => b.count - a.count || b.hours - a.hours);
             
             if (sortedDesigners.length === 0) {
-                matrixBody.innerHTML = `<tr><td colspan="4" class="p-3 text-center text-zinc-500 italic">实时负荷池无任何常驻设计师登记</td></tr>`;
+                matrixBody.innerHTML = `<tr><td colspan="4" class="p-3 text-center text-zinc-500 italic">当前周期无人员负荷堆积</td></tr>`;
             } else {
                 let html = '';
                 sortedDesigners.forEach(d => {
-                    const isEmpty = d.count === 0;
-                    let loadTag = '<span class="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded">💤 状态就绪/空闲</span>';
+                    const isEmpty = d.count === 0 && d.hours === 0;
+                    let loadTag = '<span class="text-[10px] text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">💤 挂空/就绪</span>';
                     if (d.count > 2) {
-                        loadTag = '<span class="text-[10px] text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded font-bold">🔥 重度压制/高负荷</span>';
-                    } else if (d.count > 0) {
-                        loadTag = '<span class="text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded">⚡ 产能释出/健康</span>';
+                        loadTag = '<span class="text-[10px] text-rose-400 bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded font-bold">🔥 高负荷压制</span>';
+                    } else if (d.count > 0 || d.hours > 0) {
+                        loadTag = '<span class="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">✅ 健康流转</span>';
                     }
+
                     html += `
-                        <tr class="hover:bg-white/[0.005] transition-colors">
-                            <td class="p-2.5 text-xs font-sans font-bold text-white">${d.display} <span class="text-[10px] text-zinc-600 font-mono">(${d.en})</span></td>
-                            <td class="p-2.5 text-right text-xs font-bold text-zinc-200">${d.count} 单</td>
-                            <td class="p-2.5 text-right text-xs font-mono text-zinc-400">${d.hours.toFixed(1)} h</td>
-                            <td class="p-2.5 text-center">${loadTag}</td>
-                        </tr>
-                    `;
+                    <tr class="hover:bg-white/[0.01] transition-colors">
+                        <td class="p-3 text-xs font-sans font-bold text-white">${d.display} <span class="text-zinc-600 font-mono text-[10px]">(${d.en})</span></td>
+                        <td class="p-3 text-right text-xs font-bold text-zinc-200">${d.count} 单</td>
+                        <td class="p-3 text-right text-xs font-mono text-fuchsia-400 font-black">${d.hours.toFixed(1)} h</td>
+                        <td class="p-3 text-center">${loadTag}</td>
+                    </tr>`;
                 });
                 matrixBody.innerHTML = html;
             }
 
-            // 3. 全局高级统筹诊断 (交叉碰撞大盘痛点)
+            // 3. 触发诊断调度洞察
             const insightEl = document.getElementById('rep-intelligence-insight');
             if (absoluteTotal === 0) {
-                insightEl.innerText = "控制大厅尚未捕获流转单据，请在需求大厅建立单据后再启动统筹简报。";
+                insightEl.innerText = "当前选定周期无流转单据堆积，无法出具多维诊断提示。";
             } else {
                 let topBusyDesigner = sortedDesigners[0] ? sortedDesigners[0].display : '暂无';
                 let topBusyCount = sortedDesigners[0] ? sortedDesigners[0].count : 0;
-                let idleCount = sortedDesigners.filter(x => x.count === 0).length;
+                let idleCount = sortedDesigners.filter(x => x.count === 0 && x.hours === 0).length;
 
-                let delayWarning = '';
-                if (statApproval > 0) delayWarning = `当前控制台监测到有 <span class="text-amber-400 font-bold">${statApproval} 项中期方案</span> 挂滞在总监把关节点，存在延期踩线风险，请管理层立即进入处理。`;
-                else delayWarning = `本期审批流运转极其顺畅，未发现总监层级阻塞点。`;
+                let delayWarning = snap.statusCounts.pending_approval > 0 ? 
+                    `发现有 <span class="text-amber-400 font-bold">${snap.statusCounts.pending_approval}单</span> 中期框架滞留管理侧，请总监层级加速把关。` : `本期各节点流转极其平滑，管理把关阻抗极低。`;
 
-                insightEl.innerHTML = `当前全局控制大厅流转及完结单据共计 <span class="text-white font-black">${absoluteTotal} 项</span>。设计资源池全局宏观调度研判可见，当前最忙的执行终端为 <span class="text-white font-bold">【${topBusyDesigner}】</span>，单人同时横跨拉锯推进 <span class="text-rose-400 font-bold">${topBusyCount} 单</span> 任务；与之相对的是，当前资源池内仍有 <span class="text-zinc-500 font-bold">${idleCount} 名全职设计师/行政管理成员</span> 处于无指派挂空状态。${delayWarning} 建议根据现行负荷矩阵进行去中心化强制转单调度，释放高负荷人员压强。`;
+                insightEl.innerHTML = `当前大盘在统计周期 <span class="text-white font-black">【${rangeText}】</span> 内累计流转各类工单资产 <span class="text-white font-black">${absoluteTotal} 项</span>。设计调度矩阵深度穿透显示：核心瓶颈位于执行端设计师 <span class="text-white font-bold">【${topBusyDesigner}】</span>，单人同时承接了 <span class="text-rose-400 font-bold">${topBusyCount} 项活跃单</span>；而团队内部仍有 <span class="text-zinc-500 font-bold">${idleCount} 名成员</span> 处于当期出勤产能释放或未派样挂空状态。${delayWarning} 建议行政及管理方通过控制台进行强制调配，抹平负荷极值。`;
             }
 
-            // 平滑展现磨泥玻璃弹窗
             overlay.classList.remove('hidden');
             setTimeout(() => { overlay.classList.remove('opacity-0'); modal.classList.remove('scale-95'); }, 10);
         }
 
-        window.closeExportAnalysisModal = function() {
-            const overlay = document.getElementById('export-modal-overlay');
-            const modal = document.getElementById('export-modal');
-            overlay.classList.add('opacity-0'); modal.classList.add('scale-95');
-            setTimeout(() => { overlay.classList.add('hidden'); }, 300);
-        }
-
-        // 按钮功能：一键快速导出带有去重负荷、各节点计数占比的 Markdown 周报简报
+        // ================= 💡 结构化数据一键导出 (Markdown & CSV) =================
         window.copyMarkdownSummary = function() {
-            const totalOngoing = window.ongoingTasksData.length;
-            const totalCompleted = window.completedTasksData.length;
-            const absoluteTotal = totalOngoing + totalCompleted;
+            const snap = window.finalPeriodDataSnapshot;
+            if(!snap) return;
 
-            let statPendingAccept = 0; let statProcessing = 0; let statApproval = 0; let statReviewing = 0; let statRejected = 0;
-            window.ongoingTasksData.forEach(t => {
-                if(['pending', 'pending_accept'].includes(t.status)) statPendingAccept++;
-                else if(t.status === 'processing') statProcessing++;
-                else if(t.status === 'pending_approval') statApproval++;
-                else if(t.status === 'reviewing') statReviewing++;
-                else if(t.status === 'rejected') statRejected++;
-            });
+            const absoluteTotal = snap.totalAbsoluteCount;
+            const rangeText = document.getElementById('current-date-text').innerText;
+            const sortedDesigners = Object.values(snap.peopleMap).sort((a,b) => b.count - a.count || b.hours - a.hours);
 
-            const sortedDesigners = Object.values(window.designersMapGlobalRef || {}).sort((a,b) => b.count - a.count);
-
-            let md = `### 📊 TIG 全局统筹生产就绪度与负荷排查周报简报\n`;
-            md += `* **生成即时快照**: ${new Date().toISOString().split('T')[0]} ${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}\n`;
-            md += `* **大盘总工单单量**: \`${absoluteTotal}单\` (其中流转中: \`${totalOngoing}单\` | 已结案: \`${totalCompleted}单\`)\n\n`;
+            let md = `### 📊 TIG 全局生产就绪度与负荷排查统筹简报\n`;
+            md += `* **快照统计周期**: ${rangeText}\n`;
+            md += `* **大盘工单流转总量**: \`${absoluteTotal} 单\` (流转中: \`${snap.ongoingTasks.length}单\` | 已结案: \`${snap.completedTasks.length}单\`)\n\n`;
             
-            md += `#### 1️⃣ 生命周期各阶段积压及占比明细:\n`;
-            md += `1. 待响应指派: ${statPendingAccept} 单 | 占比: ${((statPendingAccept/absoluteTotal)*100).toFixed(1)}%\n`;
-            md += `2. 正在制作中: ${statProcessing} 单 | 占比: ${((statProcessing/absoluteTotal)*100).toFixed(1)}%\n`;
-            md += `3. 待总监审批: ${statApproval} 单 | 占比: ${((statApproval/absoluteTotal)*100).toFixed(1)}%\n`;
-            md += `4. 甲方验收中: ${statReviewing} 单 | 占比: ${((statReviewing/absoluteTotal)*100).toFixed(1)}%\n`;
-            md += `5.被打回修改: ${statRejected} 单 | 占比: ${((statRejected/absoluteTotal)*100).toFixed(1)}%\n`;
+            md += `#### 1️⃣ 核心生命周期积压水位明细:\n`;
+            md += `- 待响应接单: ${snap.statusCounts.pending_accept} 单 (占 ${((snap.statusCounts.pending_accept/absoluteTotal)*100).toFixed(1)}%)\n`;
+            md += `- 正在制作中: ${snap.statusCounts.processing} 单 (占 ${((snap.statusCounts.processing/absoluteTotal)*100).toFixed(1)}%)\n`;
+            md += `- 待总监审批: ${snap.statusCounts.pending_approval} 单 (占 ${((snap.statusCounts.pending_approval/absoluteTotal)*100).toFixed(1)}%)\n`;
+            md += `- 甲方验收中: ${snap.statusCounts.reviewing} 单 (占 ${((snap.statusCounts.reviewing/absoluteTotal)*100).toFixed(1)}%)\n`;
+            md += `- 被打回重修: ${snap.statusCounts.rejected} 单 (占 ${((snap.statusCounts.rejected/absoluteTotal)*100).toFixed(1)}%)\n`;
             
-            md += `\n#### 2️⃣ 执行层核心负荷分布排查 (承接独立工单数):\n`;
+            md += `\n#### 2️⃣ 常驻人员执行压强与出勤时长全景统筹:\n`;
             sortedDesigners.forEach((d, i) => {
-                md += `${i+1}. 【${d.display}】当前拉锯承接: ${d.count} 单 | 预估占用工时: ${d.hours.toFixed(1)}h (${d.count > 2 ? '⚠️ 高负荷' : '✅ 状态健康'})\n`;
+                md += `${i+1}. 【${d.display}】当前拉锯承接: ${d.count} 单 | 当期累计工时: ${d.hours.toFixed(1)}h (${d.count > 2 ? '⚠️ 重度高负荷' : '✅ 状态健康'})\n`;
             });
 
-            md += `\n#### 3️⃣ 统筹调度官智能建议:\n${document.getElementById('rep-intelligence-insight').innerText.replace(/<[^>]*>/g, '')}\n\n`;
-            md += `*报告一键由戴维斯全局统筹中心高级视图打包生成*`;
+            md += `\n#### 3️⃣ 智能统筹官高级决策研判:\n${document.getElementById('rep-intelligence-insight').innerText.replace(/<[^>]*>/g, '')}\n\n`;
+            md += `*简报源自戴维斯全局统筹中心数据自动化中心 • ${document.getElementById('report-gen-time').innerText}*`;
 
             navigator.clipboard.writeText(md).then(() => {
-                window.showToast("复制成功", "统筹周报 Markdown 文本已复制", "success");
+                window.showToast("复制成功", "当前周期的全局统筹 Markdown 简报已就绪", "success");
             });
         }
 
-        // ================= 💡 核心功能：一键纯前端将大盘生命周期分布、所有人负荷单量打成电子表格 CSV 导出 =================
         window.exportToCSV = function() {
-            const totalOngoing = window.ongoingTasksData.length;
-            const totalCompleted = window.completedTasksData.length;
-            const absoluteTotal = totalOngoing + totalCompleted;
+            const snap = window.finalPeriodDataSnapshot;
+            if(!snap) return;
 
-            let statPendingAccept = 0; let statProcessing = 0; let statApproval = 0; let statReviewing = 0; let statRejected = 0;
-            window.ongoingTasksData.forEach(t => {
-                if(['pending', 'pending_accept'].includes(t.status)) statPendingAccept++;
-                else if(t.status === 'processing') statProcessing++;
-                else if(t.status === 'pending_approval') statApproval++;
-                else if(t.status === 'reviewing') statReviewing++;
-                else if(t.status === 'rejected') statRejected++;
-            });
-
+            const absoluteTotal = snap.totalAbsoluteCount;
+            const rangeText = document.getElementById('current-date-text').innerText;
             let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
+            
             csvContent += "数据层级分类,目标审计分类项,当前累计单量/锁定工时,大盘单量占比百分比\n";
-            csvContent += `全局工单概览,大厅已录入工单绝对总数,${absoluteTotal} 单,-\n`;
-            csvContent += `生命周期拓扑,待响应指派,${statPendingAccept} 单,占总单量 ${((statPendingAccept/absoluteTotal)*100).toFixed(1)}%\n`;
-            csvContent += `生命周期拓扑,正在制作中,${statProcessing} 单,占总单量 ${((statProcessing/absoluteTotal)*100).toFixed(1)}%\n`;
-            csvContent += `生命周期拓扑,待总监层把关审批,${statApproval} 单,占总单量 ${((statApproval/absoluteTotal)*100).toFixed(1)}%\n`;
-            csvContent += `生命周期拓扑,甲方验收中,${statReviewing} 单,占总单量 ${((statReviewing/absoluteTotal)*100).toFixed(1)}%\n`;
-            csvContent += `生命周期拓扑,被打回修改中,${statRejected} 单,占总单量 ${((statRejected/absoluteTotal)*100).toFixed(1)}%\n`;
-            csvContent += `生命周期拓扑,已圆满结案完结,${totalCompleted} 单,占总单量 ${((totalCompleted/absoluteTotal)*100).toFixed(1)}%\n`;
+            csvContent += `全局统筹快照,大盘工单绝对总量,${absoluteTotal} 单,周期: ${rangeText}\n`;
+            csvContent += `生命周期拓扑,待响应接单,${snap.statusCounts.pending_accept} 单,占总单量 ${((snap.statusCounts.pending_accept/absoluteTotal)*100).toFixed(1)}%\n`;
+            csvContent += `生命周期拓扑,正在制作中,${snap.statusCounts.processing} 单,占总单量 ${((snap.statusCounts.processing/absoluteTotal)*100).toFixed(1)}%\n`;
+            csvContent += `生命周期拓扑,待总监把关审批,${snap.statusCounts.pending_approval} 单,占总单量 ${((snap.statusCounts.pending_approval/absoluteTotal)*100).toFixed(1)}%\n`;
+            csvContent += `生命周期拓扑,甲方验收中,${snap.statusCounts.reviewing} 单,占总单量 ${((snap.statusCounts.reviewing/absoluteTotal)*100).toFixed(1)}%\n`;
+            csvContent += `生命周期拓扑,打回修改重修,${snap.statusCounts.rejected} 单,占总单量 ${((snap.statusCounts.rejected/absoluteTotal)*100).toFixed(1)}%\n`;
+            csvContent += `生命周期拓扑,已验收完结归档,${snap.statusCounts.completed} 单,占总单量 ${((snap.statusCounts.completed/absoluteTotal)*100).toFixed(1)}%\n`;
 
-            // 设计师承接与负荷比率导入
-            Object.values(window.designersMapGlobalRef || {}).sort((a,b) => b.count - a.count).forEach(d => {
-                csvContent += `执行层负荷审计,${d.display}(${d.en}),承接独立工单: ${d.count} 单,锁定工时: ${d.hours.toFixed(1)} 小时\n`;
+            // 人员全量明细覆盖写入
+            Object.values(snap.peopleMap).sort((a,b) => b.count - a.count || b.hours - a.hours).forEach(d => {
+                csvContent += `设计执行池审计,${d.display}(${d.en}),承接活跃单数: ${d.count} 单,当期累计工时: ${d.hours.toFixed(1)} 小时\n`;
             });
 
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `TIG_全局生产就绪度与人员负荷审计表格_${new Date().toISOString().split('T')[0]}.csv`);
+            link.setAttribute("download", `TIG_全局生产就绪度与人员负荷统筹表_${rangeText}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            window.showToast("表格导出成功", "全局统筹明细结构化数据表已成功下载", "success");
+            window.showToast("表格导出成功", "结构化复盘数据表已成功下载", "success");
         }
 
         window.exportToPNGImage = function() {
@@ -899,15 +1035,14 @@
             html2canvas(captureZone, { backgroundColor: '#121217', scale: 2, logging: false, useCORS: true }).then(canvas => {
                 const imgData = canvas.toDataURL('image/png');
                 const link = document.createElement('a');
-                link.download = `TIG_全局就绪统筹快照_${new Date().toISOString().split('T')[0]}.png`;
+                link.download = `TIG_全局就绪统筹快照_${document.getElementById('current-date-text').innerText}.png`;
                 link.href = imgData; document.body.appendChild(link); link.click(); document.body.removeChild(link);
-                window.showToast("PNG 下载成功", "高保真可视化简报快照已下载", "success");
+                window.showToast("PNG 下载成功", "可视统筹简报高清快照已下载", "success");
             });
         }
 
-        // ================= 🔔 全局消息通知引擎 (修复强化版) =================
+        // ================= 🔔 全局消息通知引擎 =================
         let lastNotifHash = '';
-
         window.syncNotificationsFromCloud = async function(isSilent = true) {
             if(!window.supabase) return;
             const userStr = localStorage.getItem('activeUserObj');
@@ -921,24 +1056,17 @@
             const rolePrefix = isAdmin ? 'admin' : 'req';
 
             try {
-                const { data: tasks, error } = await window.supabase.from(window.DB_TABLE)
-                    .select('id, title, creator, assignee, history_json')
-                    .order('created_at', { ascending: false });
-                
+                const { data: tasks, error } = await window.supabase.from(window.DB_TABLE).select('id, title, creator, assignee, history_json').order('created_at', { ascending: false });
                 if (error) throw error;
 
                 let myNotifs = [];
-
                 tasks.forEach(task => {
                     const creatorStr = (task.creator || '').toLowerCase();
                     const assigneeStr = (task.assignee || '').toLowerCase();
                     const isMyTask = creatorStr.includes(myName) || myName.includes(creatorStr) || assigneeStr.includes(myName) || myName.includes(assigneeStr);
-                    
                     if (!isAdmin && !isMyTask) return;
 
-                    let hist = [];
-                    try { hist = JSON.parse(task.history_json || '[]'); } catch(e){}
-
+                    let hist = []; try { hist = JSON.parse(task.history_json || '[]'); } catch(e){}
                     hist.forEach((h, index) => {
                         const op = (h.operator || '').toLowerCase();
                         if (op.includes(myName) && myName !== '') return;
@@ -946,52 +1074,26 @@
                         let title = ''; let content = ''; let icon = 'bg-fuchsia-500';
                         const act = (h.action || '').toLowerCase();
                         
-                        if (act.includes('submit_framework')) { 
-                            title = '👀 框架待审批'; content = `${h.operator} 提交了中期方案，等待把关：《${task.title}》`; icon = 'bg-amber-500'; 
-                        }
-                        else if (act.includes('approve') || act.includes('pass')) { 
-                            title = '✅ 审批已通过'; content = `${h.operator} 审批通过了阶段方案：《${task.title}》`; icon = 'bg-emerald-500'; 
-                        }
-                        else if (act.includes('submit_draft') || act.includes('submit_final')) { 
-                            title = '🎁 正稿待验收'; content = `${h.operator} 交付了正式稿，等待验收：《${task.title}》`; icon = 'bg-sky-500'; 
-                        }
-                        else if (act.includes('reject') || h.is_rejected) { 
-                            title = '💥 方案被打回'; content = `单据发生打回重修：《${task.title}》`; icon = 'bg-rose-500'; 
-                        }
-                        else if (act.includes('complete') || act.includes('accept_draft') || act.includes('finish')) { 
-                            title = '✅ 任务圆满结案'; content = `甲方已验收通过：《${task.title}》`; icon = 'bg-emerald-500'; 
-                        }
-                        else if (act.includes('urge')) { 
-                            title = '🚨 紧急催办'; content = `系统触发了催办提醒，请及时跟进：《${task.title}》`; icon = 'bg-rose-500'; 
-                        }
-                        else if (act.includes('transfer') || act.includes('reassign')) { 
-                            title = '🔄 任务转移'; content = `单据发生了人员转单或退回大厅：《${task.title}》`; icon = 'bg-orange-500'; 
-                        }
-                        else if (act.includes('create') && isAdmin) { 
-                            title = '🆕 新需求发布'; content = `大厅有新的需求发布：《${task.title}》`; icon = 'bg-indigo-500'; 
-                        }
-                        else if (act.includes('terminate')) { 
-                            title = '🚨 任务终止'; content = `单据已被撤销或强行终止：《${task.title}》`; icon = 'bg-rose-500'; 
-                        }
+                        if (act.includes('submit_framework')) { title = '👀 框架待审批'; content = `${h.operator} 提交了中期方案，等待把关：《${task.title}》`; icon = 'bg-amber-500'; }
+                        else if (act.includes('approve') || act.includes('pass')) { title = '✅ 审批已通过'; content = `${h.operator} 审批通过了阶段方案：《${task.title}》`; icon = 'bg-emerald-500'; }
+                        else if (act.includes('submit_draft') || act.includes('submit_final')) { title = '🎁 正稿待验收'; content = `${h.operator} 交付了正式稿，等待验收：《${task.title}》`; icon = 'bg-sky-500'; }
+                        else if (act.includes('reject') || h.is_rejected) { title = '💥 方案被打回'; content = `单据发生打回重修：《${task.title}》`; icon = 'bg-rose-500'; }
+                        else if (act.includes('complete') || act.includes('accept_draft') || act.includes('finish')) { title = '✅ 任务圆满结案'; content = `甲方已验收通过：《${task.title}》`; icon = 'bg-emerald-500'; }
+                        else if (act.includes('urge')) { title = '🚨 紧急催办'; content = `系统触发了催办提醒，请及时跟进：《${task.title}》`; icon = 'bg-rose-500'; }
+                        else if (act.includes('transfer') || act.includes('reassign')) { title = '🔄 任务转移'; content = `单据发生了人员转单或退回大厅：《${task.title}》`; icon = 'bg-orange-500'; }
+                        else if (act.includes('create') && isAdmin) { title = '🆕 新需求发布'; content = `大厅有新的需求发布：《${task.title}》`; icon = 'bg-indigo-500'; }
+                        else if (act.includes('terminate')) { title = '🚨 任务终止'; content = `单据已被撤销或强行终止：《${task.title}》`; icon = 'bg-rose-500'; }
 
                         if (title) {
                             const notifId = `${task.id}_${index}_${title}`;
                             if (!myNotifs.some(n => n.id === notifId)) {
-                                myNotifs.push({
-                                    id: notifId,
-                                    taskId: task.id,
-                                    title: title,
-                                    content: content,
-                                    time: h.time || h.created_at || new Date().toISOString(),
-                                    icon: icon
-                                });
+                                myNotifs.push({ id: notifId, taskId: task.id, title: title, content: content, time: h.time || h.created_at || new Date().toISOString(), icon: icon });
                             }
                         }
                     });
                 });
 
                 myNotifs.sort((a, b) => new Date(b.time) - new Date(a.time));
-
                 let readReceipts = JSON.parse(localStorage.getItem(`notif_read_${rolePrefix}_` + myName) || '[]');
                 const unreadNotifs = myNotifs.filter(n => !readReceipts.includes(n.id));
                 const unreadCount = unreadNotifs.length;
@@ -1009,19 +1111,14 @@
 
                 const bellDot = document.getElementById('bell-dot');
                 if (bellDot) {
-                    if (unreadCount > 0) {
-                        bellDot.classList.remove('hidden', 'bg-zinc-600', 'border-transparent');
-                        bellDot.classList.add('bg-rose-500', 'animate-pulse', 'border-[#141417]');
-                    } else {
-                        bellDot.add('hidden');
-                    }
+                    if (unreadCount > 0) { bellDot.classList.remove('hidden'); bellDot.classList.add('bg-rose-500', 'animate-pulse'); } 
+                    else { bellDot.classList.add('hidden'); }
                 }
 
                 const notifContainer = document.getElementById('notif-list-container');
                 if (notifContainer) {
-                    if (unreadCount === 0) {
-                        notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读消息</div>';
-                    } else {
+                    if (unreadCount === 0) { notifContainer.innerHTML = '<div class="px-5 py-8 text-center text-zinc-500 text-xs">暂无未读消息</div>'; } 
+                    else {
                         notifContainer.innerHTML = unreadNotifs.map(n => {
                             const dateStr = new Date(n.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                             return `
@@ -1036,16 +1133,13 @@
                     }
                 }
                 window.currentMyUnreadIds = unreadNotifs.map(n => n.id);
-            } catch(e) { console.error("通知同步失败", e); }
+            } catch(e) { console.error(e); }
         };
 
         window.toggleNotificationPanel = function(event) {
             if(event) event.stopPropagation();
             const dropdown = document.getElementById('notifMenu');
-            if(dropdown) {
-                dropdown.classList.toggle('hidden');
-                if (!dropdown.classList.contains('hidden')) { window.syncNotificationsFromCloud(true); }
-            }
+            if(dropdown) { dropdown.classList.toggle('hidden'); if (!dropdown.classList.contains('hidden')) { window.syncNotificationsFromCloud(true); } }
         }
 
         window.markSingleAsRead = function(id, taskId) {
@@ -1053,45 +1147,24 @@
             if(!userStr) return;
             const currentUser = JSON.parse(userStr);
             const myName = (currentUser.displayName || currentUser.cnName || currentUser.enName || '').toLowerCase();
-            const enName = (currentUser.enName || '').toLowerCase();
-            
-            let isAdmin = (currentUser.perms || []).includes('admin');
-            if (['davidxxu', 'davidxu', 'ponyxu', 'judyzzhang'].includes(enName)) isAdmin = true;
-            const rolePrefix = isAdmin ? 'admin' : 'req';
-            
-            let readReceipts = JSON.parse(localStorage.getItem(`notif_read_${rolePrefix}_` + myName) || '[]');
-            if (!readReceipts.includes(id)) {
-                readReceipts.push(id);
-                localStorage.setItem(`notif_read_${rolePrefix}_` + myName, JSON.stringify(readReceipts));
-            }
-            
+            let readReceipts = JSON.parse(localStorage.getItem(`notif_read_admin_` + myName) || '[]');
+            if (!readReceipts.includes(id)) { readReceipts.push(id); localStorage.setItem(`notif_read_admin_` + myName, JSON.stringify(readReceipts)); }
             window.location.href = 'task-detail-requester.html?id=' + taskId;
-        };
+        }
 
         window.markAllAsRead = function(event) {
             if(event) event.stopPropagation();
             if (!window.currentMyUnreadIds || window.currentMyUnreadIds.length === 0) return;
-            
             const userStr = localStorage.getItem('activeUserObj');
             if(!userStr) return;
             const currentUser = JSON.parse(userStr);
             const myName = (currentUser.displayName || currentUser.cnName || currentUser.enName || '').toLowerCase();
-            const enName = (currentUser.enName || '').toLowerCase();
-            
-            let isAdmin = (currentUser.perms || []).includes('admin');
-            if (['davidxxu', 'davidxu', 'ponyxu', 'judyzzhang'].includes(enName)) isAdmin = true;
-            const rolePrefix = isAdmin ? 'admin' : 'req';
-
             const btn = event.currentTarget; const originalText = btn.innerHTML; btn.innerHTML = "处理中...";
-
-            let readReceipts = JSON.parse(localStorage.getItem(`notif_read_${rolePrefix}_` + myName) || '[]');
+            let readReceipts = JSON.parse(localStorage.getItem(`notif_read_admin_` + myName) || '[]');
             readReceipts = [...new Set([...readReceipts, ...window.currentMyUnreadIds])];
-            localStorage.setItem(`notif_read_${rolePrefix}_` + myName, JSON.stringify(readReceipts));
-            
-            window.syncNotificationsFromCloud(true);
-            if(window.showToast) window.showToast('全部已读', '消息红点已清除。', 'success');
-            btn.innerHTML = originalText;
-        };
+            localStorage.setItem(`notif_read_admin_` + myName, JSON.stringify(readReceipts));
+            window.syncNotificationsFromCloud(true); btn.innerHTML = originalText;
+        }
 
         document.addEventListener('DOMContentLoaded', () => {
             document.addEventListener('click', (e) => { 
@@ -1099,10 +1172,13 @@
                 if(notifMenu && !notifMenu.contains(e.target) && notifBtn && !notifBtn.contains(e.target)) { notifMenu.classList.add('hidden'); }
                 const identityMenu = document.getElementById('identityMenu'); const identityBtn = document.getElementById('identityBtn');
                 if(identityMenu && !identityMenu.contains(e.target) && identityBtn && !identityBtn.contains(e.target)) { identityMenu.classList.add('hidden'); }
+                const dateWrap = document.getElementById('date-selector-wrapper'); const dateDrop = document.getElementById('date-dropdown');
+                if (dateWrap && dateDrop && !dateWrap.contains(e.target)) dateDrop.classList.add('hidden');
             });
 
+            window.loadDashboardData();
             setTimeout(() => { window.syncNotificationsFromCloud(true); }, 1500);
-            setInterval(() => { window.syncNotificationsFromCloud(true); }, 8000);
+            setInterval(() => { window.loadDashboardData(true); window.syncNotificationsFromCloud(true); }, 8000);
         });
     </script>
 </body>
