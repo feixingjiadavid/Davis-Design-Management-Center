@@ -754,6 +754,41 @@
             }
         }
 
+
+        window.showPendingConfirmReminder = function(tasks) {
+            if (!tasks || tasks.length === 0) return;
+            const sorted = [...tasks].sort((a, b) => {
+                const da = a.due_date ? new Date(a.due_date).getTime() : Number.MAX_SAFE_INTEGER;
+                const db = b.due_date ? new Date(b.due_date).getTime() : Number.MAX_SAFE_INTEGER;
+                return da - db;
+            });
+            const topTask = sorted[0];
+            const listHtml = sorted.slice(0, 5).map(t => `
+                <div class="bg-white/5 border border-white/5 rounded-xl px-3 py-2.5 flex items-center justify-between gap-3">
+                    <div class="min-w-0">
+                        <p class="text-[12px] font-bold text-white truncate">${t.title || '未命名需求'}</p>
+                        <p class="text-[10px] text-zinc-500 mt-0.5">${t.id || '--'} · 期望交付：${t.due_date || '未填写'}</p>
+                    </div>
+                    <button onclick="window.location.href='task-detail-requester.html?id=${t.id}'" class="shrink-0 text-[11px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1.5 rounded-lg hover:bg-emerald-500 hover:text-white transition-colors btn-press">去确认</button>
+                </div>
+            `).join('');
+
+            setupDialog('有待确认需求未处理', `
+                <div class="space-y-3">
+                    <p>当前有 <b class="text-emerald-400">${sorted.length}</b> 个需求已由设计师提交，正在等待您确认/验收。请尽快处理，避免流程卡住。</p>
+                    <div class="space-y-2 max-h-[260px] overflow-y-auto custom-scrollbar pr-1">${listHtml}</div>
+                    ${sorted.length > 5 ? `<p class="text-[11px] text-zinc-500">还有 ${sorted.length - 5} 个待确认需求，请在列表中继续处理。</p>` : ''}
+                </div>
+            `, 'success');
+
+            const btnContainer = document.getElementById('dialog-buttons');
+            btnContainer.innerHTML = `
+                <button onclick="closeCustomDialog()" class="flex-1 py-2.5 bg-transparent border border-zinc-700 text-zinc-400 hover:text-white rounded-xl text-[13px] font-bold transition-colors btn-press">稍后处理</button>
+                <button onclick="window.location.href='task-detail-requester.html?id=${topTask.id}'" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[13px] font-bold shadow-lg transition-all btn-press">确认最紧急需求</button>
+            `;
+            showDialogUI();
+        }
+
         window.loadTasksFromCloud = async function(isSilent = false) {
             if(!window.supabase) return;
             
@@ -791,6 +826,7 @@
                 let ongoingCount = 0;
                 let completedCount = 0;
                 let cancelledCount = 0;
+                let pendingConfirmTasks = [];
 
                 allData.forEach(task => {
                     const creator = task.creator || '';
@@ -801,6 +837,10 @@
                     // 先生成可见性结果，再统计数量。注意：静默刷新时也必须统计，不能把数量统计放在 !isSilent 里，否则页面会被刷新成 0。
                     const res = createTaskHTML(task, currentUser);
                     if(!res) return;
+
+                    if(task.status === 'reviewing') {
+                        pendingConfirmTasks.push(task);
+                    }
 
                     if(res.isCancelled) {
                         cancelledCount++;
@@ -844,6 +884,10 @@
                     }
 
                     window.switchTaskListTab(window.currentTaskListTab || 'ongoing');
+
+                    if (pendingConfirmTasks.length > 0) {
+                        setTimeout(() => window.showPendingConfirmReminder(pendingConfirmTasks), 450);
+                    }
 
                     if (localStorage.getItem('myDraftTask')) {
                         window.previewTask('draft-card', '草稿', 'text-zinc-400');
