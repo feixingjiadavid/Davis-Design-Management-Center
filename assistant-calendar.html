@@ -26,20 +26,21 @@
         .view-section { display: none; opacity: 0; transition: opacity 0.3s ease; }
         .view-section.active { display: flex; opacity: 1; }
 
-        .calendar-cell { transition: background-color 0.2s ease; cursor: pointer; min-height: 150px; height: auto; display: flex; padding: 10px; flex-direction: column; border-right: 1px solid rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.02); box-sizing: border-box; overflow: visible; }
+        .calendar-cell { transition: background-color 0.2s ease; cursor: pointer; min-height: 150px; height: 100%; display: flex; padding: 10px; flex-direction: column; border-right: 1px solid rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.02); box-sizing: border-box; overflow: hidden; min-width: 0; }
         .calendar-cell:hover { background-color: rgba(255, 255, 255, 0.03); }
         .calendar-cell.muted { background-color: #0c0c0e; opacity: 0.4; pointer-events: none; }
         #view-month { min-height: 0; }
-        #month-grid { min-height: 0; overflow-y: auto; align-content: start; align-items: stretch; grid-auto-rows: minmax(150px, max-content) !important; padding-right: 8px; scroll-behavior: smooth; }
+        #month-grid { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; padding-right: 8px; scroll-behavior: smooth; background-color: #121217; }
         #month-grid::-webkit-scrollbar { width: 6px; }
         #month-grid::-webkit-scrollbar-track { background: transparent; }
         #month-grid::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.28); border-radius: 10px; }
-        .month-day-head { min-height: 22px; display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; }
-        .month-day-number { flex: 0 0 auto; line-height: 20px; }
-        .month-load-badge { flex: 0 0 auto; max-width: calc(100% - 28px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .month-event-list { display: flex; flex-direction: column; gap: 6px; padding-bottom: 8px; }
+        .calendar-week-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); flex: 0 0 auto; }
+        .month-day-head { min-height: 22px; display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; flex: 0 0 auto; min-width: 0; }
+        .month-day-number { flex: 0 0 auto; line-height: 20px; order: 0; }
+        .month-load-badge { flex: 0 0 auto; max-width: calc(100% - 30px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; order: 1; }
+        .month-event-list { display: flex; flex-direction: column; gap: 6px; padding-bottom: 8px; flex: 0 0 auto; min-width: 0; }
         
-        .event-pill { transition: all 0.2s ease; cursor: pointer; border: 1px solid transparent; display: block; min-height: 22px; line-height: 20px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .event-pill { transition: all 0.2s ease; cursor: pointer; border: 1px solid transparent; display: block; width: 100%; min-height: 22px; line-height: 20px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; box-sizing: border-box; }
         .event-pill:hover { filter: brightness(1.3); border-color: rgba(255,255,255,0.2); background-color: rgba(255,255,255,0.05); }
 
         .week-card { transition: all 0.2s ease; cursor: pointer; border: 1px solid rgba(255,255,255,0.05); }
@@ -182,7 +183,7 @@
                         <div class="grid grid-cols-7 border-b border-white/5 bg-[#16161d] shrink-0">
                             <div class="py-4 text-center text-[12px] font-bold text-zinc-500">周日</div><div class="py-4 text-center text-[12px] font-bold text-zinc-500">周一</div><div class="py-4 text-center text-[12px] font-bold text-zinc-500">周二</div><div class="py-4 text-center text-[12px] font-bold text-zinc-500">周三</div><div class="py-4 text-center text-[12px] font-bold text-zinc-500">周四</div><div class="py-4 text-center text-[12px] font-bold text-zinc-500">周五</div><div class="py-4 text-center text-[12px] font-bold text-orange-400/50">周六</div>
                         </div>
-                        <div id="month-grid" class="flex-1 grid grid-cols-7 bg-[#121217]"></div>
+                        <div id="month-grid" class="flex-1 bg-[#121217]"></div>
                     </div>
 
                     <div id="view-week" class="view-section flex-col h-full bg-transparent border-none shadow-none">
@@ -841,7 +842,7 @@
                     const d = new Date(task.due_date);
                     if (d.getFullYear() === year && d.getMonth() === month) {
                         const day = d.getDate();
-                        dayData[day].tasks.push(task);
+                        if(!dayData[day].tasks.find(t => t.id === task.id)) dayData[day].tasks.push(task);
                         isTaskInThisMonth = true;
                         if(!tasksInView.find(t=>t.id===task.id)) tasksInView.push(task);
                     }
@@ -860,7 +861,7 @@
                                 if (!isTaskInThisMonth) {
                                     if(!tasksInView.find(t=>t.id===task.id)) tasksInView.push(task);
                                     const hDay = hDate.getDate();
-                                    if(!dayData[hDay].tasks.find(t => t.id === task.id)) {
+                                    if(dayData[hDay] && !dayData[hDay].tasks.find(t => t.id === task.id)) {
                                         dayData[hDay].tasks.push(task);
                                     }
                                 }
@@ -876,11 +877,13 @@
             });
 
             const grid = document.getElementById('month-grid');
-            let html = '';
+            let cells = [];
             const today = new Date();
             const isCurrentMonthReal = (year === today.getFullYear() && month === today.getMonth());
 
-            for (let i = 0; i < startingDay; i++) html += `<div class="calendar-cell muted"></div>`;
+            for (let i = 0; i < startingDay; i++) {
+                cells.push({ html: `<div class="calendar-cell muted"></div>`, taskCount: 0 });
+            }
 
             for (let i = 1; i <= monthLength; i++) {
                 const isToday = isCurrentMonthReal && i === today.getDate();
@@ -904,11 +907,11 @@
                     const borderStyle = st.isFinished ? 'border border-zinc-800 border-dashed border-l-2 border-l-zinc-600 opacity-60' : `bg-${st.sColor}-500/10 border border-${st.sColor}-500/20 border-l-2 border-l-${st.sColor}-500`;
                     const textStyle = st.isFinished ? 'text-zinc-500' : `text-${st.sColor}-400`;
 
-                    return `<div onmouseenter="showHoverCard(event, '${t.id}')" onmouseleave="hideHoverCard()" onclick="event.stopPropagation(); window.location.href='task-detail-designer.html?id=${t.id}'" class="text-[10px] ${textStyle} truncate ${borderStyle} px-1.5 py-0.5 rounded transition-all cursor-pointer event-pill" title="${t.title}">${t.title}</div>`;
+                    return `<div onmouseenter="showHoverCard(event, '${t.id}')" onmouseleave="hideHoverCard()" onclick="event.stopPropagation(); window.location.href='task-detail-designer.html?id=${t.id}'" class="text-[10px] ${textStyle} ${borderStyle} px-1.5 py-0.5 rounded transition-all cursor-pointer event-pill" title="${t.title || ''}">${t.title || '无标题需求'}</div>`;
                 }).join('');
 
                 let safeTasks = encodeURIComponent(JSON.stringify(dayInfo.tasks));
-                html += `
+                const cellHtml = `
                     <div class="calendar-cell relative ${cellOutline}" onclick="openPeriodDetail('${year}年${month+1}月${i}日', '${safeTasks}')">
                         ${isToday ? '<div class="absolute top-0 left-0 right-0 h-0.5 bg-orange-500"></div>' : ''}
                         <div class="month-day-head mb-2">
@@ -917,10 +920,21 @@
                         </div>
                         <div class="month-event-list pr-1">${pillsHtml}</div>
                     </div>`;
+                cells.push({ html: cellHtml, taskCount: dayInfo.tasks.length });
             }
 
-            const remainingCells = 42 - (startingDay + monthLength);
-            for (let i = 0; i < remainingCells; i++) html += `<div class="calendar-cell muted"></div>`; 
+            const remainingCells = 42 - cells.length;
+            for (let i = 0; i < remainingCells; i++) {
+                cells.push({ html: `<div class="calendar-cell muted"></div>`, taskCount: 0 });
+            }
+
+            let html = '';
+            for (let row = 0; row < cells.length; row += 7) {
+                const weekCells = cells.slice(row, row + 7);
+                const maxTasks = Math.max(...weekCells.map(c => c.taskCount || 0));
+                const rowHeight = Math.max(150, 46 + (maxTasks * 30));
+                html += `<div class="calendar-week-row" style="min-height:${rowHeight}px">${weekCells.map(c => c.html).join('')}</div>`;
+            }
             grid.innerHTML = html;
 
             return tasksInView;
