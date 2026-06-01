@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>项目投入分析 - 戴维斯设计需求管理中心</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 html2canvas 库用于实现纯前端报告卡片截图导出 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
@@ -95,7 +94,6 @@
             </div>
             
             <div class="flex items-center gap-6">
-                <!-- 升级版：总结分析导出简报按钮 -->
                 <button onclick="window.openExportAnalysisModal()" class="px-5 py-2 bg-gradient-to-r from-fuchsia-600 via-purple-600 to-indigo-600 hover:from-fuchsia-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-[0_4px_20px_rgba(217,70,239,0.25)] hover:shadow-[0_4px_25px_rgba(217,70,239,0.4)] transition-all btn-press text-[13px] flex items-center gap-2 border border-white/10">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
                     全盘总结分析导出
@@ -227,7 +225,6 @@
         </div>
     </main>
 
-    <!-- 修改密码弹窗 -->
     <div id="pwd-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closePwdModal()">
         <div id="pwd-modal" class="hidden w-full max-w-sm bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 p-6 relative">
             <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-fuchsia-500 to-indigo-500 rounded-t-3xl"></div>
@@ -244,7 +241,6 @@
         </div>
     </div>
 
-    <!-- 深度重构核心分析看板弹窗 -->
     <div id="export-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4 overflow-y-auto" onclick="if(event.target === this) closeExportAnalysisModal()">
         <div id="export-modal" class="w-full max-w-4xl bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 relative my-auto">
             <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-fuchsia-500 via-purple-500 to-indigo-500 rounded-t-3xl"></div>
@@ -279,7 +275,6 @@
                         </div>
                     </div>
 
-                    <!-- 大盘四大指标 -->
                     <div class="grid grid-cols-4 gap-4">
                         <div class="bg-white/[0.01] border border-white/5 rounded-xl p-4">
                             <p class="text-[11px] text-zinc-500 font-medium">总计记录需求量</p>
@@ -299,18 +294,15 @@
                         </div>
                     </div>
 
-                    <!-- 穿透一：需求提报人占比排行（发起人分析） -->
                     <div class="space-y-3">
                         <h4 class="text-[13px] font-bold text-zinc-400 flex items-center gap-2">
                             <span class="w-1 h-3 bg-indigo-500 rounded-full"></span>
                             需求发起方大盘审计：每个人占了多少需求
                         </h4>
                         <div id="rep-creator-ranking" class="grid grid-cols-2 gap-4">
-                            <!-- 动态注入发起人占比卡片 -->
-                        </div>
+                            </div>
                     </div>
 
-                    <!-- 穿透二：各类目/项目双轨纵横对比（类目单量占比多 + 工时占比高） -->
                     <div class="space-y-3">
                         <h4 class="text-[13px] font-bold text-zinc-400 flex items-center gap-2">
                             <span class="w-1 h-3 bg-fuchsia-500 rounded-full"></span>
@@ -327,13 +319,11 @@
                                     </tr>
                                 </thead>
                                 <tbody id="rep-category-dual-matrix" class="divide-y divide-white/5 text-zinc-300">
-                                    <!-- 动态注入明细行 -->
-                                </tbody>
+                                    </tbody>
                             </table>
                         </div>
                     </div>
 
-                    <!-- 穿透三：AI工具渗透比率 -->
                     <div class="space-y-3">
                         <h4 class="text-[13px] font-bold text-zinc-400 flex items-center gap-2">
                             <span class="w-1 h-3 bg-amber-500 rounded-full"></span>
@@ -345,7 +335,6 @@
                         </div>
                     </div>
 
-                    <!-- 新增及深挖的核心区：设计人员工时全量排行 -->
                     <div class="grid grid-cols-2 gap-6 pt-2">
                         <div class="space-y-3">
                             <h4 class="text-[13px] font-bold text-zinc-400 flex items-center gap-2">
@@ -363,7 +352,6 @@
                         </div>
                     </div>
 
-                    <!-- 穿透五：穿透碰撞智能洞察提示 -->
                     <div class="bg-fuchsia-500/[0.02] border border-fuchsia-500/10 rounded-xl p-4 space-y-2">
                         <h4 class="text-[12px] font-bold text-fuchsia-400 flex items-center gap-1.5">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
@@ -377,14 +365,12 @@
                 </div>
             </div>
 
-            <!-- 控制盘面板 -->
             <div class="p-6 border-t border-white/5 bg-[#16161d] rounded-b-3xl flex justify-between items-center gap-4">
                 <button onclick="window.copyMarkdownSummary()" class="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold rounded-xl text-[12px] btn-press transition-colors flex items-center gap-2 border border-white/5">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                     复制带有完整工时与提报占比的 Markdown 简报
                 </button>
                 <div class="flex items-center gap-3">
-                    <!-- 一键支持全量数据与占比的双轨电子表格 CSV 导出 -->
                     <button onclick="window.exportToCSV()" class="px-5 py-2.5 bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30 font-bold rounded-xl text-[12px] btn-press transition-colors flex items-center gap-2 border border-indigo-500/20">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
                         导出全量明细 Excel/CSV 表格
@@ -397,7 +383,6 @@
         </div>
     </div>
 
-    <!-- 消息流转提示区 -->
     <div id="action-toast" class="fixed top-8 right-8 z-[100000] hidden">
         <div class="bg-[#1a1a1f] border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-3 w-72">
             <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400">
@@ -832,7 +817,7 @@
             document.getElementById('metric-trend-projects').innerHTML = prev1Data.projectsCount === 0 ? `对比前期: <span class="text-zinc-400">无记录</span>` : `对比前期: <span class="${trendProj>0?'text-emerald-400':'text-rose-400'} font-bold">${trendProj>0?'↑':'↓'} ${Math.abs(Math.round((trendProj/prev1Data.projectsCount)*100))}%</span>`;
 
             const trendA = currentData.aiCount - prev1Data.aiCount;
-            document.getElementById('metric-trend-ai').innerHTML = prev1Data.aiCount === 0 ? `对比前期: <span class="text-zinc-400">无记录</span>` : `Contrast: <span class="${trendA>0?'text-emerald-400':'text-rose-400'} font-bold">${trendA>0?'↑':'↓'} ${Math.abs(Math.round((trendA/prev1Data.aiCount)*100))}%</span>`;
+            document.getElementById('metric-trend-ai').innerHTML = prev1Data.aiCount === 0 ? `对比前期: <span class="text-zinc-400">无记录</span>` : `对比前期: <span class="${trendA>0?'text-emerald-400':'text-rose-400'} font-bold">${trendA>0?'↑':'↓'} ${Math.abs(Math.round((trendA/prev1Data.aiCount)*100))}%</span>`;
 
             const projContainer = document.getElementById('project-list-container');
             const sortedProj = Object.keys(currentData.activeProjects).map(k => ({ name: k, data: currentData.activeProjects[k] })).sort((a,b) => b.data.hours - a.data.hours);
@@ -1040,14 +1025,14 @@
                 aiBar.innerHTML = barHtml; aiLegend.innerHTML = legendHtml;
             }
 
-            // 4. 设计独立需求单量排行
+            // 4. 设计独立需求单量排行 (按产生独立单量的人进行全覆盖输出)
             const sortedPplByTasks = Object.values(currentData.peopleMap).filter(p => p.uniqueTasksSet.size > 0).sort((a,b) => b.uniqueTasksSet.size - a.uniqueTasksSet.size);
             const pplTasksContainer = document.getElementById('rep-people-tasks-ranking');
             if(sortedPplByTasks.length === 0) {
                 pplTasksContainer.innerHTML = `<div class="text-xs text-zinc-500 italic py-2">本期无承接单数记录</div>`;
             } else {
                 let html = '';
-                sortedPplByTasks.slice(0, 6).forEach((p, idx) => {
+                sortedPplByTasks.forEach((p, idx) => {
                     html += `
                     <div class="flex justify-between items-center text-xs px-2 py-1.5 bg-white/[0.01] border border-white/5 rounded-lg font-mono">
                         <span class="text-zinc-300 flex items-center gap-1.5 truncate"><span class="text-zinc-600 font-bold">0${idx+1}</span>${p.display}</span>
@@ -1057,7 +1042,7 @@
                 pplTasksContainer.innerHTML = html;
             }
 
-            // 核心功能重构：全量有产出工时的人百分之百全景列出，绝无遗漏
+            // 5. 设计投入时长全量审计 (不漏任何一个产生工时的人)
             const sortedPplByHours = Object.values(currentData.peopleMap).filter(p => p.hours > 0).sort((a,b) => b.hours - a.hours);
             const pplHoursContainer = document.getElementById('rep-people-hours-ranking');
             if(sortedPplByHours.length === 0) {
