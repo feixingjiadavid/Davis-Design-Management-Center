@@ -173,39 +173,34 @@
                     </div>
 
                     <div class="flex-1 flex flex-col min-h-0 overflow-hidden">
-                        <div class="flex-1 overflow-y-auto custom-scrollbar pr-3 space-y-8" id="tasks-scroll-area">
-                            
-                            <div>
-                                <h3 class="text-sm font-bold text-indigo-400 flex items-center gap-2.5 mb-4">
-                                    <span class="w-1.5 h-1.5 bg-indigo-500 rounded-full shadow-[0_0_8px_#6366f1]"></span>我的进行中工单
-                                </h3>
-                                
-                                <div class="space-y-4 transition-opacity duration-300 relative" id="ongoing-tasks-container">
-                                    <div id="dynamic-draft-anchor"></div>
-                                    <div class="text-center py-10" id="loading-spinner">
-                                        <p class="text-sm text-zinc-500 flex justify-center items-center gap-2"><svg class="animate-spin h-4 w-4 text-zinc-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 数据正在载入中...</p>
-                                    </div>
+                        <div class="flex-1 overflow-y-auto custom-scrollbar pr-3" id="tasks-scroll-area">
+                            <div class="flex items-center justify-between gap-4 mb-4 sticky top-0 z-20 bg-[#09090b]/95 backdrop-blur-xl py-2 border-b border-white/5">
+                                <button id="task-tab-ongoing" onclick="window.switchTaskListTab('ongoing')" class="text-sm font-bold text-indigo-400 flex items-center gap-2.5 shrink-0 transition-colors btn-press">
+                                    <span class="w-1.5 h-1.5 bg-indigo-500 rounded-full shadow-[0_0_8px_#6366f1]"></span>
+                                    我的进行中工单
+                                    <span id="count-ongoing" class="text-[10px] font-mono bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 px-1.5 py-0.5 rounded-full">0</span>
+                                </button>
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <button id="task-tab-completed" onclick="window.switchTaskListTab('completed')" class="px-3.5 py-2 rounded-xl text-[12px] font-bold text-zinc-400 bg-white/5 hover:bg-white/10 hover:text-white border border-white/5 transition-all btn-press">
+                                        已完结/归档工单 <span id="count-completed" class="font-mono ml-1">0</span>
+                                    </button>
+                                    <button id="task-tab-cancelled" onclick="window.switchTaskListTab('cancelled')" class="px-3.5 py-2 rounded-xl text-[12px] font-bold text-zinc-400 bg-white/5 hover:bg-white/10 hover:text-white border border-white/5 transition-all btn-press">
+                                        已撤销需求存档 <span id="count-cancelled" class="font-mono ml-1">0</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <p id="task-list-desc" class="hidden text-[11px] text-zinc-600 mb-4">项目延期或暂停的需求会保存在这里，后续可重新打开并基于上一轮信息继续编辑。</p>
+
+                            <div class="space-y-4 transition-opacity duration-300 relative" id="ongoing-tasks-container">
+                                <div id="dynamic-draft-anchor"></div>
+                                <div class="text-center py-10" id="loading-spinner">
+                                    <p class="text-sm text-zinc-500 flex justify-center items-center gap-2"><svg class="animate-spin h-4 w-4 text-zinc-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 数据正在载入中...</p>
                                 </div>
                             </div>
 
-                            <div class="mt-8 pt-8 border-t border-white/5">
-                                <h3 class="text-sm font-bold text-zinc-400 flex items-center gap-2.5 mb-4 shrink-0">
-                                    <span class="w-1.5 h-1.5 bg-zinc-500 rounded-full"></span>已完结/归档工单
-                                </h3>
-                                <div class="space-y-4 transition-opacity duration-300 relative" id="completed-tasks-container">
-                                </div>
-                            </div>
-
-                            <div class="mt-8 pt-8 border-t border-white/5">
-                                <h3 class="text-sm font-bold text-violet-400 flex items-center gap-2.5 mb-1 shrink-0">
-                                    <span class="w-1.5 h-1.5 bg-violet-500 rounded-full shadow-[0_0_8px_#8b5cf6]"></span>已撤销需求存档
-                                </h3>
-                                <p class="text-[11px] text-zinc-600 mb-4">项目延期或暂停的需求会保存在这里，后续可重新打开并基于上一轮信息继续编辑。</p>
-                                <div class="space-y-4 transition-opacity duration-300 relative" id="cancelled-tasks-container">
-                                </div>
-                            </div>
-
-                        </div>
+                            <div class="space-y-4 transition-opacity duration-300 relative hidden" id="completed-tasks-container"></div>
+                            <div class="space-y-4 transition-opacity duration-300 relative hidden" id="cancelled-tasks-container"></div>
+                        </div>                        </div>
                     </div>
                 </div>
 
@@ -368,6 +363,7 @@
         const PAGE_TYPE = 'req'; 
         // 💡 核心全局变量：存储多个文件对象的数组 [{name, data}, ...]
         window.currentUploadedFiles = [];
+        window.currentTaskListTab = 'ongoing';
         window.reopenArchiveTaskId = null;
         window.reopenArchiveOriginalTask = null;
 
@@ -728,6 +724,36 @@
             return { isCompleted, isCancelled, cardHTML, timelineHTML };
         }
 
+        window.switchTaskListTab = function(tabName) {
+            window.currentTaskListTab = tabName || 'ongoing';
+            const tabs = ['ongoing', 'completed', 'cancelled'];
+            const titleConfig = {
+                ongoing: { btn: 'task-tab-ongoing', active: 'text-sm font-bold text-indigo-400 flex items-center gap-2.5 shrink-0 transition-colors btn-press', inactive: 'text-sm font-bold text-zinc-400 hover:text-indigo-300 flex items-center gap-2.5 shrink-0 transition-colors btn-press' },
+                completed: { btn: 'task-tab-completed', active: 'px-3.5 py-2 rounded-xl text-[12px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 transition-all btn-press shadow-[0_0_12px_rgba(16,185,129,0.12)]', inactive: 'px-3.5 py-2 rounded-xl text-[12px] font-bold text-zinc-400 bg-white/5 hover:bg-white/10 hover:text-white border border-white/5 transition-all btn-press' },
+                cancelled: { btn: 'task-tab-cancelled', active: 'px-3.5 py-2 rounded-xl text-[12px] font-bold text-violet-400 bg-violet-500/10 border border-violet-500/20 transition-all btn-press shadow-[0_0_12px_rgba(139,92,246,0.12)]', inactive: 'px-3.5 py-2 rounded-xl text-[12px] font-bold text-zinc-400 bg-white/5 hover:bg-white/10 hover:text-white border border-white/5 transition-all btn-press' }
+            };
+
+            tabs.forEach(t => {
+                const c = document.getElementById(`${t}-tasks-container`);
+                if (c) c.classList.toggle('hidden', t !== window.currentTaskListTab);
+                const b = document.getElementById(titleConfig[t].btn);
+                if (b) b.className = t === window.currentTaskListTab ? titleConfig[t].active : titleConfig[t].inactive;
+            });
+
+            const desc = document.getElementById('task-list-desc');
+            if (desc) {
+                if (window.currentTaskListTab === 'cancelled') {
+                    desc.innerText = '项目延期或暂停的需求会保存在这里，后续可重新打开并基于上一轮信息继续编辑。';
+                    desc.classList.remove('hidden');
+                } else if (window.currentTaskListTab === 'completed') {
+                    desc.innerText = '这里展示已完结或已归档的历史工单，可用于回溯交付记录。';
+                    desc.classList.remove('hidden');
+                } else {
+                    desc.classList.add('hidden');
+                }
+            }
+        }
+
         window.loadTasksFromCloud = async function(isSilent = false) {
             if(!window.supabase) return;
             
@@ -787,6 +813,13 @@
                     }
                 });
 
+                const countOngoingEl = document.getElementById('count-ongoing');
+                const countCompletedEl = document.getElementById('count-completed');
+                const countCancelledEl = document.getElementById('count-cancelled');
+                if(countOngoingEl) countOngoingEl.innerText = ongoingCount;
+                if(countCompletedEl) countCompletedEl.innerText = completedCount;
+                if(countCancelledEl) countCancelledEl.innerText = cancelledCount;
+
                 if(!isSilent) {
                     if(spinner) spinner.classList.add('hidden');
                     
@@ -806,6 +839,8 @@
                     if(cancelledC && cancelledCount === 0) {
                         cancelledC.innerHTML = `<div class="text-center py-8 text-zinc-600 text-sm border border-white/5 border-dashed rounded-2xl">暂无已撤销存档需求</div>`;
                     }
+
+                    window.switchTaskListTab(window.currentTaskListTab || 'ongoing');
 
                     if (localStorage.getItem('myDraftTask')) {
                         window.previewTask('draft-card', '草稿', 'text-zinc-400');
@@ -977,7 +1012,8 @@
 
         window.resetUploadZone = function() {
             document.getElementById('real-file-upload').value = '';
-            window.currentUploadedFiles = []; 
+            window.currentUploadedFiles = [];
+        window.currentTaskListTab = 'ongoing'; 
             window.renderFileListUI();
         }
 
@@ -1054,6 +1090,7 @@
                     window.currentUploadedFiles = [{ name: draft.fileName, data: draft.fileData }];
                 } else {
                     window.currentUploadedFiles = [];
+        window.currentTaskListTab = 'ongoing';
                 }
                 window.renderFileListUI();
             }
@@ -1111,6 +1148,7 @@
             window.toggleOtherInput();
 
             window.currentUploadedFiles = [];
+        window.currentTaskListTab = 'ongoing';
             if(task.file_data) {
                 try {
                     const parsed = JSON.parse(task.file_data);
