@@ -22,7 +22,6 @@
         @keyframes dropIn { 0% { opacity: 0; transform: scaleY(0.95) translateY(-5px); } 100% { opacity: 1; transform: scaleY(1) translateY(0); } }
         
         .bar-grow { animation: growUp 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; transform-origin: bottom; }
-        @keyframes growUp { 0% { transform: scaleY(0); } 100% { transform: scaleY(1); } }
         .bar-grow-h { animation: growRight 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; transform-origin: left; }
         @keyframes growRight { 0% { transform: scaleX(0); } 100% { transform: scaleX(1); } }
     </style>
@@ -346,19 +345,19 @@
                         </div>
                     </div>
 
-                    <!-- 穿透四：谁做的需求多（劳模双维度对比） -->
+                    <!-- 新增及深挖的核心区：设计人员工时全量排行 -->
                     <div class="grid grid-cols-2 gap-6 pt-2">
                         <div class="space-y-3">
                             <h4 class="text-[13px] font-bold text-zinc-400 flex items-center gap-2">
                                 <span class="w-1 h-3 bg-sky-500 rounded-full"></span>
-                                设计承接：谁做的独立需求单量多
+                                设计承接：设计独立需求单量排行
                             </h4>
                             <div id="rep-people-tasks-ranking" class="space-y-2"></div>
                         </div>
                         <div class="space-y-3">
                             <h4 class="text-[13px] font-bold text-zinc-400 flex items-center gap-2">
                                 <span class="w-1 h-3 bg-purple-500 rounded-full"></span>
-                                设计承接：谁的硬核堆栈工时高
+                                设计承接：设计投入时长全量审计 (不漏一人)
                             </h4>
                             <div id="rep-people-hours-ranking" class="space-y-2"></div>
                         </div>
@@ -382,10 +381,10 @@
             <div class="p-6 border-t border-white/5 bg-[#16161d] rounded-b-3xl flex justify-between items-center gap-4">
                 <button onclick="window.copyMarkdownSummary()" class="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold rounded-xl text-[12px] btn-press transition-colors flex items-center gap-2 border border-white/5">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                    复制带有提报占比的 Markdown 简报
+                    复制带有完整工时与提报占比的 Markdown 简报
                 </button>
                 <div class="flex items-center gap-3">
-                    <!-- 核心改良：一键支持全量数据与占比的双轨电子表格 CSV 导出 -->
+                    <!-- 一键支持全量数据与占比的双轨电子表格 CSV 导出 -->
                     <button onclick="window.exportToCSV()" class="px-5 py-2.5 bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30 font-bold rounded-xl text-[12px] btn-press transition-colors flex items-center gap-2 border border-indigo-500/20">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
                         导出全量明细 Excel/CSV 表格
@@ -477,7 +476,6 @@
             return user;
         }
 
-        // ================= 💡 三维时间引擎 =================
         window.switchView = function(view) {
             currentView = view;
             const btns = ['week', 'month', 'year'];
@@ -629,7 +627,6 @@
             return false;
         }
 
-        // ================= 💡 全量拉取基础底座 =================
         window.loadDashboardData = async function(isSilent = false) {
             if(!initRBAC()) return;
             if(!window.supabase) return;
@@ -677,16 +674,13 @@
             }
         }
 
-        // ================= 💡 三度重构升级：极其精准的多维交叉穿透核心计算引擎 =================
         function extractDataForPeriod(targetDate, viewType) {
             let totalHours = 0;
             let aiFreq = {}; let aiCount = 0;
             let activeTasksSet = new Set();
             let projectSet = new Set();
 
-            // 提需求的人数据结构字典 (Creator Map)
             let creatorMap = {};
-            // 各类目项目工单与耗时双轨字典
             let activeProjects = {};
 
             let peopleMap = {};
@@ -698,7 +692,7 @@
                 if (currentSelectedProject !== 'all' && t.project !== currentSelectedProject) return;
 
                 let taskActiveInPeriod = false;
-                let taskHoursInPeriod = 0; // 该工单在当前筛选周期内的累加工时
+                let taskHoursInPeriod = 0; 
 
                 try {
                     const hist = JSON.parse(t.history_json || '[]');
@@ -756,7 +750,6 @@
                     });
                 } catch(e){}
 
-                // 如果该工单在周期内是活跃的（或者其创建时间落在该范围内，实现双重兜底判定）
                 let isCreatedInPeriod = isDateInPeriod(t.created_at, targetDate, viewType);
                 if (taskActiveInPeriod || isCreatedInPeriod) {
                     taskActiveInPeriod = true;
@@ -764,7 +757,6 @@
                     const pName = t.project || '未归属类目';
                     if(t.project) projectSet.add(t.project);
 
-                    // 1. 穿透累加项目类目的“独立单量数量”和“总消耗工时”双轨模型
                     if (!activeProjects[pName]) {
                         activeProjects[pName] = { hours: 0, count: 0, uniqueTasks: new Set() };
                     }
@@ -772,7 +764,6 @@
                     activeProjects[pName].uniqueTasks.add(t.id);
                     activeProjects[pName].count = activeProjects[pName].uniqueTasks.size;
 
-                    // 2. 穿透碰撞提需求人 (Creator审计模型)
                     let rawCreator = t.creator || '外部提报/未知';
                     let cleanCreator = rawCreator.split(' ')[0].split('(')[0].trim();
                     if (!creatorMap[cleanCreator]) {
@@ -790,12 +781,11 @@
                 aiCount, 
                 activeProjects,
                 creatorMap,
-                tasksCount: activeTasksSet.size, // 独立需求总数
+                tasksCount: activeTasksSet.size, 
                 projectsCount: projectSet.size
             };
         }
 
-        // ================= 💡 主视角大盘数据重绘 =================
         function updateDataAndRender() {
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
@@ -842,7 +832,7 @@
             document.getElementById('metric-trend-projects').innerHTML = prev1Data.projectsCount === 0 ? `对比前期: <span class="text-zinc-400">无记录</span>` : `对比前期: <span class="${trendProj>0?'text-emerald-400':'text-rose-400'} font-bold">${trendProj>0?'↑':'↓'} ${Math.abs(Math.round((trendProj/prev1Data.projectsCount)*100))}%</span>`;
 
             const trendA = currentData.aiCount - prev1Data.aiCount;
-            document.getElementById('metric-trend-ai').innerHTML = prev1Data.aiCount === 0 ? `对比前期: <span class="text-zinc-400">无记录</span>` : `对比前期: <span class="${trendA>0?'text-emerald-400':'text-rose-400'} font-bold">${trendA>0?'↑':'↓'} ${Math.abs(Math.round((trendA/prev1Data.aiCount)*100))}%</span>`;
+            document.getElementById('metric-trend-ai').innerHTML = prev1Data.aiCount === 0 ? `对比前期: <span class="text-zinc-400">无记录</span>` : `Contrast: <span class="${trendA>0?'text-emerald-400':'text-rose-400'} font-bold">${trendA>0?'↑':'↓'} ${Math.abs(Math.round((trendA/prev1Data.aiCount)*100))}%</span>`;
 
             const projContainer = document.getElementById('project-list-container');
             const sortedProj = Object.keys(currentData.activeProjects).map(k => ({ name: k, data: currentData.activeProjects[k] })).sort((a,b) => b.data.hours - a.data.hours);
@@ -949,13 +939,12 @@
             }
         }
 
-        // ================= 💡 重构升级版：全量数据智能审计导出面板交互引擎 =================
         window.openExportAnalysisModal = function() {
             const overlay = document.getElementById('export-modal-overlay');
             const modal = document.getElementById('export-modal');
             
             const currentData = extractDataForPeriod(currentDate, currentView);
-            const totalDemands = currentData.tasksCount; // 总需求单数
+            const totalDemands = currentData.tasksCount; 
             const actualPeople = Object.values(currentData.peopleMap).filter(p => p.hours > 0).length;
             
             document.getElementById('rep-m-hours').innerText = currentData.totalHours.toFixed(1);
@@ -974,7 +963,7 @@
             document.getElementById('report-project-scope').innerText = currentSelectedProject === 'all' ? '全部类目范围' : `类目: ${currentSelectedProject}`;
             document.getElementById('report-gen-time').innerText = new Date().toISOString().split('T')[0] + ' ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
-            // 1. 动态计算渲染：发起需求的人大盘审计（每个人占了多少需求占比）
+            // 1. 发起需求的人大盘审计
             const creatorContainer = document.getElementById('rep-creator-ranking');
             const sortedCreators = Object.values(currentData.creatorMap).sort((a,b) => b.count - a.count);
             if (sortedCreators.length === 0) {
@@ -998,7 +987,7 @@
                 creatorContainer.innerHTML = html;
             }
 
-            // 2. 动态计算渲染：各类目/项目双轨对比矩阵表格（哪类多，哪类高）
+            // 2. 各类目/项目双轨对比矩阵表格
             const dualMatrixBody = document.getElementById('rep-category-dual-matrix');
             const sortedProj = Object.keys(currentData.activeProjects).map(k => ({ name: k, data: currentData.activeProjects[k] })).sort((a,b) => b.data.hours - a.data.hours);
             if (sortedProj.length === 0) {
@@ -1009,7 +998,6 @@
                     const hoursPct = currentData.totalHours > 0 ? ((p.data.hours / currentData.totalHours) * 100).toFixed(1) : 0;
                     const tasksPct = totalDemands > 0 ? ((p.data.count / totalDemands) * 100).toFixed(1) : 0;
                     
-                    // 密集度系数计算
                     let densityTag = '<span class="text-[10px] text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">正常流转</span>';
                     if (parseFloat(tasksPct) > 25 && parseFloat(hoursPct) < 15) {
                         densityTag = '<span class="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded font-bold">⚡️ 高频快钱需求</span>';
@@ -1052,35 +1040,35 @@
                 aiBar.innerHTML = barHtml; aiLegend.innerHTML = legendHtml;
             }
 
-            // 4. 设计承接：独立需求单量劳模榜 (谁做的需求多)
+            // 4. 设计独立需求单量排行
             const sortedPplByTasks = Object.values(currentData.peopleMap).filter(p => p.uniqueTasksSet.size > 0).sort((a,b) => b.uniqueTasksSet.size - a.uniqueTasksSet.size);
             const pplTasksContainer = document.getElementById('rep-people-tasks-ranking');
             if(sortedPplByTasks.length === 0) {
                 pplTasksContainer.innerHTML = `<div class="text-xs text-zinc-500 italic py-2">本期无承接单数记录</div>`;
             } else {
                 let html = '';
-                sortedPplByTasks.slice(0, 4).forEach((p, idx) => {
+                sortedPplByTasks.slice(0, 6).forEach((p, idx) => {
                     html += `
                     <div class="flex justify-between items-center text-xs px-2 py-1.5 bg-white/[0.01] border border-white/5 rounded-lg font-mono">
-                        <span class="text-zinc-300"><span class="text-zinc-600 font-bold mr-2">0${idx+1}</span>${p.display}</span>
-                        <span class="text-emerald-400 font-bold">攻坚解题 ${p.uniqueTasksSet.size} 个独立需求</span>
+                        <span class="text-zinc-300 flex items-center gap-1.5 truncate"><span class="text-zinc-600 font-bold">0${idx+1}</span>${p.display}</span>
+                        <span class="text-emerald-400 font-bold shrink-0">${p.uniqueTasksSet.size} 单</span>
                     </div>`;
                 });
                 pplTasksContainer.innerHTML = html;
             }
 
-            // 5. 设计承接：硬核堆栈工时劳模榜
+            // 核心功能重构：全量有产出工时的人百分之百全景列出，绝无遗漏
             const sortedPplByHours = Object.values(currentData.peopleMap).filter(p => p.hours > 0).sort((a,b) => b.hours - a.hours);
             const pplHoursContainer = document.getElementById('rep-people-hours-ranking');
             if(sortedPplByHours.length === 0) {
                 pplHoursContainer.innerHTML = `<div class="text-xs text-zinc-500 italic py-2">无设计师填报出勤工时</div>`;
             } else {
                 let html = '';
-                sortedPplByHours.slice(0, 4).forEach((p, idx) => {
+                sortedPplByHours.forEach((p, idx) => {
                     html += `
-                    <div class="flex justify-between items-center text-xs px-2 py-1.5 bg-white/[0.01] border border-white/5 rounded-lg font-mono">
-                        <span class="text-zinc-300"><span class="text-zinc-600 font-bold mr-2">0${idx+1}</span>${p.display}</span>
-                        <span class="text-white font-bold">${p.hours.toFixed(1)} h</span>
+                    <div class="flex justify-between items-center text-xs px-2 py-1.5 bg-white/[0.01] border border-white/5 rounded-lg font-mono hover:border-purple-500/20 transition-colors">
+                        <span class="text-zinc-300 flex items-center gap-1.5 truncate"><span class="text-zinc-600 font-bold">0${idx+1}</span>${p.display}</span>
+                        <span class="text-fuchsia-400 font-black shrink-0">${p.hours.toFixed(1)} h</span>
                     </div>`;
                 });
                 pplHoursContainer.innerHTML = html;
@@ -1105,7 +1093,7 @@
                 let topDoer = sortedPplByTasks[0] ? sortedPplByTasks[0].display : '暂无';
                 let topDoerCount = sortedPplByTasks[0] ? sortedPplByTasks[0].uniqueTasksSet.size : 0;
 
-                insightEl.innerHTML = `本期在大盘需求源头审计中，<span class="text-white font-black">【${maxCreator}】</span> 属于本期最具统治力的发起方，一个人就狂砸了 <span class="text-indigo-400 font-bold">${maxCreatorCount} 单</span> 需求，强占全量流水提报的 <span class="text-indigo-400 font-bold">${maxCreatorPct}%</span>。纵观需求类目双轨矩阵，独立需求单量占比最高的类目为 <span class="text-white font-bold">《${topProjByCount}》</span>（占总单量的 ${topProjCountPct}%）；而疯狂吞噬团队工时、工时占比高居榜首的重度黑洞类目则是 <span class="text-fuchsia-400 font-bold">《${topProjByHours}》</span>（工时拦截率达 ${topProjHoursPct}%）。在下游了承接设计执行侧，设计师 <span class="text-emerald-400 font-bold">【${topDoer}】</span> 业务吞吐响应最为频繁，独立解题消化了 <span class="text-emerald-400 font-bold">${topDoerCount} 项独立工单</span>，属于本期名副其实的需求消化劳模。`;
+                insightEl.innerHTML = `本期在大盘需求源头审计中，<span class="text-white font-black">【${maxCreator}】</span> 属于本期最具统治力的发起方，一个人就狂砸了 <span class="text-indigo-400 font-bold">${maxCreatorCount} 单</span> 需求，强占全量流水提报的 <span class="text-indigo-400 font-bold">${maxCreatorPct}%</span>。纵观需求类目双轨矩阵，独立需求单量占比最高的类目为 <span class="text-white font-bold">《${topProjByCount}》</span>（占总单量的 ${topProjCountPct}%）；而疯狂吞噬团队工时、工时占比高居榜首的重度黑洞类目则是 <span class="text-fuchsia-400 font-bold">《${topProjByHours}》</span>（工时拦截率达 ${topProjHoursPct}%）。在下游了承接设计执行侧，设计师 <span class="text-emerald-400 font-bold">【${topDoer}】</span> 业务吞吐响应最为频繁，独立解题消化了 <span class="text-emerald-400 font-bold">${topDoerCount} 项独立工单</span>，属于本期名副其实的需求消化劳模。全盘有产能产出的设计师共计 <span class="text-purple-400 font-bold">${sortedPplByHours.length} 人</span>，已全部录入底层审计矩阵。`;
             }
 
             overlay.classList.remove('hidden');
@@ -1119,13 +1107,13 @@
             setTimeout(() => { overlay.classList.add('hidden'); }, 300);
         }
 
-        // 按钮功能：一键生成带有各方占比、类目单量和工时比对的 Markdown 摘要
+        // 核心功能重构：生成包含所有人完整时长的 Markdown 摘要
         window.copyMarkdownSummary = function() {
             const currentData = extractDataForPeriod(currentDate, currentView);
             const totalDemands = currentData.tasksCount;
             const sortedCreators = Object.values(currentData.creatorMap).sort((a,b) => b.count - a.count);
             const sortedProj = Object.keys(currentData.activeProjects).map(k => ({ name: k, data: currentData.activeProjects[k] })).sort((a,b) => b.data.hours - a.data.hours);
-            const sortedPplByTasks = Object.values(currentData.peopleMap).filter(p => p.uniqueTasksSet.size > 0).sort((a,b) => b.uniqueTasksSet.size - a.uniqueTasksSet.size);
+            const sortedPplByHours = Object.values(currentData.peopleMap).filter(p => p.hours > 0).sort((a,b) => b.hours - a.hours);
             const range = document.getElementById('report-period-text').innerText;
 
             let md = `### 📊 TIG 设计资产流转与提报人源头多维分析简报\n`;
@@ -1133,7 +1121,7 @@
             md += `* **核心指标**: 独立需求总量 \`${totalDemands}单\` | 设计硬核总耗时 \`${currentData.totalHours.toFixed(1)}h\`\n\n`;
             
             md += `#### 1️⃣ 需求提报发起方大盘占比排行:\n`;
-            sortedCreators.slice(0, 4).forEach((c, i) => {
+            sortedCreators.slice(0, 5).forEach((c, i) => {
                 md += `${i+1}. 【${c.name}】发起独立需求: ${c.count}单 | 大盘占比: ${((c.count/totalDemands)*100).toFixed(1)}%\n`;
             });
             
@@ -1144,36 +1132,33 @@
                 md += `${i+1}. 【${p.name}】需求数: ${p.data.count}单(${tPct}%) ➔ 消耗设计工时: ${p.data.hours.toFixed(1)}h(${hPct}%)\n`;
             });
             
-            md += `\n#### 3️⃣ 设计承接高效劳模排行 (谁做的需求多):\n`;
-            sortedPplByTasks.slice(0, 4).forEach((p, i) => {
-                md += `${i+1}. 【${p.display}】独立设计需求消化量: ${p.uniqueTasksSet.size}单 (累计工时: ${p.hours.toFixed(1)}h)\n`;
+            md += `\n#### 3️⃣ 设计承接全员硬核投入工时总榜 (全员覆盖不漏一人):\n`;
+            sortedPplByHours.forEach((p, i) => {
+                md += `${i+1}. 【${p.display}】独立需求消化数: ${p.uniqueTasksSet.size}单 | 累计设计工时: ${p.hours.toFixed(1)}h\n`;
             });
             
             md += `\n#### 4️⃣ 穿透诊断管理层提示:\n${document.getElementById('rep-intelligence-insight').innerText}\n\n`;
             md += `*报告导出源于戴维斯自动化数据中心 • ${document.getElementById('report-gen-time').innerText}*`;
 
             navigator.clipboard.writeText(md).then(() => {
-                window.showToast("复制成功", "带有发起占比与类目对照的 Markdown 简报已就绪", "success");
+                window.showToast("复制成功", "带有全员完整工时排行的 Markdown 简报已就绪", "success");
             });
         }
 
-        // ================= 💡 核心改良功能：一键无损将提报人明细、类目工时占比等核心数据打成电子表格 CSV 导出 =================
+        // 核心功能重构：一键无损将所有人明细、类目工时占比等核心数据打成电子表格 CSV 导出
         window.exportToCSV = function() {
             const currentData = extractDataForPeriod(currentDate, currentView);
             const totalDemands = currentData.tasksCount;
             let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
             
-            // 写入全功能表格表头
             csvContent += "度量分类层级,归属分类/人名,记录需求单数/消耗工时,数据大盘占比百分比\n";
             csvContent += `核心摘要盘点,大盘累计记录需求量,${totalDemands} 单,-\n`;
             csvContent += `核心摘要盘点,大盘设计总工时开销,${currentData.totalHours.toFixed(1)} 小时,-\n`;
             
-            // 发起方数据写入
             Object.values(currentData.creatorMap).sort((a,b) => b.count - a.count).forEach(c => {
                 csvContent += `需求发起方审计(Creator),${c.name},${c.count} 单,占总需求提报 ${((c.count/totalDemands)*100).toFixed(1)}%\n`;
             });
 
-            // 类目与项目工时单数双轨撞击数据写入
             Object.keys(currentData.activeProjects).map(k => ({ name: k, data: currentData.activeProjects[k] })).sort((a,b) => b.data.hours - a.data.hours).forEach(p => {
                 const hPct = currentData.totalHours > 0 ? ((p.data.hours/currentData.totalHours)*100).toFixed(1) : 0;
                 const tPct = totalDemands > 0 ? ((p.data.count/totalDemands)*100).toFixed(1) : 0;
@@ -1181,15 +1166,15 @@
                 csvContent += `类目纵横双轨矩阵,${p.name.replace(/,/g, '，')}(设计耗时),${p.data.hours.toFixed(1)} 小时,占总工时 ${hPct}%\n`;
             });
 
-            // 设计执行侧吞吐需求数据写入
-            Object.values(currentData.peopleMap).sort((a,b) => b.uniqueTasksSet.size - a.uniqueTasksSet.size).forEach(p => {
-                csvContent += `设计执行侧吞吐(Assignee),${p.display},独立消化需求: ${p.uniqueTasksSet.size} 单,硬核沉淀工时: ${p.hours.toFixed(1)}h\n`;
+            // 覆盖全员的工时数据导出
+            Object.values(currentData.peopleMap).filter(p => p.hours > 0).sort((a,b) => b.hours - a.hours).forEach(p => {
+                csvContent += `设计投入时长审计(Assignee),${p.display},独立消化需求: ${p.uniqueTasksSet.size} 单,硬核沉淀工时: ${p.hours.toFixed(1)} 小时\n`;
             });
 
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `TIG_需求发起及类目工时占比纵横分析表_${document.getElementById('report-period-text').innerText}.csv`);
+            link.setAttribute("download", `TIG_需求发起及全员类目工时占比分析表_${document.getElementById('report-period-text').innerText}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -1208,7 +1193,6 @@
             });
         }
 
-        // ================= 🔔 全局消息预警监听引擎 =================
         let lastNotifHash = '';
         window.syncNotificationsFromCloud = async function(isSilent = true) {
             if(!window.supabase) return;
@@ -1276,7 +1260,7 @@
                 }
                 window.currentMyUnreadIds = unreadNotifs.map(n => n.id);
             } catch(e) {}
-        };
+        }
 
         window.toggleNotificationPanel = function(event) {
             if(event) event.stopPropagation();
@@ -1292,7 +1276,7 @@
             let readReceipts = JSON.parse(localStorage.getItem('notif_read_admin_' + myName) || '[]');
             if (!readReceipts.includes(id)) { readReceipts.push(id); localStorage.setItem('notif_read_admin_' + myName, JSON.stringify(readReceipts)); }
             window.location.href = 'task-detail-requester.html?id=' + taskId;
-        };
+        }
 
         window.markAllAsRead = function(event) {
             if(event) event.stopPropagation();
@@ -1306,7 +1290,7 @@
             readReceipts = [...new Set([...readReceipts, ...window.currentMyUnreadIds])];
             localStorage.setItem('notif_read_admin_' + myName, JSON.stringify(readReceipts));
             window.syncNotificationsFromCloud(true); btn.innerHTML = originalText;
-        };
+        }
 
         document.addEventListener('DOMContentLoaded', () => {
             document.addEventListener('click', (e) => { 
