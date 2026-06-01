@@ -358,7 +358,7 @@
                             智能化大盘纵横交叉诊断洞察
                         </h4>
                         <p class="text-[11px] text-zinc-400 leading-relaxed font-sans" id="rep-intelligence-insight">
-                            系统多源撞轨分析中...
+                            系统多源撞轨 analysis 进行中...
                         </p>
                     </div>
 
@@ -612,15 +612,14 @@
             return false;
         }
 
-        // 高阶AI工具文本归类标准化清洗函数
+        // 高阶 AI 工具文本归类标准化清洗函数
         function normalizeAiToolName(toolName) {
             if (!toolName) return '';
             const name = toolName.trim().toLowerCase();
-            // 将所有大小写变形、带Chat名称的各种垃圾条目全部归拢清洗为唯一的标准大写 "ChatGPT"
+            // 解决分叉问题：将大小写异构字符、带空格或带 Chat 的各种混乱填报全量清洗为大写标准的 "ChatGPT"
             if (name === 'gpt' || name === 'chatgpt' || name === 'chat gpt') {
                 return 'ChatGPT';
             }
-            // 其它工具首字母大写或保持原本规范
             return toolName.trim();
         }
 
@@ -730,7 +729,7 @@
                                     if (h.action === 'submit_draft' || h.action === 'submit_framework') {
                                         const tools = h.ai_tools || [];
                                         tools.forEach(tool => {
-                                            // 数据大洗牌规则：1. 剔除“方案已过稿”非AI条目；2. 智能合并 chatgpt / GPT / gpt 为标准的 "ChatGPT"
+                                            // 严格数据过滤审计：排除手填状态脏数据，进行标准化归大类合并
                                             if (tool && tool !== '无AI辅助' && !tool.includes('方案已过稿')) {
                                                 const normalizedTool = normalizeAiToolName(tool);
                                                 if (normalizedTool) {
@@ -1075,7 +1074,7 @@
                 pplHoursContainer.innerHTML = html;
             }
 
-            // 6. 双轨数据撞击融合智能 Insights 提示
+            // 6. 双轨数据智能融合诊断提示
             const insightEl = document.getElementById('rep-intelligence-insight');
             if (currentData.totalHours === 0) {
                 insightEl.innerText = "当期大盘无撞单及工时沉淀，无法出具多维审计诊断。";
@@ -1145,8 +1144,9 @@
             });
         }
 
-        // 所见即所得核心导出表格函数
+        // 核心彻底重构与修复：合并最左侧主题分类单元格 + 彻底订正 4-5 模块拼写错误与错位问题
         window.exportToCSV = function() {
+            // 从图2界面 DOM 节点直接抓取基础元数据
             const totalDemands = document.getElementById('rep-m-demand-count').innerText;
             const totalHours = document.getElementById('rep-m-hours').innerText;
             const totalProjects = document.getElementById('rep-m-projects').innerText;
@@ -1158,10 +1158,11 @@
 
             let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
             
+            // 建立高清晰度的二维宽表字段结构
             csvContent += "数据观测大类目主题(合并展示区),度量对象名称/项目条目,核心数据值1(单量/频次),核心数据值2(工时开销/大盘占比),特殊诊断状态属性标签\n";
             
-            // 维度 0：顶层基本盘摘要
-            csvContent += `0. 核心简报摘要,总计记录需求量,${totalDemands} 单,- Honor System\n`;
+            // 维度 0：基本盘元数据
+            csvContent += `0. 核心简报摘要,总计记录需求量,${totalDemands} 单,-,-\n`;
             csvContent += `,累计消耗设计工时,${totalHours} 小时,-,-\n`;
             csvContent += `,涵盖活跃类目项目,${totalProjects} 个,-,-\n`;
             csvContent += `,出勤跟进设计师,${totalPeople} 人,-,-\n`;
@@ -1181,7 +1182,7 @@
                 });
             }
 
-            // 维度 2：各类目/项目双轨对比分析数据明细
+            // 维度 2：各类目/项目双轨对比矩阵
             const matrixRows = document.querySelectorAll('.matrix-row');
             if (matrixRows.length === 0) {
                 csvContent += "2. 各类目双轨对比矩阵,当前大盘无撞轨数据流转,-,-,-\n";
@@ -1199,7 +1200,7 @@
                 });
             }
 
-            // 维度 3：当期生产力协同：AI 工具使用频次占比 (此时读取的节点均已剔除并去重合并)
+            // 维度 3：当期生产力协同：AI 工具使用频次占比 (已被深度标准化归类合并)
             const aiItems = document.querySelectorAll('.ai-legend-item');
             if (aiItems.length === 0) {
                 csvContent += "3. AI工具使用分布占比,本期未开启动作级AI协同,-,-,-\n";
@@ -1214,7 +1215,7 @@
                 });
             }
 
-            // 维度 4 与 维度 5 宽表融合横向平铺明细
+            // 维度 4-5：设计执行全员审计（纠正之前 ReferenceError 拼写报错，让按钮重获生命）
             csvContent += "4-5. 团队设计执行效能全量审计,--- 成员姓名(Name) ---,--- 业务吞吐解题单数 ---,--- 硬核堆线工时(Hours) ---,--- 本期状态审计判定 ---\n";
             
             const userTaskRows = document.querySelectorAll('.user-task-row');
@@ -1238,8 +1239,7 @@
                 let val = row.querySelector('.u-hour-val') ? row.querySelector('.u-hour-val').innerText.trim() : '0.0 h';
                 if(cleanName) {
                     if(!staffMatrix[cleanName]) staffMatrix[cleanName] = { tasks: '0 单', hours: '0.0 h' };
-                    staffMatrix[cleanMatrix] = val; // 保留原本映射
-                    staffMatrix[cleanName].hours = val;
+                    staffMatrix[cleanName].hours = val; // 已完美纠正拼写漏洞
                 }
             });
 
@@ -1247,29 +1247,31 @@
             if(mergedStaffList.length === 0) {
                 csvContent += ",系统底层本筛选段内暂无捕获到的设计师承接明细数据,-,-,-\n";
             } else {
-                mergedStaffList.forEach((name) => {
+                mergedStaffList.forEach((name, idx) => {
+                    const prefix = (idx === 0) ? "4-5. 团队设计执行效能全量审计" : ""; 
                     const tVal = staffMatrix[name].tasks;
                     const hVal = staffMatrix[name].hours;
                     let statusLabel = "在岗平稳产出";
                     if (parseFloat(hVal) > 100) statusLabel = "🌋 极高负荷运转劳模";
                     else if (parseFloat(hVal) < 10 && tVal !== '0 单') statusLabel = "⚡ 敏捷高效轻量级交付";
                     
-                    csvContent += `,${name},${tVal},${hVal},效能判定: ${statusLabel}\n`;
+                    csvContent += `${prefix},${name},${tVal},${hVal},效能判定: ${statusLabel}\n`;
                 });
             }
 
-            // 维度 6：智能化诊断结论
+            // 维度 6：智能化大盘交叉诊断洞察结论
             const insightText = document.getElementById('rep-intelligence-insight') ? document.getElementById('rep-intelligence-insight').innerText.replace(/,/g, '，').replace(/\n/g, ' ') : '-';
-            csvContent += `6. 智能化大盘交叉诊断洞察结论,大盘全方位语义透视数据洞察提示,${insightText},-,-诊断完成\n`;
+            csvContent += `6. 智能化大盘交叉诊断洞察结论,大盘全方位语义透视数据洞察提示,${insightText},-,-诊断审阅完成\n`;
 
+            // 进行编码并调起标准的 Excel 电子表格下载流
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `TIG_多维双轨分析报表_AI全洗版_${reportPeriod}.csv`);
+            link.setAttribute("download", `TIG_多维双轨效能审计全盘数据表_${reportPeriod}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            window.showToast("导出表格成功", "数据清洗升级完毕！非工具文本已全部清除，GPT变形已合并归类。", "success");
+            window.showToast("导出表格成功", "按钮已完全恢复，全量合并对齐宽表已无损下载！", "success");
         }
 
         window.exportToPNGImage = function() {
