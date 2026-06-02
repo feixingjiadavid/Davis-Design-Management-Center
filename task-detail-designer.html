@@ -425,12 +425,7 @@
                     <div class="bg-[#16161d] border border-white/5 rounded-2xl p-5 relative overflow-hidden flex gap-6 hover:border-${badgeCol}-500/30 transition-colors group shadow-md">
                         <div class="absolute right-0 top-0 bg-${badgeCol}-500/10 text-${badgeCol}-500 text-[10px] font-bold px-3 py-1 rounded-bl-xl border-b border-l border-${badgeCol}-500/20">${badgeTxt}</div>
                         <div class="w-[280px] aspect-video bg-[#09090b] rounded-xl border border-white/10 overflow-hidden relative shadow-inner p-1 flex items-center justify-center shrink-0 cursor-pointer" onclick="openPreview('${sub.img_url}')">
-                            <img src="${sub.img_url || ''}" onerror="this.style.display='none'; this.parentElement.querySelector('.img-broken-tip')?.classList.remove('hidden');" class="max-w-full max-h-full object-contain group-hover:scale-[1.02] transition-transform">
-                            <div class="img-broken-tip hidden text-center text-zinc-500 text-[12px] px-4">
-                                <div class="text-2xl mb-2">🖼️</div>
-                                <div class="font-bold text-zinc-400 mb-1">预览图加载失败</div>
-                                <div class="text-[10px] text-zinc-600">可在右侧「更换本轮预览图」重新上传</div>
-                            </div>
+                            <img src="${sub.img_url}" class="max-w-full max-h-full object-contain group-hover:scale-[1.02] transition-transform">
                             <div class="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded backdrop-blur-sm pointer-events-none">点击看大图</div>
                         </div>
                         <div class="flex-1 flex flex-col justify-center space-y-3">
@@ -556,17 +551,6 @@
                     <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">
                         您已提交方案，目前正在${status === 'pending_approval' ? '领导' : '甲方'}端进行审核/验收。<br>此时不可修改，您可以去左侧画廊欣赏自己提交的图纸。<br>如果对方不满意打回，工作台将重新解锁开放。
                     </p>
-                    <div class="bg-orange-500/5 border border-orange-500/20 rounded-2xl p-4 mb-4">
-                        <div class="flex items-start gap-3">
-                            <div class="w-8 h-8 rounded-full bg-orange-500/10 text-orange-400 flex items-center justify-center shrink-0">🖼️</div>
-                            <div class="flex-1 min-w-0">
-                                <h4 class="text-[13px] font-bold text-orange-400 mb-1">当前提交图像异常？</h4>
-                                <p class="text-[11px] text-zinc-400 leading-relaxed mb-3">如果本轮交付图破损、打不开或传错图，可以只更换本轮预览图，不会新增版本，也不会改变当前审批状态。</p>
-                                <input type="file" id="replace-current-image-input" class="hidden" accept="image/jpeg,image/png,image/webp" onchange="replaceCurrentRoundImage(event)">
-                                <button id="btn-replace-current-image" onclick="document.getElementById('replace-current-image-input').click()" class="w-full py-2.5 bg-orange-600/20 hover:bg-orange-600 text-orange-400 hover:text-white border border-orange-500/30 rounded-xl text-[12px] font-bold transition-all btn-press">重新上传本轮预览图</button>
-                            </div>
-                        </div>
-                    </div>
                     <button onclick="${urgeFn}" class="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-[13px] font-bold transition-all btn-press mb-3 shadow-[0_0_15px_rgba(249,115,22,0.3)]">${urgeText}</button>
                     <button onclick="window.location.href='assistant-workspace.html'" class="w-full py-3 bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white rounded-xl text-[12px] font-bold transition-all btn-press">返回执行看板</button>
                 `;
@@ -749,99 +733,6 @@
             }
             closeActionModals(); showToast('已退回', '该需求已退回给甲方。', 'info');
             setTimeout(() => { window.location.href = 'assistant-workspace.html'; }, 1000);
-        }
-
-
-        async function uploadPreviewImageToCloud(file, prefix = 'output') {
-            let fileToUpload = file;
-            try { fileToUpload = await compressImage(file, 1600, 0.7); } catch(e) {}
-            let fileExt = file.name ? file.name.split('.').pop().toLowerCase() : 'jpg';
-            if (!['jpg', 'jpeg', 'png', 'webp'].includes(fileExt)) fileExt = 'jpg';
-            const safeFileName = `${prefix}_${currentTaskId}_${Date.now()}.${fileExt}`;
-            try {
-                const contentType = fileExt === 'png' ? 'image/png' : (fileExt === 'webp' ? 'image/webp' : 'image/jpeg');
-                const { error: uploadError } = await window.supabase.storage.from('designs').upload(safeFileName, fileToUpload, { contentType });
-                if (uploadError) throw uploadError;
-                const { data: urlData } = window.supabase.storage.from('designs').getPublicUrl(safeFileName);
-                return urlData.publicUrl;
-            } catch (err) {
-                console.warn("⚠️ Supabase Storage 上传失败，回退为 Base64 存储", err);
-                return await blobToBase64(fileToUpload);
-            }
-        }
-
-        function getLatestCurrentSubmissionIndex() {
-            const targetAction = globalTaskData?.status === 'reviewing' ? 'submit_draft' : 'submit_framework';
-            for (let i = globalHistoryArr.length - 1; i >= 0; i--) {
-                if (globalHistoryArr[i] && globalHistoryArr[i].action === targetAction) return i;
-            }
-            for (let i = globalHistoryArr.length - 1; i >= 0; i--) {
-                if (globalHistoryArr[i] && (globalHistoryArr[i].action === 'submit_framework' || globalHistoryArr[i].action === 'submit_draft')) return i;
-            }
-            return -1;
-        }
-
-        window.replaceCurrentRoundImage = async function(event) {
-            const file = event.target.files && event.target.files[0];
-            if (!file) return;
-
-            if (!['pending_approval', 'reviewing'].includes(globalTaskData.status)) {
-                event.target.value = '';
-                return alert('当前状态不支持更换预览图。只有待主管审批或待甲方验收中的本轮交付，才能直接替换图片。');
-            }
-
-            const latestIndex = getLatestCurrentSubmissionIndex();
-            if (latestIndex < 0) {
-                event.target.value = '';
-                return alert('未找到本轮提交记录，无法替换图片。');
-            }
-
-            const btn = document.getElementById('btn-replace-current-image');
-            const originalText = btn ? btn.innerHTML : '';
-            if (btn) { btn.disabled = true; btn.innerText = '图片上传替换中...'; }
-
-            try {
-                const newImgUrl = await uploadPreviewImageToCloud(file, 'replace_preview');
-                const oldImgUrl = globalHistoryArr[latestIndex].img_url || '';
-                const now = new Date().toISOString();
-                const operatorName = currentUser.displayName || currentUser.enName || '设计师';
-
-                globalHistoryArr[latestIndex].img_url = newImgUrl;
-                globalHistoryArr[latestIndex].image_replaced_at = now;
-                globalHistoryArr[latestIndex].image_replaced_by = operatorName;
-                globalHistoryArr[latestIndex].old_img_url = oldImgUrl;
-
-                globalHistoryArr.push({
-                    action: 'replace_submission_image',
-                    operator: `${operatorName} (设计师)`,
-                    time: now,
-                    reply: `已重新上传并替换本轮${globalTaskData.status === 'reviewing' ? '正稿' : '框架方案'}预览图，不新增版本，仅修复当前审批图片。`,
-                    related_version: globalHistoryArr[latestIndex].version || ''
-                });
-
-                const updatePayload = {
-                    design_img_url: newImgUrl,
-                    history_json: JSON.stringify(globalHistoryArr)
-                };
-
-                const { error } = await window.supabase.from(window.DB_TABLE).update(updatePayload).eq('id', currentTaskId);
-                if (error) throw error;
-
-                if (globalTaskData.status === 'pending_approval') {
-                    await insertDbNotification('judyzzhang', `【预览图已更新】设计师 ${operatorName} 重新上传了《${globalTaskData.title}》的本轮框架预览图，请使用新图审批。`, `task-detail-requester.html?id=${currentTaskId}`, 'update');
-                } else if (globalTaskData.creator) {
-                    await insertDbNotification(globalTaskData.creator, `【预览图已更新】设计师 ${operatorName} 重新上传了《${globalTaskData.title}》的本轮正稿预览图，请使用新图验收。`, `task-detail-requester.html?id=${currentTaskId}`, 'update');
-                }
-
-                showToast('图片已替换', '本轮交付预览图已更新，审批/验收方将看到新图片。', 'success');
-                event.target.value = '';
-                await fetchTaskData();
-            } catch(err) {
-                console.error(err);
-                alert('图片替换失败：' + (err.message || err));
-                if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
-                event.target.value = '';
-            }
         }
 
         window.submitDesignWork = async function() {
