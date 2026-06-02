@@ -294,6 +294,44 @@
             color: #1D1D1F !important;
         }
 
+        /* 终版修复：开灯模式下 toast 提示同步浅色系统，不再出现黑色小弹窗 */
+        #action-toast {
+            z-index: 2147483600 !important;
+            pointer-events: none;
+        }
+        #action-toast > div {
+            transition: background-color .2s ease, border-color .2s ease, box-shadow .2s ease, color .2s ease;
+        }
+        body.theme-light #action-toast > div {
+            background: rgba(255, 255, 255, 0.96) !important;
+            border-color: rgba(0, 0, 0, 0.06) !important;
+            box-shadow: 0 18px 48px -18px rgba(15, 23, 42, 0.28), 0 6px 20px -10px rgba(15, 23, 42, 0.16) !important;
+            color: #1D1D1F !important;
+            backdrop-filter: blur(20px) saturate(180%);
+        }
+        body.theme-light #toast-title,
+        body.theme-light #action-toast .text-white {
+            color: #1D1D1F !important;
+        }
+        body.theme-light #toast-desc,
+        body.theme-light #action-toast .text-zinc-400,
+        body.theme-light #action-toast .text-zinc-500 {
+            color: #515154 !important;
+        }
+        body.theme-light #toast-icon.bg-emerald-500\/20 {
+            background-color: #ECFDF5 !important;
+            color: #059669 !important;
+        }
+        body.theme-light #toast-icon.bg-amber-500\/20 {
+            background-color: #FFFBEB !important;
+            color: #D97706 !important;
+        }
+        body.theme-light #toast-icon.bg-rose-500\/20 {
+            background-color: #FFF1F2 !important;
+            color: #E11D48 !important;
+        }
+
+
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-indigo-500/30 text-zinc-300">
@@ -475,7 +513,7 @@
         </div>
     </div>
 
-    <div id="action-toast" class="fixed top-8 right-8 z-[1000] hidden toast-slide-in">
+    <div id="action-toast" class="fixed top-8 right-8 z-[2147483600] hidden toast-slide-in">
         <div class="bg-[#1a1a1f] border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-3 w-72">
             <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0"></div>
             <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-[11px] text-zinc-400 mt-0.5">操作已执行。</p></div>
@@ -598,6 +636,7 @@
             toast.classList.remove('hidden');
             setTimeout(() => { toast.classList.add('hidden'); }, 3000);
         }
+        window.showToast = showToast;
 
         window.openPreview = function(srcUrl) {
             if(!srcUrl) return; 
