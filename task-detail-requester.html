@@ -4,6 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>需求详情追踪 - 戴维斯设计需求管理中心</title>
+    <script>
+        // 主题预加载：先于页面渲染读取，避免浅色模式跳转/返回时闪黑
+        (function() {
+            try {
+                if (localStorage.getItem('requestHallTheme') === 'light') {
+                    document.documentElement.classList.add('theme-light-preload');
+                }
+            } catch (e) {}
+        })();
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
@@ -144,6 +154,95 @@
 
         /* 通知菜单适配 */
         body.theme-light #notifMenu { background: #FFFFFF !important; }
+
+        /* ================= 与 index (1).html 同步：预加载、浅色细节、弹层层级修复 ================= */
+        html.theme-light-preload,
+        html.theme-light-preload body {
+            background: #F4F5F7 !important;
+            color: #1D1D1F !important;
+        }
+        html.theme-light-preload .absolute.inset-0 {
+            background: #F4F5F7 !important;
+        }
+
+        body {
+            flex-direction: row !important;
+        }
+        body > aside {
+            order: 0 !important;
+            left: 0 !important;
+            right: auto !important;
+        }
+        body > main {
+            order: 1 !important;
+            min-width: 0 !important;
+        }
+
+        /* 详情页返回按钮与 index 侧边按钮统一 */
+        body.theme-light aside button.bg-indigo-500\/20,
+        body.theme-light aside button.bg-indigo-500\/10 {
+            background-color: #EEF2FF !important;
+            border-color: #C7D2FE !important;
+            color: #4338CA !important;
+            box-shadow: none !important;
+        }
+        body.theme-light aside button.bg-indigo-500\/20 span,
+        body.theme-light aside button.bg-indigo-500\/10 span,
+        body.theme-light aside button.text-indigo-300,
+        body.theme-light aside .text-indigo-300 {
+            color: #4338CA !important;
+        }
+        body.theme-light aside button.bg-white\/5 {
+            background-color: #F1F5F9 !important;
+            color: #475569 !important;
+            border-color: rgba(0,0,0,0.04) !important;
+        }
+        body.theme-light aside button.bg-white\/5:hover {
+            background-color: #E2E8F0 !important;
+            color: #0F172A !important;
+        }
+
+        /* 详情页信息卡与 index 的浅色层级保持一致 */
+        body.theme-light #req-desc-display,
+        body.theme-light #dt-link-container,
+        body.theme-light #attachment-container button,
+        body.theme-light #version-history-container [class*="bg-[#09090b]"],
+        body.theme-light #version-history-container [class*="bg-[#16161d]"],
+        body.theme-light #smart-action-panel,
+        body.theme-light #resource-summary-panel,
+        body.theme-light #task-timeline-container {
+            background-color: #FFFFFF !important;
+            border-color: rgba(0,0,0,0.06) !important;
+            color: #1D1D1F !important;
+        }
+        body.theme-light #req-desc-display {
+            background: #F8FAFC !important;
+            color: #515154 !important;
+        }
+
+        /* 消息通知层级修复：脱离局部堆叠上下文，永远浮在页面最上层 */
+        #notifMenu.notif-floating {
+            position: fixed !important;
+            z-index: 1000000 !important;
+            top: 72px;
+            right: 32px;
+            width: 340px;
+        }
+        body.theme-light #notifMenu.notif-floating {
+            background: #FFFFFF !important;
+            border-color: rgba(0,0,0,0.06) !important;
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.12), 0 10px 20px -8px rgba(0,0,0,0.06) !important;
+        }
+        body.theme-light #notifMenu h3,
+        body.theme-light #notifMenu .text-white,
+        body.theme-light #notif-list-container h4 {
+            color: #1D1D1F !important;
+        }
+        body.theme-light #notif-list-container p,
+        body.theme-light #notif-list-container .text-zinc-400 {
+            color: #515154 !important;
+        }
+
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-indigo-500/30 text-zinc-300">
@@ -349,6 +448,7 @@
         // ================= 💡 主题同步引擎 =================
         window.applyPageTheme = function(theme) {
             const isLight = theme === 'light';
+            document.documentElement.classList.toggle('theme-light-preload', isLight);
             document.body.classList.toggle('theme-light', isLight);
             localStorage.setItem('requestHallTheme', isLight ? 'light' : 'dark');
             const icon = document.getElementById('themeToggleIcon');
@@ -1220,9 +1320,21 @@
         window.toggleNotificationPanel = function(event) {
             if(event) event.stopPropagation();
             const dropdown = document.getElementById('notifMenu');
+            const btn = document.getElementById('notifBtn');
             if(dropdown) {
+                dropdown.classList.add('notif-floating');
+                const willOpen = dropdown.classList.contains('hidden');
                 dropdown.classList.toggle('hidden');
-                if (!dropdown.classList.contains('hidden')) {
+                if (willOpen && btn) {
+                    const rect = btn.getBoundingClientRect();
+                    const menuWidth = 340;
+                    const gap = 10;
+                    const left = Math.max(12, Math.min(window.innerWidth - menuWidth - 12, rect.right - menuWidth));
+                    const top = Math.min(window.innerHeight - 20, rect.bottom + gap);
+                    dropdown.style.left = `${left}px`;
+                    dropdown.style.right = 'auto';
+                    dropdown.style.top = `${top}px`;
+                    dropdown.style.width = `${menuWidth}px`;
                     window.syncNotificationsFromCloud(true);
                 }
             }
