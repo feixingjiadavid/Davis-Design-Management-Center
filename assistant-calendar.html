@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>工时与 AI 绩效 - 戴维斯设计需求管理中心</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        (function(){
+            try {
+                var theme = localStorage.getItem('requestHallTheme') || 'dark';
+                if (theme === 'light') document.documentElement.classList.add('theme-light-preload');
+            } catch(e) {}
+        })();
+    </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
         body { background-color: #09090b; color: #e4e4e7; font-family: 'Inter', system-ui, sans-serif; }
@@ -52,6 +60,268 @@
         .workload-safe { background-color: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); color: #34d399; }
         .workload-heavy { background-color: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); color: #fbbf24; }
         .workload-overload { background-color: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.2); color: #fb7185; }
+
+
+        /* ========== 与 index 同步的开灯 / 关灯主题系统：只覆盖浅色，深色原样保留 ========== */
+        html.theme-light-preload body,
+        body.theme-light {
+            background: #f5f6fa !important;
+            color: #16181d !important;
+        }
+        html.theme-light-preload .absolute.inset-0.bg-\[\#09090b\],
+        body.theme-light .absolute.inset-0.bg-\[\#09090b\] {
+            background: linear-gradient(135deg, #f8fafc 0%, #f3f5fb 46%, #eef1f8 100%) !important;
+        }
+        body.theme-light .bg-glow-orange,
+        html.theme-light-preload .bg-glow-orange {
+            background: radial-gradient(circle, rgba(255, 153, 51, 0.12) 0%, transparent 70%) !important;
+            opacity: .8;
+        }
+        body.theme-light aside,
+        html.theme-light-preload aside {
+            background: rgba(255,255,255,.88) !important;
+            border-right-color: rgba(20, 23, 31, .08) !important;
+            box-shadow: 18px 0 60px rgba(30, 41, 59, .05);
+        }
+        body.theme-light main,
+        html.theme-light-preload main {
+            background: linear-gradient(135deg, #f7f8fc 0%, #f2f4fa 100%) !important;
+        }
+        body.theme-light header,
+        html.theme-light-preload header {
+            background: rgba(255,255,255,.82) !important;
+            border-bottom-color: rgba(15,23,42,.08) !important;
+            box-shadow: 0 10px 35px rgba(15,23,42,.04);
+        }
+        body.theme-light h1,
+        body.theme-light h2,
+        body.theme-light h3,
+        body.theme-light h4,
+        body.theme-light .text-white,
+        html.theme-light-preload h1,
+        html.theme-light-preload h2,
+        html.theme-light-preload h3,
+        html.theme-light-preload h4,
+        html.theme-light-preload .text-white {
+            color: #151821 !important;
+        }
+        body.theme-light .text-zinc-300,
+        body.theme-light .text-zinc-400,
+        body.theme-light .text-zinc-500,
+        html.theme-light-preload .text-zinc-300,
+        html.theme-light-preload .text-zinc-400,
+        html.theme-light-preload .text-zinc-500 {
+            color: #697386 !important;
+        }
+        body.theme-light .text-zinc-200,
+        html.theme-light-preload .text-zinc-200 { color: #2f3542 !important; }
+        body.theme-light .border-white\/5,
+        body.theme-light .border-white\/10,
+        html.theme-light-preload .border-white\/5,
+        html.theme-light-preload .border-white\/10 {
+            border-color: rgba(15,23,42,.08) !important;
+        }
+        body.theme-light .bg-\[\#09090b\],
+        html.theme-light-preload .bg-\[\#09090b\] {
+            background: #f6f7fb !important;
+        }
+        body.theme-light .bg-\[\#0c0c0e\],
+        html.theme-light-preload .bg-\[\#0c0c0e\] {
+            background: #f4f6fb !important;
+        }
+        body.theme-light .bg-\[\#121217\],
+        body.theme-light .bg-\[\#121217\]\/80,
+        body.theme-light .bg-\[\#121217\]\/95,
+        html.theme-light-preload .bg-\[\#121217\],
+        html.theme-light-preload .bg-\[\#121217\]\/80,
+        html.theme-light-preload .bg-\[\#121217\]\/95 {
+            background: rgba(255,255,255,.92) !important;
+        }
+        body.theme-light .bg-\[\#16161d\],
+        body.theme-light .bg-\[\#1a1a24\],
+        body.theme-light .bg-\[\#1a1a1f\],
+        html.theme-light-preload .bg-\[\#16161d\],
+        html.theme-light-preload .bg-\[\#1a1a24\],
+        html.theme-light-preload .bg-\[\#1a1a1f\] {
+            background: #f7f8fc !important;
+        }
+        body.theme-light .bg-\[\#141417\],
+        body.theme-light .bg-\[\#1a1a24\],
+        html.theme-light-preload .bg-\[\#141417\],
+        html.theme-light-preload .bg-\[\#1a1a24\] {
+            background: #ffffff !important;
+            border-color: rgba(15,23,42,.08) !important;
+            color: #1f2430 !important;
+        }
+        body.theme-light input,
+        body.theme-light select,
+        body.theme-light textarea,
+        html.theme-light-preload input,
+        html.theme-light-preload select,
+        html.theme-light-preload textarea {
+            background: #fff !important;
+            border-color: rgba(15,23,42,.12) !important;
+            color: #172033 !important;
+        }
+        body.theme-light input::placeholder,
+        body.theme-light textarea::placeholder { color: #a0a7b5 !important; }
+        body.theme-light #main-grid-wrapper,
+        html.theme-light-preload #main-grid-wrapper,
+        body.theme-light #month-grid,
+        html.theme-light-preload #month-grid,
+        body.theme-light #view-month,
+        html.theme-light-preload #view-month {
+            background: #ffffff !important;
+            border-color: rgba(15,23,42,.08) !important;
+            box-shadow: 0 24px 80px rgba(15,23,42,.08) !important;
+        }
+        body.theme-light .calendar-cell,
+        html.theme-light-preload .calendar-cell {
+            background: #fff !important;
+            border-color: rgba(15,23,42,.06) !important;
+            color: #172033 !important;
+        }
+        body.theme-light .calendar-cell:hover { background: #f8fafc !important; }
+        body.theme-light .calendar-cell.muted,
+        html.theme-light-preload .calendar-cell.muted {
+            background: #f3f5f9 !important;
+            opacity: .75 !important;
+        }
+        body.theme-light .month-day-number,
+        html.theme-light-preload .month-day-number {
+            color: #4b5565 !important;
+            font-weight: 800;
+        }
+        body.theme-light .month-day-number[class*="bg-orange"],
+        html.theme-light-preload .month-day-number[class*="bg-orange"] {
+            background: #f97316 !important;
+            color: #fff !important;
+        }
+        body.theme-light .event-pill,
+        html.theme-light-preload .event-pill {
+            background: #f8fafc !important;
+            border-color: rgba(15,23,42,.08) !important;
+            color: #1f2937 !important;
+        }
+        body.theme-light .event-pill:hover {
+            background: #eef2ff !important;
+            border-color: rgba(99,102,241,.25) !important;
+            filter: none !important;
+        }
+        body.theme-light .week-card,
+        body.theme-light .month-card,
+        html.theme-light-preload .week-card,
+        html.theme-light-preload .month-card {
+            background: #ffffff !important;
+            border-color: rgba(15,23,42,.08) !important;
+            box-shadow: 0 12px 32px rgba(15,23,42,.06);
+        }
+        body.theme-light .workload-safe,
+        html.theme-light-preload .workload-safe { background: #ecfdf5 !important; border-color: #a7f3d0 !important; color: #047857 !important; }
+        body.theme-light .workload-heavy,
+        html.theme-light-preload .workload-heavy { background: #fffbeb !important; border-color: #fde68a !important; color: #b45309 !important; }
+        body.theme-light .workload-overload,
+        html.theme-light-preload .workload-overload { background: #fff1f2 !important; border-color: #fecdd3 !important; color: #be123c !important; }
+        body.theme-light #hover-detail-card,
+        html.theme-light-preload #hover-detail-card,
+        body.theme-light #period-detail-content,
+        html.theme-light-preload #period-detail-content,
+        body.theme-light #pwd-modal,
+        body.theme-light #custom-dialog,
+        html.theme-light-preload #pwd-modal,
+        html.theme-light-preload #custom-dialog {
+            background: #fff !important;
+            border-color: rgba(15,23,42,.10) !important;
+            color: #172033 !important;
+            box-shadow: 0 30px 90px rgba(15,23,42,.16) !important;
+        }
+        body.theme-light #period-detail-content > div:first-child,
+        html.theme-light-preload #period-detail-content > div:first-child {
+            background: #f8fafc !important;
+            border-bottom-color: rgba(15,23,42,.08) !important;
+        }
+        body.theme-light #notifMenu,
+        body.theme-light #identityMenu,
+        body.theme-light #date-dropdown,
+        html.theme-light-preload #notifMenu,
+        html.theme-light-preload #identityMenu,
+        html.theme-light-preload #date-dropdown {
+            background: #ffffff !important;
+            border-color: rgba(15,23,42,.10) !important;
+            color: #172033 !important;
+            box-shadow: 0 24px 70px rgba(15,23,42,.14) !important;
+            z-index: 100000 !important;
+        }
+        body.theme-light #notifMenu .border-b,
+        body.theme-light #notifMenu .border-t,
+        body.theme-light #identityMenu .border-b,
+        body.theme-light #date-dropdown .border-b {
+            border-color: rgba(15,23,42,.08) !important;
+        }
+        body.theme-light #calendar-loading,
+        html.theme-light-preload #calendar-loading {
+            background: rgba(247,248,252,.82) !important;
+        }
+        body.theme-light .shadow-2xl,
+        html.theme-light-preload .shadow-2xl { box-shadow: 0 24px 80px rgba(15,23,42,.08) !important; }
+        body.theme-light .bg-zinc-900,
+        html.theme-light-preload .bg-zinc-900,
+        body.theme-light [class*="bg-zinc-900"] {
+            background-color: #eef1f6 !important;
+        }
+        body.theme-light .bg-zinc-800,
+        body.theme-light [class*="bg-zinc-800"],
+        html.theme-light-preload .bg-zinc-800 {
+            background-color: #f1f4f9 !important;
+            color: #424b5a !important;
+            border-color: rgba(15,23,42,.10) !important;
+        }
+        body.theme-light button[class*="bg-orange-600"],
+        body.theme-light .bg-orange-600,
+        html.theme-light-preload button[class*="bg-orange-600"],
+        html.theme-light-preload .bg-orange-600 {
+            background-color: #f97316 !important;
+            color: #fff !important;
+        }
+        body.theme-light #btn-view-month,
+        html.theme-light-preload #btn-view-month {
+            background: #eef2ff !important;
+            color: #4f46e5 !important;
+            border-color: #c7d2fe !important;
+        }
+        body.theme-light #export-btn-text,
+        body.theme-light #export-btn-text + *,
+        html.theme-light-preload #export-btn-text { color: inherit !important; }
+        body.theme-light #action-toast > div,
+        html.theme-light-preload #action-toast > div {
+            background: #fff !important;
+            color: #172033 !important;
+            border-color: rgba(15,23,42,.10) !important;
+            box-shadow: 0 18px 55px rgba(15,23,42,.16) !important;
+        }
+        body.theme-light #toast-title,
+        html.theme-light-preload #toast-title { color: #172033 !important; }
+        body.theme-light #toast-desc,
+        html.theme-light-preload #toast-desc { color: #687385 !important; }
+        .theme-toggle-btn {
+            width: 42px; height: 42px; border-radius: 14px;
+            display: inline-flex; align-items: center; justify-content: center;
+            background: #141417; border: 1px solid rgba(255,255,255,.06);
+            color: #f59e0b; transition: all .18s ease; box-shadow: 0 10px 30px rgba(0,0,0,.18);
+        }
+        .theme-toggle-btn:hover { transform: translateY(-1px); border-color: rgba(249,115,22,.35); background: #1a1a1f; }
+        body.theme-light .theme-toggle-btn,
+        html.theme-light-preload .theme-toggle-btn {
+            background: #fff7ed !important; border-color: #fed7aa !important; color: #f97316 !important;
+            box-shadow: 0 10px 30px rgba(249,115,22,.10) !important;
+        }
+        body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb,
+        html.theme-light-preload .custom-scrollbar::-webkit-scrollbar-thumb,
+        body.theme-light #month-grid::-webkit-scrollbar-thumb,
+        html.theme-light-preload #month-grid::-webkit-scrollbar-thumb {
+            background: rgba(100,116,139,.35) !important;
+        }
+
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-orange-500/30 text-zinc-300">
@@ -138,6 +408,12 @@
                 <button onclick="jumpToCurrent()" class="px-5 py-2 bg-orange-600/20 text-orange-400 font-bold border border-orange-500/20 rounded-xl hover:bg-orange-500/30 transition-colors btn-press text-[13px]" id="btn-jump-current">回到本月</button>
 
                 <div class="w-px h-8 bg-white/10 mx-1"></div>
+
+                <button id="theme-toggle-btn" class="theme-toggle-btn btn-press" onclick="window.toggleRequestHallTheme(event)" title="切换开灯 / 关灯模式" aria-label="切换开灯关灯模式">
+                    <svg id="theme-toggle-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 18h6"></path><path d="M10 22h4"></path><path d="M8.2 14.8A6 6 0 1 1 15.8 14.8c-.7.6-1.1 1.4-1.2 2.2H9.4c-.1-.8-.5-1.6-1.2-2.2Z"></path>
+                    </svg>
+                </button>
 
                 <div class="relative" id="notif-wrapper">
                     <button id="notifBtn" class="w-10 h-10 rounded-xl bg-[#141417] border border-white/5 flex items-center justify-center text-zinc-400 hover:text-white transition-colors btn-press relative">
@@ -302,6 +578,17 @@
         </div>
     </div>
 
+
+
+    <div id="action-toast" class="fixed top-8 right-8 z-[1000000] hidden toast-slide-in">
+        <div class="bg-[#1a1a1f] border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-3 w-72">
+            <div id="toast-icon" class="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </div>
+            <div><h4 id="toast-title" class="text-white text-sm font-bold">成功</h4><p id="toast-desc" class="text-zinc-400 text-[11px] mt-0.5">操作已执行。</p></div>
+        </div>
+    </div>
+
     <script type="module">
         import { supabase } from './supabase-config.js';
         window.supabase = supabase;
@@ -311,6 +598,38 @@
 
     <script>
         const PAGE_TYPE = 'design'; 
+
+        // ========== 与 index 同步的开灯 / 关灯主题逻辑 ==========
+        window.REQUEST_THEME_KEY = 'requestHallTheme';
+
+        window.applyRequestHallTheme = function(theme) {
+            const finalTheme = theme === 'light' ? 'light' : 'dark';
+            document.documentElement.classList.toggle('theme-light-preload', finalTheme === 'light');
+            document.body.classList.toggle('theme-light', finalTheme === 'light');
+            document.body.classList.toggle('theme-dark', finalTheme !== 'light');
+            const icon = document.getElementById('theme-toggle-icon');
+            if (icon) {
+                icon.innerHTML = finalTheme === 'light'
+                    ? '<path d="M9 18h6"></path><path d="M10 22h4"></path><path d="M8.2 14.8A6 6 0 1 1 15.8 14.8c-.7.6-1.1 1.4-1.2 2.2H9.4c-.1-.8-.5-1.6-1.2-2.2Z"></path>'
+                    : '<path d="M12 3a6 6 0 0 0-4 10.5c.7.6 1 1.2 1.2 2h5.6c.2-.8.5-1.4 1.2-2A6 6 0 0 0 12 3Z"></path><path d="M9 18h6"></path><path d="M10 21h4"></path>';
+            }
+        };
+
+        window.toggleRequestHallTheme = function(event) {
+            if (event) event.stopPropagation();
+            const current = localStorage.getItem(window.REQUEST_THEME_KEY) || 'dark';
+            const next = current === 'light' ? 'dark' : 'light';
+            localStorage.setItem(window.REQUEST_THEME_KEY, next);
+            window.applyRequestHallTheme(next);
+            window.dispatchEvent(new StorageEvent('storage', { key: window.REQUEST_THEME_KEY, newValue: next }));
+        };
+
+        window.addEventListener('storage', function(e) {
+            if (e.key === window.REQUEST_THEME_KEY) window.applyRequestHallTheme(e.newValue || 'dark');
+        });
+
+        window.applyRequestHallTheme(localStorage.getItem(window.REQUEST_THEME_KEY) || 'dark');
+
         let currentView = 'month'; 
         let currentDate = new Date();
         let myAllTasks = []; 
@@ -363,8 +682,29 @@
         }
 
         window.showToast = function(title, message, type="info") {
-            // 轻量提示：避免导出流程因未定义 showToast 而中断
-            console.log(`[${type}] ${title}: ${message}`);
+            const toast = document.getElementById('action-toast');
+            const titleEl = document.getElementById('toast-title');
+            const descEl = document.getElementById('toast-desc');
+            const icon = document.getElementById('toast-icon');
+            if (!toast || !titleEl || !descEl || !icon) {
+                console.log(`[${type}] ${title}: ${message}`);
+                return;
+            }
+            titleEl.innerText = title;
+            descEl.innerText = message;
+            if (type === 'success') {
+                icon.className = 'w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center shrink-0';
+                icon.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+            } else if (type === 'danger' || type === 'error') {
+                icon.className = 'w-8 h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center shrink-0';
+                icon.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+            } else {
+                icon.className = 'w-8 h-8 rounded-full bg-orange-500/20 text-orange-500 flex items-center justify-center shrink-0';
+                icon.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>';
+            }
+            toast.classList.remove('hidden');
+            clearTimeout(window.__toastTimer);
+            window.__toastTimer = setTimeout(() => toast.classList.add('hidden'), 3000);
         }
 
         // ================= 基础交互 =================
@@ -1405,6 +1745,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            window.applyRequestHallTheme(localStorage.getItem(window.REQUEST_THEME_KEY) || 'dark');
             if(initRBAC()) {
                 const idBtn = document.getElementById('identityBtn');
                 const idMenu = document.getElementById('identityMenu');
