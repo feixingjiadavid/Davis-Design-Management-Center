@@ -789,27 +789,50 @@
             showDialogUI();
         }
 
+        // 全量分页拉取，避免 Supabase 默认/手写 limit 只取到最近数据，导致 3-4 月历史需求看不到
+        async function fetchAllTaskRows(selectFields) {
+            const pageSize = 1000;
+            let from = 0;
+            let allRows = [];
+
+            while (true) {
+                const to = from + pageSize - 1;
+                const { data, error } = await window.supabase
+                    .from(window.DB_TABLE)
+                    .select(selectFields)
+                    .order('created_at', { ascending: false })
+                    .range(from, to);
+
+                if (error) throw error;
+
+                const rows = data || [];
+                allRows = allRows.concat(rows);
+
+                if (rows.length < pageSize) break;
+                from += pageSize;
+            }
+
+            return allRows;
+        }
+
         window.loadTasksFromCloud = async function(isSilent = false) {
             if(!window.supabase) return;
-            
+
             const userStr = localStorage.getItem('activeUserObj');
             const currentUser = userStr ? JSON.parse(userStr) : null;
             if(!currentUser) return;
             const currentUserEn = currentUser.enName ? currentUser.enName.toLowerCase() : '';
             const cNames = [currentUser.displayName, currentUser.cnName, currentUser.enName, currentUserEn].filter(Boolean).map(n => n.toLowerCase());
             const isSuperAdmin = currentUserEn === 'davidxu' || currentUserEn === 'davidxxu';
-            
+
             if (!isSilent) window.renderDraftToUI(); 
             const spinner = document.getElementById('loading-spinner');
             const syncDot = document.getElementById('sync-indicator');
             if(syncDot && isSilent) syncDot.classList.remove('hidden');
-            
+
             try {
-                const [ongoingRes, completedRes, cancelledRes] = await Promise.all([
-                    window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS).not('status', 'in', '("completed","archived","terminated","cancelled")').order('created_at', { ascending: false }),
-                    window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS).in('status', ['completed', 'archived', 'terminated']).order('created_at', { ascending: false }).limit(20),
-                    window.supabase.from(window.DB_TABLE).select(window.LIGHT_FIELDS).eq('status', 'cancelled').order('created_at', { ascending: false }).limit(50)
-                ]);
+                // 只拉一次全量有效数据，再在前端按状态拆分，确保系统使用以来的历史数据都能被列表与数量统计覆盖。
+                const allData = await fetchAllTaskRows(window.LIGHT_FIELDS);
 
                 const ongoingC = document.getElementById('ongoing-tasks-container');
                 const completedC = document.getElementById('completed-tasks-container');
@@ -821,17 +844,15 @@
                 if(!isSilent && cancelledC) cancelledC.innerHTML = '';
                 if(!isSilent && timelineC) timelineC.innerHTML = '';
 
-                const allData = [...(ongoingRes.data || []), ...(completedRes.data || []), ...(cancelledRes.data || [])];
-                
                 let ongoingCount = 0;
                 let completedCount = 0;
                 let cancelledCount = 0;
                 let pendingConfirmTasks = [];
 
-                allData.forEach(task => {
+                (allData || []).forEach(task => {
                     const creator = task.creator || '';
                     const isOwner = cNames.includes(creator.toLowerCase());
-                    
+
                     if(!isOwner && !isSuperAdmin) return;
 
                     // 先生成可见性结果，再统计数量。注意：静默刷新时也必须统计，不能把数量统计放在 !isSilent 里，否则页面会被刷新成 0。
@@ -865,7 +886,7 @@
 
                 if(!isSilent) {
                     if(spinner) spinner.classList.add('hidden');
-                    
+
                     if(ongoingC && ongoingCount === 0) {
                         ongoingC.innerHTML += `
                             <div class="text-center py-20 bg-[#121217] rounded-3xl border border-white/5 border-dashed">
@@ -903,6 +924,7 @@
             } catch(e) { 
                 console.error(e); 
                 if(spinner) spinner.classList.add('hidden');
+                if(!isSilent) window.showToast('数据加载失败', e.message || '请检查数据库连接与字段权限', 'error');
             } finally {
                 if(syncDot) setTimeout(() => syncDot.classList.add('hidden'), 500);
             }
