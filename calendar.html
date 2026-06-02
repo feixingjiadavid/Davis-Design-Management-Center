@@ -25,18 +25,30 @@
         .view-section { display: none; opacity: 0; transition: opacity 0.3s ease; }
         .view-section.active { display: flex; opacity: 1; }
 
-        /* 日历格与卡片高级浮雕交互：月视图按内容自动撑高，并由整个月历区域统一滚动 */
+        /* 月视图改为“按周分行”的真实自适应布局：整个月历统一滚动，每周行高由内容自然撑开，不再 42 个格子等高硬塞 */
+        #view-month { min-height: 0; overflow: hidden; }
         #month-grid {
-            overflow-y: auto;
-            align-content: start;
-            grid-auto-rows: minmax(120px, auto);
-            max-height: 100%;
+            display: block !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            height: 100% !important;
+            min-height: 0 !important;
+            max-height: 100% !important;
+            grid-template-columns: none !important;
         }
-        .calendar-cell { transition: background-color 0.2s ease; cursor: pointer; min-height: 120px; display: flex; flex-direction: column; align-items: stretch; border-right: 1px solid rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.02); }
+        .calendar-week-row {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            align-items: stretch;
+            min-height: 120px;
+            height: auto !important;
+            grid-auto-rows: auto !important;
+        }
+        .calendar-cell { transition: background-color 0.2s ease; cursor: pointer; min-height: 120px; height: auto !important; max-height: none !important; display: flex; flex-direction: column; align-items: stretch; border-right: 1px solid rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.02); overflow: visible !important; }
         .calendar-cell:hover { background-color: rgba(255, 255, 255, 0.03); }
         .calendar-cell.muted { background-color: #0c0c0e; opacity: 0.4; pointer-events: none; }
-        .calendar-day-number { align-self: flex-start; margin: 8px 0 4px 8px; }
-        .calendar-events { padding: 0 8px 10px 8px; display: flex; flex-direction: column; gap: 6px; }
+        .calendar-day-number { align-self: flex-start; margin: 8px 0 4px 8px; flex: 0 0 auto; }
+        .calendar-events { padding: 0 8px 10px 8px; display: flex; flex-direction: column; gap: 6px; overflow: visible; flex: 0 0 auto; }
         
         .event-pill { transition: all 0.2s ease; cursor: pointer; border: 1px solid transparent; }
         .event-pill:hover { filter: brightness(1.3); border-color: rgba(255,255,255,0.2); background-color: rgba(255,255,255,0.05); }
@@ -177,7 +189,7 @@
                         <div class="grid grid-cols-7 border-b border-white/5 bg-[#16161d] shrink-0">
                             <div class="py-4 text-center text-[12px] font-bold text-zinc-500">周日</div><div class="py-4 text-center text-[12px] font-bold text-zinc-500">周一</div><div class="py-4 text-center text-[12px] font-bold text-zinc-500">周二</div><div class="py-4 text-center text-[12px] font-bold text-zinc-500">周三</div><div class="py-4 text-center text-[12px] font-bold text-zinc-500">周四</div><div class="py-4 text-center text-[12px] font-bold text-zinc-500">周五</div><div class="py-4 text-center text-[12px] font-bold text-indigo-400/50">周六</div>
                         </div>
-                        <div id="month-grid" class="flex-1 grid grid-cols-7 bg-[#121217] custom-scrollbar"></div>
+                        <div id="month-grid" class="flex-1 bg-[#121217] custom-scrollbar"></div>
                     </div>
 
                     <div id="view-week" class="view-section flex-col h-full bg-transparent border-none shadow-none">
@@ -240,6 +252,22 @@
 
     <div id="hover-detail-card" class="fixed z-[999999] pointer-events-none opacity-0 transition-opacity duration-200 hidden bg-[#121217]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_20px_50px_-10px_rgba(0,0,0,0.8)] p-5 w-80 flex-col">
         </div>
+
+
+    <div id="period-detail-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[999999] hidden flex items-center justify-center p-4" onclick="if(event.target === this) closeModal('period-detail-modal')">
+        <div id="period-detail-content" class="w-full max-w-2xl max-h-[80vh] bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 opacity-0 transition-all duration-300 overflow-hidden">
+            <div class="px-6 py-5 border-b border-white/5 bg-[#16161d] flex items-center justify-between shrink-0">
+                <div>
+                    <h2 id="period-modal-title" class="text-[17px] font-bold text-white">日期需求清单</h2>
+                    <p class="text-[11px] text-zinc-500 mt-1">点击任一需求可进入详情页处理/查看。</p>
+                </div>
+                <button onclick="closeModal('period-detail-modal')" class="text-zinc-500 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-full p-1.5 transition-colors btn-press">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div id="period-modal-list" class="p-6 overflow-y-auto custom-scrollbar space-y-3"></div>
+        </div>
+    </div>
 
     <div id="pwd-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closePwdModal()">
         <div id="pwd-modal" class="hidden w-full max-w-sm bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 p-6 relative">
@@ -756,7 +784,7 @@
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
             const firstDay = new Date(year, month, 1);
-            const startingDay = firstDay.getDay(); 
+            const startingDay = firstDay.getDay();
             const monthLength = new Date(year, month + 1, 0).getDate();
             
             let dayData = {};
@@ -775,10 +803,22 @@
 
             const grid = document.getElementById('month-grid');
             let html = '';
+            let weekHtml = '';
+            let weekDayCount = 0;
             const today = new Date();
             const isCurrentMonthReal = (year === today.getFullYear() && month === today.getMonth());
 
-            for (let i = 0; i < startingDay; i++) html += `<div class="calendar-cell muted"></div>`;
+            const pushCell = (cellHtml) => {
+                weekHtml += cellHtml;
+                weekDayCount++;
+                if (weekDayCount === 7) {
+                    html += `<div class="calendar-week-row">${weekHtml}</div>`;
+                    weekHtml = '';
+                    weekDayCount = 0;
+                }
+            };
+
+            for (let i = 0; i < startingDay; i++) pushCell(`<div class="calendar-cell muted"></div>`);
 
             let hasConcentration = false;
             for (let i = 1; i <= monthLength; i++) {
@@ -802,15 +842,14 @@
                 }).join('');
 
                 let safeTasks = encodeURIComponent(JSON.stringify(tasks));
-                html += `
+                pushCell(`
                     <div class="calendar-cell relative ${cellClass}" onclick="openPeriodDetail('${year}年${month+1}月${i}日', '${safeTasks}')">
                         ${numHtml}
                         <div class="calendar-events">${pillsHtml}</div>
-                    </div>`;
+                    </div>`);
             }
 
-            const remainingCells = 42 - (startingDay + monthLength);
-            for (let i = 0; i < remainingCells; i++) html += `<div class="calendar-cell muted"></div>`; 
+            while (weekDayCount !== 0) pushCell(`<div class="calendar-cell muted"></div>`);
             grid.innerHTML = html;
 
             document.getElementById('stat-period-title').innerText = '本月总计发单';
@@ -960,7 +999,7 @@
 
         // 💡 弹窗处理
         window.openPeriodDetail = function(periodTitle, tasksStr) {
-            let tasks = JSON.parse(decodeURIComponent(tasksStr));
+            let tasks = []; try { tasks = JSON.parse(decodeURIComponent(tasksStr || '%5B%5D')); } catch(e) { tasks = []; }
             document.getElementById('period-modal-title').innerText = periodTitle + ' 需求清单';
             const list = document.getElementById('period-modal-list');
             list.innerHTML = '';
