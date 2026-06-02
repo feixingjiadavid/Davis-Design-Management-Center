@@ -269,6 +269,72 @@
             color: #FFFFFF !important;
         }
 
+
+
+        /* ====== 开灯模式二次精修：头像、导出弹窗、浅色标签可读性 ====== */
+        .admin-avatar-badge {
+            background: linear-gradient(135deg, #7C3AED 0%, #D946EF 52%, #F97316 100%) !important;
+            color: #FFFFFF !important;
+            border: 1px solid rgba(255,255,255,0.55) !important;
+            box-shadow: 0 8px 18px -10px rgba(124,58,237,0.65) !important;
+        }
+        body.theme-light .admin-avatar-badge,
+        body.theme-light #resource-pool .admin-avatar-badge {
+            background: linear-gradient(135deg, #6366F1 0%, #C026D3 58%, #F97316 100%) !important;
+            color: #FFFFFF !important;
+            border-color: rgba(255,255,255,0.7) !important;
+            text-shadow: 0 1px 1px rgba(15,23,42,0.24) !important;
+        }
+        body.theme-light #resource-pool .bg-black\/20 {
+            background: #F8FAFC !important;
+            border: 1px solid #E2E8F0 !important;
+        }
+        body.theme-light #resource-pool .bg-zinc-900\/50,
+        body.theme-light #resource-pool .bg-zinc-800,
+        body.theme-light #resource-pool .bg-zinc-800\/50 {
+            background: #EEF2FF !important;
+            color: #4338CA !important;
+            border-color: #C7D2FE !important;
+        }
+        body.theme-light #export-modal {
+            overflow: hidden !important;
+            border-radius: 24px !important;
+        }
+        body.theme-light #export-modal > .absolute.top-0 {
+            height: 3px !important;
+            inset-left: 0 !important;
+            inset-right: 0 !important;
+            border-radius: 24px 24px 0 0 !important;
+            opacity: 0.72 !important;
+        }
+        body.theme-light #export-modal .bg-zinc-800,
+        body.theme-light #export-modal .bg-zinc-800\/80,
+        body.theme-light #export-modal button.bg-zinc-800,
+        body.theme-light #export-modal button.bg-zinc-800\/80 {
+            background: #F1F5F9 !important;
+            color: #334155 !important;
+            border-color: #E2E8F0 !important;
+        }
+        body.theme-light #export-modal button.bg-zinc-800:hover,
+        body.theme-light #export-modal button.bg-zinc-800\/80:hover {
+            background: #E2E8F0 !important;
+            color: #0F172A !important;
+        }
+        body.theme-light .admin-load-tag,
+        body.theme-light #rep-resource-pool-matrix .bg-zinc-800,
+        body.theme-light #rep-resource-pool-matrix .bg-zinc-800\/80 {
+            background: #EEF2FF !important;
+            color: #4338CA !important;
+            border: 1px solid #C7D2FE !important;
+        }
+        body.theme-light #rep-status-percentage-bar .bg-zinc-700,
+        body.theme-light #rep-status-percentage-bar .bg-zinc-600,
+        body.theme-light #rep-status-percentage-bar .bg-zinc-900 {
+            background: #CBD5E1 !important;
+        }
+        body.theme-light #rep-resource-pool-matrix tr:hover {
+            background: #F8FAFC !important;
+        }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-fuchsia-500/30 text-zinc-300">
@@ -504,7 +570,7 @@
     </div>
 
     <div id="export-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4 overflow-y-auto" onclick="if(event.target === this) closeExportAnalysisModal()">
-        <div id="export-modal" class="w-full max-w-4xl bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 relative my-auto">
+        <div id="export-modal" class="w-full max-w-4xl bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 relative my-auto overflow-hidden">
             <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-fuchsia-500 via-purple-500 to-indigo-500 rounded-t-3xl"></div>
             
             <div class="p-6 border-b border-white/5 flex justify-between items-center">
@@ -1248,7 +1314,7 @@
                     ${!isEmpty ? '<div class="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500/50 group-hover:w-1.5 transition-all"></div>' : ''}
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[10px] font-bold text-zinc-300 shadow-inner shrink-0">${data.display.substring(0,2).toUpperCase()}</div>
+                            <div class="admin-avatar-badge w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold shadow-inner shrink-0">${data.display.substring(0,2).toUpperCase()}</div>
                             <div>
                                 <p class="text-[13px] font-bold ${isEmpty ? 'text-zinc-400' : 'text-white'} flex items-center gap-2">
                                     ${data.display} 
@@ -1363,6 +1429,17 @@
         }
 
         // ================= 💡 全量真实数据：审计导出面板交互引擎 =================
+        window.closeExportAnalysisModal = function() {
+            const overlay = document.getElementById('export-modal-overlay');
+            const modal = document.getElementById('export-modal');
+            if (!overlay || !modal) return;
+            overlay.classList.add('opacity-0');
+            modal.classList.add('scale-95');
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+            }, 260);
+        }
+
         window.openExportAnalysisModal = function() {
             const overlay = document.getElementById('export-modal-overlay');
             const modal = document.getElementById('export-modal');
@@ -1420,11 +1497,11 @@
                 let html = '';
                 sortedDesigners.forEach(d => {
                     const isEmpty = d.count === 0 && d.hours === 0;
-                    let loadTag = '<span class="text-[10px] text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">💤 挂空/就绪</span>';
+                    let loadTag = '<span class="admin-load-tag text-[10px] text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">💤 挂空/就绪</span>';
                     if (d.count > 2) {
-                        loadTag = '<span class="text-[10px] text-rose-400 bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded font-bold">🔥 高负荷压制</span>';
+                        loadTag = '<span class="admin-load-tag text-[10px] text-rose-400 bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded font-bold">🔥 高负荷压制</span>';
                     } else if (d.count > 0 || d.hours > 0) {
-                        loadTag = '<span class="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">✅ 健康流转</span>';
+                        loadTag = '<span class="admin-load-tag text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">✅ 健康流转</span>';
                     }
 
                     html += `
