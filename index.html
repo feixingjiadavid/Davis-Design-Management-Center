@@ -262,6 +262,59 @@
         }
         html.theme-light-preload .absolute.inset-0 { background: #F4F5F7 !important; }
 
+
+        /* 附件预览弹窗 */
+        #attachment-preview-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 1000000;
+            background: rgba(0, 0, 0, 0.82);
+            backdrop-filter: blur(14px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 28px;
+        }
+        #attachment-preview-overlay.visible { display: flex; }
+        .attachment-preview-panel {
+            width: min(920px, 92vw);
+            height: min(720px, 86vh);
+            background: #121217;
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 24px;
+            box-shadow: 0 30px 90px rgba(0,0,0,0.55);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .attachment-preview-body {
+            flex: 1;
+            min-height: 0;
+            background: #09090b;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .attachment-preview-body img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        .attachment-preview-body iframe {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            background: #fff;
+        }
+        body.theme-light #attachment-preview-overlay { background: rgba(15, 23, 42, 0.35); }
+        body.theme-light .attachment-preview-panel {
+            background: #FFFFFF;
+            border-color: rgba(0,0,0,0.08);
+            box-shadow: 0 30px 90px rgba(15,23,42,0.18);
+        }
+        body.theme-light .attachment-preview-body { background: #F8FAFC; }
+
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-indigo-500/30 text-zinc-300">
@@ -556,6 +609,26 @@
             </div>
             <p id="dialog-message" class="text-[13px] text-zinc-400 leading-relaxed mb-6">内容</p>
             <div class="flex gap-3 justify-end w-full mt-auto" id="dialog-buttons"></div>
+        </div>
+    </div>
+
+
+
+    <div id="attachment-preview-overlay" onclick="window.closeAttachmentPreview(event)">
+        <div class="attachment-preview-panel modal-enter" onclick="event.stopPropagation()">
+            <div class="px-5 py-4 border-b border-white/10 flex items-center justify-between gap-4">
+                <div class="min-w-0">
+                    <h3 class="text-[15px] font-bold text-white truncate" id="attachment-preview-title">附件预览</h3>
+                    <p class="text-[11px] text-zinc-500 mt-1" id="attachment-preview-tip">请确认附件是否上传正确</p>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <button id="attachment-preview-download" class="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-[12px] font-bold btn-press">下载</button>
+                    <button onclick="window.closeAttachmentPreview()" class="w-9 h-9 rounded-full bg-white/5 hover:bg-rose-500 text-zinc-400 hover:text-white flex items-center justify-center transition-colors btn-press">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="attachment-preview-body" id="attachment-preview-body"></div>
         </div>
     </div>
 
@@ -1231,6 +1304,72 @@
             }
         }
 
+
+        window.escapeHTML = function(str) {
+            return String(str ?? '').replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
+        }
+
+        window.getAttachmentMime = function(file) {
+            if (!file || !file.data) return '';
+            const match = String(file.data).match(/^data:([^;]+);/i);
+            if (match) return match[1].toLowerCase();
+            const name = String(file.name || '').toLowerCase();
+            if (/\.(png|jpg|jpeg|gif|webp|svg)$/.test(name)) return 'image/' + name.split('.').pop().replace('jpg','jpeg');
+            if (/\.pdf$/.test(name)) return 'application/pdf';
+            if (/\.(txt|md|csv|json|html|css|js)$/.test(name)) return 'text/plain';
+            return '';
+        }
+
+        window.downloadUploadedFile = function(index) {
+            const file = window.currentUploadedFiles[index];
+            if (!file || !file.data) return window.showAlert('附件异常', '没有找到可下载的附件数据。', 'danger');
+            const a = document.createElement('a');
+            a.href = file.data;
+            a.download = file.name || '附件';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        }
+
+        window.previewUploadedFile = function(index) {
+            const file = window.currentUploadedFiles[index];
+            if (!file || !file.data) return window.showAlert('附件异常', '没有找到可预览的附件数据。', 'danger');
+            const overlay = document.getElementById('attachment-preview-overlay');
+            const title = document.getElementById('attachment-preview-title');
+            const tip = document.getElementById('attachment-preview-tip');
+            const body = document.getElementById('attachment-preview-body');
+            const downloadBtn = document.getElementById('attachment-preview-download');
+            const mime = window.getAttachmentMime(file);
+            title.innerText = file.name || '附件预览';
+            tip.innerText = '请确认附件内容是否正确，确认无误后再提交需求。';
+            downloadBtn.onclick = function(e) { e.stopPropagation(); window.downloadUploadedFile(index); };
+
+            if (mime.startsWith('image/')) {
+                body.innerHTML = `<img src="${file.data}" alt="${window.escapeHTML(file.name || '附件预览')}">`;
+            } else if (mime === 'application/pdf' || mime.startsWith('text/')) {
+                body.innerHTML = `<iframe src="${file.data}" title="${window.escapeHTML(file.name || '附件预览')}"></iframe>`;
+            } else {
+                body.innerHTML = `
+                    <div class="text-center px-8">
+                        <div class="w-16 h-16 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center mx-auto mb-4">
+                            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
+                        </div>
+                        <h4 class="text-[16px] font-bold text-white mb-2">当前文件类型不支持内嵌预览</h4>
+                        <p class="text-[12px] text-zinc-500 mb-5">可以先下载打开确认，避免传错附件后再提交。</p>
+                        <button onclick="window.downloadUploadedFile(${index})" class="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[13px] font-bold btn-press">下载附件确认</button>
+                    </div>`;
+            }
+            overlay.classList.add('visible');
+        }
+
+        window.closeAttachmentPreview = function(event) {
+            if (event && event.target && event.target.id !== 'attachment-preview-overlay') return;
+            const overlay = document.getElementById('attachment-preview-overlay');
+            const body = document.getElementById('attachment-preview-body');
+            if (overlay) overlay.classList.remove('visible');
+            if (body) body.innerHTML = '';
+        }
+
         // ================= 💡 核心修复：多文件上传处理器 =================
         window.handleFileSelect = async function(event) {
             const files = Array.from(event.target.files);
@@ -1291,15 +1430,19 @@
             container.classList.remove('hidden');
             let html = '';
             window.currentUploadedFiles.forEach((file, index) => {
+                const safeName = window.escapeHTML(file.name || `附件${index + 1}`);
                 html += `
-                    <div class="flex items-center justify-between bg-indigo-500/10 border border-indigo-500/20 px-3 py-2 rounded-lg">
-                        <div class="flex items-center gap-2 overflow-hidden">
+                    <div class="flex items-center justify-between bg-indigo-500/10 border border-indigo-500/20 px-3 py-2 rounded-lg gap-3">
+                        <div class="flex items-center gap-2 overflow-hidden min-w-0">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-indigo-400 shrink-0"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
-                            <span class="text-[11px] text-indigo-300 truncate font-medium max-w-[200px]">${file.name}</span>
+                            <span class="text-[11px] text-indigo-300 truncate font-medium max-w-[170px]" title="${safeName}">${safeName}</span>
                         </div>
-                        <button type="button" onclick="event.stopPropagation(); window.removeFile(${index})" class="text-rose-400 hover:text-rose-300 p-1 rounded-md hover:bg-rose-500/20 transition-colors btn-press shrink-0">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                        </button>
+                        <div class="flex items-center gap-1 shrink-0">
+                            <button type="button" onclick="event.stopPropagation(); window.previewUploadedFile(${index})" class="text-[10px] font-bold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white border border-indigo-500/20 px-2 py-1 rounded-md transition-colors btn-press">预览</button>
+                            <button type="button" onclick="event.stopPropagation(); window.removeFile(${index})" class="text-rose-400 hover:text-rose-300 p-1 rounded-md hover:bg-rose-500/20 transition-colors btn-press" title="删除附件">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                            </button>
+                        </div>
                     </div>
                 `;
             });
