@@ -49,6 +49,63 @@
 
         .timeline-line { position: absolute; left: 11px; top: 22px; bottom: -8px; width: 2px; background-color: rgba(255,255,255,0.05); z-index: 0; }
         .group-last .timeline-line { display: none !important; }
+
+
+        /* ================= 开灯/关灯主题切换：只改肤色，不改结构 ================= */
+        body.theme-light { background-color: #f4f6fb !important; color: #1f2937 !important; }
+        body.theme-light .absolute.inset-0 { background-color: #f4f6fb !important; }
+        body.theme-light aside,
+        body.theme-light main,
+        body.theme-light header,
+        body.theme-light [class*="bg-[#09090b]"],
+        body.theme-light [class*="bg-[#0c0c0e]"],
+        body.theme-light [class*="bg-[#121217]"],
+        body.theme-light [class*="bg-[#141417]"],
+        body.theme-light [class*="bg-[#16161d]"],
+        body.theme-light [class*="bg-[#18181b]"],
+        body.theme-light [class*="bg-[#1a1a1f]"],
+        body.theme-light [class*="bg-[#1a1a24]"],
+        body.theme-light [class*="bg-[#2a2a35]"] { background-color: #ffffff !important; }
+        body.theme-light .interactive-card,
+        body.theme-light #custom-dialog,
+        body.theme-light #pwd-modal,
+        body.theme-light #create-modal,
+        body.theme-light #notifMenu,
+        body.theme-light #identityMenu,
+        body.theme-light #project-dropdown,
+        body.theme-light #assignee-dropdown,
+        body.theme-light #tasks-scroll-area > .sticky,
+        body.theme-light #all-timelines-container,
+        body.theme-light .active-card { background-color: #ffffff !important; }
+        body.theme-light .interactive-card:hover { background-color: #f8fafc !important; box-shadow: 0 10px 26px -14px rgba(15,23,42,0.28) !important; }
+        body.theme-light [class*="bg-white/5"],
+        body.theme-light [class*="bg-white/10"],
+        body.theme-light [class*="bg-white/[0.01]"],
+        body.theme-light [class*="bg-white/[0.02]"] { background-color: #f1f5f9 !important; }
+        body.theme-light [class*="border-white/5"],
+        body.theme-light [class*="border-white/10"],
+        body.theme-light [class*="border-zinc-700"],
+        body.theme-light [class*="border-zinc-800"] { border-color: #e2e8f0 !important; }
+        body.theme-light [class*="text-white"],
+        body.theme-light [class*="text-zinc-100"],
+        body.theme-light [class*="text-zinc-200"],
+        body.theme-light [class*="text-zinc-300"] { color: #111827 !important; }
+        body.theme-light [class*="text-zinc-400"],
+        body.theme-light [class*="text-zinc-500"],
+        body.theme-light [class*="text-zinc-600"] { color: #64748b !important; }
+        body.theme-light input,
+        body.theme-light textarea,
+        body.theme-light select { background-color: #ffffff !important; color: #111827 !important; border-color: #cbd5e1 !important; }
+        body.theme-light input::placeholder,
+        body.theme-light textarea::placeholder { color: #94a3b8 !important; }
+        body.theme-light .shadow-2xl,
+        body.theme-light .shadow-xl,
+        body.theme-light .shadow-lg,
+        body.theme-light [class*="shadow-"] { box-shadow: 0 12px 30px -18px rgba(15, 23, 42, 0.28) !important; }
+        body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(15, 23, 42, 0.22); }
+        body.theme-light .breathe-rose { box-shadow: inset 0 0 0 1px rgba(244,63,94,0.45), 0 0 16px rgba(244,63,94,0.12) !important; }
+        body.theme-light #themeToggleBtn { background-color: #fff7ed !important; color: #ea580c !important; border-color: rgba(249,115,22,0.25) !important; }
+        body.theme-light #themeToggleBtn:hover { background-color: #ffedd5 !important; }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-indigo-500/30 text-zinc-300">
@@ -120,6 +177,10 @@
                 <button onclick="window.location.href='ai-assistant.html'" class="bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-400 px-4 py-2.5 rounded-[14px] text-[13px] font-bold transition-all btn-press flex items-center gap-2" title="小戴维斯-AI">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path><line x1="8" y1="16" x2="8.01" y2="16"></line><line x1="16" y1="16" x2="16.01" y2="16"></line></svg>
                     小戴维斯-AI
+                </button>
+
+                <button id="themeToggleBtn" onclick="window.togglePageTheme()" class="bg-[#141417] border border-white/10 text-zinc-300 px-4 py-3 rounded-[14px] flex items-center gap-2 text-[13px] font-bold hover:bg-[#1a1a1f] transition-colors btn-press" title="开灯/关灯切换页面肤色">
+                    <span id="themeToggleIcon">☀️</span><span id="themeToggleText">开灯</span>
                 </button>
 
                 <div class="relative z-[120]" id="notif-wrapper">
@@ -361,6 +422,27 @@
 
     <script>
         const PAGE_TYPE = 'req'; 
+
+        // ================= 开灯 / 关灯主题切换 =================
+        window.applyPageTheme = function(theme) {
+            const isLight = theme === 'light';
+            document.body.classList.toggle('theme-light', isLight);
+            localStorage.setItem('requestHallTheme', isLight ? 'light' : 'dark');
+            const icon = document.getElementById('themeToggleIcon');
+            const text = document.getElementById('themeToggleText');
+            const btn = document.getElementById('themeToggleBtn');
+            if (icon) icon.innerText = isLight ? '🌙' : '☀️';
+            if (text) text.innerText = isLight ? '关灯' : '开灯';
+            if (btn) btn.title = isLight ? '关灯：切回深色页面' : '开灯：切换浅色页面';
+        }
+        window.togglePageTheme = function() {
+            const current = localStorage.getItem('requestHallTheme') === 'light' ? 'light' : 'dark';
+            window.applyPageTheme(current === 'light' ? 'dark' : 'light');
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            window.applyPageTheme(localStorage.getItem('requestHallTheme') === 'light' ? 'light' : 'dark');
+        });
+
         // 💡 核心全局变量：存储多个文件对象的数组 [{name, data}, ...]
         window.currentUploadedFiles = [];
         window.currentTaskListTab = 'ongoing';
