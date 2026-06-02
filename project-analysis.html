@@ -96,7 +96,7 @@
             <div class="flex items-center gap-6">
                 <button onclick="window.openExportAnalysisModal()" class="px-5 py-2 bg-gradient-to-r from-fuchsia-600 via-purple-600 to-indigo-600 hover:from-fuchsia-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-[0_4px_20px_rgba(217,70,239,0.25)] hover:shadow-[0_4px_25px_rgba(217,70,239,0.4)] transition-all btn-press text-[13px] flex items-center gap-2 border border-white/10">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-                    数据导出
+                    全盘总结分析导出
                 </button>
 
                 <div class="flex bg-[#121217] border border-white/10 rounded-xl p-1 shadow-inner">
@@ -828,11 +828,7 @@
 
             } catch (err) {
                 console.error(err);
-                if(!isSilent) window.showToast('数据拉取异常', err && err.message ? err.message : '未知错误', 'error');
-                const loadingEl = document.getElementById('dashboard-loading');
-                if (loadingEl && !isSilent) {
-                    loadingEl.innerHTML = `<div class="text-center px-8"><p class="text-rose-400 font-bold mb-2">数据加载失败</p><p class="text-xs text-zinc-500 leading-relaxed max-w-md">${err && err.message ? err.message : '请检查 Supabase 配置或网络连接后刷新页面。'}</p></div>`;
-                }
+                if(!isSilent) window.showToast('数据拉取异常', err.message, 'error');
             } finally {
                 if(syncDot) setTimeout(() => syncDot.classList.add('hidden'), 500);
             }
@@ -1225,6 +1221,7 @@
         }
 
         // 终极无损数据平铺大导出引擎：严格执行后勤4列宽表标准，实现见屏即所得与1:1明细无缝嵌套
+        // Excel 导出：使用 HTML Table .xls 格式，支持同名栏目合并，避免 Excel 自动套用货币符号
         window.exportToCSV = function() {
             const currentData = extractDataForPeriod(currentDate, currentView);
             const totalDemands = currentData.tasksCount;
@@ -1236,44 +1233,75 @@
             const reportScope = document.getElementById('report-project-scope').innerText;
             const genTime = document.getElementById('report-gen-time').innerText;
 
-            let rows = [];
-            rows.push(['数据大类','人员/项目/条目','需求单号','需求标题','归属项目','单量/频次','本需求投入工时','人员总工时','项目工时汇总/大盘占比','备注']);
+            const headers = ['数据大类','人员/项目/条目','需求单号','需求标题','归属项目','单量/频次','本需求投入工时','人员总工时','项目工时汇总/大盘占比','备注'];
 
-            rows.push(['核心摘要','总计需求量','','','',`${totalDemands} 单`,'',`${totalHours.toFixed(1)} h`,'',`周期：${reportPeriod}（${reportTag}）；范围：${reportScope}；导出时间：${genTime}`]);
-            rows.push(['核心摘要','活跃类目','','','',`${totalProjects} 个`,'','','','']);
-            rows.push(['核心摘要','投入设计人力','','','',`${actualPeople} 人`,'','','','']);
+            function esc(v) {
+                return String(v ?? '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
 
+            function textCell(value, extraAttrs = '') {
+                // 强制按文本写入，避免 Excel 把数字/百分比/工时识别成货币或科学计数法
+                return `<td ${extraAttrs} style="mso-number-format:'\\@'; vertical-align:middle; border:1px solid #d9d9d9; padding:6px;">${esc(value)}</td>`;
+            }
+
+            const groups = [];
+            function addGroup(name, rows) {
+                groups.push({ name, rows: rows.length ? rows : [{ person:'暂无数据', rest:['','','','','','','',''] }] });
+            }
+
+            addGroup('核心摘要', [
+                { person:'总计需求量', rest:['','','',`${totalDemands} 单`,'',`${totalHours.toFixed(1)} h`,'',`周期：${reportPeriod}（${reportTag}）；范围：${reportScope}；导出时间：${genTime}`] },
+                { person:'活跃类目', rest:['','','',`${totalProjects} 个`,'','','',''] },
+                { person:'投入设计人力', rest:['','','',`${actualPeople} 人`,'','','',''] }
+            ]);
+
+            const peopleGroupRows = [];
             const sortedPpl = Object.values(currentData.peopleMap).filter(p => p.hours > 0 || p.uniqueTasksSet.size > 0).sort((a, b) => b.hours - a.hours);
             if (sortedPpl.length === 0) {
-                rows.push(['设计人力明细','暂无匹配人员效能流水','','','','','','','','']);
+                peopleGroupRows.push({ person:'暂无匹配人员效能流水', rest:['','','','','','','',''] });
             } else {
                 sortedPpl.forEach(p => {
                     const projectSummary = getPersonProjectHourLines(p).join('；');
                     const taskDetails = Object.values(p.taskDetails || {}).sort((a, b) => b.hours - a.hours);
-                    rows.push(['设计人力汇总',p.display,'','', '', `${p.uniqueTasksSet.size} 单`, '', `${p.hours.toFixed(1)} h`, projectSummary, '人员总工时与项目投入汇总']);
+                    const span = taskDetails.length > 0 ? taskDetails.length + 1 : 2;
+                    // 人员名只出现一次，后续同一人员的需求明细行用 rowspan 合并，不再重复堆叠
+                    peopleGroupRows.push({
+                        person: p.display,
+                        personRowSpan: span,
+                        rest: ['', '', '', `${p.uniqueTasksSet.size} 单`, '', `${p.hours.toFixed(1)} h`, projectSummary, '人员总工时与项目投入汇总']
+                    });
                     if (taskDetails.length === 0) {
-                        rows.push(['设计人力-需求工时明细',p.display,'','','', '0 单','0.0 h',`${p.hours.toFixed(1)} h`,projectSummary,'暂无需求明细']);
+                        peopleGroupRows.push({ skipPerson: true, rest:['','','','0 单','0.0 h',`${p.hours.toFixed(1)} h`,projectSummary,'暂无需求明细'] });
                     } else {
                         taskDetails.forEach(d => {
-                            rows.push(['设计人力-需求工时明细',p.display,d.id,d.title,d.project,'1 单',`${d.hours.toFixed(1)} h`,`${p.hours.toFixed(1)} h`,projectSummary,'该人员在此需求上的本期投入工时']);
+                            peopleGroupRows.push({ skipPerson: true, rest:[d.id,d.title,d.project,'1 单',`${d.hours.toFixed(1)} h`,`${p.hours.toFixed(1)} h`,projectSummary,'该人员在此需求上的本期投入工时'] });
                         });
                     }
                 });
             }
+            addGroup('设计人力明细', peopleGroupRows);
 
+            const creatorRows = [];
             const sortedCreators = Object.values(currentData.creatorMap).sort((a,b) => b.count - a.count);
             if (sortedCreators.length === 0) {
-                rows.push(['需求发起方大盘审计','暂无需求方提报数据','','','','','','','','']);
+                creatorRows.push({ person:'暂无需求方提报数据', rest:['','','','','','','',''] });
             } else {
                 sortedCreators.forEach(c => {
                     const pct = totalDemands > 0 ? ((c.count / totalDemands) * 100).toFixed(1) : 0;
-                    rows.push(['需求发起方大盘审计',c.name,'','', '', `${c.count} 单`, '', '', `${pct}%`, (c.taskTitles || []).join('；')]);
+                    creatorRows.push({ person:c.name, rest:['','','',`${c.count} 单`,'','',`${pct}%`,(c.taskTitles || []).join('；')] });
                 });
             }
+            addGroup('需求发起方大盘审计', creatorRows);
 
+            const projectRows = [];
             const sortedProj = Object.keys(currentData.activeProjects).map(k => ({ name: k, data: currentData.activeProjects[k] })).sort((a,b) => b.data.hours - a.data.hours);
             if (sortedProj.length === 0) {
-                rows.push(['各类目双轨对比矩阵','当前大盘无撞轨数据流转','','','','','','','','']);
+                projectRows.push({ person:'当前大盘无撞轨数据流转', rest:['','','','','','','',''] });
             } else {
                 sortedProj.forEach(p => {
                     const hoursPct = currentData.totalHours > 0 ? ((p.data.hours / currentData.totalHours) * 100).toFixed(1) : 0;
@@ -1281,33 +1309,59 @@
                     let densityTag = '正常流转';
                     if (parseFloat(tasksPct) > 25 && parseFloat(hoursPct) < 15) densityTag = '高频快钱需求';
                     else if (parseFloat(hoursPct) > 30) densityTag = '资源重度黑洞';
-                    rows.push(['各类目双轨对比矩阵',p.name,'','',p.name,`${p.data.count} 单 (${tasksPct}%)`,'',`${p.data.hours.toFixed(1)} h`,`${hoursPct}%`,densityTag]);
+                    projectRows.push({ person:p.name, rest:['','',p.name,`${p.data.count} 单 (${tasksPct}%)`,'',`${p.data.hours.toFixed(1)} h`,`${hoursPct}%`,densityTag] });
                 });
             }
+            addGroup('各类目双轨对比矩阵', projectRows);
 
+            const aiRows = [];
             const aiTotal = currentData.aiCount;
             const sortedAi = Object.keys(currentData.aiFreq).map(k => ({ name: k, count: currentData.aiFreq[k] })).sort((a,b) => b.count - a.count);
             if (aiTotal === 0 || sortedAi.length === 0) {
-                rows.push(['AI工具分布','本期未开启动作级AI协同','','','','','','','','']);
+                aiRows.push({ person:'本期未开启动作级AI协同', rest:['','','','','','','',''] });
             } else {
                 sortedAi.forEach(tool => {
                     const pct = ((tool.count / aiTotal) * 100).toFixed(1);
-                    rows.push(['AI工具分布',tool.name,'','', '', `${tool.count} 次`, '', '', `${pct}%`, '']);
+                    aiRows.push({ person:tool.name, rest:['','','',`${tool.count} 次`,'','',`${pct}%`,''] });
                 });
             }
+            addGroup('AI工具分布', aiRows);
 
             const insightText = document.getElementById('rep-intelligence-insight') ? document.getElementById('rep-intelligence-insight').innerText : '-';
-            rows.push(['智能化诊断洞察','管理层核心提示结论','','','','','','','',insightText]);
+            addGroup('智能化诊断洞察', [{ person:'管理层核心提示结论', rest:['','','','','','','',insightText] }]);
 
-            let csvContent = "data:text/csv;charset=utf-8,\uFEFF" + rows.map(row => row.map(csvCell).join(',')).join('\n');
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `TIG_多维双轨效能审计全盘数据表_${reportPeriod}.csv`);
+            let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+                table { border-collapse: collapse; font-family: Arial, 'Microsoft YaHei', sans-serif; font-size: 12px; }
+                th { background:#1f2937; color:#ffffff; border:1px solid #d9d9d9; padding:8px; font-weight:700; }
+                td.group-cell { background:#f3e8ff; color:#581c87; font-weight:700; text-align:center; }
+                td.person-cell { background:#f8fafc; font-weight:700; }
+                .text { mso-number-format:'\\@'; }
+            </style></head><body><table><thead><tr>${headers.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>`;
+
+            groups.forEach(group => {
+                group.rows.forEach((row, idx) => {
+                    html += '<tr>';
+                    if (idx === 0) html += `<td class="group-cell text" rowspan="${group.rows.length}" style="mso-number-format:'\\@'; vertical-align:middle; border:1px solid #d9d9d9; padding:6px;">${esc(group.name)}</td>`;
+                    if (!row.skipPerson) {
+                        const spanAttr = row.personRowSpan && row.personRowSpan > 1 ? `rowspan="${row.personRowSpan}" class="person-cell text"` : `class="person-cell text"`;
+                        html += textCell(row.person, spanAttr);
+                    }
+                    (row.rest || []).forEach(v => { html += textCell(v, 'class="text"'); });
+                    html += '</tr>';
+                });
+            });
+            html += '</tbody></table></body></html>';
+
+            const blob = new Blob(['\ufeff', html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `TIG_多维项目投入分析_工时明细_${reportPeriod}.xls`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            window.showToast("导出表格成功", "已导出人员总工时、每个需求投入工时、项目工时汇总的全量明细。", "success");
+            URL.revokeObjectURL(url);
+            window.showToast("导出表格成功", "已去掉货币符号，并合并左侧同名栏目与同一人员明细。", "success");
         }
 
         window.exportToPNGImage = function() {
@@ -1426,24 +1480,21 @@
                 const notifMenu = document.getElementById('notifMenu'); const notifBtn = document.getElementById('notifBtn');
                 if(notifMenu && !notifMenu.contains(e.target) && notifBtn && !notifBtn.contains(e.target)) notifMenu.classList.add('hidden'); 
             });
+            window.loadDashboardData();
+            setTimeout(() => { window.syncNotificationsFromCloud(true); }, 1500);
+            setInterval(() => { window.loadDashboardData(true); window.syncNotificationsFromCloud(true); }, 8000);
+        });
 
-            // 稳定启动：等 Supabase 模块挂载后再拉数，避免首屏一直停在“SYNCING”。
-            let bootTryCount = 0;
-            const bootTimer = setInterval(() => {
-                bootTryCount++;
-                if (window.supabase && typeof window.loadDashboardData === 'function') {
-                    clearInterval(bootTimer);
-                    window.loadDashboardData();
-                    setTimeout(() => { window.syncNotificationsFromCloud(true); }, 1500);
-                    setInterval(() => { window.loadDashboardData(true); window.syncNotificationsFromCloud(true); }, 8000);
-                } else if (bootTryCount > 40) {
-                    clearInterval(bootTimer);
-                    const loadingEl = document.getElementById('dashboard-loading');
-                    if (loadingEl) {
-                        loadingEl.innerHTML = '<div class="text-center px-8"><p class="text-rose-400 font-bold mb-2">数据模块未加载</p><p class="text-xs text-zinc-500 leading-relaxed max-w-md">请确认 supabase-config.js 与当前页面在同一目录，或刷新页面重试。</p></div>';
-                    }
+        // 兜底启动：避免模块脚本偶发早于函数挂载或网络慢时页面一直停在 loading。
+        // 不改变原业务逻辑，只在首屏仍未完成初始化时补拉一次数据。
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                const loadingEl = document.getElementById('dashboard-loading');
+                const stillLoading = loadingEl && !loadingEl.classList.contains('hidden');
+                if (stillLoading && window.supabase && typeof window.loadDashboardData === 'function') {
+                    window.loadDashboardData(false);
                 }
-            }, 100);
+            }, 350);
         });
     </script>
 </body>
