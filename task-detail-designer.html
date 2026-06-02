@@ -4,6 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>设计执行工作台 - 戴维斯设计需求管理中心</title>
+    <script>
+        (function () {
+            try {
+                var savedTheme = localStorage.getItem('requestHallTheme') || 'dark';
+                if (savedTheme === 'light') {
+                    document.documentElement.classList.add('theme-light');
+                } else {
+                    document.documentElement.classList.add('theme-dark');
+                }
+            } catch (e) {
+                document.documentElement.classList.add('theme-dark');
+            }
+        })();
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
@@ -25,6 +39,222 @@
         #image-preview-modal.visible { display: flex; opacity: 1; }
         .timeline-line { position: absolute; left: 11px; top: 24px; bottom: -8px; width: 2px; background-color: rgba(255,255,255,0.05); z-index: 0; }
         .glow-bg { position: absolute; top: -20%; left: -10%; w-[600px]; h-[600px]; border-radius: 50%; filter: blur(150px); pointer-events: none; z-index: 0; transition: background-color 0.5s ease; }
+
+
+        /* =========================
+           Theme sync with index (1).html
+           深色模式不改原样；以下只在开灯模式生效
+        ========================== */
+        html.theme-light body {
+            background: #f6f7fb !important;
+            color: #1f2937 !important;
+        }
+        html.theme-light body > .absolute.inset-0,
+        html.theme-light .bg-\[\#09090b\],
+        html.theme-light .bg-\[\#0c0c0e\],
+        html.theme-light .bg-\[\#121217\],
+        html.theme-light .bg-\[\#141417\],
+        html.theme-light .bg-\[\#16161d\],
+        html.theme-light .bg-\[\#18181b\],
+        html.theme-light .bg-\[\#1a1a1f\],
+        html.theme-light .bg-\[\#1a1a24\],
+        html.theme-light .bg-\[\#27272a\] {
+            background-color: #ffffff !important;
+        }
+        html.theme-light main,
+        html.theme-light aside,
+        html.theme-light header {
+            background: rgba(255,255,255,0.86) !important;
+            color: #1f2937 !important;
+        }
+        html.theme-light main {
+            background: linear-gradient(135deg, #ffffff 0%, #f4f6fb 55%, #eef2ff 100%) !important;
+        }
+        html.theme-light aside {
+            background: #ffffff !important;
+            border-color: #e5e7eb !important;
+            box-shadow: 1px 0 0 rgba(15,23,42,0.04);
+        }
+        html.theme-light header {
+            border-color: #e5e7eb !important;
+            box-shadow: 0 1px 0 rgba(15,23,42,0.04);
+        }
+        html.theme-light .border-white\/5,
+        html.theme-light .border-white\/10,
+        html.theme-light .border-zinc-700,
+        html.theme-light .border-zinc-800 {
+            border-color: #e5e7eb !important;
+        }
+        html.theme-light .text-white,
+        html.theme-light .text-zinc-100,
+        html.theme-light .text-zinc-200,
+        html.theme-light .text-zinc-300 {
+            color: #111827 !important;
+        }
+        html.theme-light .text-zinc-400,
+        html.theme-light .text-zinc-500 {
+            color: #6b7280 !important;
+        }
+        html.theme-light .text-zinc-600 {
+            color: #9ca3af !important;
+        }
+        html.theme-light .text-orange-400,
+        html.theme-light .text-orange-500 {
+            color: #ea580c !important;
+        }
+        html.theme-light .text-sky-400,
+        html.theme-light .text-sky-500 {
+            color: #0284c7 !important;
+        }
+        html.theme-light .text-emerald-400,
+        html.theme-light .text-emerald-500 {
+            color: #059669 !important;
+        }
+        html.theme-light .text-rose-400,
+        html.theme-light .text-rose-500 {
+            color: #e11d48 !important;
+        }
+        html.theme-light .text-indigo-400,
+        html.theme-light .text-indigo-500 {
+            color: #4f46e5 !important;
+        }
+        html.theme-light .bg-white\/5,
+        html.theme-light .bg-white\/10,
+        html.theme-light .bg-zinc-800,
+        html.theme-light .bg-zinc-900 {
+            background-color: #f3f4f6 !important;
+        }
+        html.theme-light .hover\:bg-white\/5:hover,
+        html.theme-light .hover\:bg-white\/10:hover,
+        html.theme-light .hover\:bg-zinc-700:hover {
+            background-color: #eef2ff !important;
+        }
+        html.theme-light input,
+        html.theme-light textarea,
+        html.theme-light select {
+            background-color: #ffffff !important;
+            color: #111827 !important;
+            border-color: #d1d5db !important;
+        }
+        html.theme-light input::placeholder,
+        html.theme-light textarea::placeholder {
+            color: #9ca3af !important;
+        }
+        html.theme-light input[type="date"] {
+            color-scheme: light !important;
+        }
+        html.theme-light #header-id-badge,
+        html.theme-light #smart-action-panel,
+        html.theme-light #resource-summary-panel,
+        html.theme-light #version-history-container > div,
+        html.theme-light #version-history-block + div,
+        html.theme-light #task-timeline-container,
+        html.theme-light #req-desc-display,
+        html.theme-light #dt-link-container,
+        html.theme-light #reject-feedback-block,
+        html.theme-light #designer-upload-area > div,
+        html.theme-light #accept-modal,
+        html.theme-light #reject-modal,
+        html.theme-light #pwd-modal,
+        html.theme-light #custom-dialog,
+        html.theme-light #notifMenu,
+        html.theme-light #action-toast > div {
+            background-color: #ffffff !important;
+            border-color: #e5e7eb !important;
+            color: #111827 !important;
+            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.10) !important;
+        }
+        html.theme-light #smart-action-panel,
+        html.theme-light #resource-summary-panel,
+        html.theme-light #version-history-container > div,
+        html.theme-light #designer-upload-area > div {
+            border-radius: 24px;
+        }
+        html.theme-light #dropzone {
+            background-color: #f8fafc !important;
+            border-color: #d1d5db !important;
+            color: #6b7280 !important;
+        }
+        html.theme-light #dropzone:hover {
+            border-color: rgba(249, 115, 22, 0.55) !important;
+            background-color: #fff7ed !important;
+        }
+        html.theme-light .timeline-line {
+            background-color: #e5e7eb !important;
+        }
+        html.theme-light .ai-tool-cb + div {
+            background-color: #ffffff !important;
+            color: #4b5563 !important;
+            border-color: #d1d5db !important;
+        }
+        html.theme-light .ai-tool-cb:checked + div {
+            background-color: #ecfdf5 !important;
+            border-color: #34d399 !important;
+            color: #047857 !important;
+        }
+        html.theme-light .bg-orange-600,
+        html.theme-light .hover\:bg-orange-500:hover,
+        html.theme-light .bg-sky-600,
+        html.theme-light .hover\:bg-sky-500:hover,
+        html.theme-light .bg-rose-600,
+        html.theme-light .hover\:bg-rose-500:hover,
+        html.theme-light .bg-emerald-600,
+        html.theme-light .hover\:bg-emerald-500:hover,
+        html.theme-light .bg-zinc-800.text-white,
+        html.theme-light button[class*="bg-orange-600"],
+        html.theme-light button[class*="bg-sky-600"],
+        html.theme-light button[class*="bg-rose-600"],
+        html.theme-light button[class*="bg-emerald-600"] {
+            color: #ffffff !important;
+        }
+        html.theme-light button:not([class*="bg-orange-600"]):not([class*="bg-sky-600"]):not([class*="bg-rose-600"]):not([class*="bg-emerald-600"]) {
+            color: inherit;
+        }
+        html.theme-light button[class*="bg-transparent"],
+        html.theme-light button[class*="bg-white/5"],
+        html.theme-light button[class*="bg-[#1a1a24]"],
+        html.theme-light button[class*="bg-zinc-800"] {
+            background-color: #f3f4f6 !important;
+            color: #374151 !important;
+            border-color: #d1d5db !important;
+        }
+        html.theme-light button[class*="bg-transparent"]:hover,
+        html.theme-light button[class*="bg-white/5"]:hover,
+        html.theme-light button[class*="bg-[#1a1a24]"]:hover,
+        html.theme-light button[class*="bg-zinc-800"]:hover {
+            background-color: #e5e7eb !important;
+            color: #111827 !important;
+        }
+        html.theme-light #notifMenu {
+            position: absolute;
+            z-index: 999999 !important;
+        }
+        html.theme-light #notifMenu .border-b,
+        html.theme-light #notifMenu .border-t {
+            border-color: #e5e7eb !important;
+        }
+        html.theme-light #action-toast {
+            z-index: 1000000 !important;
+        }
+        html.theme-light .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.55) !important;
+        }
+        html.theme-light .glow-bg,
+        html.theme-light #dynamic-glow {
+            background: radial-gradient(circle, rgba(249,115,22,0.10) 0%, rgba(249,115,22,0.03) 45%, transparent 72%) !important;
+        }
+        html.theme-light #themeToggleBtn {
+            background: #fff7ed !important;
+            color: #f59e0b !important;
+            border-color: #fed7aa !important;
+            box-shadow: 0 8px 22px rgba(245, 158, 11, 0.14) !important;
+        }
+        html.theme-dark #themeToggleBtn {
+            background: #141417 !important;
+            color: #f59e0b !important;
+            border-color: rgba(255,255,255,0.05) !important;
+        }
+
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-orange-500/30 text-zinc-300">
@@ -70,7 +300,15 @@
             </div>
             
             <div class="flex items-center gap-5 relative">
-                
+
+                <button id="themeToggleBtn" onclick="window.toggleThemeMode(event)" class="w-11 h-11 rounded-2xl bg-[#141417] border border-white/5 flex items-center justify-center text-orange-400 hover:text-orange-300 hover:bg-white/5 transition-colors btn-press relative" title="切换开灯/关灯">
+                    <svg id="themeToggleIcon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 18h6"></path>
+                        <path d="M10 22h4"></path>
+                        <path d="M8.5 14.5c-1.7-1.2-2.7-3.1-2.7-5.2A6.2 6.2 0 0 1 12 3a6.2 6.2 0 0 1 6.2 6.3c0 2.1-1 4-2.7 5.2-.6.4-.9 1.1-.9 1.8H9.4c0-.7-.3-1.4-.9-1.8Z"></path>
+                    </svg>
+                </button>
+
                 <div class="relative z-[120]" id="notif-wrapper">
                     <button id="notifBtn" class="w-11 h-11 rounded-2xl bg-[#141417] border border-white/5 flex items-center justify-center text-zinc-400 hover:text-white transition-colors btn-press relative">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
@@ -247,6 +485,32 @@
     </script>
 
     <script>
+
+        // ================= 开灯 / 关灯主题同步 =================
+        (function () {
+            function getTheme() {
+                try { return localStorage.getItem('requestHallTheme') || 'dark'; } catch(e) { return 'dark'; }
+            }
+            function applyTheme(theme) {
+                var root = document.documentElement;
+                root.classList.toggle('theme-light', theme === 'light');
+                root.classList.toggle('theme-dark', theme !== 'light');
+                var btn = document.getElementById('themeToggleBtn');
+                if (btn) btn.setAttribute('aria-label', theme === 'light' ? '切换到关灯模式' : '切换到开灯模式');
+            }
+            window.applyRequestHallTheme = applyTheme;
+            window.toggleThemeMode = function (event) {
+                if (event) event.stopPropagation();
+                var next = getTheme() === 'light' ? 'dark' : 'light';
+                try { localStorage.setItem('requestHallTheme', next); } catch(e) {}
+                applyTheme(next);
+            };
+            document.addEventListener('DOMContentLoaded', function () { applyTheme(getTheme()); });
+            window.addEventListener('storage', function (e) {
+                if (e.key === 'requestHallTheme') applyTheme(e.newValue || 'dark');
+            });
+        })();
+
         const safeSetTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.innerText = txt; };
         function showToast(title, desc, type = 'success') {
             const toast = document.getElementById('action-toast');
