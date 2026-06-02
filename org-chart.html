@@ -4,19 +4,181 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>组织架构与账号管理 - 戴维斯设计需求管理中心</title>
-
     <script>
-        // 主题预加载：先于 Tailwind 渲染读取，避免开灯模式从其他页面跳转时闪黑
+        // 主题预加载：只加 class，不 document.write，避免页面结构被写坏
         (function() {
             try {
                 if (localStorage.getItem('requestHallTheme') === 'light') {
                     document.documentElement.classList.add('theme-light-preload');
-                    document.documentElement.style.background = '#F4F5F7';
-                    document.write('<style id="theme-preload-style">html,body{background:#F4F5F7!important;color:#1D1D1F!important;} .theme-light-preload .bg-\\[\\#09090b\\],.theme-light-preload .bg-\\[\\#0c0c0e\\]{background-color:#F4F5F7!important;} .theme-light-preload aside,.theme-light-preload header{background:rgba(255,255,255,.78)!important;border-color:rgba(0,0,0,.06)!important;}<\\/style>');
                 }
             } catch(e) {}
         })();
     </script>
+    <style id="theme-preload-style">
+        html.theme-light-preload, html.theme-light-preload body { background:#F4F5F7 !important; color:#1D1D1F !important; }
+
+
+        /* ================= 开灯/关灯主题：同步 index，不影响深色原样式 ================= */
+        body.theme-light {
+            background: #F4F5F7 !important;
+            color: #1D1D1F !important;
+            -webkit-font-smoothing: antialiased;
+        }
+        body.theme-light .absolute.inset-0 { background: #F4F5F7 !important; }
+        body.theme-light .bg-glow-purple {
+            background: radial-gradient(circle, rgba(168,85,247,0.08) 0%, transparent 68%) !important;
+            opacity: 1 !important;
+        }
+        body.theme-light aside {
+            background: rgba(255,255,255,0.78) !important;
+            backdrop-filter: blur(24px) saturate(180%);
+            border-color: rgba(0,0,0,0.06) !important;
+        }
+        body.theme-light #main-content-area { background: #F4F5F7 !important; }
+        body.theme-light [class*="bg-[#09090b]"],
+        body.theme-light [class*="bg-[#0c0c0e]"] { background-color: #FFFFFF !important; }
+        body.theme-light [class*="bg-[#121217]"],
+        body.theme-light [class*="bg-[#141417]"],
+        body.theme-light [class*="bg-[#18181b]"],
+        body.theme-light [class*="bg-[#1a1a1f]"],
+        body.theme-light [class*="bg-[#2a2a35]"] {
+            background-color: #FFFFFF !important;
+            border-color: rgba(0,0,0,0.06) !important;
+        }
+        body.theme-light [class*="bg-white/5"],
+        body.theme-light [class*="bg-white/10"],
+        body.theme-light [class*="bg-white/[0.01]"],
+        body.theme-light [class*="bg-white/[0.02]"] {
+            background-color: #F1F5F9 !important;
+            border-color: rgba(0,0,0,0.05) !important;
+        }
+        body.theme-light [class*="border-white/5"],
+        body.theme-light [class*="border-white/10"],
+        body.theme-light [class*="border-zinc-700"],
+        body.theme-light [class*="border-zinc-800"] { border-color: rgba(0,0,0,0.06) !important; }
+        body.theme-light h1,
+        body.theme-light h2,
+        body.theme-light h3,
+        body.theme-light h4,
+        body.theme-light .text-white,
+        body.theme-light .text-zinc-100,
+        body.theme-light .text-zinc-200,
+        body.theme-light .text-zinc-300 { color: #1D1D1F !important; }
+        body.theme-light .text-zinc-400 { color: #515154 !important; }
+        body.theme-light .text-zinc-500 { color: #86868B !important; }
+        body.theme-light .text-zinc-600 { color: #A1A1A6 !important; }
+        body.theme-light .text-fuchsia-400,
+        body.theme-light .text-fuchsia-500 { color: #A21CAF !important; }
+        body.theme-light .text-indigo-400,
+        body.theme-light .text-indigo-500 { color: #4338CA !important; }
+        body.theme-light .text-orange-400,
+        body.theme-light .text-orange-500 { color: #EA580C !important; }
+        body.theme-light .text-rose-400,
+        body.theme-light .text-rose-500 { color: #E11D48 !important; }
+        body.theme-light .text-emerald-400,
+        body.theme-light .text-emerald-500 { color: #059669 !important; }
+        body.theme-light .bg-fuchsia-600,
+        body.theme-light .bg-fuchsia-700,
+        body.theme-light .bg-indigo-600,
+        body.theme-light .bg-indigo-700,
+        body.theme-light .bg-orange-600,
+        body.theme-light .bg-orange-700,
+        body.theme-light .bg-rose-600,
+        body.theme-light .bg-rose-700,
+        body.theme-light .bg-emerald-600,
+        body.theme-light button.bg-fuchsia-600,
+        body.theme-light button.bg-zinc-800.text-white,
+        body.theme-light #sidebar-avatar {
+            color: #FFFFFF !important;
+        }
+        body.theme-light .shadow-2xl,
+        body.theme-light .shadow-xl,
+        body.theme-light .shadow-lg,
+        body.theme-light [class*="shadow-"] {
+            box-shadow: 0 20px 40px -16px rgba(15,23,42,0.14), 0 4px 12px rgba(15,23,42,0.04) !important;
+        }
+        body.theme-light input,
+        body.theme-light select,
+        body.theme-light textarea {
+            background: #F8FAFC !important;
+            color: #1D1D1F !important;
+            border-color: rgba(0,0,0,0.08) !important;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.01) !important;
+        }
+        body.theme-light input:focus,
+        body.theme-light textarea:focus {
+            background: #FFFFFF !important;
+            border-color: #E879F9 !important;
+            box-shadow: 0 0 0 3px rgba(217,70,239,0.10) !important;
+        }
+        body.theme-light input::placeholder { color: #94A3B8 !important; }
+        body.theme-light thead,
+        body.theme-light thead[class*="bg-[#18181b]"] {
+            background: #F8FAFC !important;
+        }
+        body.theme-light tbody.divide-y > :not([hidden]) ~ :not([hidden]) {
+            border-color: rgba(0,0,0,0.06) !important;
+        }
+        body.theme-light tr:hover td { background-color: #F8FAFC !important; }
+        body.theme-light #user-table-body tr td { border-color: rgba(0,0,0,0.06) !important; }
+        body.theme-light #table-loading {
+            background: rgba(255,255,255,0.82) !important;
+            backdrop-filter: blur(12px);
+        }
+        body.theme-light .perm-checkbox:checked + div {
+            background-color: #FDF4FF !important;
+            border-color: #D946EF !important;
+            color: #A21CAF !important;
+            font-weight: 700;
+        }
+        body.theme-light .bg-fuchsia-500\/10,
+        body.theme-light .bg-fuchsia-500\/20 { background-color: #FDF4FF !important; border-color: #F5D0FE !important; }
+        body.theme-light .bg-indigo-500\/10,
+        body.theme-light .bg-indigo-500\/20 { background-color: #EEF2FF !important; border-color: #C7D2FE !important; }
+        body.theme-light .bg-orange-500\/10,
+        body.theme-light .bg-orange-500\/20 { background-color: #FFF7ED !important; border-color: #FFEDD5 !important; }
+        body.theme-light .bg-rose-500\/10,
+        body.theme-light .bg-rose-500\/20 { background-color: #FFF1F2 !important; border-color: #FECDD3 !important; }
+        body.theme-light .bg-emerald-500\/10,
+        body.theme-light .bg-emerald-500\/20 { background-color: #ECFDF5 !important; border-color: #D1FAE5 !important; }
+        body.theme-light #user-modal-overlay,
+        body.theme-light #custom-dialog-overlay,
+        body.theme-light #pwd-modal-overlay {
+            background: rgba(15,23,42,0.32) !important;
+        }
+        body.theme-light #user-modal,
+        body.theme-light #custom-dialog-box,
+        body.theme-light #pwd-modal {
+            background: #FFFFFF !important;
+            border-color: rgba(0,0,0,0.06) !important;
+        }
+        body.theme-light #action-toast > div {
+            background: #FFFFFF !important;
+            border-color: rgba(0,0,0,0.06) !important;
+            box-shadow: 0 20px 40px -16px rgba(15,23,42,0.26), 0 8px 16px rgba(15,23,42,0.08) !important;
+        }
+        body.theme-light #toast-title { color: #1D1D1F !important; }
+        body.theme-light #toast-desc { color: #515154 !important; }
+        #themeToggleBtn {
+            width: 44px !important;
+            height: 44px !important;
+            padding: 0 !important;
+            justify-content: center;
+            border-radius: 16px !important;
+        }
+        body.theme-light #themeToggleBtn {
+            background: #FFFFFF !important;
+            color: #F59E0B !important;
+            border-color: rgba(0,0,0,0.06) !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important;
+        }
+        body.theme-light #themeToggleBtn:hover {
+            background: #FFFBEB !important;
+            border-color: rgba(245,158,11,0.2) !important;
+        }
+        body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); }
+        body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.25); }
+    </style>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
@@ -40,222 +202,10 @@
         @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
         .perm-checkbox:checked + div { background-color: rgba(168, 85, 247, 0.15); border-color: #a855f7; color: #c084fc; }
-
-
-        /* ================= 开灯/关灯主题：与 index (1).html 同步 ================= */
-        html.theme-light-preload,
-        html.theme-light-preload body {
-            background: #F4F5F7 !important;
-            color: #1D1D1F !important;
-        }
-
-        body.theme-light {
-            background: #F4F5F7 !important;
-            color: #1D1D1F !important;
-            -webkit-font-smoothing: antialiased;
-        }
-
-        body.theme-light > .absolute.inset-0 {
-            background: #F4F5F7 !important;
-        }
-        body.theme-light .bg-glow-purple {
-            background: radial-gradient(circle, rgba(217,70,239,0.055) 0%, transparent 72%) !important;
-            opacity: 1 !important;
-        }
-
-        body.theme-light aside,
-        body.theme-light main,
-        body.theme-light header {
-            background: rgba(255,255,255,0.78) !important;
-            backdrop-filter: blur(24px) saturate(180%);
-            border-color: rgba(0,0,0,0.06) !important;
-        }
-        body.theme-light #main-content-area {
-            background: transparent !important;
-        }
-
-        body.theme-light [class*="bg-[#09090b]"],
-        body.theme-light [class*="bg-[#0c0c0e]"] {
-            background-color: #FFFFFF !important;
-        }
-        body.theme-light [class*="bg-[#121217]"],
-        body.theme-light [class*="bg-[#141417]"],
-        body.theme-light [class*="bg-[#18181b]"],
-        body.theme-light [class*="bg-[#1a1a1f]"],
-        body.theme-light [class*="bg-[#2a2a35]"] {
-            background-color: #FFFFFF !important;
-            border-color: rgba(0,0,0,0.06) !important;
-        }
-
-        body.theme-light [class*="bg-white/5"],
-        body.theme-light [class*="bg-white/10"],
-        body.theme-light [class*="bg-white/[0.01]"],
-        body.theme-light [class*="bg-white/[0.02]"] {
-            background-color: #F1F5F9 !important;
-            border-color: rgba(0,0,0,0.05) !important;
-        }
-        body.theme-light [class*="hover:bg-white/5"]:hover,
-        body.theme-light [class*="hover:bg-white/10"]:hover {
-            background-color: #E2E8F0 !important;
-            color: #0F172A !important;
-        }
-        body.theme-light [class*="border-white/5"],
-        body.theme-light [class*="border-white/10"],
-        body.theme-light [class*="border-zinc-700"],
-        body.theme-light [class*="border-zinc-800"] {
-            border-color: rgba(0,0,0,0.06) !important;
-        }
-
-        body.theme-light h1,
-        body.theme-light h2,
-        body.theme-light h3,
-        body.theme-light h4,
-        body.theme-light .text-white,
-        body.theme-light .text-zinc-100,
-        body.theme-light .text-zinc-200,
-        body.theme-light .text-zinc-300 {
-            color: #1D1D1F !important;
-        }
-        body.theme-light .text-zinc-400 { color: #515154 !important; }
-        body.theme-light .text-zinc-500 { color: #86868B !important; }
-        body.theme-light .text-zinc-600 { color: #A1A1A6 !important; }
-
-        body.theme-light .text-fuchsia-400,
-        body.theme-light .text-fuchsia-500 { color: #A21CAF !important; }
-        body.theme-light .text-purple-400,
-        body.theme-light .text-purple-500 { color: #7E22CE !important; }
-        body.theme-light .text-indigo-400,
-        body.theme-light .text-indigo-500 { color: #4338CA !important; }
-        body.theme-light .text-orange-400,
-        body.theme-light .text-orange-500 { color: #EA580C !important; }
-        body.theme-light .text-rose-400,
-        body.theme-light .text-rose-500 { color: #E11D48 !important; }
-        body.theme-light .text-emerald-400,
-        body.theme-light .text-emerald-500 { color: #059669 !important; }
-
-        body.theme-light .bg-fuchsia-500\/10,
-        body.theme-light .bg-fuchsia-500\/20 { background-color: #FDF4FF !important; border-color: #F5D0FE !important; }
-        body.theme-light .bg-indigo-500\/10,
-        body.theme-light .bg-indigo-500\/20 { background-color: #EEF2FF !important; border-color: #C7D2FE !important; }
-        body.theme-light .bg-orange-500\/10,
-        body.theme-light .bg-orange-500\/20 { background-color: #FFF7ED !important; border-color: #FFEDD5 !important; }
-        body.theme-light .bg-rose-500\/10,
-        body.theme-light .bg-rose-500\/20 { background-color: #FFF1F2 !important; border-color: #FECDD3 !important; }
-        body.theme-light .bg-emerald-500\/10,
-        body.theme-light .bg-emerald-500\/20 { background-color: #ECFDF5 !important; border-color: #D1FAE5 !important; }
-
-        body.theme-light table thead,
-        body.theme-light thead {
-            background: #F8FAFC !important;
-        }
-        body.theme-light tbody tr,
-        body.theme-light tbody td {
-            border-color: #E5E7EB !important;
-        }
-        body.theme-light tr:hover td {
-            background-color: #F8FAFC !important;
-        }
-
-        body.theme-light input,
-        body.theme-light select,
-        body.theme-light textarea {
-            background: #F8FAFC !important;
-            color: #1D1D1F !important;
-            border-color: rgba(0,0,0,0.08) !important;
-            box-shadow: inset 0 1px 2px rgba(0,0,0,0.01) !important;
-        }
-        body.theme-light input:focus,
-        body.theme-light textarea:focus,
-        body.theme-light select:focus {
-            background: #FFFFFF !important;
-            border-color: #D946EF !important;
-            box-shadow: 0 0 0 3px rgba(217,70,239,0.1) !important;
-        }
-        body.theme-light input::placeholder,
-        body.theme-light textarea::placeholder { color: #94A3B8 !important; }
-
-        body.theme-light .perm-checkbox:checked + div {
-            background-color: #FDF4FF !important;
-            border-color: #D946EF !important;
-            color: #A21CAF !important;
-            font-weight: 700;
-        }
-
-        body.theme-light #user-modal,
-        body.theme-light #custom-dialog-box,
-        body.theme-light #pwd-modal {
-            background: #FFFFFF !important;
-            border-color: rgba(0,0,0,0.06) !important;
-            box-shadow: 0 24px 70px -22px rgba(15,23,42,0.32), 0 8px 20px rgba(15,23,42,0.08) !important;
-        }
-        body.theme-light #user-modal-overlay,
-        body.theme-light #custom-dialog-overlay,
-        body.theme-light #pwd-modal-overlay {
-            background: rgba(15,23,42,0.32) !important;
-        }
-        body.theme-light #table-loading {
-            background: rgba(255,255,255,0.82) !important;
-        }
-
-        body.theme-light #action-toast > div {
-            background: #FFFFFF !important;
-            border-color: rgba(0,0,0,0.06) !important;
-            box-shadow: 0 20px 40px -16px rgba(15,23,42,0.26), 0 8px 16px rgba(15,23,42,0.08) !important;
-        }
-        body.theme-light #toast-title { color: #1D1D1F !important; }
-        body.theme-light #toast-desc { color: #515154 !important; }
-
-        body.theme-light button.bg-fuchsia-600,
-        body.theme-light button.bg-fuchsia-600:hover,
-        body.theme-light .bg-fuchsia-600,
-        body.theme-light .bg-rose-600,
-        body.theme-light .bg-orange-600,
-        body.theme-light .bg-fuchsia-700,
-        body.theme-light .bg-rose-700,
-        body.theme-light #sidebar-avatar {
-            color: #FFFFFF !important;
-        }
-
-        body.theme-light button.bg-zinc-800,
-        body.theme-light button.bg-zinc-800:hover {
-            background: #EEF2FF !important;
-            color: #4338CA !important;
-            border-color: #C7D2FE !important;
-        }
-
-        #themeToggleBtn {
-            width: 44px !important;
-            height: 44px !important;
-            padding: 0 !important;
-            justify-content: center;
-            border-radius: 16px !important;
-        }
-        body.theme-light #themeToggleBtn {
-            background: #FFFFFF !important;
-            color: #F59E0B !important;
-            border-color: rgba(0,0,0,0.06) !important;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important;
-        }
-        body.theme-light #themeToggleBtn:hover {
-            background: #FFFBEB !important;
-            border-color: rgba(245,158,11,0.2) !important;
-        }
-
-        body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); }
-        body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.25); }
-
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-purple-500/30 text-zinc-300">
-
-    <script>
-        try {
-            if (localStorage.getItem('requestHallTheme') === 'light') {
-                document.body.classList.add('theme-light');
-            }
-        } catch(e) {}
-    </script>
-
+    <script>try{if(localStorage.getItem('requestHallTheme')==='light'){document.body.classList.add('theme-light');}}catch(e){}</script>
 
     <div class="absolute inset-0 bg-[#09090b] z-0 pointer-events-none"></div>
     <div class="bg-glow-purple"></div>
@@ -328,12 +278,10 @@
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                         新增业务成员
                     </button>
-                    <div class="w-px h-6 bg-white/10 mx-2"></div>
-
                     <button id="themeToggleBtn" onclick="window.togglePageTheme()" class="bg-[#141417] border border-white/10 text-zinc-300 rounded-[14px] flex items-center justify-center hover:bg-[#1a1a1f] transition-colors btn-press" title="切换浅色/深色页面">
                         <span id="themeToggleIcon" class="flex items-center justify-center"></span>
                     </button>
-
+                    <div class="w-px h-6 bg-white/10 mx-2"></div>
                     <div class="relative" id="identity-wrapper">
                         <button id="identityBtn" class="bg-[#141417] border border-white/10 text-zinc-300 px-4 py-2.5 rounded-xl flex items-center gap-2.5 text-[12px] font-medium hover:bg-white/5 transition-colors btn-press">加载中...</button>
                     </div>
@@ -516,7 +464,6 @@
             document.documentElement.classList.toggle('theme-light-preload', isLight);
             document.body.classList.toggle('theme-light', isLight);
             localStorage.setItem('requestHallTheme', isLight ? 'light' : 'dark');
-
             const icon = document.getElementById('themeToggleIcon');
             const btn = document.getElementById('themeToggleBtn');
             if (icon) {
