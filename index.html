@@ -51,14 +51,25 @@
         .group-last .timeline-line { display: none !important; }
 
 
-        /* ================= 开灯/关灯主题切换：只改肤色，不改结构 ================= */
-        body.theme-light { background-color: #f4f6fb !important; color: #1f2937 !important; }
-        body.theme-light .absolute.inset-0 { background-color: #f4f6fb !important; }
+        /* ================= 灯光主题：柔和浅色模式，只换肤不改结构 ================= */
+        body.theme-light {
+            background: #f5f5f7 !important;
+            color: #1d1d1f !important;
+            -webkit-font-smoothing: antialiased;
+        }
+        body.theme-light .absolute.inset-0 { background: #f5f5f7 !important; }
+        body.theme-light .absolute.top-0.right-1\/4 { opacity: 0.28 !important; }
+
+        /* 大面积承载层：用 Apple / Google 式暖白与轻灰，避免刺眼纯白 */
         body.theme-light aside,
-        body.theme-light main,
-        body.theme-light header,
+        body.theme-light header {
+            background: rgba(255,255,255,0.78) !important;
+            backdrop-filter: blur(22px) saturate(160%);
+            border-color: rgba(60,64,67,0.10) !important;
+        }
+        body.theme-light main { background: #f5f5f7 !important; }
         body.theme-light [class*="bg-[#09090b]"],
-        body.theme-light [class*="bg-[#0c0c0e]"],
+        body.theme-light [class*="bg-[#0c0c0e]"] { background-color: #f5f5f7 !important; }
         body.theme-light [class*="bg-[#121217]"],
         body.theme-light [class*="bg-[#141417]"],
         body.theme-light [class*="bg-[#16161d]"],
@@ -66,6 +77,7 @@
         body.theme-light [class*="bg-[#1a1a1f]"],
         body.theme-light [class*="bg-[#1a1a24]"],
         body.theme-light [class*="bg-[#2a2a35]"] { background-color: #ffffff !important; }
+
         body.theme-light .interactive-card,
         body.theme-light #custom-dialog,
         body.theme-light #pwd-modal,
@@ -76,36 +88,79 @@
         body.theme-light #assignee-dropdown,
         body.theme-light #tasks-scroll-area > .sticky,
         body.theme-light #all-timelines-container,
-        body.theme-light .active-card { background-color: #ffffff !important; }
-        body.theme-light .interactive-card:hover { background-color: #f8fafc !important; box-shadow: 0 10px 26px -14px rgba(15,23,42,0.28) !important; }
+        body.theme-light .active-card {
+            background: #ffffff !important;
+            border-color: rgba(60,64,67,0.12) !important;
+        }
+        body.theme-light .interactive-card {
+            box-shadow: 0 10px 34px -24px rgba(15,23,42,0.38), 0 1px 2px rgba(15,23,42,0.04) !important;
+        }
+        body.theme-light .interactive-card:hover {
+            background: #fbfbfd !important;
+            box-shadow: 0 18px 44px -26px rgba(15,23,42,0.42), 0 1px 2px rgba(15,23,42,0.06) !important;
+        }
+
+        /* 系统规则提示：不再用黑底，改成柔和蜂蜜色卡片 */
+        body.theme-light [class*="bg-[#1a1306]"] {
+            background: linear-gradient(135deg, #fff8e8 0%, #fff3d6 100%) !important;
+            border-color: rgba(180,115,0,0.18) !important;
+        }
+        body.theme-light [class*="text-amber"] { color: #9a6700 !important; }
+
         body.theme-light [class*="bg-white/5"],
         body.theme-light [class*="bg-white/10"],
         body.theme-light [class*="bg-white/[0.01]"],
-        body.theme-light [class*="bg-white/[0.02]"] { background-color: #f1f5f9 !important; }
+        body.theme-light [class*="bg-white/[0.02]"] { background-color: #eef1f6 !important; }
         body.theme-light [class*="border-white/5"],
         body.theme-light [class*="border-white/10"],
         body.theme-light [class*="border-zinc-700"],
-        body.theme-light [class*="border-zinc-800"] { border-color: #e2e8f0 !important; }
+        body.theme-light [class*="border-zinc-800"] { border-color: rgba(60,64,67,0.12) !important; }
+
+        /* 字色层级：深色文字只落在浅色卡片上，保留品牌色用于状态 */
         body.theme-light [class*="text-white"],
         body.theme-light [class*="text-zinc-100"],
         body.theme-light [class*="text-zinc-200"],
-        body.theme-light [class*="text-zinc-300"] { color: #111827 !important; }
+        body.theme-light [class*="text-zinc-300"] { color: #1d1d1f !important; }
         body.theme-light [class*="text-zinc-400"],
         body.theme-light [class*="text-zinc-500"],
-        body.theme-light [class*="text-zinc-600"] { color: #64748b !important; }
+        body.theme-light [class*="text-zinc-600"] { color: #667085 !important; }
+        body.theme-light h1, body.theme-light h2, body.theme-light h3, body.theme-light h4 { color: #1d1d1f !important; }
+
         body.theme-light input,
         body.theme-light textarea,
-        body.theme-light select { background-color: #ffffff !important; color: #111827 !important; border-color: #cbd5e1 !important; }
+        body.theme-light select {
+            background: #ffffff !important;
+            color: #1d1d1f !important;
+            border-color: rgba(60,64,67,0.18) !important;
+            box-shadow: 0 1px 2px rgba(15,23,42,0.03) !important;
+        }
         body.theme-light input::placeholder,
-        body.theme-light textarea::placeholder { color: #94a3b8 !important; }
+        body.theme-light textarea::placeholder { color: #98a2b3 !important; }
+
         body.theme-light .shadow-2xl,
         body.theme-light .shadow-xl,
         body.theme-light .shadow-lg,
-        body.theme-light [class*="shadow-"] { box-shadow: 0 12px 30px -18px rgba(15, 23, 42, 0.28) !important; }
-        body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(15, 23, 42, 0.22); }
-        body.theme-light .breathe-rose { box-shadow: inset 0 0 0 1px rgba(244,63,94,0.45), 0 0 16px rgba(244,63,94,0.12) !important; }
-        body.theme-light #themeToggleBtn { background-color: #fff7ed !important; color: #ea580c !important; border-color: rgba(249,115,22,0.25) !important; }
-        body.theme-light #themeToggleBtn:hover { background-color: #ffedd5 !important; }
+        body.theme-light [class*="shadow-"] { box-shadow: 0 18px 44px -28px rgba(15,23,42,0.34) !important; }
+        body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(60,64,67,0.24); }
+        body.theme-light .timeline-line { background-color: rgba(60,64,67,0.12) !important; }
+        body.theme-light .breathe-rose { box-shadow: inset 0 0 0 1px rgba(244,63,94,0.42), 0 0 18px rgba(244,63,94,0.10) !important; }
+
+        /* 灯泡按钮：只保留图标，状态通过图标明暗表达 */
+        #themeToggleBtn {
+            width: 44px;
+            height: 44px;
+            padding: 0 !important;
+            justify-content: center;
+            border-radius: 16px !important;
+        }
+        body.theme-light #themeToggleBtn {
+            background: #fff7df !important;
+            color: #b7791f !important;
+            border-color: rgba(183,121,31,0.20) !important;
+            box-shadow: 0 8px 20px -14px rgba(183,121,31,0.35) !important;
+        }
+        body.theme-light #themeToggleBtn:hover { background: #fff0c2 !important; }
+        body.theme-light #themeToggleBtn svg { filter: drop-shadow(0 0 8px rgba(245,158,11,0.28)); }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-indigo-500/30 text-zinc-300">
@@ -179,8 +234,8 @@
                     小戴维斯-AI
                 </button>
 
-                <button id="themeToggleBtn" onclick="window.togglePageTheme()" class="bg-[#141417] border border-white/10 text-zinc-300 px-4 py-3 rounded-[14px] flex items-center gap-2 text-[13px] font-bold hover:bg-[#1a1a1f] transition-colors btn-press" title="开灯/关灯切换页面肤色">
-                    <span id="themeToggleIcon">☀️</span><span id="themeToggleText">开灯</span>
+                <button id="themeToggleBtn" onclick="window.togglePageTheme()" class="bg-[#141417] border border-white/10 text-zinc-300 rounded-[14px] flex items-center justify-center hover:bg-[#1a1a1f] transition-colors btn-press" title="切换浅色/深色页面">
+                    <span id="themeToggleIcon" class="flex items-center justify-center"></span>
                 </button>
 
                 <div class="relative z-[120]" id="notif-wrapper">
@@ -429,11 +484,13 @@
             document.body.classList.toggle('theme-light', isLight);
             localStorage.setItem('requestHallTheme', isLight ? 'light' : 'dark');
             const icon = document.getElementById('themeToggleIcon');
-            const text = document.getElementById('themeToggleText');
             const btn = document.getElementById('themeToggleBtn');
-            if (icon) icon.innerText = isLight ? '🌙' : '☀️';
-            if (text) text.innerText = isLight ? '关灯' : '开灯';
-            if (btn) btn.title = isLight ? '关灯：切回深色页面' : '开灯：切换浅色页面';
+            if (icon) {
+                icon.innerHTML = isLight
+                    ? `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 21h6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M10 17h4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M8.5 14.5c-1.7-1.15-2.8-3.04-2.8-5.2A6.3 6.3 0 0 1 12 3a6.3 6.3 0 0 1 6.3 6.3c0 2.16-1.1 4.05-2.8 5.2-.86.58-1.22 1.07-1.35 1.5h-4.3c-.13-.43-.49-.92-1.35-1.5Z" fill="currentColor" fill-opacity="0.18" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/><path d="M12 6.5v2.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`
+                    : `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 21h6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M10 17h4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M8.5 14.5c-1.7-1.15-2.8-3.04-2.8-5.2A6.3 6.3 0 0 1 12 3a6.3 6.3 0 0 1 6.3 6.3c0 2.16-1.1 4.05-2.8 5.2-.86.58-1.22 1.07-1.35 1.5h-4.3c-.13-.43-.49-.92-1.35-1.5Z" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/><path d="M12 6.5v2.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+            }
+            if (btn) btn.title = isLight ? '切换为深色页面' : '切换为浅色页面';
         }
         window.togglePageTheme = function() {
             const current = localStorage.getItem('requestHallTheme') === 'light' ? 'light' : 'dark';
