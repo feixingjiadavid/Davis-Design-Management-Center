@@ -353,12 +353,104 @@
                 document.getElementById('dt-link-container').classList.remove('hidden');
                 document.getElementById('dt-link').innerHTML = `<a href="${d.link}" target="_blank" class="text-sky-400 hover:underline break-all">${d.link}</a>`;
             }
-            if(d.file_name && d.file_data) {
-                document.getElementById('attachment-container').innerHTML = `<button onclick="window.downloadAttachment('${d.file_name}', '${d.file_data}')" class="mt-4 text-[11px] bg-white/5 text-indigo-300 px-3 py-1.5 rounded-lg border border-white/10 hover:bg-white/10 flex items-center gap-1.5 btn-press"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg> 下载甲方源文件：${d.file_name}</button>`;
-            }
+            renderRequesterAttachment(d);
         }
 
-        window.downloadAttachment = function(name, dataBase64) { const a = document.createElement('a'); a.href = dataBase64; a.download = name; a.click(); }
+        function escapeHtml(str) {
+            return String(str || '').replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+        }
+
+        function getMimeByFileName(name) {
+            const ext = String(name || '').split('.').pop().toLowerCase();
+            const mimeMap = {
+                png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif', svg: 'image/svg+xml',
+                pdf: 'application/pdf', txt: 'text/plain', csv: 'text/csv', json: 'application/json',
+                doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                ppt: 'application/vnd.ms-powerpoint', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                zip: 'application/zip', rar: 'application/vnd.rar'
+            };
+            return mimeMap[ext] || 'application/octet-stream';
+        }
+
+        function getRequesterAttachmentPayload(task) {
+            return task.file_data || task.file_url || task.attachment_url || task.attachment_data || task.source_file_link || '';
+        }
+
+        function normalizeAttachmentHref(name, payload) {
+            if (!payload) return '';
+            const raw = String(payload).trim();
+            if (/^(https?:)?\/\//i.test(raw) || raw.startsWith('blob:')) return raw;
+            if (raw.startsWith('data:')) return raw;
+            // 兼容数据库里只存纯 base64 的情况，避免 inline onclick 被超长 base64 截断后无法点击。
+            return `data:${getMimeByFileName(name)};base64,${raw}`;
+        }
+
+        function isPreviewableAttachment(name, payload) {
+            const href = normalizeAttachmentHref(name, payload);
+            const lowerName = String(name || '').toLowerCase();
+            return /^data:image\//i.test(href) || /\.(png|jpe?g|webp|gif|svg)$/i.test(lowerName) || /^https?:\/\/.+\.(png|jpe?g|webp|gif|svg)(\?.*)?$/i.test(href);
+        }
+
+        function renderRequesterAttachment(task) {
+            const container = document.getElementById('attachment-container');
+            if (!container) return;
+            const fileName = task.file_name || task.attachment_name || '';
+            const payload = getRequesterAttachmentPayload(task);
+            container.innerHTML = '';
+            if (!fileName && !payload) return;
+
+            const safeName = escapeHtml(fileName || '甲方上传附件');
+            const canPreview = isPreviewableAttachment(fileName, payload);
+            container.innerHTML = `
+                <div class="mt-4 flex flex-wrap items-center gap-2 text-[11px]">
+                    <button type="button" id="btn-download-requester-attachment" class="bg-white/5 text-indigo-300 px-3 py-1.5 rounded-lg border border-white/10 hover:bg-white/10 flex items-center gap-1.5 btn-press">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        下载甲方源文件：<span class="max-w-[260px] truncate inline-block align-bottom">${safeName}</span>
+                    </button>
+                    ${canPreview ? `<button type="button" id="btn-preview-requester-attachment" class="bg-sky-500/10 text-sky-300 px-3 py-1.5 rounded-lg border border-sky-500/20 hover:bg-sky-500/20 flex items-center gap-1.5 btn-press"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>在线预览</button>` : ''}
+                </div>`;
+
+            document.getElementById('btn-download-requester-attachment')?.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                window.downloadAttachment(fileName || '甲方上传附件', payload);
+            });
+            document.getElementById('btn-preview-requester-attachment')?.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                window.openRequesterAttachment(fileName || '甲方上传附件', payload);
+            });
+        }
+
+        window.openRequesterAttachment = function(name, payload) {
+            const href = normalizeAttachmentHref(name, payload);
+            if (!href) return showToast('附件打不开', '没有读取到甲方上传的附件数据。', 'error');
+            if (isPreviewableAttachment(name, payload)) {
+                openPreview(href);
+                return;
+            }
+            window.open(href, '_blank', 'noopener,noreferrer');
+        }
+
+        window.downloadAttachment = function(name, payload) {
+            const href = normalizeAttachmentHref(name, payload);
+            if (!href) return showToast('下载失败', '没有读取到甲方上传的附件数据。', 'error');
+            try {
+                const a = document.createElement('a');
+                a.href = href;
+                a.download = name || '甲方上传附件';
+                a.target = '_blank';
+                a.rel = 'noopener noreferrer';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                showToast('附件已打开', '如果浏览器没有自动下载，请检查是否被拦截。', 'success');
+            } catch (err) {
+                console.error(err);
+                window.open(href, '_blank', 'noopener,noreferrer');
+            }
+        }
 
         function renderResourceSummary() {
             let stats = {};
