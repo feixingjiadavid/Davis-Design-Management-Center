@@ -53,19 +53,18 @@
 
         /* ================= 灯光主题：高级冷白质感 ================= */
         body.theme-light {
-            background: #F4F5F7 !important; /* 更高级的冷灰色底 */
-            color: #1E293B !important;
+            background: #F4F5F7 !important; 
+            color: #1D1D1F !important;
             -webkit-font-smoothing: antialiased;
         }
         body.theme-light .absolute.inset-0 { background: #F4F5F7 !important; }
-        /* 让背景的光效在浅色下变成柔和的蓝紫色晕染 */
-        body.theme-light .absolute.top-0.right-1\/4 { background: rgba(99, 102, 241, 0.08) !important; filter: blur(120px) !important; opacity: 1 !important; }
+        body.theme-light .absolute.top-0.right-1\/4 { background: rgba(99, 102, 241, 0.06) !important; filter: blur(120px) !important; opacity: 1 !important; }
 
         /* 侧边栏和顶部导航 - 磨砂玻璃白 */
         body.theme-light aside,
         body.theme-light header {
-            background: rgba(255, 255, 255, 0.85) !important;
-            backdrop-filter: blur(20px) saturate(180%);
+            background: rgba(255, 255, 255, 0.75) !important;
+            backdrop-filter: blur(24px) saturate(180%);
             border-color: rgba(0, 0, 0, 0.06) !important;
         }
         body.theme-light main { background: transparent !important; }
@@ -81,6 +80,14 @@
         body.theme-light [class*="bg-[#1a1a24]"],
         body.theme-light [class*="bg-[#2a2a35]"] { background-color: #FFFFFF !important; }
 
+        /* 💡 核心修复：进行中工单的吸顶背景，去除突兀的矩形感，与底色完美融合 */
+        body.theme-light .sticky.top-0,
+        body.theme-light #tasks-scroll-area > .sticky {
+            background: rgba(244, 245, 247, 0.85) !important;
+            backdrop-filter: blur(12px);
+            border-bottom-color: rgba(0, 0, 0, 0.06) !important;
+        }
+
         /* 交互卡片 - 纯白与高级弥散阴影 */
         body.theme-light .interactive-card,
         body.theme-light #custom-dialog,
@@ -90,7 +97,6 @@
         body.theme-light #identityMenu,
         body.theme-light #project-dropdown,
         body.theme-light #assignee-dropdown,
-        body.theme-light #tasks-scroll-area > .sticky,
         body.theme-light #all-timelines-container,
         body.theme-light .active-card {
             background: #FFFFFF !important;
@@ -110,7 +116,7 @@
             border-color: rgba(99, 102, 241, 0.5) !important;
         }
 
-        /* 系统规则提示 - 浅色暖金，取代原本的生硬黑底 */
+        /* 系统规则提示 */
         body.theme-light [class*="bg-[#1a1306]"] {
             background: linear-gradient(135deg, #FFFAF0 0%, #FFF5EB 100%) !important;
             border-color: rgba(245, 158, 11, 0.2) !important;
@@ -118,7 +124,7 @@
         }
         body.theme-light [class*="text-amber"] { color: #B45309 !important; }
 
-        /* 通用半透明白色背景重置（针对 hover 等状态） */
+        /* 通用半透明白色背景重置 */
         body.theme-light [class*="bg-white/5"],
         body.theme-light [class*="bg-white/10"],
         body.theme-light [class*="bg-white/[0.01]"],
@@ -130,23 +136,55 @@
         body.theme-light [class*="border-zinc-700"],
         body.theme-light [class*="border-zinc-800"] { border-color: rgba(0, 0, 0, 0.06) !important; }
 
-        /* 字色层级与灰度映射 - 建立层次感 */
-        body.theme-light [class*="text-white"],
-        body.theme-light [class*="text-zinc-100"],
-        body.theme-light [class*="text-zinc-200"],
-        body.theme-light h1, body.theme-light h2, body.theme-light h3, body.theme-light h4 { color: #0F172A !important; }
+        /* 💡 核心修复：精细化的字色层级控制 */
+        body.theme-light h1, body.theme-light h2, body.theme-light h3, body.theme-light h4 { color: #1D1D1F !important; }
         
-        body.theme-light [class*="text-zinc-300"] { color: #334155 !important; }
-        body.theme-light [class*="text-zinc-400"] { color: #475569 !important; }
-        body.theme-light [class*="text-zinc-500"] { color: #64748B !important; }
-        body.theme-light [class*="text-zinc-600"] { color: #94A3B8 !important; }
+        body.theme-light .text-white,
+        body.theme-light .text-zinc-100,
+        body.theme-light .text-zinc-200,
+        body.theme-light .text-zinc-300 { color: #1D1D1F !important; }
+        body.theme-light .text-zinc-400 { color: #515154 !important; }
+        body.theme-light .text-zinc-500 { color: #86868B !important; }
+        body.theme-light .text-zinc-600 { color: #A1A1A6 !important; }
 
-        /* 表单元素 - 输入框、文本域 */
+        /* 💡 核心修复：强制提权，防止全局 text-white 转黑覆盖到按钮和头像上 */
+        body.theme-light button.bg-indigo-600,
+        body.theme-light button.bg-indigo-600.text-white,
+        body.theme-light button:hover.hover\:bg-indigo-500,
+        body.theme-light button.bg-zinc-800,
+        body.theme-light button.bg-zinc-800.text-white,
+        body.theme-light button:hover.hover\:bg-zinc-700,
+        body.theme-light .bg-rose-500,
+        body.theme-light .bg-emerald-600,
+        body.theme-light #sidebar-avatar { 
+            color: #FFFFFF !important; 
+        }
+        
+        /* 防止侧边栏和顶部的标题被覆盖 */
+        body.theme-light #header-greeting,
+        body.theme-light aside h1 { color: #1D1D1F !important; }
+
+        /* 💡 核心修复：单选框和复选框选中时的颜色高亮 */
+        body.theme-light .pill-radio:checked + div,
+        body.theme-light .pill-checkbox:checked + div {
+            background-color: #EEF2FF !important;
+            border-color: #6366F1 !important;
+            color: #4338CA !important;
+            font-weight: 600;
+            box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.1) !important;
+        }
+
+        /* 💡 核心修复：覆盖内置强制黑夜模式，让日历图标在白底下显示黑色 */
+        body.theme-light input[type="date"] {
+            color-scheme: light !important;
+        }
+
+        /* 表单元素 */
         body.theme-light input,
         body.theme-light textarea,
         body.theme-light select {
             background: #F8FAFC !important;
-            color: #0F172A !important;
+            color: #1D1D1F !important;
             border-color: rgba(0, 0, 0, 0.08) !important;
             box-shadow: inset 0 1px 2px rgba(0,0,0,0.01) !important;
         }
@@ -159,20 +197,18 @@
         body.theme-light input::placeholder,
         body.theme-light textarea::placeholder { color: #94A3B8 !important; }
 
-        /* 下拉菜单和弹窗等阴影修正 */
+        /* 阴影与细节 */
         body.theme-light .shadow-2xl,
         body.theme-light .shadow-xl,
         body.theme-light .shadow-lg,
         body.theme-light [class*="shadow-"] { box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.08), 0 10px 20px -5px rgba(0, 0, 0, 0.04) !important; }
-        body.theme-light .interactive-card [class*="shadow-["] { box-shadow: none !important; } /* 去掉卡片内部强制加的奇怪发光阴影 */
+        body.theme-light .interactive-card [class*="shadow-["] { box-shadow: none !important; }
         body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.15); }
         body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.25); }
         body.theme-light .timeline-line { background-color: #E2E8F0 !important; }
-        
-        /* 预警卡片呼吸光效（浅色模式红） */
         body.theme-light .breathe-rose { box-shadow: inset 0 0 0 1px rgba(244,63,94,0.3), 0 4px 20px rgba(244,63,94,0.08) !important; border-color: rgba(244,63,94,0.4) !important; }
 
-        /* 灯泡按钮修正 */
+        /* 灯泡按钮 */
         body.theme-light #themeToggleBtn {
             background: #FFFFFF !important;
             color: #F59E0B !important;
@@ -184,7 +220,7 @@
         body.theme-light #themeToggleBtn svg { filter: drop-shadow(0 2px 4px rgba(245, 158, 11, 0.2)); }
         #themeToggleBtn { width: 44px; height: 44px; padding: 0 !important; justify-content: center; border-radius: 16px !important; }
         
-        /* 状态与标签色彩映射 - 提升在浅白底色上的辨识度与质感 */
+        /* 状态与标签色彩映射 */
         body.theme-light .bg-indigo-500\/10 { background-color: #EEF2FF !important; }
         body.theme-light .text-indigo-400 { color: #4338CA !important; }
         body.theme-light .border-indigo-500\/20 { border-color: #C7D2FE !important; }
