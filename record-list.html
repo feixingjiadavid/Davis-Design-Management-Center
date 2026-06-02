@@ -29,6 +29,53 @@
         tr { transition: background-color 0.2s ease; }
         tr:hover td { background-color: rgba(255, 255, 255, 0.03); }
         .table-row-hover { cursor: pointer; }
+        #recordTableBody tr td { border-bottom: 1px dashed rgba(255, 255, 255, 0.10) !important; }
+        #recordTableBody tr:last-child td { border-bottom: none !important; }
+        .record-action-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            min-width: 64px;
+            padding: 6px 10px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 700;
+            transition: all 0.18s ease;
+            white-space: nowrap;
+        }
+        .record-action-primary {
+            color: #818CF8;
+            background: rgba(99, 102, 241, 0.12);
+            border: 1px solid rgba(99, 102, 241, 0.22);
+        }
+        .record-action-primary:hover {
+            color: #FFFFFF;
+            background: #6366F1;
+            border-color: #6366F1;
+        }
+        .record-action-soft {
+            color: #A5B4FC;
+            background: rgba(99, 102, 241, 0.08);
+            border: 1px solid rgba(99, 102, 241, 0.16);
+        }
+        .record-action-soft:hover {
+            color: #FFFFFF;
+            background: #4F46E5;
+            border-color: #4F46E5;
+        }
+        .pager-btn {
+            border: 1px solid rgba(99, 102, 241, 0.24);
+            background: rgba(99, 102, 241, 0.12);
+            color: #A5B4FC;
+            font-weight: 700;
+        }
+        .pager-btn:hover { background: rgba(99, 102, 241, 0.20); color: #FFFFFF; }
+        .pager-current {
+            background: #6366F1;
+            color: #FFFFFF;
+            box-shadow: 0 8px 18px rgba(99, 102, 241, 0.24);
+        }
 
         .toast-slide-in { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
@@ -143,6 +190,34 @@
         }
         body.theme-light #recordTableBody tr {
             background: #FFFFFF !important;
+        }
+        body.theme-light #recordTableBody tr td {
+            border-bottom: 1px dashed rgba(15, 23, 42, 0.13) !important;
+        }
+        body.theme-light #recordTableBody tr:last-child td { border-bottom: none !important; }
+        body.theme-light .record-action-primary,
+        body.theme-light .record-action-soft {
+            color: #4338CA !important;
+            background: #EEF2FF !important;
+            border-color: #C7D2FE !important;
+        }
+        body.theme-light .record-action-primary:hover,
+        body.theme-light .record-action-soft:hover {
+            color: #FFFFFF !important;
+            background: #4F46E5 !important;
+            border-color: #4F46E5 !important;
+            box-shadow: 0 8px 18px rgba(79, 70, 229, 0.18) !important;
+        }
+        body.theme-light .pager-btn {
+            color: #4338CA !important;
+            background: #EEF2FF !important;
+            border-color: #C7D2FE !important;
+        }
+        body.theme-light .pager-btn:hover { background: #E0E7FF !important; }
+        body.theme-light .pager-current {
+            color: #FFFFFF !important;
+            background: #4F46E5 !important;
+            box-shadow: 0 8px 18px rgba(79, 70, 229, 0.22) !important;
         }
 
         body.theme-light #custom-dialog,
@@ -368,10 +443,10 @@
 
                 <div class="p-5 border-t border-white/5 flex items-center justify-between bg-[#16161d] mt-auto">
                     <span class="text-[12px] text-zinc-500" id="table-stats">数据加载中...</span>
-                    <div class="flex items-center gap-1.5 opacity-30 pointer-events-none">
-                        <button class="px-3 py-1.5 flex items-center justify-center rounded-lg bg-zinc-800/50 text-zinc-600 text-[12px]">上一页</button>
-                        <button class="w-8 h-8 flex items-center justify-center rounded-lg bg-indigo-600 text-white font-bold text-[12px]">1</button>
-                        <button class="px-3 py-1.5 flex items-center justify-center rounded-lg bg-zinc-800/50 text-zinc-600 text-[12px]">下一页</button>
+                    <div class="flex items-center gap-1.5">
+                        <button class="pager-btn px-3 py-1.5 flex items-center justify-center rounded-lg text-[12px] btn-press">上一页</button>
+                        <button class="pager-current w-8 h-8 flex items-center justify-center rounded-lg font-bold text-[12px]">1</button>
+                        <button class="pager-btn px-3 py-1.5 flex items-center justify-center rounded-lg text-[12px] btn-press">下一页</button>
                     </div>
                 </div>
             </div>
@@ -675,20 +750,20 @@
 
                     let btnHtml = '';
                     if(task.status === 'reviewing' && isOwner) {
-                        btnHtml = `<button class="text-[12px] text-indigo-400 font-bold hover:text-indigo-300 transition-colors btn-press">去验收</button>`;
+                        btnHtml = `<button class="record-action-btn record-action-primary btn-press">去验收</button>`;
                     } else if (isFinished) {
-                        btnHtml = `<button class="text-[12px] text-indigo-400/80 font-bold hover:text-indigo-300 transition-colors flex items-center justify-end gap-1 ml-auto btn-press">去查看 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>`;
+                        btnHtml = `<button class="record-action-btn record-action-primary btn-press">去查看 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>`;
                     } else {
                         if (isSuperAdmin) {
                             const urgeTarget = ['pending_approval'].includes(task.status) ? '文哥' : task.assignee;
-                            btnHtml = `<button onclick="window.urgeTask(event, this, '${urgeTarget}')" class="text-[12px] text-indigo-400 bg-indigo-500/10 px-3 py-1.5 rounded-lg hover:bg-indigo-500/20 transition-colors btn-press ml-auto">督导催办</button>`;
+                            btnHtml = `<button onclick="window.urgeTask(event, this, '${urgeTarget}')" class="record-action-btn record-action-primary btn-press">督导催办</button>`;
                         } else {
-                            btnHtml = `<button class="text-[12px] text-zinc-500 hover:text-zinc-300 transition-colors btn-press">查看进度</button>`;
+                            btnHtml = `<button class="record-action-btn record-action-soft btn-press">查看进度</button>`;
                         }
                     }
 
                     const rowHtml = `
-                        <tr data-status="${doingFlag}" data-project="${task.project || 'other'}" class="table-row-hover ${isFinished ? 'opacity-60' : ''}" onclick="window.location.href='task-detail-requester.html?id=${task.id}'">
+                        <tr data-status="${doingFlag}" data-project="${task.project || 'other'}" class="table-row-hover" onclick="window.location.href='task-detail-requester.html?id=${task.id}'">
                             <td class="py-4 px-6 font-mono font-bold text-zinc-400">${task.id}</td>
                             <td class="py-4 px-6 font-medium text-zinc-100 max-w-xs truncate" title="${task.title}">${task.title}</td>
                             <td class="py-4 px-6 text-zinc-400">${task.project || '--'}</td>
