@@ -1279,7 +1279,8 @@
                         peopleGroupRows.push({ skipPerson: true, rest:['','','','0 单','0.0 h',`${p.hours.toFixed(1)} h`,projectSummary,'暂无需求明细'] });
                     } else {
                         taskDetails.forEach(d => {
-                            peopleGroupRows.push({ skipPerson: true, rest:[d.id,d.title,d.project,'1 单',`${d.hours.toFixed(1)} h`,`${p.hours.toFixed(1)} h`,projectSummary,'该人员在此需求上的本期投入工时'] });
+                            // 明细行只展示该人员在当前需求上的投入工时；人员总工时与项目汇总只保留在该人员的汇总行，避免重复灌满每条明细。
+                            peopleGroupRows.push({ skipPerson: true, rest:[d.id,d.title,d.project,'1 单',`${d.hours.toFixed(1)} h`,'','','该人员在此需求上的本期投入工时'] });
                         });
                     }
                 });
@@ -1361,7 +1362,7 @@
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
-            window.showToast("导出表格成功", "已去掉货币符号，并合并左侧同名栏目与同一人员明细。", "success");
+            window.showToast("导出表格成功", "已去掉货币符号；人员总工时和项目汇总仅保留在人员汇总行。", "success");
         }
 
         window.exportToPNGImage = function() {
