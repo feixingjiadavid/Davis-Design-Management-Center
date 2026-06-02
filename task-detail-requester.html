@@ -5,11 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>需求详情追踪 - 戴维斯设计需求管理中心</title>
     <script>
-        // 主题预加载：先于页面渲染读取，避免浅色模式跳转/返回时闪黑
+        // 主题预加载：先于 CSS/Tailwind 渲染读取，避免浅色模式跳转/返回时闪黑
         (function() {
             try {
                 if (localStorage.getItem('requestHallTheme') === 'light') {
                     document.documentElement.classList.add('theme-light-preload');
+                    document.write('<style id="theme-preload-style">html,body{background:#F4F5F7!important;color:#1D1D1F!important;} body{visibility:visible!important;} .theme-light-preload .bg-\[\#09090b\],.theme-light-preload .bg-\[\#0c0c0e\]{background-color:#F4F5F7!important;} .theme-light-preload aside,.theme-light-preload header{background:rgba(255,255,255,.75)!important;border-color:rgba(0,0,0,.06)!important;}<\/style>');
                 }
             } catch (e) {}
         })();
@@ -243,9 +244,60 @@
             color: #515154 !important;
         }
 
+
+
+        /* ================= 终版修复：消息弹层、浅色闪屏、布局稳定 ================= */
+        html, body { direction: ltr !important; }
+        body { flex-direction: row !important; }
+        body > aside { order: 0 !important; flex: 0 0 240px !important; position: relative !important; left: auto !important; right: auto !important; }
+        body > main { order: 1 !important; flex: 1 1 auto !important; min-width: 0 !important; position: relative !important; }
+
+        #notifMenu.notif-floating {
+            position: fixed !important;
+            z-index: 2147483000 !important;
+            width: 340px !important;
+            max-width: calc(100vw - 24px) !important;
+            max-height: min(420px, calc(100vh - 96px)) !important;
+            overflow: hidden !important;
+            transform: none !important;
+            pointer-events: auto !important;
+        }
+        #notifMenu.notif-floating #notif-list-container {
+            max-height: min(300px, calc(100vh - 210px)) !important;
+            overflow-y: auto !important;
+        }
+        body.theme-light #notifMenu.notif-floating {
+            background: #FFFFFF !important;
+            border-color: rgba(0,0,0,0.06) !important;
+            box-shadow: 0 24px 60px -16px rgba(15,23,42,0.22), 0 8px 24px -12px rgba(15,23,42,0.12) !important;
+        }
+        body.theme-light #notifMenu.notif-floating * { text-shadow: none !important; }
+        body.theme-light #notifMenu.notif-floating h3,
+        body.theme-light #notifMenu.notif-floating h4,
+        body.theme-light #notifMenu.notif-floating .text-white { color: #1D1D1F !important; }
+        body.theme-light #notifMenu.notif-floating p,
+        body.theme-light #notifMenu.notif-floating .text-zinc-400,
+        body.theme-light #notifMenu.notif-floating .text-zinc-500 { color: #515154 !important; }
+        body.theme-light #notifMenu.notif-floating [class*="border-white"] { border-color: rgba(0,0,0,0.06) !important; }
+        body.theme-light #notifMenu.notif-floating [class*="hover:bg-white"]:hover { background-color: #F1F5F9 !important; }
+
+        body.theme-light #smart-action-panel h3,
+        body.theme-light #resource-summary-panel h3,
+        body.theme-light #task-timeline-container h3,
+        body.theme-light #version-history-block h3 { color: #1D1D1F !important; }
+        body.theme-light #smart-action-panel p,
+        body.theme-light #resource-summary-panel p,
+        body.theme-light #task-timeline-container p { color: #515154 !important; }
+        body.theme-light #smart-action-panel .text-orange-500,
+        body.theme-light #smart-action-panel .text-orange-400 { color: #EA580C !important; }
+        body.theme-light #smart-action-panel button:not(.bg-rose-600):not(.bg-emerald-600):not(.bg-indigo-600):not(.bg-sky-600) {
+            color: #1D1D1F !important;
+        }
+
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-indigo-500/30 text-zinc-300">
+    <script>try{if(localStorage.getItem('requestHallTheme')==='light'){document.body.classList.add('theme-light');}}catch(e){}</script>
 
     <div class="absolute inset-0 bg-[#09090b] z-0 pointer-events-none"></div>
     <div id="dynamic-glow" class="glow-bg bg-sky-900/10"></div>
@@ -1402,6 +1454,76 @@
             setTimeout(() => { window.syncNotificationsFromCloud(true); }, 1500);
             setInterval(() => { window.syncNotificationsFromCloud(true); }, 8000);
         });
+    </script>
+
+    <script>
+        // 终版兜底：保证主题同步、通知菜单脱离局部层级、不再被页面卡片遮挡
+        (function(){
+            function syncThemeImmediately(){
+                try {
+                    const isLight = localStorage.getItem('requestHallTheme') === 'light';
+                    document.documentElement.classList.toggle('theme-light-preload', isLight);
+                    document.body && document.body.classList.toggle('theme-light', isLight);
+                    if (typeof window.applyPageTheme === 'function') window.applyPageTheme(isLight ? 'light' : 'dark');
+                } catch(e) {}
+            }
+
+            function mountNotifToBody(){
+                const menu = document.getElementById('notifMenu');
+                if (menu && menu.parentElement !== document.body) {
+                    document.body.appendChild(menu);
+                }
+                if (menu) {
+                    menu.classList.add('notif-floating');
+                    menu.style.position = 'fixed';
+                    menu.style.zIndex = '2147483000';
+                    menu.style.right = 'auto';
+                    menu.style.transform = 'none';
+                }
+                return menu;
+            }
+
+            window.toggleNotificationPanel = function(event){
+                if (event) event.stopPropagation();
+                const btn = document.getElementById('notifBtn');
+                const menu = mountNotifToBody();
+                if (!menu || !btn) return;
+
+                const willOpen = menu.classList.contains('hidden');
+                if (!willOpen) {
+                    menu.classList.add('hidden');
+                    return;
+                }
+
+                const rect = btn.getBoundingClientRect();
+                const width = Math.min(340, window.innerWidth - 24);
+                const gap = 12;
+                let left = rect.right - width;
+                left = Math.max(12, Math.min(window.innerWidth - width - 12, left));
+                let top = rect.bottom + gap;
+                const maxTop = Math.max(12, window.innerHeight - 420 - 12);
+                top = Math.min(top, Math.max(rect.bottom + gap, maxTop));
+
+                menu.style.width = width + 'px';
+                menu.style.left = left + 'px';
+                menu.style.top = top + 'px';
+                menu.style.right = 'auto';
+                menu.style.bottom = 'auto';
+                menu.classList.remove('hidden');
+                if (window.syncNotificationsFromCloud) window.syncNotificationsFromCloud(true);
+            };
+
+            document.addEventListener('DOMContentLoaded', function(){
+                syncThemeImmediately();
+                mountNotifToBody();
+                document.addEventListener('click', function(e){
+                    const menu = document.getElementById('notifMenu');
+                    const btn = document.getElementById('notifBtn');
+                    if(menu && btn && !menu.contains(e.target) && !btn.contains(e.target)) menu.classList.add('hidden');
+                }, true);
+            });
+            window.addEventListener('pageshow', syncThemeImmediately);
+        })();
     </script>
 </body>
 </html>
