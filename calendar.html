@@ -25,10 +25,18 @@
         .view-section { display: none; opacity: 0; transition: opacity 0.3s ease; }
         .view-section.active { display: flex; opacity: 1; }
 
-        /* 日历格与卡片高级浮雕交互 (不再放大挤压网格) */
-        .calendar-cell { transition: background-color 0.2s ease; cursor: pointer; min-height: 120px; display: flex; flex-direction: column; border-right: 1px solid rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.02); }
+        /* 日历格与卡片高级浮雕交互：月视图按内容自动撑高，并由整个月历区域统一滚动 */
+        #month-grid {
+            overflow-y: auto;
+            align-content: start;
+            grid-auto-rows: minmax(120px, auto);
+            max-height: 100%;
+        }
+        .calendar-cell { transition: background-color 0.2s ease; cursor: pointer; min-height: 120px; display: flex; flex-direction: column; align-items: stretch; border-right: 1px solid rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.02); }
         .calendar-cell:hover { background-color: rgba(255, 255, 255, 0.03); }
         .calendar-cell.muted { background-color: #0c0c0e; opacity: 0.4; pointer-events: none; }
+        .calendar-day-number { align-self: flex-start; margin: 8px 0 4px 8px; }
+        .calendar-events { padding: 0 8px 10px 8px; display: flex; flex-direction: column; gap: 6px; }
         
         .event-pill { transition: all 0.2s ease; cursor: pointer; border: 1px solid transparent; }
         .event-pill:hover { filter: brightness(1.3); border-color: rgba(255,255,255,0.2); background-color: rgba(255,255,255,0.05); }
@@ -169,7 +177,7 @@
                         <div class="grid grid-cols-7 border-b border-white/5 bg-[#16161d] shrink-0">
                             <div class="py-4 text-center text-[12px] font-bold text-zinc-500">周日</div><div class="py-4 text-center text-[12px] font-bold text-zinc-500">周一</div><div class="py-4 text-center text-[12px] font-bold text-zinc-500">周二</div><div class="py-4 text-center text-[12px] font-bold text-zinc-500">周三</div><div class="py-4 text-center text-[12px] font-bold text-zinc-500">周四</div><div class="py-4 text-center text-[12px] font-bold text-zinc-500">周五</div><div class="py-4 text-center text-[12px] font-bold text-indigo-400/50">周六</div>
                         </div>
-                        <div id="month-grid" class="flex-1 grid grid-cols-7 auto-rows-fr bg-[#121217]"></div>
+                        <div id="month-grid" class="flex-1 grid grid-cols-7 bg-[#121217] custom-scrollbar"></div>
                     </div>
 
                     <div id="view-week" class="view-section flex-col h-full bg-transparent border-none shadow-none">
@@ -779,15 +787,15 @@
                 if (tasks.length >= 3) hasConcentration = true;
                 
                 let numHtml = isToday 
-                    ? `<div class="absolute top-0 left-0 right-0 h-0.5 bg-indigo-500"></div><span class="text-[12px] text-white font-bold bg-indigo-600 px-2 rounded-full self-end mt-1">${i} (今天)</span>` 
-                    : `<span class="text-[13px] font-bold text-zinc-400 self-end">${i}</span>`;
+                    ? `<div class="absolute top-0 left-0 right-0 h-0.5 bg-indigo-500"></div><span class="calendar-day-number text-[12px] text-white font-bold bg-indigo-600 px-2 py-0.5 rounded-full">${i} (今天)</span>` 
+                    : `<span class="calendar-day-number text-[13px] font-bold text-zinc-400">${i}</span>`;
                 
                 let cellClass = isToday ? 'bg-indigo-900/10 border-indigo-500/20' : '';
                 
                 let pillsHtml = tasks.map(t => {
                     const st = parseTaskStatus(t);
                     return `
-                    <div onmouseenter="showHoverCard(event, '${t.id}')" onmouseleave="hideHoverCard()" onclick="event.stopPropagation(); window.location.href='task-detail-requester.html?id=${t.id}'" class="mt-1.5 p-2 rounded-lg border border-white/5 bg-[#16161d] transition-all shadow-sm event-pill ${st.isFinished ? 'opacity-50' : ''}">
+                    <div onmouseenter="showHoverCard(event, '${t.id}')" onmouseleave="hideHoverCard()" onclick="event.stopPropagation(); window.location.href='task-detail-requester.html?id=${t.id}'" class="p-2 rounded-lg border border-white/5 bg-[#16161d] transition-all shadow-sm event-pill ${st.isFinished ? 'opacity-50' : ''}">
                         <div class="text-[11px] font-bold text-white mb-0.5 truncate">${t.title}</div>
                         <div class="text-[10px] ${st.textStyle} flex items-center gap-1 truncate">${st.iconHtml} ${st.sText}</div>
                     </div>`;
@@ -797,7 +805,7 @@
                 html += `
                     <div class="calendar-cell relative ${cellClass}" onclick="openPeriodDetail('${year}年${month+1}月${i}日', '${safeTasks}')">
                         ${numHtml}
-                        <div class="flex-1 overflow-y-auto custom-scrollbar mt-1 p-1">${pillsHtml}</div>
+                        <div class="calendar-events">${pillsHtml}</div>
                     </div>`;
             }
 
