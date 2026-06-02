@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>我的需求日历 - 戴维斯设计需求管理中心</title>
-    <script src="https://cdn.tailwindcss.com"></script>
     <script>
+        // 主题预加载必须放在任何外部脚本/样式之前，避免浅色模式跳转时先闪黑。
         (function() {
             try {
                 if (localStorage.getItem('requestHallTheme') === 'light') {
@@ -14,6 +14,12 @@
             } catch (e) {}
         })();
     </script>
+    <style>
+        /* 首屏防闪黑：在 body 生成前先让 html 接管底色 */
+        html.theme-light-preload { background: #F4F5F7 !important; color: #1D1D1F !important; }
+        html.theme-light-preload body { background: #F4F5F7 !important; color: #1D1D1F !important; }
+    </style>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
         body { background-color: #09090b; color: #e4e4e7; font-family: 'Inter', system-ui, sans-serif; }
@@ -371,6 +377,17 @@
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-indigo-500/30 text-zinc-300">
+    <script>
+        // body 一出现立刻补 theme-light，不能等 DOMContentLoaded。
+        (function() {
+            try {
+                if (localStorage.getItem('requestHallTheme') === 'light') {
+                    document.body.classList.add('theme-light');
+                    document.documentElement.classList.add('theme-light-preload');
+                }
+            } catch (e) {}
+        })();
+    </script>
 
     <div class="absolute inset-0 bg-[#09090b] z-0 pointer-events-none"></div>
     <div class="absolute top-0 right-1/4 w-[800px] h-[600px] bg-indigo-900/5 rounded-full blur-[180px] pointer-events-none z-0"></div>
@@ -635,6 +652,7 @@
             const isLight = theme === 'light';
             document.documentElement.classList.toggle('theme-light-preload', isLight);
             document.body.classList.toggle('theme-light', isLight);
+            document.documentElement.classList.toggle('theme-light-preload', isLight);
             localStorage.setItem('requestHallTheme', isLight ? 'light' : 'dark');
             const icon = document.getElementById('themeToggleIcon');
             const btn = document.getElementById('themeToggleBtn');
