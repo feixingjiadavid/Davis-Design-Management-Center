@@ -96,7 +96,7 @@
             <div class="flex items-center gap-6">
                 <button onclick="window.openExportAnalysisModal()" class="px-5 py-2 bg-gradient-to-r from-fuchsia-600 via-purple-600 to-indigo-600 hover:from-fuchsia-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-[0_4px_20px_rgba(217,70,239,0.25)] hover:shadow-[0_4px_25px_rgba(217,70,239,0.4)] transition-all btn-press text-[13px] flex items-center gap-2 border border-white/10">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-                    全盘总结分析导出
+                    数据导出
                 </button>
 
                 <div class="flex bg-[#121217] border border-white/10 rounded-xl p-1 shadow-inner">
@@ -621,6 +621,25 @@
             return toolName.trim();
         }
 
+
+        function getPersonTaskHourLines(p) {
+            return Object.values(p.taskDetails || {})
+                .sort((a, b) => b.hours - a.hours)
+                .map(d => `【${d.title}】${d.hours.toFixed(1)}h（${d.project || '未归属类目'}）`);
+        }
+
+        function getPersonProjectHourLines(p) {
+            return Object.keys(p.projectHours || {})
+                .map(k => ({ name: k, hours: p.projectHours[k] }))
+                .sort((a, b) => b.hours - a.hours)
+                .map(d => `【${d.name}】${d.hours.toFixed(1)}h`);
+        }
+
+        function csvCell(value) {
+            const text = String(value ?? '').replace(/[\r\n]+/g, ' ');
+            return '"' + text.replace(/"/g, '""') + '"';
+        }
+
         // 核心多维时效清洗算法重构（严防跨月混淆，锁死动作发生时间窗口）
         function extractDataForPeriod(targetDate, viewType) {
             let totalHours = 0;
@@ -633,7 +652,7 @@
             let peopleMap = {};
 
             systemUsers.forEach(u => {
-                peopleMap[u.en] = { en: u.en, display: u.display, hours: 0, taskCount: 0, uniqueTasksSet: new Set(), projects: new Set(), aiTools: {}, taskTitles: [] };
+                peopleMap[u.en] = { en: u.en, display: u.display, hours: 0, taskCount: 0, uniqueTasksSet: new Set(), projects: new Set(), aiTools: {}, taskTitles: [], taskDetails: {}, projectHours: {} };
             });
 
             myAllTasks.forEach(t => {
@@ -662,7 +681,7 @@
                                     const excludedUsers = ['judyzzhang', 'ponyxu', 'davidxu'];
                                     if (!excludedUsers.some(ex => key.includes(ex))) {
                                         if (!taskUserHours[key]) {
-                                            taskUserHours[key] = { display: display, hours: 0, aiTools: {} };
+                                            taskUserHours[key] = { display: display, hours: 0, aiTools: {}, taskId: t.id, taskTitle: t.title || t.id, project: t.project || '未归属类目' };
                                         }
                                         taskUserHours[key].hours += hVal;
                                     }
@@ -695,10 +714,19 @@
                 Object.keys(taskUserHours).forEach(key => {
                     if (taskUserHours[key].hours > 0) {
                         if (!peopleMap[key]) {
-                            peopleMap[key] = { en: key, display: taskUserHours[key].display, hours: 0, taskCount: 0, uniqueTasksSet: new Set(), projects: new Set(), aiTools: {}, taskTitles: [] };
+                            peopleMap[key] = { en: key, display: taskUserHours[key].display, hours: 0, taskCount: 0, uniqueTasksSet: new Set(), projects: new Set(), aiTools: {}, taskTitles: [], taskDetails: {}, projectHours: {} };
                         }
                         peopleMap[key].hours += taskUserHours[key].hours;
                         
+                        const taskDetailKey = t.id;
+                        const taskProjectName = t.project || '未归属类目';
+                        if (!peopleMap[key].taskDetails[taskDetailKey]) {
+                            peopleMap[key].taskDetails[taskDetailKey] = { id: t.id, title: t.title || t.id, project: taskProjectName, hours: 0 };
+                        }
+                        peopleMap[key].taskDetails[taskDetailKey].hours += taskUserHours[key].hours;
+                        if (!peopleMap[key].projectHours[taskProjectName]) peopleMap[key].projectHours[taskProjectName] = 0;
+                        peopleMap[key].projectHours[taskProjectName] += taskUserHours[key].hours;
+
                         if (!peopleMap[key].uniqueTasksSet.has(t.id)) {
                             peopleMap[key].uniqueTasksSet.add(t.id);
                             peopleMap[key].taskTitles.push(t.title); // 使用 1:1 精准阵列装入，拒绝任何去重合并干扰
@@ -800,7 +828,11 @@
 
             } catch (err) {
                 console.error(err);
-                if(!isSilent) window.showToast('数据拉取异常', err.message, 'error');
+                if(!isSilent) window.showToast('数据拉取异常', err && err.message ? err.message : '未知错误', 'error');
+                const loadingEl = document.getElementById('dashboard-loading');
+                if (loadingEl && !isSilent) {
+                    loadingEl.innerHTML = `<div class="text-center px-8"><p class="text-rose-400 font-bold mb-2">数据加载失败</p><p class="text-xs text-zinc-500 leading-relaxed max-w-md">${err && err.message ? err.message : '请检查 Supabase 配置或网络连接后刷新页面。'}</p></div>`;
+                }
             } finally {
                 if(syncDot) setTimeout(() => syncDot.classList.add('hidden'), 500);
             }
@@ -1074,15 +1106,20 @@
             } else {
                 let html = '';
                 sortedPplByTasks.forEach((p, idx) => {
-                    const titleListStr = (p.taskTitles || []).join('；');
+                    const taskHourLines = getPersonTaskHourLines(p);
+                    const projectHourLines = getPersonProjectHourLines(p);
+                    const titleListStr = taskHourLines.join('；');
                     html += `
                     <div class="flex flex-col text-xs p-2.5 bg-white/[0.01] border border-white/5 rounded-lg font-mono user-task-row">
                         <div class="flex justify-between items-center w-full">
                             <span class="text-zinc-300 flex items-center gap-1.5 truncate font-sans u-task-name"><span class="text-zinc-600 font-bold">0${idx+1}</span>${p.display}</span>
-                            <span class="text-emerald-400 font-bold shrink-0 u-task-val">${p.uniqueTasksSet.size} 单</span>
+                            <span class="text-emerald-400 font-bold shrink-0 u-task-val">${p.uniqueTasksSet.size} 单 / ${p.hours.toFixed(1)}h</span>
                         </div>
-                        <div class="text-[10px] text-zinc-500 mt-1 pl-4 text-left line-clamp-1 truncate select-text" title="${titleListStr}">
-                            <span class="text-zinc-600 font-bold">完成明细:</span> ${titleListStr}
+                        <div class="text-[10px] text-zinc-500 mt-1 pl-4 text-left line-clamp-2 truncate select-text" title="${titleListStr}">
+                            <span class="text-zinc-600 font-bold">需求工时:</span> ${titleListStr || '暂无'}
+                        </div>
+                        <div class="text-[10px] text-purple-400/80 mt-1 pl-4 text-left line-clamp-1 truncate select-text" title="${projectHourLines.join('；')}">
+                            <span class="text-zinc-600 font-bold">项目汇总:</span> ${projectHourLines.join('；') || '暂无'}
                         </div>
                     </div>`;
                 });
@@ -1097,15 +1134,20 @@
             } else {
                 let html = '';
                 sortedPplByHours.forEach((p, idx) => {
-                    const titleListStr = (p.taskTitles || []).join('；');
+                    const taskHourLines = getPersonTaskHourLines(p);
+                    const projectHourLines = getPersonProjectHourLines(p);
+                    const titleListStr = taskHourLines.join('；');
                     html += `
                     <div class="flex flex-col text-xs p-2.5 bg-white/[0.01] border border-white/5 rounded-lg font-mono hover:border-purple-500/20 transition-colors user-hour-row">
                         <div class="flex justify-between items-center w-full">
                             <span class="text-zinc-300 flex items-center gap-1.5 truncate font-sans u-hour-name"><span class="text-zinc-600 font-bold">0${idx+1}</span>${p.display}</span>
-                            <span class="text-fuchsia-400 font-black shrink-0 u-hour-val">${p.hours.toFixed(1)} h</span>
+                            <span class="text-fuchsia-400 font-black shrink-0 u-hour-val">总计 ${p.hours.toFixed(1)} h</span>
                         </div>
-                        <div class="text-[10px] text-zinc-500 mt-1 pl-4 text-left line-clamp-1 truncate select-text" title="${titleListStr}">
-                            <span class="text-zinc-600 font-bold">工时明细:</span> ${titleListStr}
+                        <div class="text-[10px] text-zinc-500 mt-1 pl-4 text-left line-clamp-2 truncate select-text" title="${titleListStr}">
+                            <span class="text-zinc-600 font-bold">需求工时:</span> ${titleListStr || '暂无'}
+                        </div>
+                        <div class="text-[10px] text-purple-400/80 mt-1 pl-4 text-left line-clamp-1 truncate select-text" title="${projectHourLines.join('；')}">
+                            <span class="text-zinc-600 font-bold">项目汇总:</span> ${projectHourLines.join('；') || '暂无'}
                         </div>
                     </div>`;
                 });
@@ -1194,82 +1236,70 @@
             const reportScope = document.getElementById('report-project-scope').innerText;
             const genTime = document.getElementById('report-gen-time').innerText;
 
-            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
-            
-            // 严开后勤标准4列表头
-            csvContent += "数据大类,项目条目,单量/频次,工时/大盘占比\n";
-            
-            // ================== 1. 核心摘要大类 ==================
-            csvContent += `核心摘要,总计需求量,${totalDemands} 单,-\n`;
-            csvContent += `,累计设计工时,${totalHours.toFixed(1)} 小时,- \n`;
-            csvContent += `,活跃类目,${totalProjects} 个,-\n`;
-            csvContent += `,投入设计人力,${actualPeople} 人,-\n`;
-            csvContent += `,时效口径判定,${reportPeriod} (${reportTag}),范围: ${reportScope},导出校验戳: ${genTime}\n`;
+            let rows = [];
+            rows.push(['数据大类','人员/项目/条目','需求单号','需求标题','归属项目','单量/频次','本需求投入工时','人员总工时','项目工时汇总/大盘占比','备注']);
 
-            // ================== 2. 设计人力总结大类（单数和明细1:1数组横向打包包裹，绝不再产生去重差额） ==================
+            rows.push(['核心摘要','总计需求量','','','',`${totalDemands} 单`,'',`${totalHours.toFixed(1)} h`,'',`周期：${reportPeriod}（${reportTag}）；范围：${reportScope}；导出时间：${genTime}`]);
+            rows.push(['核心摘要','活跃类目','','','',`${totalProjects} 个`,'','','','']);
+            rows.push(['核心摘要','投入设计人力','','','',`${actualPeople} 人`,'','','','']);
+
             const sortedPpl = Object.values(currentData.peopleMap).filter(p => p.hours > 0 || p.uniqueTasksSet.size > 0).sort((a, b) => b.hours - a.hours);
             if (sortedPpl.length === 0) {
-                csvContent += "设计人力总结,暂无匹配人员效能流水,-,-\n";
+                rows.push(['设计人力明细','暂无匹配人员效能流水','','','','','','','','']);
             } else {
-                sortedPpl.forEach((p, idx) => {
-                    const prefix = (idx === 0) ? "设计人力总结" : ""; 
-                    // 从1:1阵列中抓取最全的工单标题流水
-                    const safeTitles = (p.taskTitles || []).join('；').replace(/,/g, '，').replace(/\n/g, ' ');
-                    csvContent += `${prefix},${p.display},${p.uniqueTasksSet.size} 单 (明细：${safeTitles}),${p.hours.toFixed(1)} h\n`;
+                sortedPpl.forEach(p => {
+                    const projectSummary = getPersonProjectHourLines(p).join('；');
+                    const taskDetails = Object.values(p.taskDetails || {}).sort((a, b) => b.hours - a.hours);
+                    rows.push(['设计人力汇总',p.display,'','', '', `${p.uniqueTasksSet.size} 单`, '', `${p.hours.toFixed(1)} h`, projectSummary, '人员总工时与项目投入汇总']);
+                    if (taskDetails.length === 0) {
+                        rows.push(['设计人力-需求工时明细',p.display,'','','', '0 单','0.0 h',`${p.hours.toFixed(1)} h`,projectSummary,'暂无需求明细']);
+                    } else {
+                        taskDetails.forEach(d => {
+                            rows.push(['设计人力-需求工时明细',p.display,d.id,d.title,d.project,'1 单',`${d.hours.toFixed(1)} h`,`${p.hours.toFixed(1)} h`,projectSummary,'该人员在此需求上的本期投入工时']);
+                        });
+                    }
                 });
             }
 
-            // ================== 3. 需求发起方大盘审计大类（发起总量与提单明细1:1完美结合包裹） ==================
             const sortedCreators = Object.values(currentData.creatorMap).sort((a,b) => b.count - a.count);
             if (sortedCreators.length === 0) {
-                csvContent += "需求发起方大盘审计,暂无需求方提报数据,-,-\n";
+                rows.push(['需求发起方大盘审计','暂无需求方提报数据','','','','','','','','']);
             } else {
-                sortedCreators.forEach((c, idx) => {
-                    const prefix = (idx === 0) ? "需求发起方大盘审计" : ""; 
+                sortedCreators.forEach(c => {
                     const pct = totalDemands > 0 ? ((c.count / totalDemands) * 100).toFixed(1) : 0;
-                    const safeTitles = (c.taskTitles || []).join('；').replace(/,/g, '，').replace(/\n/g, ' ');
-                    csvContent += `${prefix},${c.name},${c.count} 单 (明细：${safeTitles}),总权重: ${pct}%\n`;
+                    rows.push(['需求发起方大盘审计',c.name,'','', '', `${c.count} 单`, '', '', `${pct}%`, (c.taskTitles || []).join('；')]);
                 });
             }
 
-            // ================== 4. 各类目双轨对比矩阵大类 ==================
             const sortedProj = Object.keys(currentData.activeProjects).map(k => ({ name: k, data: currentData.activeProjects[k] })).sort((a,b) => b.data.hours - a.data.hours);
             if (sortedProj.length === 0) {
-                csvContent += "各类目双轨对比矩阵,当前大盘无撞轨数据流转,-,-\n";
+                rows.push(['各类目双轨对比矩阵','当前大盘无撞轨数据流转','','','','','','','','']);
             } else {
-                sortedProj.forEach((p, idx) => {
-                    const prefix = (idx === 0) ? "各类目双轨对比矩阵" : ""; 
+                sortedProj.forEach(p => {
                     const hoursPct = currentData.totalHours > 0 ? ((p.data.hours / currentData.totalHours) * 100).toFixed(1) : 0;
                     const tasksPct = totalDemands > 0 ? ((p.data.count / totalDemands) * 100).toFixed(1) : 0;
                     let densityTag = '正常流转';
-                    if (parseFloat(tasksPct) > 25 && parseFloat(hoursPct) < 15) {
-                        densityTag = '⚡️ 高频快钱需求';
-                    } else if (parseFloat(hoursPct) > 30) {
-                        densityTag = '🌋 资源重度黑洞';
-                    }
-                    const safeName = p.name.replace(/,/g, '，');
-                    csvContent += `${prefix},《${safeName}》,需求比: ${p.data.count}单 (${tasksPct}%),工时比: ${p.data.hours.toFixed(1)}h (${hoursPct}%),流转判定: ${densityTag}\n`;
+                    if (parseFloat(tasksPct) > 25 && parseFloat(hoursPct) < 15) densityTag = '高频快钱需求';
+                    else if (parseFloat(hoursPct) > 30) densityTag = '资源重度黑洞';
+                    rows.push(['各类目双轨对比矩阵',p.name,'','',p.name,`${p.data.count} 单 (${tasksPct}%)`,'',`${p.data.hours.toFixed(1)} h`,`${hoursPct}%`,densityTag]);
                 });
             }
 
-            // ================== 5. AI工具分布大类 ==================
             const aiTotal = currentData.aiCount;
             const sortedAi = Object.keys(currentData.aiFreq).map(k => ({ name: k, count: currentData.aiFreq[k] })).sort((a,b) => b.count - a.count);
             if (aiTotal === 0 || sortedAi.length === 0) {
-                csvContent += "AI工具分布,本期未开启动作级AI协同,-,-\n";
+                rows.push(['AI工具分布','本期未开启动作级AI协同','','','','','','','','']);
             } else {
-                sortedAi.forEach((tool, idx) => {
-                    const prefix = (idx === 0) ? "AI工具分布" : ""; 
+                sortedAi.forEach(tool => {
                     const pct = ((tool.count / aiTotal) * 100).toFixed(1);
-                    csvContent += `${prefix},${tool.name},调用频次: ${tool.count}次,使用占比: ${pct}%\n`;
+                    rows.push(['AI工具分布',tool.name,'','', '', `${tool.count} 次`, '', '', `${pct}%`, '']);
                 });
             }
 
-            // ================== 6. 智能化大盘纵横交叉诊断洞察结论大类 ==================
-            const insightText = document.getElementById('rep-intelligence-insight') ? document.getElementById('rep-intelligence-insight').innerText.replace(/,/g, '，').replace(/\n/g, ' ') : '-';
-            csvContent += `智能化诊断洞察,管理层核心提示结论,${insightText},-\n`;
+            const insightText = document.getElementById('rep-intelligence-insight') ? document.getElementById('rep-intelligence-insight').innerText : '-';
+            rows.push(['智能化诊断洞察','管理层核心提示结论','','','','','','','',insightText]);
 
-            // 进行文件流调起标准的 Excel 下载流
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF" + rows.map(row => row.map(csvCell).join(',')).join('\n');
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
@@ -1277,7 +1307,7 @@
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            window.showToast("导出表格成功", "时效边界修正校验完成！宏观总计与微观明细1:1严密拉齐下载。", "success");
+            window.showToast("导出表格成功", "已导出人员总工时、每个需求投入工时、项目工时汇总的全量明细。", "success");
         }
 
         window.exportToPNGImage = function() {
@@ -1396,9 +1426,24 @@
                 const notifMenu = document.getElementById('notifMenu'); const notifBtn = document.getElementById('notifBtn');
                 if(notifMenu && !notifMenu.contains(e.target) && notifBtn && !notifBtn.contains(e.target)) notifMenu.classList.add('hidden'); 
             });
-            window.loadDashboardData();
-            setTimeout(() => { window.syncNotificationsFromCloud(true); }, 1500);
-            setInterval(() => { window.loadDashboardData(true); window.syncNotificationsFromCloud(true); }, 8000);
+
+            // 稳定启动：等 Supabase 模块挂载后再拉数，避免首屏一直停在“SYNCING”。
+            let bootTryCount = 0;
+            const bootTimer = setInterval(() => {
+                bootTryCount++;
+                if (window.supabase && typeof window.loadDashboardData === 'function') {
+                    clearInterval(bootTimer);
+                    window.loadDashboardData();
+                    setTimeout(() => { window.syncNotificationsFromCloud(true); }, 1500);
+                    setInterval(() => { window.loadDashboardData(true); window.syncNotificationsFromCloud(true); }, 8000);
+                } else if (bootTryCount > 40) {
+                    clearInterval(bootTimer);
+                    const loadingEl = document.getElementById('dashboard-loading');
+                    if (loadingEl) {
+                        loadingEl.innerHTML = '<div class="text-center px-8"><p class="text-rose-400 font-bold mb-2">数据模块未加载</p><p class="text-xs text-zinc-500 leading-relaxed max-w-md">请确认 supabase-config.js 与当前页面在同一目录，或刷新页面重试。</p></div>';
+                    }
+                }
+            }, 100);
         });
     </script>
 </body>
