@@ -326,6 +326,48 @@
             font-weight: 900 !important;
         }
 
+
+
+        /* ================= 领导新增：提单状态追踪 / 明细表高对比 ================= */
+        .submission-status-card {
+            border: 1px solid rgba(99,102,241,.18) !important;
+            background: linear-gradient(135deg, rgba(99,102,241,.06), rgba(217,70,239,.035)) !important;
+            border-radius: 18px !important;
+        }
+        .submission-stat-pill {
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,.08);
+            background: rgba(255,255,255,.035);
+            padding: 12px 14px;
+        }
+        .submission-stat-num { font-size: 28px; line-height: 1; font-weight: 900; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+        .submission-row-title, .submission-status-text, .submission-date-text, .submission-owner-text { color: #E5E7EB !important; -webkit-text-fill-color: #E5E7EB !important; }
+        .submission-row-title { font-weight: 900; }
+        .submission-date-text { color: #A5B4FC !important; -webkit-text-fill-color: #A5B4FC !important; }
+        .submission-owner-text { color: #5EEAD4 !important; -webkit-text-fill-color: #5EEAD4 !important; }
+        .submission-status-done { color: #34D399 !important; -webkit-text-fill-color: #34D399 !important; }
+        .submission-status-open { color: #F59E0B !important; -webkit-text-fill-color: #F59E0B !important; }
+        .submission-status-risk { color: #FB7185 !important; -webkit-text-fill-color: #FB7185 !important; }
+        .submission-status-cancel { color: #94A3B8 !important; -webkit-text-fill-color: #94A3B8 !important; }
+        html.theme-light .submission-status-card {
+            background: linear-gradient(135deg, #FFFFFF 0%, #F7F5FF 54%, #FFF7ED 100%) !important;
+            border-color: rgba(99,102,241,.16) !important;
+            box-shadow: 0 10px 26px -20px rgba(79,70,229,.22) !important;
+        }
+        html.theme-light .submission-stat-pill {
+            background: #FFFFFF !important;
+            border-color: rgba(15,23,42,.07) !important;
+            box-shadow: 0 8px 18px -15px rgba(15,23,42,.22) !important;
+        }
+        html.theme-light .submission-row-title { color: #111827 !important; -webkit-text-fill-color: #111827 !important; }
+        html.theme-light .submission-status-text { color: #0F172A !important; -webkit-text-fill-color: #0F172A !important; }
+        html.theme-light .submission-date-text { color: #4F46E5 !important; -webkit-text-fill-color: #4F46E5 !important; }
+        html.theme-light .submission-owner-text { color: #059669 !important; -webkit-text-fill-color: #059669 !important; }
+        html.theme-light .submission-status-done { color: #059669 !important; -webkit-text-fill-color: #059669 !important; }
+        html.theme-light .submission-status-open { color: #D97706 !important; -webkit-text-fill-color: #D97706 !important; }
+        html.theme-light .submission-status-risk { color: #E11D48 !important; -webkit-text-fill-color: #E11D48 !important; }
+        html.theme-light .submission-status-cancel { color: #64748B !important; -webkit-text-fill-color: #64748B !important; }
+
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-fuchsia-500/30 text-zinc-300">
@@ -628,6 +670,33 @@
                                     </tbody>
                             </table>
                         </div>
+                    </div>
+
+                    <div class="space-y-3 submission-status-card p-4">
+                        <div class="flex items-center justify-between gap-4">
+                            <h4 class="text-[13px] font-black text-zinc-300 flex items-center gap-2">
+                                <span class="w-1 h-3 bg-rose-500 rounded-full"></span>
+                                本期提单状态追踪：已结束 / 未结束 / 延误风险
+                            </h4>
+                            <span class="text-[10px] font-black text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 rounded-full px-2.5 py-1">按创建/提单日期统计，不因后续未确认而漏算</span>
+                        </div>
+                        <div id="rep-submission-status-summary" class="grid grid-cols-4 gap-3"></div>
+                        <div class="border border-white/5 rounded-xl overflow-hidden bg-white/[0.005]">
+                            <table class="w-full text-left text-xs font-mono">
+                                <thead class="bg-white/5 text-zinc-400 font-sans">
+                                    <tr>
+                                        <th class="p-3">提单需求</th>
+                                        <th class="p-3">提报人</th>
+                                        <th class="p-3">类目/项目</th>
+                                        <th class="p-3">提单日期</th>
+                                        <th class="p-3">当前状态</th>
+                                        <th class="p-3 text-right">本期工时</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="rep-submission-status-list" class="divide-y divide-white/5 text-zinc-300"></tbody>
+                            </table>
+                        </div>
+                        <p id="rep-submission-status-note" class="text-[11px] leading-relaxed text-indigo-400 font-bold"></p>
                     </div>
 
                     <div class="space-y-3">
@@ -998,6 +1067,39 @@
             return raw;
         }
 
+
+        function formatShortDate(dateLike) {
+            if (!dateLike) return '-';
+            const d = new Date(dateLike);
+            if (isNaN(d.getTime())) return '-';
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }
+
+        function getTaskStatusInfo(t, taskHoursInPeriod = 0) {
+            const raw = String(t && t.status ? t.status : '').trim();
+            const compact = raw.replace(/\s+/g, '').toLowerCase();
+            const doneWords = ['completed','complete','done','finished','finish','closed','close','archived','resolved','delivered','accepted','confirmed','已完成','已结束','已完结','完结','已关闭','已交付','已确认','验收通过','结束'];
+            const cancelWords = ['cancelled','canceled','cancel','void','removed','withdrawn','已取消','已撤销','撤销','作废'];
+            const pausedWords = ['paused','hold','pending','blocked','suspended','暂停','挂起','阻塞','待确认','待验收','待反馈','待评审'];
+            const done = doneWords.some(k => compact.includes(k));
+            const cancelled = cancelWords.some(k => compact.includes(k));
+            const paused = pausedWords.some(k => compact.includes(k));
+            const due = t && t.due_date ? new Date(t.due_date) : null;
+            const overdue = !done && !cancelled && due && !isNaN(due.getTime()) && due < new Date();
+            let label = raw || (done ? '已结束' : '流转中');
+            let group = 'open';
+            let cls = 'submission-status-open';
+            if (cancelled) { group = 'cancel'; cls = 'submission-status-cancel'; label = label || '已撤销'; }
+            else if (done) { group = 'done'; cls = 'submission-status-done'; label = label || '已结束'; }
+            else if (overdue || paused) { group = 'risk'; cls = 'submission-status-risk'; label = overdue ? `未结束 · 已逾期${formatShortDate(t.due_date) !== '-' ? '（原期望 '+formatShortDate(t.due_date)+'）' : ''}` : `未结束 · ${label}`; }
+            else { label = raw ? `未结束 · ${raw}` : '未结束 · 流转中'; }
+            return { raw, compact, group, cls, label, done, cancelled, overdue, taskHoursInPeriod };
+        }
+
+        function safeHtml(text) {
+            return String(text ?? '').replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+        }
+
         function getPersonTaskHourLines(p) {
             return Object.values(p.taskDetails || {})
                 .sort((a, b) => b.hours - a.hours)
@@ -1026,6 +1128,8 @@
             let creatorMap = {};
             let activeProjects = {};
             let peopleMap = {};
+            let submittedTasks = [];
+            let statusStats = { total: 0, done: 0, open: 0, risk: 0, cancel: 0 };
 
             systemUsers.forEach(u => {
                 peopleMap[u.en] = { en: u.en, display: u.display, hours: 0, taskCount: 0, uniqueTasksSet: new Set(), projects: new Set(), aiTools: {}, taskTitles: [], taskDetails: {}, projectHours: {} };
@@ -1087,6 +1191,29 @@
                         }
                     });
                 } catch(e){}
+
+                if (isCreatedInPeriod) {
+                    const statusInfo = getTaskStatusInfo(t, taskHoursInPeriod);
+                    if (!statusInfo.cancelled) {
+                        statusStats.total++;
+                        if (statusInfo.group === 'done') statusStats.done++;
+                        else if (statusInfo.group === 'risk') { statusStats.open++; statusStats.risk++; }
+                        else statusStats.open++;
+                        submittedTasks.push({
+                            id: t.id,
+                            title: t.title || t.id || '未命名需求',
+                            project: t.project || '未归属类目',
+                            creator: (t.creator || '外部提报/未知').split(' ')[0].split('(')[0].trim(),
+                            createdAt: t.created_at,
+                            dueDate: t.due_date,
+                            status: t.status || '',
+                            statusInfo,
+                            hours: taskHoursInPeriod
+                        });
+                    } else {
+                        statusStats.cancel++;
+                    }
+                }
 
                 Object.keys(taskUserHours).forEach(key => {
                     if (taskUserHours[key].hours > 0) {
@@ -1157,6 +1284,8 @@
                 aiCount, 
                 activeProjects,
                 creatorMap,
+                submittedTasks,
+                statusStats,
                 tasksCount: activeTasksSet.size, 
                 projectsCount: projectSet.size
             };
@@ -1618,6 +1747,35 @@
                 dualMatrixBody.innerHTML = html;
             }
 
+
+            const submissionSummary = document.getElementById('rep-submission-status-summary');
+            const submissionList = document.getElementById('rep-submission-status-list');
+            const submissionNote = document.getElementById('rep-submission-status-note');
+            if (submissionSummary && submissionList) {
+                const st = currentData.statusStats || { total: 0, done: 0, open: 0, risk: 0, cancel: 0 };
+                submissionSummary.innerHTML = `
+                    <div class="submission-stat-pill"><p class="text-[11px] text-indigo-400 font-black mb-1">本期提单总量</p><p class="submission-stat-num text-indigo-500">${st.total}</p></div>
+                    <div class="submission-stat-pill"><p class="text-[11px] text-emerald-400 font-black mb-1">已结束</p><p class="submission-stat-num text-emerald-500">${st.done}</p></div>
+                    <div class="submission-stat-pill"><p class="text-[11px] text-amber-400 font-black mb-1">未结束</p><p class="submission-stat-num text-amber-500">${st.open}</p></div>
+                    <div class="submission-stat-pill"><p class="text-[11px] text-rose-400 font-black mb-1">逾期/待确认风险</p><p class="submission-stat-num text-rose-500">${st.risk}</p></div>`;
+                const createdRows = (currentData.submittedTasks || []).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+                if (createdRows.length === 0) {
+                    submissionList.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-indigo-400 font-black">本期暂无提单需求</td></tr>`;
+                    submissionNote.innerHTML = '本模块按需求创建/提单日期统计，专门用于核查“当月提单但后续未确认/未结束”的遗漏风险。';
+                } else {
+                    submissionList.innerHTML = createdRows.map(row => `
+                        <tr class="hover:bg-white/[0.025] transition-colors">
+                            <td class="p-3 submission-row-title">${safeHtml(row.title)}</td>
+                            <td class="p-3 submission-owner-text font-black">${safeHtml(row.creator)}</td>
+                            <td class="p-3 text-fuchsia-400 font-black">${safeHtml(row.project)}</td>
+                            <td class="p-3 submission-date-text font-black">${formatShortDate(row.createdAt)}</td>
+                            <td class="p-3 ${row.statusInfo.cls} font-black submission-status-text">${safeHtml(row.statusInfo.label)}</td>
+                            <td class="p-3 text-right text-sky-400 font-black">${Number(row.hours || 0).toFixed(1)}h</td>
+                        </tr>`).join('');
+                    submissionNote.innerHTML = `本期提单 ${st.total} 单：已结束 <span class="text-emerald-400 font-black">${st.done}</span> 单，未结束 <span class="text-amber-400 font-black">${st.open}</span> 单，其中逾期或待确认风险 <span class="text-rose-400 font-black">${st.risk}</span> 单。这个清单会把当期提单全部拉出来，即使因为确认延期导致还没结束，也不会从本期提单总量里漏掉。`;
+                }
+            }
+
             const aiBar = document.getElementById('rep-ai-tools-percentage-bar');
             const aiLegend = document.getElementById('rep-ai-tools-legend');
             const aiTotal = currentData.aiCount;
@@ -1713,7 +1871,8 @@
                 let topDoer = sortedPplByTasks[0] ? sortedPplByTasks[0].display : '暂无';
                 let topDoerCount = sortedPplByTasks[0] ? sortedPplByTasks[0].uniqueTasksSet.size : 0;
 
-                insightEl.innerHTML = `本期在大盘需求源头审计中，<span class="text-indigo-500 font-black">【${maxCreator}】</span> 属于本期最具统治力的发起方，一个人就狂砸了 <span class="text-indigo-400 font-bold">${maxCreatorCount} 单</span> 需求，强占全量流水提报的 <span class="text-indigo-400 font-bold">${maxCreatorPct}%</span>。纵观需求类目双轨矩阵，独立需求单量占比最高的类目为 <span class="text-sky-500 font-black">《${topProjByCount}》</span>（占总单量的 ${topProjCountPct}%）；而疯狂吞噬团队工时、工时占比高居榜首的重度黑洞类目则是 <span class="text-fuchsia-400 font-bold">《${topProjByHours}》</span>（工时拦截率达 ${topProjHoursPct}%）。在下游了承接设计执行侧，设计师 <span class="text-emerald-400 font-bold">【${topDoer}】</span> 业务吞吐响应最为频繁，独立解题消化了 <span class="text-emerald-400 font-bold">${topDoerCount} 项独立工单</span>，属于本期名副其实的需求消化劳模。全盘有产能产出的设计师共计 <span class="text-purple-400 font-bold">${sortedPplByHours.length} 人</span>，已全部录入底层审计矩阵。`;
+                const st = currentData.statusStats || { total: 0, done: 0, open: 0, risk: 0 };
+                insightEl.innerHTML = `本期在大盘需求源头审计中，<span class="text-indigo-500 font-black">【${maxCreator}】</span> 属于本期最具统治力的发起方，一个人就提交了 <span class="text-indigo-400 font-bold">${maxCreatorCount} 单</span> 需求，占全量流水提报的 <span class="text-indigo-400 font-bold">${maxCreatorPct}%</span>。本期提单状态已补充穿透：总计 <span class="text-indigo-500 font-black">${st.total} 单</span>，已结束 <span class="text-emerald-500 font-black">${st.done} 单</span>，未结束 <span class="text-amber-500 font-black">${st.open} 单</span>，其中逾期/待确认风险 <span class="text-rose-500 font-black">${st.risk} 单</span>；因此当月提单但因确认延期未结束的需求，也会被保留在本期提单清单里。纵观需求类目双轨矩阵，独立需求单量占比最高的类目为 <span class="text-sky-500 font-black">《${topProjByCount}》</span>（占总单量的 ${topProjCountPct}%）；工时占比最高的重度消耗类目则是 <span class="text-fuchsia-400 font-bold">《${topProjByHours}》</span>（工时拦截率达 ${topProjHoursPct}%）。在下游承接设计执行侧，设计师 <span class="text-emerald-400 font-bold">【${topDoer}】</span> 业务吞吐响应最为频繁，独立消化了 <span class="text-emerald-400 font-bold">${topDoerCount} 项独立工单</span>。全盘有产能产出的设计师共计 <span class="text-purple-400 font-bold">${sortedPplByHours.length} 人</span>，已全部录入底层审计矩阵。`;
             }
 
             overlay.classList.remove('hidden');
@@ -1868,6 +2027,10 @@
             addGroup('AI工具分布', aiRows);
 
             const insightText = document.getElementById('rep-intelligence-insight') ? document.getElementById('rep-intelligence-insight').innerText : '-';
+            addGroup('本期提单状态追踪', (currentData.submittedTasks || []).map(t => ({
+                person: t.title,
+                rest: [t.creator || '', t.project || '', formatShortDate(t.createdAt), t.statusInfo ? t.statusInfo.label : (t.status || ''), `${Number(t.hours || 0).toFixed(1)}h`, '', '', '按提单日期纳入本期总量，未结束也保留']
+            })));
             addGroup('智能化诊断洞察', [{ person:'管理层核心提示结论', rest:['','','','','','','',insightText] }]);
 
             let html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
