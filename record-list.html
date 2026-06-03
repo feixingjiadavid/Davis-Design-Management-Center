@@ -267,6 +267,16 @@
             z-index: 1000001 !important;
         }
 
+    
+        /* 搜索框防自动填充：避免浏览器把历史内容和浅蓝底强塞回来 */
+        #searchInput:-webkit-autofill,
+        #searchInput:-webkit-autofill:hover,
+        #searchInput:-webkit-autofill:focus {
+            -webkit-text-fill-color: inherit !important;
+            transition: background-color 999999s ease-in-out 0s !important;
+            box-shadow: 0 0 0 1000px transparent inset !important;
+        }
+
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-indigo-500/30 text-zinc-300">
@@ -381,7 +391,7 @@
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <svg class="h-4 w-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                         </div>
-                        <input type="search" id="searchInput" name="record_search_no_memory" value="" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="window.filterTable()" class="w-full bg-[#121217] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-[13px] text-white outline-none focus:border-indigo-500 transition-colors" placeholder="搜索单号、标题、执行人...">
+                        <input type="search" id="searchInput" oninput="window.filterTable()" class="w-full bg-[#121217] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-[13px] text-white outline-none focus:border-indigo-500 transition-colors" placeholder="搜索单号、标题、执行人..." data-lpignore="true" data-1p-ignore="true" data-form-type="other" name="record_search_no_autofill_20260603" value="" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="search">
                     </div>
                     
                     <select id="projectFilter" onchange="window.filterTable()" class="bg-[#121217] border border-white/10 rounded-xl px-4 py-2.5 text-[13px] text-zinc-300 outline-none hover:border-white/20 transition-colors cursor-pointer appearance-none">
@@ -524,7 +534,7 @@
         };
         document.addEventListener('DOMContentLoaded', function() {
             window.applyPageTheme(localStorage.getItem('requestHallTheme') === 'light' ? 'light' : 'dark');
-            window.resetRecordSearchInput && window.resetRecordSearchInput(false);
+            window.resetRecordSearchInput && window.resetRecordSearchInput(true);
             setTimeout(() => window.resetRecordSearchInput && window.resetRecordSearchInput(false), 0);
         });
 
@@ -643,20 +653,63 @@
         
         window.submitPwdChange = function() { showAlert('提示', '系统演示环境暂不可自助修改密码，请联系管理员。', 'info'); closePwdModal(); }
 
-
-        // 搜索框不记忆上一次输入，避免浏览器/页面恢复带出乱七八糟的默认值
+        // 搜索框强制不记忆：清空浏览器自动恢复、bfcache、第三方密码管理器/自动填充带来的脏值
         window.resetRecordSearchInput = function(shouldFilter = false) {
             const inputEl = document.getElementById("searchInput");
-            if (inputEl) {
+            if (!inputEl) return;
+
+            inputEl.setAttribute("autocomplete", "new-password");
+            inputEl.setAttribute("name", "record_search_no_autofill_20260603");
+            inputEl.setAttribute("data-lpignore", "true");
+            inputEl.setAttribute("data-1p-ignore", "true");
+            inputEl.setAttribute("data-form-type", "other");
+            inputEl.defaultValue = "";
+
+            if (inputEl.value !== "") {
                 inputEl.value = "";
-                inputEl.defaultValue = "";
-                inputEl.setAttribute("autocomplete", "off");
-                inputEl.setAttribute("name", "record_search_no_memory");
+                inputEl.dispatchEvent(new Event("input", { bubbles: true }));
             }
-            if (shouldFilter && typeof window.filterTable === "function") {
-                window.filterTable();
-            }
+
+            // 某些浏览器会在页面恢复后的下一帧才塞值，这里连续兜底清空。
+            requestAnimationFrame(() => {
+                if (inputEl.value !== "") {
+                    inputEl.value = "";
+                    inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+                }
+            });
+
+            setTimeout(() => {
+                if (inputEl.value !== "") {
+                    inputEl.value = "";
+                    inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+                }
+                if (shouldFilter && typeof window.filterTable === "function") {
+                    window.filterTable();
+                }
+            }, 80);
         };
+
+
+        (function installRecordSearchAntiAutofill() {
+            const clear = () => window.resetRecordSearchInput && window.resetRecordSearchInput(true);
+            document.addEventListener("DOMContentLoaded", () => {
+                clear();
+                setTimeout(clear, 0);
+                setTimeout(clear, 120);
+                setTimeout(clear, 500);
+            });
+            window.addEventListener("pageshow", () => {
+                clear();
+                setTimeout(clear, 0);
+                setTimeout(clear, 120);
+                setTimeout(clear, 500);
+            });
+            window.addEventListener("focus", () => setTimeout(clear, 60));
+            document.addEventListener("visibilitychange", () => {
+                if (!document.hidden) setTimeout(clear, 60);
+            });
+        })();
+
 
         // ================= 初始化与拉取数据 =================
         function initRBAC() {
@@ -801,7 +854,7 @@
                     renderCount++;
                 });
 
-                window.resetRecordSearchInput && window.resetRecordSearchInput(false);
+                window.resetRecordSearchInput && window.resetRecordSearchInput(true);
                 document.getElementById('table-loading').classList.add('hidden');
                 document.getElementById('table-stats').innerText = `找到 ${renderCount} 条匹配记录`;
 
