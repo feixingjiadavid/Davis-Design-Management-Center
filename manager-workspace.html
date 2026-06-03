@@ -532,6 +532,92 @@
             position: static !important;
         }
 
+
+        /* 本轮兜底：深色/彩色按钮必须白字，避免开灯模式全局文字色覆盖 */
+        #metric-insight-modal .metric-modal-close-btn,
+        #metric-insight-modal .metric-modal-primary-btn,
+        #metric-insight-modal .metric-card-action-btn,
+        body.theme-light #metric-insight-modal .metric-modal-close-btn,
+        body.theme-light #metric-insight-modal .metric-modal-primary-btn,
+        body.theme-light #metric-insight-modal .metric-card-action-btn,
+        #metric-insight-modal button.metric-modal-close-btn,
+        #metric-insight-modal button.metric-modal-primary-btn,
+        #metric-insight-modal button.metric-card-action-btn {
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
+            opacity: 1 !important;
+        }
+        #metric-insight-modal .metric-modal-close-btn,
+        body.theme-light #metric-insight-modal .metric-modal-close-btn {
+            background: #111827 !important;
+            border-color: rgba(17,24,39,.72) !important;
+        }
+        #metric-insight-modal .metric-modal-close-btn:hover,
+        body.theme-light #metric-insight-modal .metric-modal-close-btn:hover {
+            background: #000000 !important;
+        }
+        #metric-insight-modal .metric-modal-primary-btn,
+        body.theme-light #metric-insight-modal .metric-modal-primary-btn {
+            background: linear-gradient(135deg, #d946ef 0%, #9333ea 100%) !important;
+            border-color: transparent !important;
+        }
+        #metric-insight-modal .metric-card-action-btn,
+        body.theme-light #metric-insight-modal .metric-card-action-btn {
+            background: #ea580c !important;
+            border-color: transparent !important;
+        }
+
+        /* 报告长图：表格列宽与标签稳定，避免 html2canvas 生成时错位 */
+        .admin-report-table {
+            table-layout: fixed !important;
+            border-collapse: collapse !important;
+            width: 100% !important;
+        }
+        .admin-report-table th,
+        .admin-report-table td {
+            vertical-align: middle !important;
+            box-sizing: border-box !important;
+        }
+        .admin-report-table td:nth-child(4),
+        .admin-report-table th:nth-child(4) {
+            min-width: 116px !important;
+            white-space: nowrap !important;
+            text-align: center !important;
+        }
+        .admin-load-tag,
+        body.theme-light .admin-load-tag,
+        #export-capture-zone .admin-load-tag,
+        #export-capture-zone-clone-full .admin-load-tag {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            min-width: 92px !important;
+            white-space: nowrap !important;
+            line-height: 1.1 !important;
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
+            box-sizing: border-box !important;
+            text-align: center !important;
+        }
+        body.theme-light .admin-load-high,
+        .admin-load-high { background: #e11d48 !important; color: #fff !important; }
+        body.theme-light .admin-load-ok,
+        .admin-load-ok { background: #10b981 !important; color: #fff !important; }
+        body.theme-light .admin-load-idle,
+        .admin-load-idle { background: #64748b !important; color: #fff !important; }
+
+        /* 捕获长图时取消弹窗滚动/底部固定对截图布局的影响 */
+        body.is-exporting-longshot #export-modal,
+        body.is-exporting-longshot #export-capture-zone {
+            max-height: none !important;
+            height: auto !important;
+            overflow: visible !important;
+        }
+        body.is-exporting-longshot #export-modal .sticky,
+        body.is-exporting-longshot #export-modal [style*="position: sticky"] {
+            position: static !important;
+        }
+
 </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-fuchsia-500/30 text-zinc-300">
@@ -828,7 +914,8 @@
                             实时设计资源负荷与任务吞吐排查明细 (按时长全量审计)
                         </h4>
                         <div class="border border-white/5 rounded-xl overflow-hidden bg-white/[0.005]">
-                            <table class="w-full text-left text-xs font-mono">
+                            <table class="w-full text-left text-xs font-mono admin-report-table">
+                                <colgroup><col style="width:34%"><col style="width:18%"><col style="width:22%"><col style="width:26%"></colgroup>
                                 <thead class="bg-white/5 text-zinc-400 font-sans">
                                     <tr>
                                         <th class="p-3">执行设计师</th>
@@ -899,8 +986,8 @@
             <div class="p-6 border-t border-white/5 bg-[#16161d] flex items-center justify-between gap-4">
                 <p id="metric-insight-footer" class="text-[11px] text-zinc-500">点击条目可进入需求详情页。</p>
                 <div class="flex gap-3 shrink-0">
-                    <button onclick="window.closeAdminMetricModal()" class="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-[12px] font-bold btn-press border border-white/5">关闭</button>
-                    <button id="metric-insight-primary" onclick="window.openFirstAdminMetricTask()" class="px-6 py-2.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded-xl text-[12px] font-bold btn-press shadow-lg shadow-fuchsia-900/30">打开第一条</button>
+                    <button onclick="window.closeAdminMetricModal()" class="metric-modal-close-btn px-5 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl text-[12px] font-bold btn-press border border-zinc-700">关闭</button>
+                    <button id="metric-insight-primary" onclick="window.openFirstAdminMetricTask()" class="metric-modal-primary-btn px-6 py-2.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded-xl text-[12px] font-bold btn-press shadow-lg shadow-fuchsia-900/30">打开第一条</button>
                 </div>
             </div>
         </div>
@@ -1756,7 +1843,7 @@
                                     </div>
                                     <h3 class="text-[15px] font-black text-white leading-snug">${t.title || '未命名需求'}</h3>
                                 </div>
-                                <button onclick="event.stopPropagation(); window.location.href='task-detail-requester.html?id=${t.id}'" class="shrink-0 px-4 py-2 rounded-xl text-[12px] font-bold text-white bg-${meta.color}-600 hover:bg-${meta.color}-500 transition-colors btn-press">${meta.action}</button>
+                                <button onclick="event.stopPropagation(); window.location.href='task-detail-requester.html?id=${t.id}'" class="metric-card-action-btn shrink-0 px-4 py-2 rounded-xl text-[12px] font-bold text-white bg-${meta.color}-600 hover:bg-${meta.color}-500 transition-colors btn-press">${meta.action}</button>
                             </div>
                             <div class="grid grid-cols-3 gap-3 text-[11px] text-zinc-500 border-t border-white/5 pt-3">
                                 <span class="truncate">发起人：<b class="text-zinc-300">${t.creator || '--'}</b></span>
@@ -1899,11 +1986,11 @@
                 let html = '';
                 sortedDesigners.forEach(d => {
                     const isEmpty = d.count === 0 && d.hours === 0;
-                    let loadTag = '<span class="admin-load-tag text-[10px] text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">💤 挂空/就绪</span>';
+                    let loadTag = '<span class="admin-load-tag admin-load-idle inline-flex items-center justify-center gap-1 min-w-[92px] whitespace-nowrap text-[10px] text-white bg-slate-700 px-2 py-1 rounded border border-slate-500/30">💤 挂空/就绪</span>';
                     if (d.count > 2) {
-                        loadTag = '<span class="admin-load-tag text-[10px] text-rose-400 bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded font-bold">🔥 高负荷压制</span>';
+                        loadTag = '<span class="admin-load-tag admin-load-high inline-flex items-center justify-center gap-1 min-w-[92px] whitespace-nowrap text-[10px] text-white bg-rose-600 border border-rose-500/40 px-2 py-1 rounded font-bold">🔥 高负荷压制</span>';
                     } else if (d.count > 0 || d.hours > 0) {
-                        loadTag = '<span class="admin-load-tag text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">✅ 健康流转</span>';
+                        loadTag = '<span class="admin-load-tag admin-load-ok inline-flex items-center justify-center gap-1 min-w-[92px] whitespace-nowrap text-[10px] text-white bg-emerald-600 border border-emerald-500/40 px-2 py-1 rounded font-bold">✅ 健康流转</span>';
                     }
 
                     html += `
@@ -2002,116 +2089,94 @@
             window.showToast("表格导出成功", "结构化复盘数据表已成功下载", "success");
         }
 
-        window.exportToPNGImage = function() {
+        window.exportToPNGImage = async function() {
             const captureZone = document.getElementById('export-capture-zone');
-            if (!captureZone) return;
+            const modal = document.getElementById('export-modal');
+            const footer = modal ? modal.querySelector(':scope > div:last-child') : null;
+            if (!captureZone || !modal) return;
 
-            window.showToast("图片渲染中", "正在生成完整长图，不截取当前可视区域...", "info");
+            window.showToast("图片渲染中", "正在展开并生成完整长图...", "info");
 
             const isLight = document.body.classList.contains('theme-light');
             const bg = isLight ? '#FFFFFF' : '#121217';
 
-            // 克隆完整报告到屏幕内不可见但可渲染的位置，避免 left:-99999px 导致字体/定位错位
-            const cloneWrap = document.createElement('div');
-            cloneWrap.style.position = 'fixed';
-            cloneWrap.style.left = '0';
-            cloneWrap.style.top = '0';
-            cloneWrap.style.width = captureZone.offsetWidth + 'px';
-            cloneWrap.style.maxHeight = 'none';
-            cloneWrap.style.height = 'auto';
-            cloneWrap.style.overflow = 'visible';
-            cloneWrap.style.opacity = '0';
-            cloneWrap.style.pointerEvents = 'none';
-            cloneWrap.style.zIndex = '-1';
-            cloneWrap.style.background = bg;
-            cloneWrap.style.transform = 'none';
+            const old = {
+                modalMaxHeight: modal.style.maxHeight,
+                modalHeight: modal.style.height,
+                modalOverflow: modal.style.overflow,
+                captureMaxHeight: captureZone.style.maxHeight,
+                captureHeight: captureZone.style.height,
+                captureOverflow: captureZone.style.overflow,
+                footerDisplay: footer ? footer.style.display : ''
+            };
 
-            const clone = captureZone.cloneNode(true);
-            clone.id = 'export-capture-zone-clone-full';
-            clone.classList.add('export-capturing-full');
-            clone.style.width = captureZone.offsetWidth + 'px';
-            clone.style.maxWidth = 'none';
-            clone.style.height = 'auto';
-            clone.style.maxHeight = 'none';
-            clone.style.overflow = 'visible';
-            clone.style.transform = 'none';
-            clone.style.background = bg;
-            clone.style.boxSizing = 'border-box';
+            try {
+                document.body.classList.add('is-exporting-longshot');
 
-            // 防止底部固定操作栏、滚动容器高度影响截图
-            clone.querySelectorAll('.sticky, [style*="position: sticky"]').forEach(el => {
-                el.style.position = 'static';
-            });
-            clone.querySelectorAll('.overflow-y-auto, .custom-scrollbar').forEach(el => {
-                el.style.overflow = 'visible';
-                el.style.maxHeight = 'none';
-                el.style.height = 'auto';
-            });
+                // 直接展开当前真实报告节点，避免克隆节点和 Tailwind 动态样式造成文字错位
+                modal.style.maxHeight = 'none';
+                modal.style.height = 'auto';
+                modal.style.overflow = 'visible';
+                captureZone.style.maxHeight = 'none';
+                captureZone.style.height = 'auto';
+                captureZone.style.overflow = 'visible';
+                if (footer) footer.style.display = 'none';
 
-            cloneWrap.appendChild(clone);
-            document.body.appendChild(cloneWrap);
-
-            // 等待浏览器完成字体和布局
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                    html2canvas(clone, {
-                        backgroundColor: bg,
-                        scale: 2,
-                        logging: false,
-                        useCORS: true,
-                        allowTaint: true,
-                        scrollX: 0,
-                        scrollY: 0,
-                        windowWidth: clone.scrollWidth,
-                        windowHeight: clone.scrollHeight,
-                        width: clone.scrollWidth,
-                        height: clone.scrollHeight
-                    }).then(canvas => {
-                        const imgData = canvas.toDataURL('image/png');
-                        const link = document.createElement('a');
-                        link.download = `TIG_全局就绪统筹完整长图_${document.getElementById('current-date-text').innerText}.png`;
-                        link.href = imgData;
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                        window.showToast("PNG 下载成功", "完整长图报告已下载", "success");
-                    }).catch(err => {
-                        console.error(err);
-                        window.showToast("PNG 生成失败", "请稍后重试或先导出表格", "error");
-                    }).finally(() => {
-                        cloneWrap.remove();
-                    });
+                captureZone.querySelectorAll('.custom-scrollbar, .overflow-y-auto').forEach(el => {
+                    el.dataset.oldOverflow = el.style.overflow;
+                    el.dataset.oldMaxHeight = el.style.maxHeight;
+                    el.style.overflow = 'visible';
+                    el.style.maxHeight = 'none';
+                    el.style.height = 'auto';
                 });
-            });
-        }
 
+                await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                if (document.fonts && document.fonts.ready) {
+                    try { await document.fonts.ready; } catch(e) {}
+                }
 
-        function bindAdminMetricCards() {
-            const map = [
-                ['metric-card-ongoing', 'ongoing'],
-                ['metric-card-pending', 'pending'],
-                ['metric-card-completed', 'completed']
-            ];
-            map.forEach(([id, type]) => {
-                const el = document.getElementById(id);
-                if (!el || el.__metricBound) return;
-                el.__metricBound = true;
-                el.style.cursor = 'pointer';
-                el.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (typeof window.openAdminMetricModal === 'function') {
-                        window.openAdminMetricModal(type);
-                    }
+                const canvas = await html2canvas(captureZone, {
+                    backgroundColor: bg,
+                    scale: 2,
+                    logging: false,
+                    useCORS: true,
+                    allowTaint: true,
+                    scrollX: 0,
+                    scrollY: -window.scrollY,
+                    windowWidth: Math.max(captureZone.scrollWidth, captureZone.offsetWidth),
+                    windowHeight: Math.max(captureZone.scrollHeight, captureZone.offsetHeight),
+                    width: captureZone.scrollWidth,
+                    height: captureZone.scrollHeight
                 });
-            });
-        }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            bindAdminMetricCards();
-            setTimeout(bindAdminMetricCards, 300);
-            setTimeout(updateExportPeriodControls, 300);
-        });
+                const imgData = canvas.toDataURL('image/png');
+                const link = document.createElement('a');
+                link.download = `TIG_全局就绪统筹完整长图_${document.getElementById('current-date-text').innerText}.png`;
+                link.href = imgData;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.showToast("PNG 下载成功", "完整长图报告已下载", "success");
+            } catch(err) {
+                console.error(err);
+                window.showToast("PNG 生成失败", "请稍后重试或先导出表格", "error");
+            } finally {
+                modal.style.maxHeight = old.modalMaxHeight;
+                modal.style.height = old.modalHeight;
+                modal.style.overflow = old.modalOverflow;
+                captureZone.style.maxHeight = old.captureMaxHeight;
+                captureZone.style.height = old.captureHeight;
+                captureZone.style.overflow = old.captureOverflow;
+                if (footer) footer.style.display = old.footerDisplay;
+                captureZone.querySelectorAll('.custom-scrollbar, .overflow-y-auto').forEach(el => {
+                    el.style.overflow = el.dataset.oldOverflow || '';
+                    el.style.maxHeight = el.dataset.oldMaxHeight || '';
+                    delete el.dataset.oldOverflow;
+                    delete el.dataset.oldMaxHeight;
+                });
+                document.body.classList.remove('is-exporting-longshot');
+            }
+        }
 
         // ================= 🔔 全局消息通知引擎 =================
         let lastNotifHash = '';
