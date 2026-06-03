@@ -277,6 +277,26 @@
             box-shadow: 0 0 0 1000px transparent inset !important;
         }
 
+    
+        /* 搜索框改为 contenteditable，彻底避开浏览器 input 自动填充/历史恢复 */
+        #searchInput[contenteditable="true"]:empty::before {
+            content: attr(data-placeholder);
+            color: #71717a;
+            pointer-events: none;
+        }
+        body.theme-light #searchInput[contenteditable="true"]:empty::before,
+        html.theme-light-preload #searchInput[contenteditable="true"]:empty::before {
+            color: #94a3b8;
+        }
+        #searchInput[contenteditable="true"] {
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        #searchInput[contenteditable="true"] br,
+        #searchInput[contenteditable="true"] div {
+            display: none;
+        }
+
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-indigo-500/30 text-zinc-300">
@@ -391,7 +411,7 @@
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <svg class="h-4 w-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                         </div>
-                        <input type="search" id="searchInput" oninput="window.filterTable()" class="w-full bg-[#121217] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-[13px] text-white outline-none focus:border-indigo-500 transition-colors" placeholder="搜索单号、标题、执行人..." data-lpignore="true" data-1p-ignore="true" data-form-type="other" name="record_search_no_autofill_20260603" value="" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="search">
+                        <div id="searchInput" role="searchbox" contenteditable="true" data-placeholder="搜索单号、标题、执行人..." spellcheck="false" class="w-full bg-[#121217] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-[13px] text-white outline-none focus:border-indigo-500 transition-colors min-h-[42px] flex items-center" oninput="window.filterTable()" onkeydown="if(event.key==='Enter'){event.preventDefault();}"></div>
                     </div>
                     
                     <select id="projectFilter" onchange="window.filterTable()" class="bg-[#121217] border border-white/10 rounded-xl px-4 py-2.5 text-[13px] text-zinc-300 outline-none hover:border-white/20 transition-colors cursor-pointer appearance-none">
@@ -653,41 +673,71 @@
         
         window.submitPwdChange = function() { showAlert('提示', '系统演示环境暂不可自助修改密码，请联系管理员。', 'info'); closePwdModal(); }
 
-        // 搜索框强制不记忆：清空浏览器自动恢复、bfcache、第三方密码管理器/自动填充带来的脏值
+
+        // 搜索框已改为 contenteditable：给它补一个 value 属性，兼容原来的筛选逻辑
+        window.ensureSearchEditableValueShim = function() {
+            const el = document.getElementById("searchInput");
+            if (!el || el.__valueShimInstalled) return;
+            if (el.getAttribute("contenteditable") === "true") {
+                Object.defineProperty(el, "value", {
+                    get() { return this.textContent || ""; },
+                    set(v) { this.textContent = v || ""; },
+                    configurable: true
+                });
+                el.__valueShimInstalled = true;
+            }
+        };
+
+        // 搜索框强制不记忆：由于搜索框不是 input，浏览器不会再把 123456 等历史值塞回来
         window.resetRecordSearchInput = function(shouldFilter = false) {
+            window.ensureSearchEditableValueShim && window.ensureSearchEditableValueShim();
             const inputEl = document.getElementById("searchInput");
             if (!inputEl) return;
 
-            inputEl.setAttribute("autocomplete", "new-password");
-            inputEl.setAttribute("name", "record_search_no_autofill_20260603");
-            inputEl.setAttribute("data-lpignore", "true");
-            inputEl.setAttribute("data-1p-ignore", "true");
-            inputEl.setAttribute("data-form-type", "other");
-            inputEl.defaultValue = "";
-
-            if (inputEl.value !== "") {
+            if (inputEl.getAttribute("contenteditable") === "true") {
+                inputEl.textContent = "";
+                inputEl.innerHTML = "";
+            } else {
                 inputEl.value = "";
-                inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+                inputEl.defaultValue = "";
+                inputEl.setAttribute("autocomplete", "new-password");
+                inputEl.setAttribute("name", "record_search_no_autofill_disabled");
             }
 
-            // 某些浏览器会在页面恢复后的下一帧才塞值，这里连续兜底清空。
-            requestAnimationFrame(() => {
-                if (inputEl.value !== "") {
-                    inputEl.value = "";
-                    inputEl.dispatchEvent(new Event("input", { bubbles: true }));
-                }
-            });
-
-            setTimeout(() => {
-                if (inputEl.value !== "") {
-                    inputEl.value = "";
-                    inputEl.dispatchEvent(new Event("input", { bubbles: true }));
-                }
-                if (shouldFilter && typeof window.filterTable === "function") {
-                    window.filterTable();
-                }
-            }, 80);
+            if (shouldFilter && typeof window.filterTable === "function") {
+                window.filterTable();
+            }
         };
+
+        (function installRecordSearchNoAutofillWidget() {
+            const clear = () => {
+                window.ensureSearchEditableValueShim && window.ensureSearchEditableValueShim();
+                window.resetRecordSearchInput && window.resetRecordSearchInput(true);
+            };
+            if (document.readyState !== "loading") {
+                setTimeout(clear, 0);
+                setTimeout(clear, 120);
+                setTimeout(clear, 500);
+            }
+            document.addEventListener("DOMContentLoaded", () => {
+                clear();
+                setTimeout(clear, 0);
+                setTimeout(clear, 120);
+                setTimeout(clear, 500);
+            });
+            window.addEventListener("pageshow", () => {
+                clear();
+                setTimeout(clear, 0);
+                setTimeout(clear, 120);
+                setTimeout(clear, 500);
+            });
+            window.addEventListener("focus", () => setTimeout(clear, 60));
+            document.addEventListener("visibilitychange", () => {
+                if (!document.hidden) setTimeout(clear, 60);
+            });
+        })();
+
+
 
 
         (function installRecordSearchAntiAutofill() {
@@ -855,6 +905,7 @@
                 });
 
                 window.resetRecordSearchInput && window.resetRecordSearchInput(true);
+                window.resetRecordSearchInput && window.resetRecordSearchInput(true);
                 document.getElementById('table-loading').classList.add('hidden');
                 document.getElementById('table-stats').innerText = `找到 ${renderCount} 条匹配记录`;
 
@@ -875,7 +926,7 @@
 
         window.filterTable = function() {
             const inputEl = document.getElementById("searchInput");
-            const input = inputEl ? inputEl.value.toLowerCase().trim() : "";
+            const input = inputEl ? ((inputEl.value !== undefined ? inputEl.value : inputEl.textContent) || "").toLowerCase().trim() : "";
             const projectFilter = document.getElementById("projectFilter").value;
             const statusFilter = document.getElementById("statusFilter").value;
             
