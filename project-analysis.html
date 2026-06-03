@@ -251,184 +251,79 @@
         .export-image-clone table { table-layout: fixed !important; width: 100% !important; }
 
 
-        /* ================= ✅ 2026-06-03 可读性与浅色主题最终修复 =================
-           目标：
-           1) 图1项目投入分析页面侧栏/顶部按钮样式对齐资源统筹中心；
-           2) 导出弹窗浅色背景不再出现白字/浅灰字；
-           3) 深色模式下模块内不使用黑色或低对比灰字；
-           4) Excel/CSV 按钮白字配深色/鲜艳按钮，避免浅底白字。 */
-
-        /* 深色模式：所有动态生成模块中禁止黑字、暗灰字，统一提高对比度 */
-        html:not(.theme-light) .text-zinc-900,
-        html:not(.theme-light) .text-zinc-800,
-        html:not(.theme-light) .text-zinc-700 {
+        /* ================= ✅ 二次修复：明细弹窗/导出模块高对比彩色化 ================= */
+        /* 明细弹窗：深色模式严禁黑灰字，统一提亮成可读彩色 */
+        #analysis-detail-modal .analysis-detail-row h3,
+        #analysis-detail-modal .analysis-detail-row .detail-title {
             color: #F8FAFC !important;
             -webkit-text-fill-color: #F8FAFC !important;
         }
-        html:not(.theme-light) .text-zinc-600,
-        html:not(.theme-light) .text-zinc-500,
-        html:not(.theme-light) .text-zinc-400 {
-            color: #C7D2FE !important;
-            -webkit-text-fill-color: #C7D2FE !important;
-        }
-        html:not(.theme-light) .analysis-detail-row,
-        html:not(.theme-light) .person-drilldown-card,
-        html:not(.theme-light) #export-capture-zone .font-item-creator,
-        html:not(.theme-light) #export-capture-zone .user-task-row,
-        html:not(.theme-light) #export-capture-zone .user-hour-row,
-        html:not(.theme-light) #export-capture-zone .ai-legend-item {
-            background: linear-gradient(135deg, rgba(30,41,59,.92) 0%, rgba(17,24,39,.96) 100%) !important;
-            border-color: rgba(129,140,248,.22) !important;
-        }
-        html:not(.theme-light) #export-capture-zone thead,
-        html:not(.theme-light) #export-capture-zone .bg-white\/5 {
-            background: rgba(99,102,241,.16) !important;
-        }
-        html:not(.theme-light) #export-capture-zone .row-tasks-pct,
-        html:not(.theme-light) #export-capture-zone .row-hours-pct,
-        html:not(.theme-light) #export-capture-zone .ai-count,
-        html:not(.theme-light) #export-capture-zone .c-detail,
-        html:not(.theme-light) #export-capture-zone [class*="text-zinc-600"] {
+        #analysis-detail-modal .analysis-detail-row p,
+        #analysis-detail-modal .analysis-detail-row .detail-meta {
             color: #A5B4FC !important;
             -webkit-text-fill-color: #A5B4FC !important;
         }
-
-        /* 浅色模式：侧栏、底部身份区，与资源统筹中心保持同一套清爽层级 */
-        html.theme-light aside {
-            background: rgba(255,255,255,.86) !important;
-            box-shadow: 1px 0 0 rgba(15,23,42,.04) !important;
+        #analysis-detail-modal .analysis-detail-row .detail-projects,
+        #analysis-detail-modal .analysis-detail-row .project-hours-line {
+            color: #C084FC !important;
+            -webkit-text-fill-color: #C084FC !important;
+            font-weight: 800 !important;
         }
-        html.theme-light aside .flex-1 button {
-            background: #EEF2F7 !important;
-            color: #475569 !important;
-            border: 1px solid transparent !important;
-            box-shadow: none !important;
+        #analysis-detail-modal .analysis-detail-row .text-zinc-500,
+        #analysis-detail-modal .analysis-detail-row .text-zinc-600 {
+            color: #A5B4FC !important;
+            -webkit-text-fill-color: #A5B4FC !important;
         }
-        html.theme-light aside .flex-1 button:hover {
-            background: #E8EEF7 !important;
-            color: #1E293B !important;
+        #analysis-detail-modal .analysis-detail-row .text-zinc-800 {
+            color: #F8FAFC !important;
+            -webkit-text-fill-color: #F8FAFC !important;
         }
-        html.theme-light aside .flex-1 button.bg-fuchsia-500\/10,
-        html.theme-light aside .flex-1 button.cursor-default {
-            background: #FCE7FF !important;
-            color: #C026D3 !important;
-            border-color: rgba(217,70,239,.18) !important;
-            box-shadow: inset 0 0 0 1px rgba(217,70,239,.06) !important;
+        #analysis-detail-modal .analysis-detail-row .metric-big-number,
+        #analysis-detail-modal .analysis-detail-row .ai-big-number {
+            font-size: 32px !important;
+            line-height: 1 !important;
+            letter-spacing: -0.02em !important;
+            font-weight: 950 !important;
         }
-        html.theme-light aside .flex-1 button svg { stroke: currentColor !important; }
-        html.theme-light aside > .px-5.py-6 {
-            background: rgba(255,255,255,.92) !important;
-            border-top-color: rgba(15,23,42,.06) !important;
+        #analysis-detail-modal .analysis-detail-row .metric-percent,
+        #analysis-detail-modal .analysis-detail-row .ai-percent {
+            font-size: 13px !important;
+            font-weight: 900 !important;
+            color: #6366F1 !important;
+            -webkit-text-fill-color: #6366F1 !important;
         }
-        html.theme-light #sidebar-name { color: #1E293B !important; -webkit-text-fill-color: #1E293B !important; }
-        html.theme-light #sidebar-role { color: #C026D3 !important; -webkit-text-fill-color: #C026D3 !important; font-weight: 800 !important; }
-        html.theme-light #sidebar-avatar {
-            background: linear-gradient(135deg,#6366F1,#D946EF) !important;
-            color: #FFFFFF !important;
-            -webkit-text-fill-color: #FFFFFF !important;
-            border: 0 !important;
+        html.theme-light #analysis-detail-modal .analysis-detail-row h3,
+        html.theme-light #analysis-detail-modal .analysis-detail-row .detail-title {
+            color: #111827 !important;
+            -webkit-text-fill-color: #111827 !important;
         }
-
-        /* 浅色模式：顶部操作区按钮与图2保持一致，关键操作必须鲜艳 */
-        html.theme-light header button[onclick="window.openExportAnalysisModal()"] {
-            background: linear-gradient(135deg,#C026D3 0%,#4F46E5 100%) !important;
-            color: #FFFFFF !important;
-            -webkit-text-fill-color: #FFFFFF !important;
-            border: none !important;
-            box-shadow: 0 12px 24px -14px rgba(79,70,229,.55) !important;
+        html.theme-light #analysis-detail-modal .analysis-detail-row p,
+        html.theme-light #analysis-detail-modal .analysis-detail-row .text-zinc-500,
+        html.theme-light #analysis-detail-modal .analysis-detail-row .text-zinc-600,
+        html.theme-light #analysis-detail-modal .analysis-detail-row .detail-meta {
+            color: #4F46E5 !important;
+            -webkit-text-fill-color: #4F46E5 !important;
         }
-        html.theme-light #btn-jump-current {
-            background: #F5D0FE !important;
-            color: #A21CAF !important;
-            -webkit-text-fill-color: #A21CAF !important;
-            border-color: rgba(217,70,239,.18) !important;
-            box-shadow: 0 8px 18px -14px rgba(217,70,239,.5) !important;
+        html.theme-light #analysis-detail-modal .analysis-detail-row .project-hours-line,
+        html.theme-light #analysis-detail-modal .analysis-detail-row .detail-projects {
+            color: #9333EA !important;
+            -webkit-text-fill-color: #9333EA !important;
         }
-        html.theme-light #btn-jump-current:hover { background: #F0ABFC !important; color:#86198F !important; -webkit-text-fill-color:#86198F !important; }
-        html.theme-light #current-date-text,
-        html.theme-light #identityBtn,
-        html.theme-light #notifBtn { color: #1E293B !important; -webkit-text-fill-color:#1E293B !important; }
-
-        /* 浅色模式：导出弹窗/导出长图区域，浅底上严禁白字和浅灰字 */
-        html.theme-light #export-modal,
-        html.theme-light #export-capture-zone,
-        html.theme-light #export-capture-zone > div {
-            background: #FFFFFF !important;
-            color: #172033 !important;
-            -webkit-text-fill-color: initial !important;
-        }
-        html.theme-light #export-capture-zone h3,
-        html.theme-light #export-capture-zone h4,
-        html.theme-light #export-capture-zone th,
-        html.theme-light #export-capture-zone td,
-        html.theme-light #export-capture-zone p,
-        html.theme-light #export-capture-zone span:not(.keep-white):not([class*="bg-"]):not([class*="text-fuchsia"]):not([class*="text-indigo"]):not([class*="text-emerald"]):not([class*="text-amber"]):not([class*="text-sky"]):not([class*="text-purple"]) {
-            color: #172033 !important;
-            -webkit-text-fill-color: #172033 !important;
-        }
-        html.theme-light #export-capture-zone .text-white,
-        html.theme-light #export-capture-zone .text-zinc-100,
-        html.theme-light #export-capture-zone .text-zinc-200,
-        html.theme-light #export-capture-zone .text-zinc-300,
-        html.theme-light #export-capture-zone .text-zinc-400,
-        html.theme-light #export-capture-zone .text-zinc-500,
-        html.theme-light #export-capture-zone .text-zinc-600,
-        html.theme-light #export-capture-zone .row-pname,
-        html.theme-light #export-capture-zone .row-tasks,
-        html.theme-light #export-capture-zone .c-name,
-        html.theme-light #export-capture-zone .c-count,
-        html.theme-light #export-capture-zone .u-task-name,
-        html.theme-light #export-capture-zone .u-hour-name,
-        html.theme-light #export-capture-zone .ai-name {
-            color: #172033 !important;
-            -webkit-text-fill-color: #172033 !important;
-        }
-        html.theme-light #export-capture-zone #rep-m-demand-count,
-        html.theme-light #export-capture-zone #rep-m-demand-count * { color: #D946EF !important; -webkit-text-fill-color:#D946EF !important; }
-        html.theme-light #export-capture-zone #rep-m-hours,
-        html.theme-light #export-capture-zone #rep-m-hours * { color: #4F46E5 !important; -webkit-text-fill-color:#4F46E5 !important; }
-        html.theme-light #export-capture-zone #rep-m-projects,
-        html.theme-light #export-capture-zone #rep-m-projects * { color: #10B981 !important; -webkit-text-fill-color:#10B981 !important; }
-        html.theme-light #export-capture-zone #rep-m-people,
-        html.theme-light #export-capture-zone #rep-m-people * { color: #F59E0B !important; -webkit-text-fill-color:#F59E0B !important; }
-        html.theme-light #export-capture-zone .row-hours { color: #D946EF !important; -webkit-text-fill-color:#D946EF !important; }
-        html.theme-light #export-capture-zone .row-tasks { color: #4F46E5 !important; -webkit-text-fill-color:#4F46E5 !important; }
+        /* 导出弹窗：浅底上的辅助信息不能灰到看不见 */
         html.theme-light #export-capture-zone .row-tasks-pct,
         html.theme-light #export-capture-zone .row-hours-pct,
-        html.theme-light #export-capture-zone .ai-count { color: #64748B !important; -webkit-text-fill-color:#64748B !important; }
-        html.theme-light #export-capture-zone .matrix-row span:last-child:not([class*="text-"]) {
-            color: #334155 !important;
-            -webkit-text-fill-color: #334155 !important;
-            background: #EEF2FF !important;
-            border: 1px solid rgba(99,102,241,.16) !important;
+        html.theme-light #export-capture-zone .ai-count,
+        html.theme-light #export-capture-zone .c-pct,
+        html.theme-light #export-capture-zone .u-task-name span,
+        html.theme-light #export-capture-zone .u-hour-name span {
+            color: #4F46E5 !important;
+            -webkit-text-fill-color: #4F46E5 !important;
+            font-weight: 900 !important;
         }
-        html.theme-light #rep-intelligence-insight,
-        html.theme-light #rep-intelligence-insight *:not([class*="text-fuchsia"]):not([class*="text-indigo"]):not([class*="text-emerald"]):not([class*="text-purple"]) {
-            color: #172033 !important;
-            -webkit-text-fill-color:#172033 !important;
-        }
-        html.theme-light #rep-intelligence-insight .text-white {
-            color: #1D4ED8 !important;
-            -webkit-text-fill-color:#1D4ED8 !important;
-        }
-
-        /* Excel/CSV 按钮：白字必须配深色/鲜艳色块 */
-        #btn-csv-export,
-        html.theme-light #btn-csv-export {
-            background: linear-gradient(135deg,#4F46E5 0%,#7C3AED 100%) !important;
-            color: #FFFFFF !important;
-            -webkit-text-fill-color: #FFFFFF !important;
-            border: 0 !important;
-            box-shadow: 0 12px 24px -15px rgba(79,70,229,.58) !important;
-        }
-        #btn-csv-export svg,
-        html.theme-light #btn-csv-export svg { stroke: #FFFFFF !important; }
-
-        /* html2canvas 克隆导出时也强制应用同样的可读性规则 */
-        .export-image-clone #rep-intelligence-insight .text-white,
-        html.theme-light .export-image-clone #rep-intelligence-insight .text-white {
-            color: #1D4ED8 !important;
-            -webkit-text-fill-color:#1D4ED8 !important;
+        #export-capture-zone .ai-val,
+        #export-capture-zone .ai-count {
+            font-size: 12px !important;
+            font-weight: 900 !important;
         }
 
     </style>
@@ -693,15 +588,15 @@
                         </div>
                         <div class="bg-white/[0.01] border border-white/5 rounded-xl p-4">
                             <p class="text-[11px] text-zinc-500 font-medium">累计消耗设计工时</p>
-                            <p class="text-xl font-black text-indigo-500 font-mono mt-1" id="rep-m-hours">0.0<span class="text-[10px] font-normal text-zinc-500 ml-0.5">h</span></p>
+                            <p class="text-xl font-black text-white font-mono mt-1" id="rep-m-hours">0.0<span class="text-[10px] font-normal text-zinc-500 ml-0.5">h</span></p>
                         </div>
                         <div class="bg-white/[0.01] border border-white/5 rounded-xl p-4">
                             <p class="text-[11px] text-zinc-500 font-medium">涵盖活跃类目项目</p>
-                            <p class="text-xl font-black text-emerald-500 font-mono mt-1" id="rep-m-projects">0<span class="text-[10px] font-normal text-zinc-500 ml-0.5">个</span></p>
+                            <p class="text-xl font-black text-white font-mono mt-1" id="rep-m-projects">0<span class="text-[10px] font-normal text-zinc-500 ml-0.5">个</span></p>
                         </div>
                         <div class="bg-white/[0.01] border border-white/5 rounded-xl p-4">
                             <p class="text-[11px] text-zinc-500 font-medium">出勤跟进设计师</p>
-                            <p class="text-xl font-black text-amber-500 font-mono mt-1" id="rep-m-people">0<span class="text-[10px] font-normal text-zinc-500 ml-0.5">人</span></p>
+                            <p class="text-xl font-black text-white font-mono mt-1" id="rep-m-people">0<span class="text-[10px] font-normal text-zinc-500 ml-0.5">人</span></p>
                         </div>
                     </div>
 
@@ -782,7 +677,7 @@
                     复制带有完整工时与提报占比的 Markdown 简报
                 </button>
                 <div class="flex items-center gap-3">
-                    <button id="btn-csv-export" onclick="window.exportToCSV()" class="keep-white px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-[12px] btn-press transition-colors flex items-center gap-2 border border-indigo-600 shadow-lg shadow-indigo-600/20">
+                    <button id="btn-csv-export" onclick="window.exportToCSV()" class="px-5 py-2.5 bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30 font-bold rounded-xl text-[12px] btn-press transition-colors flex items-center gap-2 border border-indigo-500/20">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
                         导出全量明细 Excel/CSV 表格
                     </button>
@@ -1081,13 +976,26 @@
             return false;
         }
 
+        function isCountableAiTool(toolName) {
+            const raw = String(toolName || '').trim();
+            if (!raw) return false;
+            const compact = raw.replace(/\s+/g, '').toLowerCase();
+            // “无”“无AI辅助”“方案已确认/已过稿”属于流程状态或非工具选项，不能计入 AI 工具使用频次
+            const exactBlocked = new Set(['无', '无ai', '无ai辅助', '未用ai', '未使用ai', '没有ai', '不用ai', '纯手绘', '人工', '方案已确认', '方案已过稿', '已确认', '确认']);
+            if (exactBlocked.has(compact)) return false;
+            const containsBlocked = ['无ai辅助', '未用ai', '未使用ai', '没有ai', '方案已确认', '方案已过稿'];
+            if (containsBlocked.some(k => compact.includes(k))) return false;
+            return true;
+        }
+
         function normalizeAiToolName(toolName) {
-            if (!toolName) return '';
-            const name = toolName.trim().toLowerCase();
-            if (name === 'gpt' || name === 'chatgpt' || name === 'chat gpt') {
-                return 'ChatGPT';
-            }
-            return toolName.trim();
+            if (!isCountableAiTool(toolName)) return '';
+            const raw = String(toolName || '').trim();
+            const name = raw.toLowerCase().replace(/\s+/g, '');
+            if (name === 'gpt' || name === 'chatgpt') return 'ChatGPT';
+            if (name === 'ps生成填充' || name === 'photoshop生成填充') return 'PS生成填充';
+            if (name === '方案已确认' || name === '无') return '';
+            return raw;
         }
 
         function getPersonTaskHourLines(p) {
@@ -1159,7 +1067,7 @@
                                     if (h.action === 'submit_draft' || h.action === 'submit_framework') {
                                         const tools = h.ai_tools || [];
                                         tools.forEach(tool => {
-                                            if (tool && tool !== '无AI辅助' && !tool.includes('方案已过稿')) {
+                                            if (isCountableAiTool(tool)) {
                                                 const normalizedTool = normalizeAiToolName(tool);
                                                 if (normalizedTool) {
                                                     aiCount++;
@@ -1504,12 +1412,12 @@
                     <div class="analysis-detail-row">
                         <div class="flex justify-between items-start gap-4 mb-3">
                             <div>
-                                <h3 class="font-black text-[15px] text-zinc-800">${p.display} <span class="text-zinc-500 text-[11px] font-mono">${p.en}</span></h3>
-                                <p class="text-zinc-500 text-[12px] mt-1">承接 ${p.uniqueTasksSet.size} 个独立工单</p>
+                                <h3 class="font-black text-[18px] detail-title">${p.display} <span class="text-indigo-500 text-[12px] font-mono font-black">${p.en}</span></h3>
+                                <p class="detail-meta text-[13px] mt-1 font-bold">承接 ${p.uniqueTasksSet.size} 个独立工单</p>
                             </div>
-                            <div class="text-right text-indigo-500 font-mono font-black text-[18px]">${p.hours.toFixed(1)} h</div>
+                            <div class="text-right text-indigo-500 font-mono metric-big-number">${p.hours.toFixed(1)} h</div>
                         </div>
-                        <div class="text-[12px] text-zinc-600 leading-relaxed font-semibold">${getPersonProjectHourLines(p).join('；') || '暂无项目工时明细'}</div>
+                        <div class="project-hours-line text-[14px] leading-relaxed font-black">${getPersonProjectHourLines(p).join('；') || '暂无项目工时明细'}</div>
                     </div>`);
                 openAnalysisModalBase('投入总人力', `当期投入总人力明细（${data.totalHours.toFixed(1)}h）`, `${period} 内所有人员产生的有效工时明细。`, renderDetailRows(rows, '当前周期暂无工时'));
                 return;
@@ -1523,13 +1431,13 @@
                             <div class="flex items-center gap-3">
                                 <div class="person-avatar w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-500 flex items-center justify-center text-white font-black text-[12px]">${p.display.substring(0,2).toUpperCase()}</div>
                                 <div>
-                                    <h3 class="font-black text-zinc-800">${p.display}</h3>
+                                    <h3 class="font-black detail-title text-[16px]">${p.display}</h3>
                                     <p class="text-zinc-500 text-[11px] font-mono">${p.en}</p>
                                 </div>
                             </div>
                             <div class="text-right">
-                                <p class="text-fuchsia-600 font-mono font-black text-[15px]">${p.hours.toFixed(1)} h</p>
-                                <p class="text-zinc-500 text-[11px]">${p.uniqueTasksSet.size} 单</p>
+                                <p class="text-fuchsia-500 font-mono font-black text-[22px] leading-none">${p.hours.toFixed(1)} h</p>
+                                <p class="text-indigo-500 text-[12px] font-black">${p.uniqueTasksSet.size} 单</p>
                             </div>
                         </div>
                     </div>`);
@@ -1544,12 +1452,12 @@
                     return `<div class="analysis-detail-row">
                         <div class="flex justify-between items-start gap-4">
                             <div>
-                                <h3 class="font-black text-zinc-800 text-[15px]">${p.name}</h3>
+                                <h3 class="font-black detail-title text-[17px]">${p.name}</h3>
                                 <p class="text-zinc-500 text-[12px] mt-1">涉及 ${p.data.count} 个独立需求</p>
                             </div>
                             <div class="text-right">
-                                <p class="text-emerald-600 font-mono font-black text-[18px]">${p.data.hours.toFixed(1)} h</p>
-                                <p class="text-zinc-500 text-[11px]">占总工时 ${pct}%</p>
+                                <p class="text-emerald-500 font-mono metric-big-number">${p.data.hours.toFixed(1)} h</p>
+                                <p class="metric-percent">占总工时 ${pct}%</p>
                             </div>
                         </div>
                     </div>`;
@@ -1564,10 +1472,10 @@
                     const pct = data.aiCount > 0 ? ((t.count / data.aiCount) * 100).toFixed(1) : '0.0';
                     return `<div class="analysis-detail-row">
                         <div class="flex justify-between items-center">
-                            <h3 class="font-black text-zinc-800 text-[15px]">${t.name}</h3>
+                            <h3 class="font-black detail-title text-[22px]">${t.name}</h3>
                             <div class="text-right">
-                                <p class="text-amber-600 font-mono font-black text-[18px]">${t.count} 次</p>
-                                <p class="text-zinc-500 text-[11px]">占比 ${pct}%</p>
+                                <p class="text-amber-500 font-mono ai-big-number">${t.count}<span class="text-[18px] ml-1">次</span></p>
+                                <p class="ai-percent">占比 ${pct}%</p>
                             </div>
                         </div>
                     </div>`;
@@ -1586,10 +1494,10 @@
                     <div class="flex justify-between items-start gap-4">
                         <div class="min-w-0">
                             <div class="text-[10px] font-mono text-indigo-500 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded inline-flex mb-2">${d.id}</div>
-                            <h3 class="font-black text-[15px] text-zinc-800 leading-snug">${d.title}</h3>
+                            <h3 class="font-black text-[16px] detail-title leading-snug">${d.title}</h3>
                             <p class="text-zinc-500 text-[12px] mt-1">归属项目：${d.project || '未归属'}</p>
                         </div>
-                        <div class="text-right text-fuchsia-600 font-mono font-black text-[18px] shrink-0">${d.hours.toFixed(1)} h</div>
+                        <div class="text-right text-fuchsia-500 font-mono metric-big-number shrink-0">${d.hours.toFixed(1)} h</div>
                     </div>
                 </div>`);
 
@@ -1714,8 +1622,8 @@
             const aiLegend = document.getElementById('rep-ai-tools-legend');
             const aiTotal = currentData.aiCount;
             if (aiTotal === 0) {
-                aiBar.innerHTML = `<div class="w-full h-full bg-zinc-900 text-[9px] text-zinc-600 flex items-center justify-center italic">本期未开开启动作级AI协同</div>`;
-                aiLegend.innerHTML = `<div class="col-span-2 text-zinc-500 italic text-xs">无可用生产力占比分布</div>`;
+                aiBar.innerHTML = `<div class="w-full h-full bg-indigo-500/10 text-[10px] text-indigo-500 font-black flex items-center justify-center">本期未记录有效 AI 工具使用</div>`;
+                aiLegend.innerHTML = `<div class="col-span-2 text-indigo-500 font-black text-xs">无可用生产力占比分布</div>`;
             } else {
                 let barHtml = ''; let legendHtml = '';
                 const aiColors = ['bg-amber-500', 'bg-fuchsia-500', 'bg-sky-500', 'bg-emerald-500', 'bg-indigo-500'];
@@ -1727,7 +1635,7 @@
                     legendHtml += `
                     <div class="flex items-center justify-between px-2.5 py-1.5 border border-white/5 bg-white/[0.005] rounded-lg ai-legend-item">
                         <span class="flex items-center gap-1.5 truncate text-zinc-300 font-sans ai-name"><span class="w-1.5 h-1.5 rounded-full ${c}"></span>${tool.name}</span>
-                        <span class="${tc} font-bold ai-val">${pct}% <span class="text-zinc-600 font-normal text-[10px] ml-1 ai-count">${tool.count}次</span></span>
+                        <span class="${tc} font-bold ai-val">${pct}% <span class="${tc} font-black text-[12px] ml-2 ai-count">${tool.count}次</span></span>
                     </div>`;
                 });
                 aiBar.innerHTML = barHtml; aiLegend.innerHTML = legendHtml;
@@ -1805,7 +1713,7 @@
                 let topDoer = sortedPplByTasks[0] ? sortedPplByTasks[0].display : '暂无';
                 let topDoerCount = sortedPplByTasks[0] ? sortedPplByTasks[0].uniqueTasksSet.size : 0;
 
-                insightEl.innerHTML = `本期在大盘需求源头审计中，<span class="text-indigo-500 font-black">【${maxCreator}】</span> 属于本期最具统治力的发起方，一个人就狂砸了 <span class="text-indigo-400 font-bold">${maxCreatorCount} 单</span> 需求，强占全量流水提报的 <span class="text-indigo-400 font-bold">${maxCreatorPct}%</span>。纵观需求类目双轨矩阵，独立需求单量占比最高的类目为 <span class="text-indigo-500 font-bold">《${topProjByCount}》</span>（占总单量的 ${topProjCountPct}%）；而疯狂吞噬团队工时、工时占比高居榜首的重度黑洞类目则是 <span class="text-fuchsia-400 font-bold">《${topProjByHours}》</span>（工时拦截率达 ${topProjHoursPct}%）。在下游了承接设计执行侧，设计师 <span class="text-emerald-400 font-bold">【${topDoer}】</span> 业务吞吐响应最为频繁，独立解题消化了 <span class="text-emerald-400 font-bold">${topDoerCount} 项独立工单</span>，属于本期名副其实的需求消化劳模。全盘有产能产出的设计师共计 <span class="text-purple-400 font-bold">${sortedPplByHours.length} 人</span>，已全部录入底层审计矩阵。`;
+                insightEl.innerHTML = `本期在大盘需求源头审计中，<span class="text-indigo-500 font-black">【${maxCreator}】</span> 属于本期最具统治力的发起方，一个人就狂砸了 <span class="text-indigo-400 font-bold">${maxCreatorCount} 单</span> 需求，强占全量流水提报的 <span class="text-indigo-400 font-bold">${maxCreatorPct}%</span>。纵观需求类目双轨矩阵，独立需求单量占比最高的类目为 <span class="text-sky-500 font-black">《${topProjByCount}》</span>（占总单量的 ${topProjCountPct}%）；而疯狂吞噬团队工时、工时占比高居榜首的重度黑洞类目则是 <span class="text-fuchsia-400 font-bold">《${topProjByHours}》</span>（工时拦截率达 ${topProjHoursPct}%）。在下游了承接设计执行侧，设计师 <span class="text-emerald-400 font-bold">【${topDoer}】</span> 业务吞吐响应最为频繁，独立解题消化了 <span class="text-emerald-400 font-bold">${topDoerCount} 项独立工单</span>，属于本期名副其实的需求消化劳模。全盘有产能产出的设计师共计 <span class="text-purple-400 font-bold">${sortedPplByHours.length} 人</span>，已全部录入底层审计矩阵。`;
             }
 
             overlay.classList.remove('hidden');
@@ -1968,7 +1876,84 @@
                 td.group-cell { background:#f3e8ff; color:#581c87; font-weight:700; text-align:center; }
                 td.person-cell { background:#f8fafc; font-weight:700; }
                 .text { mso-number-format:'\\@'; }
-            </style></head><body><table><thead><tr>${headers.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>`;
+        
+
+        /* ================= ✅ 二次修复：明细弹窗/导出模块高对比彩色化 ================= */
+        /* 明细弹窗：深色模式严禁黑灰字，统一提亮成可读彩色 */
+        #analysis-detail-modal .analysis-detail-row h3,
+        #analysis-detail-modal .analysis-detail-row .detail-title {
+            color: #F8FAFC !important;
+            -webkit-text-fill-color: #F8FAFC !important;
+        }
+        #analysis-detail-modal .analysis-detail-row p,
+        #analysis-detail-modal .analysis-detail-row .detail-meta {
+            color: #A5B4FC !important;
+            -webkit-text-fill-color: #A5B4FC !important;
+        }
+        #analysis-detail-modal .analysis-detail-row .detail-projects,
+        #analysis-detail-modal .analysis-detail-row .project-hours-line {
+            color: #C084FC !important;
+            -webkit-text-fill-color: #C084FC !important;
+            font-weight: 800 !important;
+        }
+        #analysis-detail-modal .analysis-detail-row .text-zinc-500,
+        #analysis-detail-modal .analysis-detail-row .text-zinc-600 {
+            color: #A5B4FC !important;
+            -webkit-text-fill-color: #A5B4FC !important;
+        }
+        #analysis-detail-modal .analysis-detail-row .text-zinc-800 {
+            color: #F8FAFC !important;
+            -webkit-text-fill-color: #F8FAFC !important;
+        }
+        #analysis-detail-modal .analysis-detail-row .metric-big-number,
+        #analysis-detail-modal .analysis-detail-row .ai-big-number {
+            font-size: 32px !important;
+            line-height: 1 !important;
+            letter-spacing: -0.02em !important;
+            font-weight: 950 !important;
+        }
+        #analysis-detail-modal .analysis-detail-row .metric-percent,
+        #analysis-detail-modal .analysis-detail-row .ai-percent {
+            font-size: 13px !important;
+            font-weight: 900 !important;
+            color: #6366F1 !important;
+            -webkit-text-fill-color: #6366F1 !important;
+        }
+        html.theme-light #analysis-detail-modal .analysis-detail-row h3,
+        html.theme-light #analysis-detail-modal .analysis-detail-row .detail-title {
+            color: #111827 !important;
+            -webkit-text-fill-color: #111827 !important;
+        }
+        html.theme-light #analysis-detail-modal .analysis-detail-row p,
+        html.theme-light #analysis-detail-modal .analysis-detail-row .text-zinc-500,
+        html.theme-light #analysis-detail-modal .analysis-detail-row .text-zinc-600,
+        html.theme-light #analysis-detail-modal .analysis-detail-row .detail-meta {
+            color: #4F46E5 !important;
+            -webkit-text-fill-color: #4F46E5 !important;
+        }
+        html.theme-light #analysis-detail-modal .analysis-detail-row .project-hours-line,
+        html.theme-light #analysis-detail-modal .analysis-detail-row .detail-projects {
+            color: #9333EA !important;
+            -webkit-text-fill-color: #9333EA !important;
+        }
+        /* 导出弹窗：浅底上的辅助信息不能灰到看不见 */
+        html.theme-light #export-capture-zone .row-tasks-pct,
+        html.theme-light #export-capture-zone .row-hours-pct,
+        html.theme-light #export-capture-zone .ai-count,
+        html.theme-light #export-capture-zone .c-pct,
+        html.theme-light #export-capture-zone .u-task-name span,
+        html.theme-light #export-capture-zone .u-hour-name span {
+            color: #4F46E5 !important;
+            -webkit-text-fill-color: #4F46E5 !important;
+            font-weight: 900 !important;
+        }
+        #export-capture-zone .ai-val,
+        #export-capture-zone .ai-count {
+            font-size: 12px !important;
+            font-weight: 900 !important;
+        }
+
+    </style></head><body><table><thead><tr>${headers.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>`;
 
             groups.forEach(group => {
                 group.rows.forEach((row, idx) => {
