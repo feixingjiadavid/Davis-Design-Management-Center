@@ -408,6 +408,60 @@
             -webkit-text-fill-color: #e11d48 !important;
         }
 
+
+        /* 顶部统计弹窗：开灯模式可读性兜底 */
+        body.theme-light #metric-insight-modal {
+            background: #ffffff !important;
+            color: #172033 !important;
+        }
+        body.theme-light #metric-insight-modal h2,
+        body.theme-light #metric-insight-modal h3,
+        body.theme-light #metric-insight-modal .metric-popup-title {
+            color: #172033 !important;
+            -webkit-text-fill-color: #172033 !important;
+        }
+        body.theme-light #metric-insight-modal .metric-summary-box {
+            background: #fff7ed !important;
+            border: 1px solid #fed7aa !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.75) !important;
+        }
+        body.theme-light #metric-insight-modal .metric-summary-title {
+            color: #c2410c !important;
+            -webkit-text-fill-color: #c2410c !important;
+            font-weight: 900 !important;
+        }
+        body.theme-light #metric-insight-modal .metric-summary-desc {
+            color: #9a3412 !important;
+            -webkit-text-fill-color: #9a3412 !important;
+            opacity: .96 !important;
+            font-weight: 600 !important;
+        }
+        body.theme-light #metric-insight-modal .metric-summary-count {
+            color: #ea580c !important;
+            -webkit-text-fill-color: #ea580c !important;
+        }
+        body.theme-light #metric-insight-modal .metric-list-card {
+            background: #ffffff !important;
+            border-color: #e5e7eb !important;
+        }
+        body.theme-light #metric-insight-modal .metric-list-card .metric-card-title {
+            color: #111827 !important;
+            -webkit-text-fill-color: #111827 !important;
+        }
+        body.theme-light #metric-insight-modal .metric-card-meta,
+        body.theme-light #metric-insight-modal .metric-card-meta span {
+            color: #6b7280 !important;
+            -webkit-text-fill-color: #6b7280 !important;
+        }
+        body.theme-light #metric-insight-modal .metric-card-meta b {
+            color: #374151 !important;
+            -webkit-text-fill-color: #374151 !important;
+        }
+        body.theme-light #metric-insight-modal .metric-due {
+            color: #e11d48 !important;
+            -webkit-text-fill-color: #e11d48 !important;
+        }
+
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-orange-500/30 text-zinc-300">
@@ -481,7 +535,7 @@
                     
                     <div class="flex items-center gap-5 mt-2">
                         
-                        <div id="metric-card-todo" onclick="window.applyMetricFilter('todo')" class="metric-filter-card bg-[#16161d] border border-white/5 rounded-2xl p-4 flex items-center gap-4 shadow-lg min-w-[190px]" title="点击查看进行中待办">
+                        <div id="metric-card-todo" onclick="window.openMetricInsightModal('todo')" class="metric-filter-card bg-[#16161d] border border-white/5 rounded-2xl p-4 flex items-center gap-4 shadow-lg min-w-[190px]" title="点击弹窗查看进行中待办">
                             <div class="w-11 h-11 rounded-full bg-sky-500/10 flex items-center justify-center text-sky-500 border border-sky-500/20 shrink-0">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                             </div>
@@ -491,7 +545,7 @@
                             </div>
                         </div>
 
-                        <div id="metric-card-rejected" onclick="window.applyMetricFilter('rejected')" class="metric-filter-card bg-[#16161d] border border-white/5 rounded-2xl p-4 flex items-center gap-4 shadow-lg min-w-[190px]" title="点击查看被打回重画">
+                        <div id="metric-card-rejected" onclick="window.openMetricInsightModal('rejected')" class="metric-filter-card bg-[#16161d] border border-white/5 rounded-2xl p-4 flex items-center gap-4 shadow-lg min-w-[190px]" title="点击弹窗查看被打回重画">
                             <div class="w-11 h-11 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500 border border-rose-500/20 shrink-0">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
                             </div>
@@ -501,7 +555,7 @@
                             </div>
                         </div>
 
-                        <div id="metric-card-completed" onclick="window.applyMetricFilter('completed')" class="metric-filter-card bg-[#16161d] border border-white/5 rounded-2xl p-4 flex items-center gap-4 shadow-lg min-w-[190px]" title="点击查看本月已完结">
+                        <div id="metric-card-completed" onclick="window.openMetricInsightModal('completed')" class="metric-filter-card bg-[#16161d] border border-white/5 rounded-2xl p-4 flex items-center gap-4 shadow-lg min-w-[190px]" title="点击弹窗查看本月已完结">
                             <div class="w-11 h-11 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20 shrink-0">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
                             </div>
@@ -648,6 +702,34 @@
             </div>
         </div>
     </div>
+
+    <div id="metric-insight-overlay" class="fixed inset-0 bg-black/85 backdrop-blur-md z-[999999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-6">
+        <div id="metric-insight-modal" class="w-full max-w-2xl bg-[#121217] border border-orange-500/30 rounded-3xl shadow-[0_25px_80px_-15px_rgba(249,115,22,0.35)] flex flex-col scale-95 transition-transform duration-300 overflow-hidden relative">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 via-amber-500 to-rose-500"></div>
+            <div class="p-7 border-b border-white/5 bg-[#16161d]">
+                <div class="flex items-start justify-between gap-5">
+                    <div>
+                        <div id="metric-insight-pill" class="inline-flex items-center gap-2 bg-orange-500/10 border border-orange-500/20 text-orange-400 px-3 py-1 rounded-full text-[11px] font-bold mb-3">
+                            <span class="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span>
+                            看板筛查
+                        </div>
+                        <h2 id="metric-insight-title" class="text-xl font-black text-white tracking-tight mb-2">需求处理清单</h2>
+                        <p id="metric-insight-desc" class="text-[13px] text-zinc-400 leading-relaxed">系统已为你筛出对应需求，请按优先级处理。</p>
+                    </div>
+                    <button onclick="window.closeMetricInsightModal()" class="text-zinc-500 hover:text-white bg-white/5 hover:bg-white/10 rounded-full p-2 transition-colors btn-press shrink-0">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="p-6 max-h-[52vh] overflow-y-auto custom-scrollbar" id="metric-insight-list"></div>
+            <div class="p-6 border-t border-white/5 bg-[#09090b] flex items-center justify-between gap-3">
+                <button onclick="window.closeMetricInsightModal()" class="px-5 py-3 bg-transparent border border-zinc-700 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl text-[13px] font-bold transition-colors btn-press">关闭</button>
+                <button id="metric-insight-primary-btn" onclick="window.goFirstMetricInsightTask()" class="px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-[13px] font-bold shadow-[0_8px_20px_rgba(249,115,22,0.3)] transition-all btn-press flex items-center gap-2">
+                    立即处理第一条
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"></path><path d="M12 5l7 7-7 7"></path></svg>
+                </button>
+            </div>
+        </div>
 
 
     <div id="transfer-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closeTransferModal()">
@@ -1256,23 +1338,170 @@
             });
         };
 
-        window.applyMetricFilter = function(type) {
-            const same = window.currentMetricFilter === type;
-            window.currentMetricFilter = same ? 'all' : type;
-            window.loadTasksFromCloud(false);
-            window.updateMetricFilterVisual();
+        window.metricInsightTasks = [];
 
-            const tips = {
-                todo: '已筛选进行中待办，请优先处理卡在自己这里的需求。',
-                rejected: '已筛选被打回重画需求，请优先查看修改意见并重新提交。',
-                completed: '已筛选本月已完结需求，可查看归档成果和流转记录。'
+        function getMetricTaskMeta(task) {
+            if (task.status === 'rejected') return { color: 'rose', label: '被打回重画', action: '修改后重新提交', priority: 0 };
+            if (task.status === 'pending_accept') return { color: 'sky', label: '待确认接单', action: '确认接单排期', priority: 1 };
+            if (task.status === 'pending') return { color: 'sky', label: '待分配/认领', action: '查看需求', priority: 2 };
+            if (task.status === 'processing') return { color: 'orange', label: '设计制作中', action: '处理并上传方案', priority: 3 };
+            if (task.status === 'pending_approval') return { color: 'amber', label: '领导框架审核中', action: '查看审批进度', priority: 4 };
+            if (task.status === 'reviewing') return { color: 'emerald', label: '方案待验收', action: '查看验收进度', priority: 5 };
+            if (['completed','archived'].includes(task.status)) return { color: 'emerald', label: '已完结归档', action: '查看留档快照', priority: 6 };
+            return { color: 'zinc', label: '待查看', action: '查看详情', priority: 9 };
+        }
+
+        function sortMetricTasks(tasks) {
+            return [...tasks].sort((a, b) => {
+                const ma = getMetricTaskMeta(a);
+                const mb = getMetricTaskMeta(b);
+                if (ma.priority !== mb.priority) return ma.priority - mb.priority;
+                const da = a.due_date ? new Date(a.due_date).getTime() : Number.MAX_SAFE_INTEGER;
+                const db = b.due_date ? new Date(b.due_date).getTime() : Number.MAX_SAFE_INTEGER;
+                return da - db;
+            });
+        }
+
+        function getMetricVisibleTasks(type) {
+            const user = window.workspaceCurrentUser || JSON.parse(localStorage.getItem('activeUserObj') || '{}');
+            const identities = [
+                (user.enName || '').toLowerCase(),
+                (user.displayName || '').toLowerCase(),
+                (user.cnName || '').toLowerCase()
+            ].filter(Boolean);
+            const currentUserEn = user.enName ? user.enName.toLowerCase() : '';
+            const isSuperAdmin = currentUserEn === 'davidxxu' || currentUserEn === 'judyzzhang';
+
+            return (window.workspaceLatestTasks || []).filter(task => {
+                const assignee = task.assignee ? task.assignee.toLowerCase() : 'none';
+                const isMine = identities.some(id => assignee.includes(id) || id.includes(assignee));
+                const isUnassignedPool = assignee === 'none';
+                const visible = isSuperAdmin || isMine || (isUnassignedPool && task.status === 'pending');
+                if (!visible) return false;
+
+                if (type === 'todo') return isMine && !['completed','archived','terminated'].includes(task.status);
+                if (type === 'rejected') return isMine && task.status === 'rejected';
+                if (type === 'completed') return isMine && ['completed','archived'].includes(task.status) && window.isWorkspaceTaskInCurrentMonth(task);
+                return false;
+            });
+        }
+
+        function getMetricModalConfig(type, count) {
+            if (type === 'todo') {
+                return {
+                    pill: '进行中待办',
+                    title: '这些需求卡在你这里，需要处理',
+                    desc: '请优先完成接单确认、被打回修改或当前制作中的交付动作，避免需求继续阻塞流转。',
+                    summaryTitle: `当前共有 ${count} 个进行中待办需要处理`,
+                    summaryDesc: '系统已按状态优先级和截止日期自动排序，越靠前越建议优先处理。',
+                    empty: '当前没有卡在你这里的进行中待办。',
+                    primary: '立即处理最紧急需求'
+                };
+            }
+            if (type === 'rejected') {
+                return {
+                    pill: '被打回重画',
+                    title: '这些需求被打回，需要优先修改',
+                    desc: '请打开需求查看打回意见，修改后重新提交，避免需求继续延期。',
+                    summaryTitle: `当前共有 ${count} 个被打回需求需要重画`,
+                    summaryDesc: '被打回事项已排在前面，请优先处理反馈最急的需求。',
+                    empty: '当前没有被打回重画的需求。',
+                    primary: '立即修改第一条'
+                };
+            }
+            return {
+                pill: '本月已完结',
+                title: '本月已完结需求归档',
+                desc: '这里汇总本月完成的需求，可查看最终成果、留档快照和流转记录。',
+                summaryTitle: `本月共有 ${count} 个需求已完结`,
+                summaryDesc: '可进入详情页查看归档版本、交付说明和历史流转。',
+                empty: '本月暂无已完结需求。',
+                primary: '查看第一条归档'
             };
-            window.showToast && window.showToast(same ? '已取消筛选' : '已切换筛选', same ? '恢复展示全部需求。' : tips[type], same ? 'info' : 'success');
+        }
 
+        window.openMetricInsightModal = function(type) {
+            const overlay = document.getElementById('metric-insight-overlay');
+            const modal = document.getElementById('metric-insight-modal');
+            const list = document.getElementById('metric-insight-list');
+            if (!overlay || !modal || !list) return;
+
+            const tasks = sortMetricTasks(getMetricVisibleTasks(type));
+            window.metricInsightTasks = tasks;
+            const cfg = getMetricModalConfig(type, tasks.length);
+            document.getElementById('metric-insight-pill').lastChild.textContent = ` ${cfg.pill}`;
+            document.getElementById('metric-insight-title').innerText = cfg.title;
+            document.getElementById('metric-insight-desc').innerText = cfg.desc;
+            document.getElementById('metric-insight-primary-btn').innerHTML = `${cfg.primary}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"></path><path d="M12 5l7 7-7 7"></path></svg>`;
+            document.getElementById('metric-insight-primary-btn').classList.toggle('opacity-50', tasks.length === 0);
+            document.getElementById('metric-insight-primary-btn').disabled = tasks.length === 0;
+
+            if (tasks.length === 0) {
+                list.innerHTML = `
+                    <div class="metric-summary-box mb-4 bg-orange-500/10 border border-orange-500/20 rounded-2xl p-4 flex items-center justify-between">
+                        <div>
+                            <p class="metric-summary-title text-[13px] text-orange-300 font-bold">${cfg.summaryTitle}</p>
+                            <p class="metric-summary-desc text-[11px] text-orange-200/60 mt-1">${cfg.empty}</p>
+                        </div>
+                        <div class="metric-summary-count text-[28px] font-black text-orange-400 font-mono">0</div>
+                    </div>
+                    <div class="py-12 text-center text-zinc-500 text-[13px]">暂无对应需求，当前没有需要处理的项目。</div>
+                `;
+            } else {
+                list.innerHTML = `
+                    <div class="metric-summary-box mb-4 bg-orange-500/10 border border-orange-500/20 rounded-2xl p-4 flex items-center justify-between">
+                        <div>
+                            <p class="metric-summary-title text-[13px] text-orange-300 font-bold">${cfg.summaryTitle}</p>
+                            <p class="metric-summary-desc text-[11px] text-orange-200/60 mt-1">${cfg.summaryDesc}</p>
+                        </div>
+                        <div class="metric-summary-count text-[28px] font-black text-orange-400 font-mono">${tasks.length}</div>
+                    </div>
+                    <div class="space-y-3">
+                        ${tasks.map(task => {
+                            const meta = getMetricTaskMeta(task);
+                            return `
+                            <div class="metric-list-card bg-[#18181b] border border-${meta.color}-500/20 rounded-2xl p-4 hover:border-${meta.color}-500/50 transition-colors">
+                                <div class="flex items-start justify-between gap-4 mb-3">
+                                    <div class="min-w-0">
+                                        <div class="flex items-center gap-2 mb-2">
+                                            <span class="font-mono text-[10px] font-black text-${meta.color}-400 bg-${meta.color}-500/10 px-2 py-0.5 rounded border border-${meta.color}-500/20">${task.id}</span>
+                                            <span class="text-[11px] font-bold text-${meta.color}-400">${meta.label}</span>
+                                        </div>
+                                        <h3 class="metric-card-title text-[15px] font-bold text-white leading-snug">${task.title || '无标题需求'}</h3>
+                                    </div>
+                                    <button onclick="event.stopPropagation(); window.location.href='task-detail-designer.html?id=${task.id}'" class="shrink-0 px-3 py-2 bg-${meta.color}-600 hover:bg-${meta.color}-500 text-white rounded-lg text-[12px] font-bold btn-press transition-colors">${meta.action}</button>
+                                </div>
+                                <div class="metric-card-meta grid grid-cols-3 gap-3 text-[11px] text-zinc-500 border-t border-white/5 pt-3">
+                                    <span class="truncate">发起人：<b class="text-zinc-300">${task.creator || '--'}</b></span>
+                                    <span class="truncate">项目：<b class="text-zinc-300">${task.project || '--'}</b></span>
+                                    <span class="text-right">截止：<b class="metric-due text-rose-400">${task.due_date || '未定'}</b></span>
+                                </div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                `;
+            }
+
+            overlay.classList.remove('hidden');
             setTimeout(() => {
-                const firstCard = document.querySelector('.kanban-card');
-                if (firstCard) firstCard.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-            }, 120);
+                overlay.classList.remove('opacity-0');
+                modal.classList.remove('scale-95');
+            }, 10);
+        };
+
+        window.closeMetricInsightModal = function() {
+            const overlay = document.getElementById('metric-insight-overlay');
+            const modal = document.getElementById('metric-insight-modal');
+            if (!overlay || !modal) return;
+            overlay.classList.add('opacity-0');
+            modal.classList.add('scale-95');
+            setTimeout(() => overlay.classList.add('hidden'), 300);
+        };
+
+        window.goFirstMetricInsightTask = function() {
+            if (window.metricInsightTasks && window.metricInsightTasks.length > 0) {
+                window.location.href = `task-detail-designer.html?id=${window.metricInsightTasks[0].id}`;
+            }
         };
 
         window.loadTasksFromCloud = async function(isSilent = false) {
@@ -1297,6 +1526,8 @@
                     .order('created_at', { ascending: false }).limit(100);
 
                 if(error) throw error;
+                window.workspaceLatestTasks = data || [];
+                window.workspaceCurrentUser = currentUser;
 
                 const lanes = {
                     'lane-pending': document.getElementById('lane-pending'),
@@ -1361,7 +1592,7 @@
 
                     if(!isSilent) {
                         const cardData = createKanbanCard(task, currentUser);
-                        if(cardData && lanes[cardData.laneId] && window.matchWorkspaceMetricFilter(task)) {
+                        if(cardData && lanes[cardData.laneId]) {
                             lanes[cardData.laneId].insertAdjacentHTML('beforeend', cardData.html);
                         }
                     }
@@ -1371,10 +1602,9 @@
                     document.getElementById('metric-todo').innerHTML = `${myTodoCount} <span class="text-[11px] text-zinc-600 font-normal ml-1 font-sans">单</span>`;
                     document.getElementById('metric-rejected').innerHTML = `${myRejectedCount} <span class="text-[11px] text-zinc-600 font-normal ml-1 font-sans">单</span>`;
                     document.getElementById('metric-completed').innerHTML = `${myMonthCompletedCount} <span class="text-[11px] text-zinc-600 font-normal ml-1 font-sans">单</span>`;
-                    window.updateMetricFilterVisual && window.updateMetricFilterVisual();
                     Object.values(lanes).forEach(lane => {
                         if(lane && lane.innerHTML === '') {
-                            const emptyText = window.currentMetricFilter && window.currentMetricFilter !== 'all' ? '当前筛选下暂无需求' : '当前状态暂无需求';
+                            const emptyText = '当前状态暂无需求';
                             lane.innerHTML = `<div class="text-center py-10 opacity-50"><div class="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-2 text-zinc-600"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg></div><p class="text-[11px] text-zinc-600">${emptyText}</p></div>`;
                         }
                     });
