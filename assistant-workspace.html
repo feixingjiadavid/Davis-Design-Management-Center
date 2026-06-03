@@ -332,6 +332,23 @@
         body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); }
         body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.25); }
 
+
+        /* 最终兜底：临期预警标签必须红底白字，压过浅色模式全局文字色 */
+        body.theme-light .kanban-card .urgent-badge,
+        body.theme-light .kanban-card .urgent-badge span,
+        body.theme-light .kanban-card .urgent-badge *,
+        .kanban-card .urgent-badge,
+        .kanban-card .urgent-badge span,
+        .kanban-card .urgent-badge * {
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
+        }
+        body.theme-light .kanban-card .urgent-badge,
+        .kanban-card .urgent-badge {
+            background: linear-gradient(135deg, #e11d48 0%, #f43f5e 100%) !important;
+            border-color: transparent !important;
+        }
+
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-orange-500/30 text-zinc-300">
@@ -1052,7 +1069,7 @@
             const html = `
                 <div class="rounded-xl p-4 kanban-card flex flex-col relative overflow-hidden bg-[#18181b] border border-zinc-800 group ${breatheClass} ${isUrgent ? 'is-urgent-card' : ''} ${isFinished ? 'opacity-60' : ''}" onclick="window.location.href='${targetUrl}'" style="border-color: ${borderColBase}">
                     <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-${strokeColor}-500 z-10 shadow-[0_0_8px_rgba(var(--tw-colors-${strokeColor}-500),0.5)]"></div>
-                    ${isUrgent ? '<div class="urgent-badge absolute top-0 right-0 bg-[#e11d48] text-white text-[11px] font-bold px-3 py-1 rounded-bl-xl z-20 shadow-md animate-pulse">临期预警</div>' : ''}
+                    ${isUrgent ? '<div class="urgent-badge absolute top-0 right-0 bg-[#e11d48] text-white text-[11px] font-bold px-3 py-1 rounded-bl-xl z-20 shadow-md animate-pulse" style="color:#fff !important;-webkit-text-fill-color:#fff !important;">临期预警</div>' : ''}
                     
                     <div class="flex items-center justify-between mb-3 mt-1 relative z-10 pl-2">
                         <div class="flex gap-2 items-center">
