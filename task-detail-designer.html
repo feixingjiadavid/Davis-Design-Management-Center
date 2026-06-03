@@ -647,6 +647,8 @@
         if(window.initApp) window.initApp();
     </script>
 
+    <script src="./notify-events.js"></script>
+
     <script>
 
         // ================= 开灯 / 关灯主题同步 =================
@@ -763,7 +765,74 @@
             } catch(e) { console.error("通知派发异常:", e); }
         }
 
-        async function fetchTaskData() {
+        
+        // ================= 站外通知事件：写入 notification_events，不影响原站内通知 =================
+        function buildTaskDetailUrl(pageName) {
+            return new URL(`${pageName}?id=${encodeURIComponent(currentTaskId || '')}`, window.location.href).href;
+        }
+
+        function isLikelyEnName(value) {
+            return /^[a-zA-Z][a-zA-Z0-9._-]*$/.test(String(value || '').trim());
+        }
+
+        async function resolveNotifyTarget(targetIdentifier, fallbackDisplayName = '') {
+            const raw = String(targetIdentifier || '').trim();
+            let result = {
+                targetEnName: isLikelyEnName(raw) ? raw.toLowerCase() : null,
+                targetDisplayName: fallbackDisplayName || raw || '相关同事',
+                targetEmail: isLikelyEnName(raw) ? `${raw.toLowerCase()}@webank.com` : null,
+                mobile: null
+            };
+
+            if (!window.supabase || !raw) return result;
+
+            try {
+                const lowered = raw.toLowerCase();
+                const { data: usersData, error } = await window.supabase
+                    .from('users')
+                    .select('email, name, enName');
+
+                if (!error && Array.isArray(usersData)) {
+                    const matched = usersData.find(x => {
+                        const en = String(x.enName || '').toLowerCase();
+                        const name = String(x.name || '').toLowerCase();
+                        return en === lowered ||
+                            name === lowered ||
+                            (en && lowered.includes(en)) ||
+                            (name && lowered.includes(name));
+                    });
+
+                    if (matched) {
+                        const enName = matched.enName || result.targetEnName;
+                        result = {
+                            targetEnName: enName || null,
+                            targetDisplayName: matched.name || fallbackDisplayName || enName || raw,
+                            targetEmail: matched.email || (enName ? `${String(enName).toLowerCase()}@webank.com` : result.targetEmail),
+                            mobile: null
+                        };
+                    }
+                }
+            } catch (err) {
+                console.warn('站外通知目标用户解析失败，使用兜底信息：', err);
+            }
+
+            return result;
+        }
+
+        async function createTaskNotifyEventSafely(options) {
+            try {
+                if (typeof window.createNotifyEvent !== 'function') {
+                    console.warn('notify-events.js 未加载，跳过站外通知事件写入');
+                    return { ok: false, error: 'notify-events.js 未加载' };
+                }
+                return await window.createNotifyEvent(options);
+            } catch (err) {
+                console.error('站外通知事件写入异常，但不影响主流程：', err);
+                return { ok: false, error: err?.message || String(err) };
+            }
+        }
+
+async function fetchTaskData() {
             try {
                 const { data, error } = await window.supabase.from(window.DB_TABLE).select('*').eq('id', currentTaskId).single();
                 if(error || !data) { alert("需求不存在或已删除！"); window.location.href = 'assistant-workspace.html'; return; }
@@ -1250,6 +1319,16 @@
 
                 if (globalTaskData && globalTaskData.creator) { 
                     await insertDbNotification(globalTaskData.creator, `【已接单】设计师 ${currentUser.displayName || currentUser.enName} 已接手你的需求：《${globalTaskData.title}》，预计交稿：${fwDate}。`, `task-detail-requester.html?id=${currentTaskId}`, 'update'); 
+
+                    const notifyTarget = await resolveNotifyTarget(globalTaskData.creator);
+                    await createTaskNotifyEventSafely({
+                        taskId: currentTaskId,
+                        eventType: 'accepted',
+                        ...notifyTarget,
+                        title: '设计师已接单',
+                        content: `《${globalTaskData.title}》已由设计师 ${currentUser.displayName || currentUser.enName} 接单，预计 ${fwDate} 提供框架方案。`,
+                        actionUrl: buildTaskDetailUrl('task-detail-requester.html')
+                    });
                 }
             }
             closeActionModals(); showToast('✅ 接单成功', '任务已分配给您并进入制作池。', 'success');
@@ -1271,6 +1350,16 @@
 
                 if (globalTaskData && globalTaskData.creator) { 
                     await insertDbNotification(globalTaskData.creator, `【需求被退回】设计师因需求不清晰退回了你的单子：《${globalTaskData.title}》，原因：${reason}。`, `task-detail-requester.html?id=${currentTaskId}`, 'urgent'); 
+
+                    const notifyTarget = await resolveNotifyTarget(globalTaskData.creator);
+                    await createTaskNotifyEventSafely({
+                        taskId: currentTaskId,
+                        eventType: 'designer_rejected_order',
+                        ...notifyTarget,
+                        title: '需求被退回',
+                        content: `《${globalTaskData.title}》被设计师退回，原因：${reason}。请补充/修改需求后重新提交。`,
+                        actionUrl: buildTaskDetailUrl('task-detail-requester.html')
+                    });
                 }
             }
             closeActionModals(); showToast('已退回', '该需求已退回给甲方。', 'info');
@@ -1419,9 +1508,29 @@
 
                 if (actionType === 'submit_framework') {
                     await insertDbNotification('judyzzhang', `【框架待审】设计师 ${currentUser.displayName || currentUser.enName} 上传了中期方案：《${globalTaskData.title}》，请您火速审批把关。`, `task-detail-requester.html?id=${currentTaskId}`, 'urgent');
+
+                    const notifyTarget = await resolveNotifyTarget('judyzzhang', '丹楠姐');
+                    await createTaskNotifyEventSafely({
+                        taskId: currentTaskId,
+                        eventType: 'pending_approval',
+                        ...notifyTarget,
+                        title: '框架方案待审批',
+                        content: `《${globalTaskData.title}》已提交框架方案，请及时审批。`,
+                        actionUrl: buildTaskDetailUrl('task-detail-requester.html')
+                    });
                 } else if (actionType === 'submit_draft') {
                     if (globalTaskData.creator) {
                         await insertDbNotification(globalTaskData.creator, `【正稿待收】设计师 ${currentUser.displayName || currentUser.enName} 交付了正式设计稿：《${globalTaskData.title}》，请您火速验收。`, `task-detail-requester.html?id=${currentTaskId}`, 'urgent');
+
+                        const notifyTarget = await resolveNotifyTarget(globalTaskData.creator);
+                        await createTaskNotifyEventSafely({
+                            taskId: currentTaskId,
+                            eventType: 'reviewing',
+                            ...notifyTarget,
+                            title: '正稿待确认',
+                            content: `《${globalTaskData.title}》已提交正稿，请及时确认/验收。`,
+                            actionUrl: buildTaskDetailUrl('task-detail-requester.html')
+                        });
                     }
                 }
             }
