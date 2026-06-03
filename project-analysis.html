@@ -9,7 +9,7 @@
             try {
                 if (localStorage.getItem('requestHallTheme') === 'light') {
                     document.documentElement.classList.add('theme-light');
-                    document.documentElement.style.backgroundColor = '#F5F6FA';
+                    document.documentElement.style.backgroundColor = '#F4F5F7';
                 } else {
                     document.documentElement.style.backgroundColor = '#09090b';
                 }
@@ -37,7 +37,7 @@
         @keyframes growRight { 0% { transform: scaleX(0); } 100% { transform: scaleX(1); } }
 
 
-        /* ================= 💡 灯光主题：极致冷白与精细视觉层级调校 ================= */
+        /* ================= 🎨 顶级重构规范：开灯模式全彩色块深度重置（禁止惨白、强行加黑） ================= */
         html.theme-light,
         html.theme-light body {
             background: #F4F5F7 !important;
@@ -46,209 +46,158 @@
         html.theme-light body { -webkit-font-smoothing: antialiased; }
         html.theme-light .absolute.inset-0 { background: #F4F5F7 !important; }
         html.theme-light [class*="bg-fuchsia-900/"],
-        html.theme-light [class*="bg-indigo-900/"] { opacity: .18 !important; mix-blend-mode: multiply; }
+        html.theme-light [class*="bg-indigo-900/"] { opacity: .12 !important; mix-blend-mode: multiply; }
 
-        html.theme-light aside,
+        /* 侧边栏与头部完美对齐顶级企业规范 */
+        html.theme-light aside {
+            background: #FFFFFF !important;
+            border-right: 1px solid #E2E8F0 !important;
+        }
         html.theme-light header {
-            background: rgba(255,255,255,.75) !important;
-            backdrop-filter: blur(24px) saturate(180%);
-            border-color: rgba(0, 0, 0, 0.06) !important;
+            background: #FFFFFF !important;
+            border-bottom: 1px solid #E2E8F0 !important;
         }
         html.theme-light main,
         html.theme-light #main-content-area { background: transparent !important; }
 
-        html.theme-light [class*="bg-[#09090b]"],
-        html.theme-light [class*="bg-[#0c0c0e]"] {
-            background-color: #F4F5F7 !important;
-            border-color: rgba(0, 0, 0, 0.05) !important;
-        }
-        
-        /* 核心卡片容器层级重塑 */
-        html.theme-light [class*="bg-[#121217]"],
-        html.theme-light [class*="bg-[#141417]"],
-        html.theme-light [class*="bg-[#16161d]"],
-        html.theme-light [class*="bg-[#18181b]"],
-        html.theme-light [class*="bg-[#1a1a1f]"],
-        html.theme-light [class*="bg-[#1a1a24]"] {
+        /* 💡 精准重置编译后的 Tailwind 深色大背景容器，强行转白底轻框 */
+        html.theme-light .bg-\[\#09090b\],
+        html.theme-light .bg-\[\#0c0c0e\],
+        html.theme-light .bg-\[\#121217\],
+        html.theme-light .bg-\[\#141417\],
+        html.theme-light .bg-\[\#16161d\],
+        html.theme-light .bg-\[\#18181b\],
+        html.theme-light .bg-\[\#1a1a1f\],
+        html.theme-light .bg-\[\#1a1a24\],
+        html.theme-light .bg-\[\#2a2a35\] {
             background-color: #FFFFFF !important;
-            border-color: rgba(0, 0, 0, 0.05) !important;
-            box-shadow: 0 10px 34px -20px rgba(15,23,42,0.06), 0 1px 3px rgba(15,23,42,0.02) !important;
+            border-color: #E2E8F0 !important;
         }
 
-        html.theme-light [class*="border-white/5"],
-        html.theme-light [class*="border-white/10"],
-        html.theme-light [class*="border-zinc-700"],
-        html.theme-light [class*="border-zinc-800"] { border-color: rgba(0, 0, 0, 0.06) !important; }
+        /* 💡 核心修复一：4个核心指标大数框显式彩色实体化，建立清晰分块（图1、2痛点） */
+        html.theme-light #metric-card-hours { background-color: #EEF2FF !important; border: 1px solid #C7D2FE !important; }
+        html.theme-light #metric-card-people { background-color: #FDF4FF !important; border: 1px solid #F5D0FE !important; }
+        html.theme-light #metric-card-projects { background-color: #E8F5E9 !important; border: 1px solid #C8E6C9 !important; }
+        html.theme-light #metric-card-ai { background-color: #FFFDE7 !important; border: 1px solid #FFF59D !important; }
 
-        html.theme-light [class*="bg-white/5"],
-        html.theme-light [class*="bg-white/10"],
-        html.theme-light [class*="bg-white/[0.01]"],
-        html.theme-light [class*="bg-white/[0.005]"] {
+        /* 💡 核心修复二：钻取穿透弹窗内部条目实体色彩分块（图1、2弹窗痛点） */
+        html.theme-light .analysis-detail-body .analysis-detail-row,
+        html.theme-light #analysis-detail-body .analysis-detail-row {
+            background-color: #EFF6FF !important; /* 实体饱满靛蓝 */
+            border: 1px solid #BFDBFE !important;
+        }
+        html.theme-light .analysis-detail-body .analysis-detail-row:nth-child(2n),
+        html.theme-light #analysis-detail-body .analysis-detail-row:nth-child(2n) {
+            background-color: #E6FFFA !important; /* 实体饱满薄荷 */
+            border: 1px solid #4FD1C5 !important;
+        }
+        html.theme-light .analysis-detail-body .analysis-detail-row:nth-child(3n),
+        html.theme-light #analysis-detail-body .analysis-detail-row:nth-child(3n) {
+            background-color: #FFF5F5 !important; /* 实体饱满轻红 */
+            border: 1px solid #FEB2B2 !important;
+        }
+
+        /* 各项目资源消耗榜背景色独立隔离 */
+        html.theme-light #project-list-container > div {
             background-color: #F8FAFC !important;
-            border-color: rgba(0, 0, 0, 0.05) !important;
-        }
-        html.theme-light [class*="hover:bg-white/5"]:hover,
-        html.theme-light [class*="hover:bg-white/10"]:hover {
-            background-color: #EDF2F7 !important;
+            border: 1px solid #E2E8F0 !important;
         }
 
-        /* 💡 核心字色映射细化：禁止对全部元素转黑，防止深色/渐变色块内的字隐形 */
-        html.theme-light h1,
-        html.theme-light h2,
-        html.theme-light h3,
-        html.theme-light h4 { color: #111827 !important; }
+        /* 各项目分类指示色彩提权 */
+        html.theme-light .hover\:border-fuchsia-500\/30 { background-color: #FDF4FF !important; border-color: #F5D0FE !important; }
+        html.theme-light .hover\:border-emerald-500\/30 { background-color: #ECFDF5 !important; border-color: #A7F3D0 !important; }
+        html.theme-light .hover\:border-sky-500\/30 { background-color: #F0F9FF !important; border-color: #BAE6FD !important; }
+        html.theme-light .hover\:border-orange-500\/30 { background-color: #FFF7ED !important; border-color: #FFEDD5 !important; }
 
+        /* 💡 核心修复三：图4、图5名字重叠及侧边菜单翻车修复，完美对齐图6规范 */
+        html.theme-light #sidebar-name,
+        html.theme-light aside p,
+        html.theme-light aside div.mt-auto span:not(#sidebar-avatar) {
+            color: #1F2937 !important;
+            -webkit-text-fill-color: #1F2937 !important;
+        }
+        html.theme-light aside div.mt-auto {
+            background-color: #F8FAFC !important;
+            border-top: 1px solid #E2E8F0 !important;
+        }
+        html.theme-light aside button { color: #4A5568 !important; }
+        html.theme-light aside button:hover { background-color: #F1F5F9 !important; color: #111827 !important; }
+        
+        /* 侧边栏激活状态 - 极致还原图6 */
+        html.theme-light aside button.bg-fuchsia-500\/10 {
+            background-color: #FDF4FF !important;
+            color: #A21CAF !important;
+            border: 1px solid #F5D0FE !important;
+            font-weight: 700 !important;
+        }
+
+        /* 回到本期按钮颜色校正（图5、6痛点） */
+        html.theme-light #btn-jump-current {
+            background-color: #FDF4FF !important;
+            color: #A21CAF !important;
+            border: 1px solid #F5D0FE !important;
+        }
+        html.theme-light #btn-jump-current:hover { background-color: #F5D0FE !important; }
+
+        /* 💡 核心修复四：图7简报禁止使用任何白色浅色字！数据标签全量强制加黑！ */
+        html.theme-light #export-capture-zone .bg-white\/\[0\.01\] {
+            background-color: #EEF2F6 !important; /* 灰底色块隔离 */
+            border: 1px solid #CBD5E1 !important;
+        }
+        html.theme-light #export-capture-zone #rep-m-demand-count,
+        html.theme-light #export-capture-zone #rep-m-hours,
+        html.theme-light #export-capture-zone #rep-m-projects,
+        html.theme-light #export-capture-zone #rep-m-people,
+        html.theme-light #export-capture-zone [id^="rep-m-"],
+        html.theme-light #export-capture-zone .c-count,
+        html.theme-light #export-capture-zone .row-hours,
+        html.theme-light #export-capture-zone .u-task-val,
+        html.theme-light #export-capture-zone .u-hour-val {
+            color: #0F172A !important;
+            -webkit-text-fill-color: #0F172A !important;
+            font-weight: 900 !important;
+        }
+
+        /* 💡 核心修复五：全局字色降噪阶梯（确保白底深色字的高对比度） */
+        html.theme-light h1, html.theme-light h2, html.theme-light h3, html.theme-light h4 { color: #0F172A !important; }
         html.theme-light main .text-white,
         html.theme-light main .text-zinc-100,
         html.theme-light main .text-zinc-200,
-        html.theme-light main .text-zinc-300 {
-            color: #1F2937 !important;
-        }
-        html.theme-light .text-zinc-400 { color: #4A5568 !important; }
-        html.theme-light .text-zinc-500 { color: #718096 !important; }
-        html.theme-light .text-zinc-600 { color: #A0AEC0 !important; }
+        html.theme-light main .text-zinc-300 { color: #1F2937 !important; }
 
-        html.theme-light input,
-        html.theme-light select,
-        html.theme-light textarea {
-            background: #FFFFFF !important;
-            color: #111827 !important;
-            border-color: rgba(0, 0, 0, 0.08) !important;
-        }
-        html.theme-light input::placeholder,
-        html.theme-light textarea::placeholder { color: #A0AEC0 !important; }
-
-        html.theme-light #dashboard-loading {
-            background: rgba(244,245,247,.85) !important;
-            backdrop-filter: blur(12px);
-        }
-        html.theme-light .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.15); }
-        html.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.25); }
-
-        /* 💡 终极保障：深色背景按钮、彩色头像、关闭叉号强保白字，杜绝死板与黑底黑字 */
+        /* 💡 强效隔离卫士：深色实色背景、独立大按钮、弹窗关闭叉号绝对高亮白字防线 */
         .keep-white,
-        .person-avatar,
-        #sidebar-avatar,
-        html.theme-light .person-avatar,
-        html.theme-light #sidebar-avatar,
-        html.theme-light [class*="bg-fuchsia-600"],
-        html.theme-light [class*="bg-indigo-600"],
-        html.theme-light [class*="from-fuchsia-600"],
-        html.theme-light [class*="from-fuchsia-500"],
+        button.bg-fuchsia-600,
+        button.bg-indigo-600,
         .analysis-modal-close-btn,
+        #export-modal button[onclick*="closeExport"],
+        #analysis-detail-modal button,
+        html.theme-light button.bg-fuchsia-600,
+        html.theme-light button.bg-indigo-600,
         html.theme-light .analysis-modal-close-btn,
-        html.theme-light button[class*="bg-zinc-900"],
-        html.theme-light button[class*="bg-zinc-800"] {
+        html.theme-light button[onclick*="closeExport"] {
             color: #FFFFFF !important;
             -webkit-text-fill-color: #FFFFFF !important;
         }
         html.theme-light .analysis-modal-close-btn,
-        html.theme-light button[class*="bg-zinc-900"] {
-            background-color: #1E293B !important;
-            border-color: #1E293B !important;
+        html.theme-light button[onclick*="closeExport"] {
+            background-color: #0F172A !important;
+            border-color: #0F172A !important;
         }
         html.theme-light .analysis-modal-close-btn svg,
-        html.theme-light button[class*="bg-zinc-900"] svg,
-        html.theme-light button[class*="bg-zinc-800"] svg {
+        html.theme-light button[onclick*="closeExport"] svg {
             stroke: #FFFFFF !important;
             opacity: 1 !important;
         }
 
-        /* 团队全员摸底多维对比卡片设计感升级（告别单一白条） */
-        .person-drilldown-card {
-            border-radius: 20px !important;
-            border: 1px solid rgba(255,255,255,.05) !important;
-            background: linear-gradient(135deg, #121217 0%, #16161f 100%) !important;
-            box-shadow: 0 10px 25px -15px rgba(0,0,0,0.4) !important;
-            transition: all 0.25s ease !important;
+        /* 彩色圆形头像高亮白字盾 */
+        .person-avatar, #sidebar-avatar,
+        html.theme-light .person-avatar, html.theme-light #sidebar-avatar {
+            background: linear-gradient(135deg, #6366F1 0%, #A855F7 50%, #D946EF 100%) !important;
+            color: #FFFFFF !important;
+            -webkit-text-fill-color: #FFFFFF !important;
+            font-weight: 900 !important;
         }
-        html.theme-light .person-drilldown-card {
-            background: radial-gradient(circle at 6% 0%, rgba(99,102,241,0.05), transparent 32%), 
-                        linear-gradient(135deg, #FFFFFF 0%, #F9FAFC 100%) !important;
-            border-color: rgba(99,102,241,0.12) !important;
-            box-shadow: 0 12px 26px -20px rgba(79,70,229,0.2), 0 1px 3px rgba(0,0,0,0.01) !important;
-        }
-        html.theme-light .person-drilldown-card:nth-child(2n) {
-            background: radial-gradient(circle at 6% 0%, rgba(16,185,129,0.04), transparent 32%), 
-                        linear-gradient(135deg, #FFFFFF 0%, #F6FCFA 100%) !important;
-            border-color: rgba(16,185,129,0.12) !important;
-        }
-        html.theme-light .person-drilldown-card:nth-child(3n) {
-            background: radial-gradient(circle at 6% 0%, rgba(217,70,239,0.04), transparent 32%), 
-                        linear-gradient(135deg, #FFFFFF 0%, #FCF6FC 100%) !important;
-            border-color: rgba(217,70,239,0.1) !important;
-        }
-
-        /* 💡 核心修复：明细穿透弹窗内单条记录白条改造，建立清晰的视觉节奏 */
-        .analysis-detail-row {
-            background: rgba(255,255,255,.02);
-            border: 1px solid rgba(255,255,255,.05);
-            border-radius: 16px;
-            padding: 16px;
-        }
-        html.theme-light .analysis-detail-row {
-            background: linear-gradient(135deg, #FFFFFF 0%, #F8FAFF 100%) !important;
-            border-color: rgba(99,102,241,.1) !important;
-            box-shadow: 0 8px 22px -15px rgba(79,70,229,.12) !important;
-        }
-        html.theme-light .analysis-detail-row:nth-child(2n) {
-            background: linear-gradient(135deg, #FFFFFF 0%, #F4FFFB 100%) !important;
-            border-color: rgba(16,185,129,.1) !important;
-        }
-
-        /* 灯泡主键 */
-        html.theme-light #themeToggleBtn {
-            background: #FFFFFF !important;
-            color: #F59E0B !important;
-            border-color: rgba(0, 0, 0, 0.06) !important;
-            box-shadow: 0 4px 12px -4px rgba(0,0,0,0.05) !important;
-        }
-        html.theme-light #themeToggleBtn:hover { background: #FFFBEB !important; border-color: rgba(245,158,11,.2) !important; }
-
-        /* 进度条轨道 */
-        html.theme-light .bg-zinc-900 { background-color: #E2E8F0 !important; }
-        html.theme-light .shadow-2xl, html.theme-light .shadow-xl { box-shadow: 0 20px 40px -20px rgba(15,23,42,.1), 0 1px 2px rgba(0,0,0,0.01) !important; }
-
-        /* 导出模块 */
-        #export-capture-zone .font-item-creator,
-        #export-capture-zone .user-task-row,
-        #export-capture-zone .user-hour-row,
-        #export-capture-zone .ai-legend-item {
-            border-radius: 14px !important;
-            border-color: rgba(255,255,255,.06) !important;
-            background: linear-gradient(135deg, rgba(255,255,255,.03), rgba(255,255,255,.005)) !important;
-            box-shadow: inset 3px 0 0 rgba(99,102,241,.8) !important;
-        }
-        #export-capture-zone .user-hour-row { box-shadow: inset 3px 0 0 rgba(217,70,239,.8) !important; }
-        #export-capture-zone .user-task-row { box-shadow: inset 3px 0 0 rgba(16,185,129,.8) !important; }
-        
-        html.theme-light #export-capture-zone .font-item-creator,
-        html.theme-light #export-capture-zone .user-task-row,
-        html.theme-light #export-capture-zone .user-hour-row,
-        html.theme-light #export-capture-zone .ai-legend-item {
-            background: linear-gradient(135deg, #FFFFFF 0%, #F7F9FC 100%) !important;
-            border-color: rgba(0, 0, 0, 0.05) !important;
-            box-shadow: inset 3px 0 0 rgba(99,102,241,.7), 0 6px 16px -12px rgba(15,23,42,.12) !important;
-        }
-        html.theme-light #export-capture-zone .user-hour-row { box-shadow: inset 3px 0 0 rgba(217,70,239,.7), 0 6px 16px -12px rgba(15,23,42,.12) !important; }
-        html.theme-light #export-capture-zone .user-task-row { box-shadow: inset 3px 0 0 rgba(16,185,129,.7), 0 6px 16px -12px rgba(15,23,42,.12) !important; }
-        
-        html.theme-light #export-capture-zone .c-name,
-        html.theme-light #export-capture-zone .row-pname,
-        html.theme-light #export-capture-zone .u-task-name,
-        html.theme-light #export-capture-zone .u-hour-name,
-        html.theme-light #export-capture-zone .ai-name,
-        html.theme-light #export-capture-zone .row-tasks,
-        html.theme-light #export-capture-zone .c-count {
-            color: #1F2937 !important;
-            -webkit-text-fill-color: #1F2937 !important;
-        }
-
-        /* 导出长图无损引擎铺平组件 */
-        .export-image-clone { position: fixed !important; left: -100000px !important; top: 0 !important; z-index: -1 !important; height: auto !important; max-height: none !important; overflow: visible !important; }
-        .export-image-clone .overflow-y-auto, .export-image-clone .custom-scrollbar, .export-image-clone [class*="max-h-"] { overflow: visible !important; max-height: none !important; height: auto !important; }
-        .export-image-clone .truncate { overflow: visible !important; text-overflow: clip !important; white-space: normal !important; }
-        .export-image-clone table { table-layout: fixed !important; width: 100% !important; }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-fuchsia-500/30 text-zinc-300">
@@ -312,8 +261,8 @@
         <header class="h-[88px] px-10 flex justify-between items-center shrink-0 border-b border-white/5 bg-[#09090b]/80 backdrop-blur-xl z-20">
             <div>
                 <h2 class="text-[24px] font-bold text-white tracking-tight mb-1.5 flex items-center gap-3">
-                    多维项目投入分析
-                    <span class="bg-fuchsia-500/20 text-fuchsia-400 text-[11px] px-2.5 py-0.5 rounded-lg border border-fuchsia-500/30">管理视角</span>
+                    多维项目投入 analysis
+                    <span class="bg-fuchsia-50/20 text-fuchsia-400 text-[11px] px-2.5 py-0.5 rounded-lg border border-fuchsia-500/30">管理视角</span>
                     <div id="sync-indicator" class="hidden w-2 h-2 rounded-full bg-emerald-500 animate-pulse ml-2" title="云端连接中..."></div>
                 </h2>
                 <p class="text-[12px] text-zinc-500">直观呈现每位成员的产能分布与项目工时消耗情况。</p>
@@ -408,7 +357,7 @@
                         <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-amber-500"></div>
                         <p class="text-[12px] text-zinc-500 font-bold mb-2">当期 AI 工具介入频次</p>
                         <p class="text-[40px] font-black text-amber-400 font-mono leading-none mb-1" id="metric-cur-ai">0</p>
-                        <p class="text-[11px] text-zinc-500 mt-2" id="metric-trend-ai">对比前期: --</p>
+                        <p class="text-[11px] text-zinc-500 mt-2" id="metric-trend-ai">Contrast 前期: --</p>
                     </div>
                 </div>
 
@@ -604,7 +553,7 @@
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
                         导出全量明细 Excel/CSV 表格
                     </button>
-                    <button onclick="window.exportToPNGImage()" class="keep-white px-6 py-2.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-bold rounded-xl text-[12px] btn-press shadow-lg shadow-fuchsia-600/20 transition-all flex items-center gap-2">
+                    <button onclick="window.exportToPNGImage()" class="px-6 py-2.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-bold rounded-xl text-[12px] btn-press shadow-lg shadow-fuchsia-600/20 transition-all flex items-center gap-2">
                         生成高清图片卡片
                     </button>
                 </div>
@@ -653,7 +602,7 @@
     </script>
 
     <script>
-        // ================= 💡 主题同步引擎：与 index 使用同一个 requestHallTheme =================
+        // ================= 💡 主题同步引擎 =================
         window.applyPageTheme = function(theme) {
             const isLight = theme === 'light';
             document.documentElement.classList.toggle('theme-light', isLight);
@@ -811,7 +760,7 @@
                 let html = '<div class="py-2">';
                 dropdownData.forEach((item, index) => {
                     if(item.isCurrent) {
-                        html += `<div class="w-full text-left px-5 py-2.5 text-[14px] text-fuchsia-400 bg-fuchsia-500/10 font-bold cursor-default">${item.text} <span class="text-[10px] bg-fuchsia-500/20 px-1.5 py-0.5 rounded ml-2">当前</span></div>`;
+                        html += `<div class="w-full text-left px-5 py-2.5 text-[14px] text-fuchsia-400 bg-fuchsia-50/10 font-bold cursor-default">${item.text} <span class="text-[10px] bg-fuchsia-500/20 px-1.5 py-0.5 rounded ml-2">当前</span></div>`;
                     } else {
                         html += `<button onclick="selectDropdownDate(${index})" class="w-full text-left px-5 py-2.5 text-[14px] text-zinc-400 hover:bg-white/5 hover:text-white transition-colors">${item.text}</button>`;
                     }
@@ -821,7 +770,7 @@
             
             dropdown.classList.toggle('hidden');
             if(id === 'date-dropdown') {
-                setTimeout(() => { const act = dropdown.querySelector('.bg-fuchsia-500\\/10'); if(act) act.scrollIntoView({ block: 'center' }); }, 10);
+                setTimeout(() => { const act = dropdown.querySelector('.bg-fuchsia-50\\/10'); if(act) act.scrollIntoView({ block: 'center' }); }, 10);
             }
         }
 
@@ -849,14 +798,14 @@
             if (!filterText && searchEl) { searchEl.textContent = ''; searchEl.innerHTML = ''; if ('value' in searchEl) searchEl.value = ''; }
             const listEl = document.getElementById('project-dropdown-list');
             let filtered = allProjects.filter(p => p.toLowerCase().includes(filterText));
-            let html = `<button onclick="selectProject('all')" class="w-full text-left px-5 py-2 text-[13px] ${currentSelectedProject==='all'?'text-fuchsia-400 bg-fuchsia-500/10 font-bold':'text-zinc-300 hover:bg-white/5'} transition-colors">全部项目大盘</button>`;
+            let html = `<button onclick="selectProject('all')" class="w-full text-left px-5 py-2 text-[13px] ${currentSelectedProject==='all'?'text-fuchsia-400 bg-fuchsia-50/10 font-bold':'text-zinc-300 hover:bg-white/5'} transition-colors">全部项目大盘</button>`;
             
             if(filtered.length === 0) {
                 html += `<div class="px-5 py-3 text-[12px] text-zinc-500 text-center">无相关项目</div>`;
             } else {
                 filtered.forEach(p => {
                     let isActive = currentSelectedProject === p;
-                    html += `<button onclick="selectProject('${p}')" class="w-full text-left px-5 py-2 text-[13px] truncate ${isActive?'text-fuchsia-400 bg-fuchsia-500/10 font-bold':'text-zinc-300 hover:bg-white/5'} transition-colors" title="${p}">${p}</button>`;
+                    html += `<button onclick="selectProject('${p}')" class="w-full text-left px-5 py-2 text-[13px] truncate ${isActive?'text-fuchsia-400 bg-fuchsia-50/10 font-bold':'text-zinc-300 hover:bg-white/5'} transition-colors" title="${p}">${p}</button>`;
                 });
             }
             listEl.innerHTML = html;
@@ -926,7 +875,6 @@
             return '"' + text.replace(/"/g, '""') + '"';
         }
 
-        // ================= 💡 核心修复三：全面清洗剥离已撤销（cancelled）的需求，净化资产大盘 =================
         function extractDataForPeriod(targetDate, viewType) {
             let totalHours = 0;
             let aiFreq = {}; let aiCount = 0;
@@ -942,7 +890,6 @@
             });
 
             myAllTasks.forEach(t => {
-                // 💡 过滤拦截保护：撤销存档的需求，不计入大盘数据统计
                 if (t.status === 'cancelled') return;
 
                 if (currentSelectedProject !== 'all' && t.project !== currentSelectedProject) return;
@@ -1208,23 +1155,36 @@
                 let pHtml = '';
                 sortedPpl.forEach((p, index) => {
                     const isEmpty = p.hours === 0;
-                    const bgClass = isEmpty ? 'bg-[#09090b] border-dashed border-zinc-800 opacity-60' : 'bg-[#121217] border-white/5 shadow-sm hover:border-white/10';
-                    const titleCol = isEmpty ? 'text-zinc-500' : 'text-zinc-200';
-                    const hourCol = isEmpty ? 'text-zinc-600' : 'text-white';
+                    
+                    // 💡 动态输出加粗提权、实体彩底色块，告别惨白糊涂与黑底混杂
+                    let bgCardStyle = '';
+                    if (isEmpty) {
+                        bgCardStyle = 'background: #F1F5F9 !important; border: 1px dashed #CBD5E1 !important; opacity: 0.65;';
+                    } else {
+                        const gradientPresets = [
+                            'background: #EEF2FF !important; border: 1px solid #818CF8 !important;', // 实体高饱和浅蓝
+                            'background: #E6FFFA !important; border: 1px solid #34D399 !important;', // 实体高饱和薄荷
+                            'background: #FDF4FF !important; border: 1px solid #C084FC !important;'  // 实体高饱和浅紫
+                        ];
+                        bgCardStyle = gradientPresets[index % gradientPresets.length];
+                    }
+
+                    const titleCol = isEmpty ? 'text-gray-400' : 'text-gray-900';
+                    const hourCol = isEmpty ? 'text-gray-400' : 'text-indigo-900';
                     
                     let statusBadge = '';
                     if (p.hours > 0 && index === 0) {
-                        statusBadge = `<span class="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">🔥 满负荷 / 最忙</span>`;
+                        statusBadge = `<span class="text-[10px] font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded border border-rose-200">🔥 满负荷 / 最忙</span>`;
                     } else if (p.hours === 0) {
-                        statusBadge = `<span class="text-[10px] font-bold text-zinc-500 bg-zinc-800/50 px-2 py-0.5 rounded border border-zinc-700/50">💤 极度空闲</span>`;
+                        statusBadge = `<span class="text-[10px] font-bold text-gray-500 bg-gray-200 px-2 py-0.5 rounded border border-gray-300">💤 极度空闲</span>`;
                     } else {
-                        statusBadge = `<span class="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">✅ 输出中</span>`;
+                        statusBadge = `<span class="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200">✅ 输出中</span>`;
                     }
 
                     let pTags = '';
                     if (!isEmpty && p.projects.size > 0) {
                         Array.from(p.projects).forEach(proj => {
-                            pTags += `<span class="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-1.5 py-0.5 rounded text-[9px] truncate max-w-[120px] mr-1 mb-1 inline-block">${proj}</span>`;
+                            pTags += `<span class="bg-indigo-600 text-white px-2 py-0.5 rounded text-[10px] font-bold mr-1 mb-1 inline-block shadow-sm">${proj}</span>`;
                         });
                     }
 
@@ -1233,37 +1193,37 @@
                         const aiKeys = Object.keys(p.aiTools);
                         if (aiKeys.length > 0) {
                             aiKeys.forEach(ai => {
-                                aiTags += `<span class="text-[10px] text-amber-400 border border-amber-500/30 px-1.5 rounded">${ai}: ${p.aiTools[ai]}次</span> `;
+                                aiTags += `<span class="text-[10px] text-amber-800 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded font-bold">${ai}: ${p.aiTools[ai]}次</span> `;
                             });
                         } else {
-                            aiTags = `<span class="text-[10px] text-zinc-500 italic">纯手绘 / 未用AI</span>`;
+                            aiTags = `<span class="text-[10px] text-gray-500 italic">纯手绘 / 未用AI</span>`;
                         }
                     }
 
                     pHtml += `
-                    <div class="person-drilldown-card ${bgClass} border rounded-2xl p-4 relative overflow-hidden group transition-all mb-4" data-person="${p.en}" onclick="window.openPersonDetailModal && window.openPersonDetailModal(this.dataset.person)">
-                        ${!isEmpty ? '<div class="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500/50 group-hover:w-1.5 transition-all"></div>' : ''}
+                    <div class="person-drilldown-card rounded-2xl p-4 relative overflow-hidden group transition-all mb-4 shadow-md" data-hours="${p.hours}" data-person="${p.en}" style="${bgCardStyle}" onclick="window.openPersonDetailModal && window.openPersonDetailModal(this.dataset.person)">
+                        ${!isEmpty ? '<div class="absolute left-0 top-0 bottom-0 w-1 bg-indigo-600 group-hover:w-1.5 transition-all"></div>' : ''}
                         <div class="flex justify-between items-start mb-2 pl-2">
                             <div class="flex items-center gap-3">
-                                <div class="person-avatar w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-400 shadow-inner">${p.display.substring(0,2).toUpperCase()}</div>
+                                <div class="person-avatar w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-white shadow-inner">${p.display.substring(0,2).toUpperCase()}</div>
                                 <div>
                                     <div class="flex items-center gap-2">
                                         <h4 class="text-[14px] font-bold ${titleCol}">${p.display}</h4>
                                         ${statusBadge}
                                     </div>
-                                    <p class="text-[10px] text-zinc-600 font-mono mt-0.5">${p.en}</p>
+                                    <p class="text-[10px] text-gray-500 font-mono mt-0.5">${p.en}</p>
                                 </div>
                             </div>
                             <div class="text-right">
-                                <span class="text-[20px] font-mono font-black ${hourCol} leading-none">${p.hours.toFixed(1)}<span class="text-[10px] text-zinc-500 ml-1 font-normal font-sans">h</span></span>
-                                ${isEmpty ? '' : `<p class="text-[10px] text-zinc-500 mt-1">承接 ${p.uniqueTasksSet.size} 个独立工单</p>`}
+                                <span class="text-[20px] font-mono font-black ${hourCol} leading-none">${p.hours.toFixed(1)}<span class="text-[10px] text-gray-500 ml-1 font-normal font-sans">h</span></span>
+                                ${isEmpty ? '' : `<p class="text-[10px] text-gray-600 font-medium mt-1">承接 ${p.uniqueTasksSet.size} 个独立工单</p>`}
                             </div>
                         </div>
-                        ${isEmpty ? `<p class="text-[10px] text-zinc-600 pl-3 mt-3 pt-3 border-t border-zinc-800/50">该人员在此筛选周期内无 any 产出或审批动作。</p>` : `
-                        <div class="pl-2 mt-4 space-y-2 pt-3 border-t border-white/5">
+                        ${isEmpty ? `<p class="text-[10px] text-gray-500 pl-3 mt-3 pt-3 border-t border-gray-200">该人员在此筛选周期内无 any 产出或审批动作。</p>` : `
+                        <div class="pl-2 mt-4 space-y-2 pt-3 border-t border-gray-200/60">
                             <div class="flex flex-wrap">${pTags}</div>
                             <div class="flex items-center gap-1.5 pt-1.5">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                                 ${aiTags}
                             </div>
                         </div>`}
@@ -1322,12 +1282,12 @@
                     <div class="analysis-detail-row">
                         <div class="flex justify-between items-start gap-4 mb-3">
                             <div>
-                                <h3 class="font-black text-[15px] text-zinc-800">${p.display} <span class="text-zinc-500 text-[11px] font-mono">${p.en}</span></h3>
-                                <p class="text-zinc-500 text-[12px] mt-1">承接 ${p.uniqueTasksSet.size} 个独立工单</p>
+                                <h3 class="font-black text-[15px] text-gray-900">${p.display} <span class="text-gray-500 text-[11px] font-mono">${p.en}</span></h3>
+                                <p class="text-gray-600 text-[12px] font-medium mt-1">承接 ${p.uniqueTasksSet.size} 个独立工单</p>
                             </div>
-                            <div class="text-right text-indigo-500 font-mono font-black text-[18px]">${p.hours.toFixed(1)} h</div>
+                            <div class="text-right text-indigo-700 font-mono font-black text-[18px]">${p.hours.toFixed(1)} h</div>
                         </div>
-                        <div class="text-[12px] text-zinc-600 leading-relaxed font-semibold">${getPersonProjectHourLines(p).join('；') || '暂无项目工时明细'}</div>
+                        <div class="text-[12px] text-indigo-900 leading-relaxed font-bold">${getPersonProjectHourLines(p).join('；') || '暂无项目工时明细'}</div>
                     </div>`);
                 openAnalysisModalBase('投入总人力', `当期投入总人力明细（${data.totalHours.toFixed(1)}h）`, `${period} 内所有人员产生的有效工时明细。`, renderDetailRows(rows, '当前周期暂无工时'));
                 return;
@@ -1341,13 +1301,13 @@
                             <div class="flex items-center gap-3">
                                 <div class="person-avatar w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-500 flex items-center justify-center text-white font-black text-[12px]">${p.display.substring(0,2).toUpperCase()}</div>
                                 <div>
-                                    <h3 class="font-black text-zinc-800">${p.display}</h3>
-                                    <p class="text-zinc-500 text-[11px] font-mono">${p.en}</p>
+                                    <h3 class="font-black text-gray-900">${p.display}</h3>
+                                    <p class="text-gray-500 text-[11px] font-mono">${p.en}</p>
                                 </div>
                             </div>
                             <div class="text-right">
-                                <p class="text-fuchsia-600 font-mono font-black text-[15px]">${p.hours.toFixed(1)} h</p>
-                                <p class="text-zinc-500 text-[11px]">${p.uniqueTasksSet.size} 单</p>
+                                <p class="text-fuchsia-700 font-mono font-black text-[16px]">${p.hours.toFixed(1)} h</p>
+                                <p class="text-gray-600 text-[11px] font-medium">${p.uniqueTasksSet.size} 单</p>
                             </div>
                         </div>
                     </div>`);
@@ -1356,18 +1316,18 @@
             }
 
             if (type === 'projects') {
-                const projects = Object.keys(data.activeProjects || {}).map(k => ({ name: k, data: data.activeProjects[k] })).sort((a,b) => b.data.hours - a.data.hours);
+                const projects = Object.keys(data.activeProjects || {}).map(k => ({ name: k, data: currentData.activeProjects[k] })).sort((a,b) => b.data.hours - a.data.hours);
                 const rows = projects.map(p => {
                     const pct = data.totalHours > 0 ? ((p.data.hours / data.totalHours) * 100).toFixed(1) : '0.0';
                     return `<div class="analysis-detail-row">
                         <div class="flex justify-between items-start gap-4">
                             <div>
-                                <h3 class="font-black text-zinc-800 text-[15px]">${p.name}</h3>
-                                <p class="text-zinc-500 text-[12px] mt-1">涉及 ${p.data.count} 个独立需求</p>
+                                <h3 class="font-black text-gray-900 text-[15px]">${p.name}</h3>
+                                <p class="text-gray-600 text-[12px] font-medium mt-1">涉及 ${p.data.count} 个独立需求</p>
                             </div>
                             <div class="text-right">
-                                <p class="text-emerald-600 font-mono font-black text-[18px]">${p.data.hours.toFixed(1)} h</p>
-                                <p class="text-zinc-500 text-[11px]">占总工时 ${pct}%</p>
+                                <p class="text-emerald-700 font-mono font-black text-[18px]">${p.data.hours.toFixed(1)} h</p>
+                                <p class="text-gray-500 text-[11px] font-medium">占总工时 ${pct}%</p>
                             </div>
                         </div>
                     </div>`;
@@ -1382,10 +1342,10 @@
                     const pct = data.aiCount > 0 ? ((t.count / data.aiCount) * 100).toFixed(1) : '0.0';
                     return `<div class="analysis-detail-row">
                         <div class="flex justify-between items-center">
-                            <h3 class="font-black text-zinc-800 text-[15px]">${t.name}</h3>
+                            <h3 class="font-black text-gray-900 text-[15px]">${t.name}</h3>
                             <div class="text-right">
-                                <p class="text-amber-600 font-mono font-black text-[18px]">${t.count} 次</p>
-                                <p class="text-zinc-500 text-[11px]">占比 ${pct}%</p>
+                                <p class="text-amber-700 font-mono font-black text-[18px]">${t.count} 次</p>
+                                <p class="text-gray-500 text-[11px] font-medium">占比 ${pct}%</p>
                             </div>
                         </div>
                     </div>`;
@@ -1403,11 +1363,11 @@
                 <div class="analysis-detail-row">
                     <div class="flex justify-between items-start gap-4">
                         <div class="min-w-0">
-                            <div class="text-[10px] font-mono text-indigo-500 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded inline-flex mb-2">${d.id}</div>
-                            <h3 class="font-black text-[15px] text-zinc-800 leading-snug">${d.title}</h3>
-                            <p class="text-zinc-500 text-[12px] mt-1">归属项目：${d.project || '未归属'}</p>
+                            <div class="text-[10px] font-mono text-indigo-700 bg-indigo-100 border border-indigo-200 px-2 py-0.5 rounded inline-flex mb-2">${d.id}</div>
+                            <h3 class="font-black text-[15px] text-gray-900 leading-snug">${d.title}</h3>
+                            <p class="text-gray-600 text-[12px] mt-1">归属项目：${d.project || '未归属'}</p>
                         </div>
-                        <div class="text-right text-fuchsia-600 font-mono font-black text-[18px] shrink-0">${d.hours.toFixed(1)} h</div>
+                        <div class="text-right text-fuchsia-700 font-mono font-black text-[18px] shrink-0">${d.hours.toFixed(1)} h</div>
                     </div>
                 </div>`);
 
@@ -1420,26 +1380,26 @@
                         <div class="flex items-center gap-4">
                             <div class="person-avatar w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-500 flex items-center justify-center text-white font-black">${p.display.substring(0,2).toUpperCase()}</div>
                             <div>
-                                <h3 class="text-zinc-800 text-[18px] font-black">${p.display}</h3>
-                                <p class="text-zinc-500 text-[12px] font-mono">${p.en}</p>
+                                <h3 class="text-gray-900 text-[18px] font-black">${p.display}</h3>
+                                <p class="text-gray-500 text-[12px] font-mono">${p.en}</p>
                             </div>
                         </div>
                         <div class="text-right">
-                            <p class="text-fuchsia-600 font-mono text-[24px] font-black">${p.hours.toFixed(1)} h</p>
-                            <p class="text-zinc-500 text-[12px]">${p.uniqueTasksSet.size} 个独立工单</p>
+                            <p class="text-fuchsia-700 font-mono text-[24px] font-black">${p.hours.toFixed(1)} h</p>
+                            <p class="text-gray-600 text-[12px] font-medium">${p.uniqueTasksSet.size} 个独立工单</p>
                         </div>
                     </div>
                 </div>
                 <div class="analysis-detail-row">
-                    <h3 class="font-black text-zinc-800 mb-3">项目工时汇总</h3>
-                    <div>${projectRows || '<span class="text-zinc-500 text-sm">暂无项目工时</span>'}</div>
+                    <h3 class="font-black text-gray-900 mb-3">项目工时汇总</h3>
+                    <div>${projectRows || '<span class="text-gray-500 text-sm">暂无项目工时</span>'}</div>
                 </div>
                 <div class="analysis-detail-row">
-                    <h3 class="font-black text-zinc-800 mb-3">AI 工具使用</h3>
-                    <div>${aiRows || '<span class="text-zinc-500 text-sm">纯手绘 / 未记录 AI 工具</span>'}</div>
+                    <h3 class="font-black text-gray-900 mb-3">AI 工具使用</h3>
+                    <div>${aiRows || '<span class="text-gray-500 text-sm">纯手绘 / 未记录 AI 工具</span>'}</div>
                 </div>
                 <div>
-                    <h3 class="font-black text-zinc-800 mb-3">需求投入明细</h3>
+                    <h3 class="font-black text-gray-900 mb-3">需求投入明细</h3>
                     <div class="space-y-3">${renderDetailRows(taskRows, '该人员当期没有需求明细')}</div>
                 </div>
             `;
@@ -1833,13 +1793,13 @@
                         const op = (h.operator || '').toLowerCase();
                         if (op.includes(myName)) return;
 
-                        let title = ''; let content = ''; let icon = 'bg-fuchsia-500';
+                        let title = ''; let content = ''; let icon = 'bg-fuchsia-50';
                         
                         if (h.action === 'submit_framework') { title = '👀 框架待审批'; content = `${h.operator} 提交了中期方案，等待审批：《${task.title}》`; icon = 'bg-amber-500'; }
                         else if (h.action === 'submit_draft') { title = '🎁 正稿待验收'; content = `${h.operator} 交付了正式稿，等待甲方验收：《${task.title}位》`; icon = 'bg-emerald-500'; }
                         else if (h.action === 'reject_framework' || h.action === 'reject_draft' || h.is_rejected) { title = '💥 方案被打回'; content = `单据发生打回重修：《${task.title}》`; icon = 'bg-rose-500'; }
                         else if (h.action === 'complete') { title = '✅ 任务圆满结案'; content = `甲方已验收通过：《${task.title}》`; icon = 'bg-emerald-500'; }
-                        else if (h.action && h.action.includes('urge')) { title = '🚨 紧急催办'; content = `单据产生催办行为：《${task.title}》`; icon = 'bg-rose-500'; }
+                        else if (h.action === 'urge') { title = '🚨 紧急催办'; content = `单据产生催办行为：《${task.title}》`; icon = 'bg-rose-500'; }
 
                         if (title) {
                             const notifId = `${task.id}_${index}_${title}`;
