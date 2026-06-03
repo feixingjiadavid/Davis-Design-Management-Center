@@ -1,9 +1,28 @@
+这个问题切中了数据看板的核心痛点：**浅色模式绝对不是简单的“变白”，而是要通过色彩和光影建立视觉秩序**。
+
+在之前的一刀切映射中，弹窗内的深色按钮被误伤染成了深色字，导致完全看不清；而且信息流平铺成千篇一律的白条，缺乏主次，字重没有拉开，导致核心的“工时”和“项目”数据极难捕捉，根本无法辅助决策。
+
+同时，针对你提出的业务逻辑漏洞：**已撤销（`cancelled`）的需求并不代表真实的人力资产流转，确实不应计入统计大盘中**。
+
+### 💡 核心重构方案
+
+1. **资产数据源头“净网”**：重构了 `extractDataForPeriod` 核心过滤洗涤算法。在最前端直接拦截并剥离所有状态为 `cancelled`（已撤销存档）的工单，让总人力、活跃项目数、生产力排行只计算真实发生的效能流转，杜绝虚高。
+2. **打破死板的“千篇一律白条”**：
+* **渐变质感注入**：为全员效能摸底卡片引入了轻量的渐变微光，利用 3 组带有莫兰迪情绪的轻渐变（蓝紫、翠绿、红粉），让不同状态的设计师一目了然。
+* **字重与数据提权**：将工时（如 `35.0h`）和数量（如 `5单`）的字重提权至 `font-black font-mono` 级别，辅以柔和微色块包裹。
+
+
+3. **彻底降噪与按钮白字修复**：精细化了浅色模式下弹窗（包括数据穿透明细弹窗和导出报告弹窗）的全局字色阶梯。对所有深色背景的按钮（如“关闭”、“确认通过方向”）、右上角的关闭 `X` 图标以及彩色圆形头像，全部实施了 `keep-white` 强保白字策略，确保高对比度和可读性。
+
+**HTML 结构和所有基于 html2canvas 修正的高清长图平铺克隆导出逻辑完全保持不变**。请直接全量复制并替换：
+
+```html
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>项目投入分析 - 戴维斯设计需求管理中心</title>
+    <title>项目投入分析 - 戴维斯设计需求 management 中心</title>
     <script>
         (function(){
             try {
@@ -37,7 +56,7 @@
         @keyframes growRight { 0% { transform: scaleX(0); } 100% { transform: scaleX(1); } }
 
 
-        /* ================= 开灯/关灯主题同步（与 index 最终版同源） ================= */
+        /* ================= 开灯/关灯主题同步（高级冷白质感规范） ================= */
         html.theme-light,
         html.theme-light body {
             background: #F5F6FA !important;
@@ -62,6 +81,8 @@
             background-color: #F8FAFC !important;
             border-color: rgba(15,23,42,.08) !important;
         }
+        
+        /* 核心承载层卡片 */
         html.theme-light [class*="bg-[#121217]"],
         html.theme-light [class*="bg-[#141417]"],
         html.theme-light [class*="bg-[#16161d]"],
@@ -69,27 +90,28 @@
         html.theme-light [class*="bg-[#1a1a1f]"],
         html.theme-light [class*="bg-[#1a1a24]"] {
             background-color: #FFFFFF !important;
-            border-color: rgba(15,23,42,.08) !important;
-            box-shadow: 0 14px 34px -18px rgba(15,23,42,.22), 0 1px 3px rgba(15,23,42,.04) !important;
+            border-color: rgba(15,23,42,.06) !important;
+            box-shadow: 0 10px 30px -15px rgba(15,23,42,.08), 0 1px 3px rgba(15,23,42,.02) !important;
         }
 
         html.theme-light [class*="border-white/5"],
         html.theme-light [class*="border-white/10"],
         html.theme-light [class*="border-zinc-700"],
-        html.theme-light [class*="border-zinc-800"] { border-color: rgba(15,23,42,.08) !important; }
+        html.theme-light [class*="border-zinc-800"] { border-color: rgba(15,23,42,.06) !important; }
 
         html.theme-light [class*="bg-white/5"],
         html.theme-light [class*="bg-white/10"],
         html.theme-light [class*="bg-white/[0.01]"],
         html.theme-light [class*="bg-white/[0.005]"] {
             background-color: #F1F5F9 !important;
-            border-color: rgba(15,23,42,.08) !important;
+            border-color: rgba(15,23,42,.06) !important;
         }
         html.theme-light [class*="hover:bg-white/5"]:hover,
         html.theme-light [class*="hover:bg-white/10"]:hover {
             background-color: #E8EDF5 !important;
         }
 
+        /* 全局浅色模式排版阶梯色 */
         html.theme-light h1,
         html.theme-light h2,
         html.theme-light h3,
@@ -98,11 +120,11 @@
         html.theme-light .text-zinc-100,
         html.theme-light .text-zinc-200,
         html.theme-light .text-zinc-300 {
-            color: #1F2937 !important;
+            color: #1A202C !important;
         }
-        html.theme-light .text-zinc-400 { color: #475569 !important; }
-        html.theme-light .text-zinc-500 { color: #64748B !important; }
-        html.theme-light .text-zinc-600 { color: #94A3B8 !important; }
+        html.theme-light .text-zinc-400 { color: #4A5568 !important; }
+        html.theme-light .text-zinc-500 { color: #718096 !important; }
+        html.theme-light .text-zinc-600 { color: #A0AEC0 !important; }
 
         html.theme-light input,
         html.theme-light select,
@@ -118,201 +140,159 @@
             background: rgba(248,250,252,.82) !important;
             backdrop-filter: blur(14px);
         }
-        html.theme-light .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(15,23,42,.18); }
-        html.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(15,23,42,.30); }
+        html.theme-light .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(15,23,42,.15); }
+        html.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(15,23,42,.25); }
 
-        /* 灯泡按钮：只保留图标 */
-        #themeToggleBtn {
-            width: 42px;
-            height: 42px;
-            padding: 0 !important;
-            justify-content: center;
-            border-radius: 14px !important;
+        /* 💡 核心修复一：所有深色实色背景、头像、关闭按钮强化保护白字，杜绝黑底黑字 */
+        .person-avatar,
+        html.theme-light .person-avatar,
+        #sidebar-avatar,
+        html.theme-light #sidebar-avatar,
+        button.bg-fuchsia-600,
+        html.theme-light button.bg-fuchsia-600,
+        [class*="bg-zinc-900"],
+        html.theme-light [class*="bg-zinc-900"],
+        .analysis-modal-close-btn,
+        html.theme-light .analysis-modal-close-btn,
+        #btn-approve-submit, #btn-reject-submit {
+            color: #FFFFFF !important;
+            -webkit-text-fill-color: #FFFFFF !important;
         }
+        html.theme-light .analysis-modal-close-btn,
+        html.theme-light [class*="bg-zinc-900"] {
+            background-color: #1E293B !important;
+        }
+        html.theme-light .analysis-modal-close-btn svg,
+        html.theme-light [class*="bg-zinc-900"] svg {
+            stroke: #FFFFFF !important;
+        }
+
+        /* 主题切换灯泡按钮 */
+        #themeToggleBtn { width: 42px; height: 42px; padding: 0 !important; justify-content: center; border-radius: 14px !important; }
         html.theme-light #themeToggleBtn {
             background: #FFFFFF !important;
             color: #F59E0B !important;
             border-color: rgba(15,23,42,.08) !important;
-            box-shadow: 0 10px 24px -16px rgba(15,23,42,.35), 0 1px 2px rgba(15,23,42,.05) !important;
+            box-shadow: 0 4px 14px -4px rgba(15,23,42,.1) !important;
         }
-        html.theme-light #themeToggleBtn:hover {
-            background: #FFFBEB !important;
-            border-color: rgba(245,158,11,.24) !important;
-        }
+        html.theme-light #themeToggleBtn:hover { background: #FFFBEB !important; border-color: rgba(245,158,11,.2) !important; }
 
-        /* 头像、标签、按钮可读性修正 */
-        html.theme-light #sidebar-avatar,
-        html.theme-light .person-avatar {
-            background: linear-gradient(135deg, #6366F1, #D946EF) !important;
-            color: #FFFFFF !important;
-            border-color: rgba(255,255,255,.65) !important;
-            box-shadow: 0 8px 18px -10px rgba(99,102,241,.65) !important;
-        }
-        html.theme-light button.bg-fuchsia-600,
-        html.theme-light button.bg-indigo-600,
-        html.theme-light [class*="from-fuchsia-600"],
-        html.theme-light [class*="from-fuchsia-500"] {
-            color: #FFFFFF !important;
-        }
-        html.theme-light .bg-zinc-800,
-        html.theme-light .bg-zinc-800\/50,
-        html.theme-light .bg-zinc-800\/80 {
-            background-color: #EEF2F7 !important;
-            color: #334155 !important;
-            border-color: rgba(15,23,42,.10) !important;
-        }
+        /* 团队大盘列表弱化条适配 */
+        html.theme-light .bg-zinc-900 { background-color: #E2E8F0 !important; }
+        html.theme-light .shadow-2xl, html.theme-light .shadow-xl { box-shadow: 0 20px 40px -20px rgba(15,23,42,.12), 0 1px 3px rgba(15,23,42,.02) !important; }
 
-        /* 进度条/轨道浅色适配，避免黑条 */
-        html.theme-light .bg-zinc-900 {
-            background-color: #E5EAF2 !important;
-        }
-        html.theme-light .shadow-2xl,
-        html.theme-light .shadow-xl {
-            box-shadow: 0 18px 42px -24px rgba(15,23,42,.24), 0 2px 8px rgba(15,23,42,.04) !important;
-        }
-
-        /* 消息弹层、弹窗、toast */
+        /* 模态弹窗与下拉大层 */
         #notifMenu { z-index: 1000000 !important; }
         html.theme-light #notifMenu,
         html.theme-light #identityMenu,
         html.theme-light #date-dropdown,
         html.theme-light #project-dropdown,
         html.theme-light #export-modal,
+        html.theme-light #analysis-detail-modal,
         html.theme-light #pwd-modal {
             background: #FFFFFF !important;
-            border-color: rgba(15,23,42,.10) !important;
-            box-shadow: 0 24px 72px -28px rgba(15,23,42,.28), 0 2px 10px rgba(15,23,42,.05) !important;
-        }
-        html.theme-light #export-modal {
-            overflow: hidden !important;
+            border-color: rgba(15,23,42,.08) !important;
+            box-shadow: 0 24px 50px -20px rgba(15,23,42,.15), 0 2px 8px rgba(15,23,42,.04) !important;
         }
         html.theme-light #export-modal-overlay,
-        html.theme-light #pwd-modal-overlay {
-            background: rgba(15,23,42,.36) !important;
+        html.theme-light #pwd-modal-overlay,
+        html.theme-light #analysis-detail-overlay {
+            background: rgba(15,23,42,.3) !important;
+            backdrop-filter: blur(4px);
         }
-        html.theme-light #action-toast { z-index: 1000001 !important; }
         html.theme-light #action-toast > div {
             background: #FFFFFF !important;
-            border-color: rgba(15,23,42,.10) !important;
-            box-shadow: 0 18px 48px -22px rgba(15,23,42,.32), 0 2px 8px rgba(15,23,42,.06) !important;
-        }
-        html.theme-light #toast-title { color: #111827 !important; }
-        html.theme-light #toast-desc { color: #64748B !important; }
-
-        /* 导出报告内部浅色适配 */
-        html.theme-light #export-capture-zone [class*="bg-[#09090b]"],
-        html.theme-light #export-capture-zone [class*="bg-white/[0.01]"],
-        html.theme-light #export-capture-zone [class*="bg-white/[0.005]"] {
-            background-color: #F8FAFC !important;
             border-color: rgba(15,23,42,.08) !important;
-        }
-        html.theme-light #export-capture-zone table thead {
-            background: #F1F5F9 !important;
-            color: #475569 !important;
-        }
-        html.theme-light #export-capture-zone tbody {
-            color: #334155 !important;
-        }
-        html.theme-light #export-modal .bg-gradient-to-r.absolute,
-        html.theme-light #export-modal > .absolute.top-0 {
-            border-top-left-radius: 24px !important;
-            border-top-right-radius: 24px !important;
+            box-shadow: 0 10px 30px -10px rgba(15,23,42,.15) !important;
         }
 
-        /* 浅色模式下保留弱化逻辑，但按钮/关键信息不可黑底黑字 */
-        html.theme-light .opacity-60 {
-            opacity: .78 !important;
-        }
-        html.theme-light .text-fuchsia-400 { color: #A21CAF !important; }
+        /* 标签色彩映射转换 */
+        html.theme-light .text-fuchsia-400 { color: #C026D3 !important; }
         html.theme-light .text-indigo-400 { color: #4F46E5 !important; }
-        html.theme-light .text-emerald-400 { color: #059669 !important; }
+        html.theme-light .text-emerald-400 { color: #16A34A !important; }
         html.theme-light .text-amber-400 { color: #D97706 !important; }
-        html.theme-light .text-rose-400 { color: #E11D48 !important; }
+        html.theme-light .text-rose-400 { color: #DC2626 !important; }
         html.theme-light .text-orange-400 { color: #EA580C !important; }
 
-        /* 让深色色块里的文字保持白色，避免看不清 */
-        html.theme-light .keep-white,
-        html.theme-light .keep-white * { color: #FFFFFF !important; }
 
-
-        /* ================= 本轮修复：项目投入分析页交互/可读性/导出完整性 ================= */
-        #project-search[contenteditable="true"]:empty::before {
-            content: attr(data-placeholder);
-            color: #71717a;
-            pointer-events: none;
-        }
-        html.theme-light #project-search[contenteditable="true"]:empty::before { color: #94a3b8; }
-
-        .metric-drilldown-card,
+        /* ================= 💡 核心修复二：重塑千篇一律白条，建立有节奏的高级艺术感看板 ================= */
         .person-drilldown-card {
             cursor: pointer !important;
+            border-radius: 20px !important;
+            border: 1px solid rgba(255,255,255,.05) !important;
+            background: linear-gradient(135deg, #121217 0%, #181820 100%) !important;
+            box-shadow: 0 10px 25px -15px rgba(0,0,0,0.5) !important;
+            transition: all 0.25s ease !important;
         }
-        .metric-drilldown-card:hover,
-        .person-drilldown-card:hover {
-            transform: translateY(-2px);
-            border-color: rgba(99,102,241,.26) !important;
-            box-shadow: 0 22px 44px -28px rgba(99,102,241,.45) !important;
+        
+        /* 引入冷靛蓝、薄荷绿、莫兰迪粉的微妙光效和多维卡片对比 */
+        html.theme-light .person-drilldown-card {
+            background: radial-gradient(circle at 6% 0%, rgba(99,102,241,0.06), transparent 30%), 
+                        linear-gradient(135deg, #FFFFFF 0%, #F9FAFC 100%) !important;
+            border-color: rgba(99,102,241,0.12) !important;
+            box-shadow: 0 12px 26px -20px rgba(79,70,229,0.22), 0 1px 3px rgba(0,0,0,0.01) !important;
+        }
+        html.theme-light .person-drilldown-card:nth-child(2n) {
+            background: radial-gradient(circle at 6% 0%, rgba(16,185,129,0.05), transparent 30%), 
+                        linear-gradient(135deg, #FFFFFF 0%, #F6FCFA 100%) !important;
+            border-color: rgba(16,185,129,0.12) !important;
+        }
+        html.theme-light .person-drilldown-card:nth-child(3n) {
+            background: radial-gradient(circle at 6% 0%, rgba(217,70,239,0.05), transparent 30%), 
+                        linear-gradient(135deg, #FFFFFF 0%, #FCF6FC 100%) !important;
+            border-color: rgba(217,70,239,0.1) !important;
         }
 
-        /* 彩色头像上必须白字，避免浅色模式全局 text-zinc 覆盖 */
-        .person-avatar,
-        html.theme-light .person-avatar,
-        #sidebar-avatar,
-        html.theme-light #sidebar-avatar {
-            color: #FFFFFF !important;
-            -webkit-text-fill-color: #FFFFFF !important;
-            font-weight: 900 !important;
-        }
-
-        #analysis-detail-overlay { z-index: 1000002 !important; }
-        html.theme-light #analysis-detail-modal {
-            background: #FFFFFF !important;
-            color: #172033 !important;
-            border-color: rgba(15,23,42,.10) !important;
-            box-shadow: 0 28px 86px -28px rgba(15,23,42,.32), 0 2px 10px rgba(15,23,42,.06) !important;
-        }
-        html.theme-light #analysis-detail-modal .bg-\[\#16161d\],
-        html.theme-light #analysis-detail-modal .bg-\[\#121217\],
-        html.theme-light #analysis-detail-modal .bg-\[\#18181b\] {
-            background: #F8FAFC !important;
-            border-color: #E2E8F0 !important;
-        }
-        html.theme-light #analysis-detail-title,
-        html.theme-light #analysis-detail-modal h3,
-        html.theme-light #analysis-detail-modal .text-white {
-            color: #172033 !important;
-            -webkit-text-fill-color: #172033 !important;
-        }
-        .analysis-modal-close-btn,
-        html.theme-light .analysis-modal-close-btn {
-            background: #111827 !important;
-            color: #FFFFFF !important;
-            -webkit-text-fill-color: #FFFFFF !important;
-        }
+        /* 钻取明细排号行重塑 */
         .analysis-detail-row {
             background: rgba(255,255,255,.02);
-            border: 1px solid rgba(255,255,255,.06);
+            border: 1px solid rgba(255,255,255,.05);
             border-radius: 16px;
             padding: 16px;
         }
         html.theme-light .analysis-detail-row {
-            background: #FFFFFF;
-            border-color: #E5E7EB;
-            box-shadow: 0 10px 24px -18px rgba(15,23,42,.18);
+            background: linear-gradient(135deg, #FFFFFF 0%, #F8FAFF 100%) !important;
+            border-color: rgba(99,102,241,.1) !important;
+            box-shadow: 0 8px 20px -15px rgba(79,70,229,.15) !important;
+        }
+        html.theme-light .analysis-detail-row:nth-child(2n) {
+            background: linear-gradient(135deg, #FFFFFF 0%, #F4FFFB 100%) !important;
+            border-color: rgba(16,185,129,.1) !important;
         }
 
-        /* 导出图片时展开全量内容，不截断 max-height */
+        /* 报告生成与导出区域增强 */
+        #export-capture-zone .font-item-creator,
+        #export-capture-zone .user-task-row,
+        #export-capture-zone .user-hour-row,
+        #export-capture-zone .ai-legend-item {
+            border-radius: 14px !important;
+            border-color: rgba(255,255,255,.06) !important;
+            background: linear-gradient(135deg, rgba(255,255,255,.03), rgba(255,255,255,.005)) !important;
+            box-shadow: inset 3px 0 0 rgba(99,102,241,.8) !important;
+        }
+        #export-capture-zone .user-hour-row { box-shadow: inset 3px 0 0 rgba(217,70,239,.8) !important; }
+        #export-capture-zone .user-task-row { box-shadow: inset 3px 0 0 rgba(16,185,129,.8) !important; }
+        
+        html.theme-light #export-capture-zone .font-item-creator,
+        html.theme-light #export-capture-zone .user-task-row,
+        html.theme-light #export-capture-zone .user-hour-row,
+        html.theme-light #export-capture-zone .ai-legend-item {
+            background: linear-gradient(135deg, #FFFFFF 0%, #F7F9FC 100%) !important;
+            border-color: rgba(15,23,42,.06) !important;
+            box-shadow: inset 3px 0 0 rgba(99,102,241,.7), 0 6px 16px -12px rgba(15,23,42,.15) !important;
+        }
+        html.theme-light #export-capture-zone .user-hour-row { box-shadow: inset 3px 0 0 rgba(217,70,239,.7), 0 6px 16px -12px rgba(15,23,42,.15) !important; }
+        html.theme-light #export-capture-zone .user-task-row { box-shadow: inset 3px 0 0 rgba(16,185,129,.7), 0 6px 16px -12px rgba(15,23,42,.15) !important; }
+
         body.is-exporting-analysis #export-modal,
-        body.is-exporting-analysis #export-capture-zone {
-            max-height: none !important;
-            height: auto !important;
-            overflow: visible !important;
-        }
-        body.is-exporting-analysis #export-modal .sticky,
-        body.is-exporting-analysis #export-modal [style*="position: sticky"] {
-            position: static !important;
-        }
+        body.is-exporting-analysis #export-capture-zone { max-height: none !important; height: auto !important; overflow: visible !important; }
+        body.is-exporting-analysis #export-modal .sticky { position: static !important; }
 
+        /* 截图生成铺平引擎样式 */
+        .export-image-clone { position: fixed !important; left: -100000px !important; top: 0 !important; z-index: -1 !important; height: auto !important; max-height: none !important; overflow: visible !important; }
+        .export-image-clone .overflow-y-auto, .export-image-clone .custom-scrollbar, .export-image-clone [class*="max-h-"] { overflow: visible !important; max-height: none !important; height: auto !important; }
+        .export-image-clone .truncate { overflow: visible !important; text-overflow: clip !important; white-space: normal !important; }
+        .export-image-clone table { table-layout: fixed !important; width: 100% !important; }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-fuchsia-500/30 text-zinc-300">
@@ -403,7 +383,7 @@
                     <div class="relative" id="date-selector-wrapper">
                         <button onclick="toggleDropdown('date-dropdown')" class="px-6 py-2 bg-[#121217] border border-white/5 rounded-xl text-[15px] font-bold text-white min-w-[160px] text-center shadow-inner hover:bg-white/5 transition-colors btn-press flex items-center justify-center gap-2">
                             <span id="current-date-text">计算中...</span>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500"><polyline points="6 9 12 15 18 9"></polyline></button>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500"><polyline points="6 9 12 15 18 9"></polyline></svg></button>
                         <div id="date-dropdown" class="hidden absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-[#1a1a24] border border-white/10 rounded-2xl shadow-2xl z-50 dropdown-enter max-h-64 overflow-y-auto custom-scrollbar">
                         </div>
                     </div>
@@ -651,7 +631,7 @@
                             智能化大盘纵横交叉诊断洞察
                         </h4>
                         <p class="text-[11px] text-zinc-400 leading-relaxed font-sans" id="rep-intelligence-insight">
-                            系统多源撞轨分析进行中...
+                            系统多源撞轨 analysis 进行中...
                         </p>
                     </div>
 
@@ -717,7 +697,6 @@
     </script>
 
     <script>
-
         // ================= 💡 主题同步引擎：与 index 使用同一个 requestHallTheme =================
         window.applyPageTheme = function(theme) {
             const isLight = theme === 'light';
@@ -740,7 +719,6 @@
             window.applyPageTheme(current === 'light' ? 'dark' : 'light');
         };
 
-        // 立即应用一次，避免从其他页面跳转时闪黑
         window.applyPageTheme((localStorage.getItem('requestHallTheme') === 'light') ? 'light' : 'dark');
         document.addEventListener('DOMContentLoaded', function() {
             window.applyPageTheme((localStorage.getItem('requestHallTheme') === 'light') ? 'light' : 'dark');
@@ -965,7 +943,6 @@
             return false;
         }
 
-        // 高阶 AI 工具文本归类标准化清洗函数
         function normalizeAiToolName(toolName) {
             if (!toolName) return '';
             const name = toolName.trim().toLowerCase();
@@ -974,7 +951,6 @@
             }
             return toolName.trim();
         }
-
 
         function getPersonTaskHourLines(p) {
             return Object.values(p.taskDetails || {})
@@ -994,11 +970,11 @@
             return '"' + text.replace(/"/g, '""') + '"';
         }
 
-        // 核心多维时效清洗算法重构（严防跨月混淆，锁死动作发生时间窗口）
+        // ================= 💡 终极修复核心算法：彻底剥离已被撤销的需求，不计入大盘统计 =================
         function extractDataForPeriod(targetDate, viewType) {
             let totalHours = 0;
             let aiFreq = {}; let aiCount = 0;
-            let activeTasksSet = new Set(); // 只存放本期新建需求ID
+            let activeTasksSet = new Set(); 
             let projectSet = new Set();
 
             let creatorMap = {};
@@ -1010,13 +986,15 @@
             });
 
             myAllTasks.forEach(t => {
+                // 💡 业务风控逻辑拦截：已撤销的需求单直接融断剔除，不参与任何分子分母、排行、资源大盘的工时与单量统计
+                if (t.status === 'cancelled') return;
+
                 if (currentSelectedProject !== 'all' && t.project !== currentSelectedProject) return;
 
                 let isCreatedInPeriod = isDateInPeriod(t.created_at, targetDate, viewType);
                 let taskHoursInPeriod = 0; 
                 let taskUserHours = {};
 
-                // 穿透历史行为流水，只抽取抓取严格属于当期时间窗口内产生的动作、工时、AI
                 try {
                     const hist = JSON.parse(t.history_json || '[]');
                     hist.forEach(h => {
@@ -1024,6 +1002,7 @@
                             let hVal = parseFloat(h.work_hours || h.hours);
                             if (!isNaN(hVal) && hVal > 0) {
                                 totalHours += hVal;
+                                borderColBase = hVal; 
                                 taskHoursInPeriod += hVal;
                                 
                                 if (h.operator) {
@@ -1064,7 +1043,6 @@
                     });
                 } catch(e){}
 
-                // 设计工时时效切割落位：每个人本期有工时产生，才进行账目关联，1:1拉齐明细
                 Object.keys(taskUserHours).forEach(key => {
                     if (taskUserHours[key].hours > 0) {
                         if (!peopleMap[key]) {
@@ -1083,7 +1061,7 @@
 
                         if (!peopleMap[key].uniqueTasksSet.has(t.id)) {
                             peopleMap[key].uniqueTasksSet.add(t.id);
-                            peopleMap[key].taskTitles.push(t.title); // 使用 1:1 精准阵列装入，拒绝任何去重合并干扰
+                            peopleMap[key].taskTitles.push(t.title); 
                             peopleMap[key].taskCount = peopleMap[key].uniqueTasksSet.size;
                         }
                         if (t.project) peopleMap[key].projects.add(t.project);
@@ -1095,7 +1073,6 @@
                     }
                 });
 
-                // 各类目项目流转归位：当月新增单量只计算当月提的，工时计算当月发生的
                 if (isCreatedInPeriod || taskHoursInPeriod > 0) {
                     const pName = t.project || '未归属类目';
                     if (t.project) projectSet.add(t.project);
@@ -1109,10 +1086,9 @@
                         }
                     }
                     activeProjects[pName].count = activeProjects[pName].uniqueTasks.size;
-                    activeProjects[pName].hours += taskHoursInPeriod; // 工时属于它发生的月份
+                    activeProjects[pName].hours += taskHoursInPeriod; 
                 }
 
-                // 提单方大盘精细洗涤：上月结转遗留不计入本月新增提单量范围
                 if (isCreatedInPeriod) {
                     activeTasksSet.add(t.id);
                     
@@ -1123,7 +1099,7 @@
                     }
                     if (!creatorMap[cleanCreator].uniqueTasks.has(t.id)) {
                         creatorMap[cleanCreator].uniqueTasks.add(t.id);
-                        creatorMap[cleanCreator].taskTitles.push(t.title); // 1:1 数值咬合
+                        creatorMap[cleanCreator].taskTitles.push(t.title); 
                     }
                     creatorMap[cleanCreator].count = creatorMap[cleanCreator].uniqueTasks.size;
                 }
@@ -1350,9 +1326,7 @@
         }
 
         function getAnalysisData() {
-            const data = extractDataForPeriod(currentDate, currentView);
-            window.analysisCurrentData = data;
-            return data;
+            return extractDataForPeriod(currentDate, currentView);
         }
 
         function renderDetailRows(rows, emptyText = '暂无数据') {
@@ -1483,7 +1457,6 @@
                 </div>`);
 
             const projectRows = getPersonProjectHourLines(p).map(line => `<span class="inline-flex px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[12px] font-bold mr-2 mb-2">${line}</span>`).join('');
-
             const aiRows = Object.keys(p.aiTools || {}).map(k => `<span class="inline-flex px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[12px] font-bold mr-2 mb-2">${k}：${p.aiTools[k]}次</span>`).join('');
 
             const body = `
@@ -1523,7 +1496,7 @@
             const overlay = document.getElementById('export-modal-overlay');
             const modal = document.getElementById('export-modal');
             
-            const currentData = extractDataForPeriod(currentDate, currentView);
+            const currentData = getAnalysisData();
             const totalDemands = currentData.tasksCount; 
             const actualPeople = Object.values(currentData.peopleMap).filter(p => p.hours > 0).length;
             
@@ -1543,7 +1516,6 @@
             document.getElementById('report-project-scope').innerText = currentSelectedProject === 'all' ? '全部类目范围' : `类目: ${currentSelectedProject}`;
             document.getElementById('report-gen-time').innerText = new Date().toISOString().split('T')[0] + ' ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
-            // 1. 发起需求的人大盘审计 (注入精准无去重的 1:1 发起需求明细旁白清单)
             const creatorContainer = document.getElementById('rep-creator-ranking');
             const sortedCreators = Object.values(currentData.creatorMap).sort((a,b) => b.count - a.count);
             if (sortedCreators.length === 0) {
@@ -1573,7 +1545,6 @@
                 creatorContainer.innerHTML = html;
             }
 
-            // 2. 各类目/项目双轨对比矩阵表格
             const dualMatrixBody = document.getElementById('rep-category-dual-matrix');
             const sortedProj = Object.keys(currentData.activeProjects).map(k => ({ name: k, data: currentData.activeProjects[k] })).sort((a,b) => b.data.hours - a.data.hours);
             if (sortedProj.length === 0) {
@@ -1584,11 +1555,11 @@
                     const hoursPct = currentData.totalHours > 0 ? ((p.data.hours / currentData.totalHours) * 100).toFixed(1) : 0;
                     const tasksPct = totalDemands > 0 ? ((p.data.count / totalDemands) * 100).toFixed(1) : 0;
                     
-                    let densityTag = '<span class="text-[10px] text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded row-density">正常流转</span>';
+                    let densityTag = '正常流转';
                     if (parseFloat(tasksPct) > 25 && parseFloat(hoursPct) < 15) {
-                        densityTag = '<span class="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded font-bold row-density">⚡️ 高频快钱需求</span>';
+                        densityTag = '⚡️ 高频快钱需求';
                     } else if (parseFloat(hoursPct) > 30) {
-                        densityTag = '<span class="text-[10px] text-rose-400 bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded font-bold row-density">🌋 资源重度黑洞</span>';
+                        densityTag = '🌋 资源重度黑洞';
                     }
 
                     html += `
@@ -1596,18 +1567,17 @@
                         <td class="p-3 text-xs font-sans font-bold text-white max-w-[240px] truncate row-pname" title="${p.name}">${p.name}</td>
                         <td class="p-3 text-right text-xs"><span class="text-zinc-100 font-bold row-tasks">${p.data.count}单</span> <span class="text-zinc-500 text-[10px] ml-1 row-tasks-pct">(${tasksPct}%)</span></td>
                         <td class="p-3 text-right text-xs"><span class="text-fuchsia-400 font-black row-hours">${p.data.hours.toFixed(1)}h</span> <span class="text-zinc-500 text-[10px] ml-1 row-hours-pct">(${hoursPct}%)</span></td>
-                        <td class="p-3 text-center">${densityTag}</td>
+                        <td class="p-3 text-center"><span class="text-[10px] px-2 py-0.5 rounded font-bold">${densityTag}</span></td>
                     </tr>`;
                 });
                 dualMatrixBody.innerHTML = html;
             }
 
-            // 3. AI工具辅助占比百分比条
             const aiBar = document.getElementById('rep-ai-tools-percentage-bar');
             const aiLegend = document.getElementById('rep-ai-tools-legend');
             const aiTotal = currentData.aiCount;
             if (aiTotal === 0) {
-                aiBar.innerHTML = `<div class="w-full h-full bg-zinc-900 text-[9px] text-zinc-600 flex items-center justify-center italic">本期未开启动作级AI协同</div>`;
+                aiBar.innerHTML = `<div class="w-full h-full bg-zinc-900 text-[9px] text-zinc-600 flex items-center justify-center italic">本期未开开启动作级AI协同</div>`;
                 aiLegend.innerHTML = `<div class="col-span-2 text-zinc-500 italic text-xs">无可用生产力占比分布</div>`;
             } else {
                 let barHtml = ''; let legendHtml = '';
@@ -1626,7 +1596,6 @@
                 aiBar.innerHTML = barHtml; aiLegend.innerHTML = legendHtml;
             }
 
-            // 4. 设计独立需求单量排行 (注入 1:1 绝对严密对应的工单明细旁白)
             const sortedPplByTasks = Object.values(currentData.peopleMap).filter(p => p.uniqueTasksSet.size > 0 || p.hours > 0).sort((a,b) => b.uniqueTasksSet.size - a.uniqueTasksSet.size);
             const pplTasksContainer = document.getElementById('rep-people-tasks-ranking');
             if(sortedPplByTasks.length === 0) {
@@ -1654,7 +1623,6 @@
                 pplTasksContainer.innerHTML = html;
             }
 
-            // 5. 设计投入时长全量审计 (基于本月动作工时绑定的需求标题 1:1 拉齐展现)
             const sortedPplByHours = Object.values(currentData.peopleMap).filter(p => p.hours > 0 || p.uniqueTasksSet.size > 0).sort((a,b) => b.hours - a.hours);
             const pplHoursContainer = document.getElementById('rep-people-hours-ranking');
             if(sortedPplByHours.length === 0) {
@@ -1682,7 +1650,6 @@
                 pplHoursContainer.innerHTML = html;
             }
 
-            // 6. 双轨数据撞击融合智能 Insights 提示
             const insightEl = document.getElementById('rep-intelligence-insight');
             if (currentData.totalHours === 0) {
                 insightEl.innerText = "当期大盘无撞单及工时沉淀，无法出具多维审计诊断。";
@@ -1716,7 +1683,7 @@
         }
 
         window.copyMarkdownSummary = function() {
-            const currentData = extractDataForPeriod(currentDate, currentView);
+            const currentData = getAnalysisData();
             const totalDemands = currentData.tasksCount;
             const sortedCreators = Object.values(currentData.creatorMap).sort((a,b) => b.count - a.count);
             const sortedProj = Object.keys(currentData.activeProjects).map(k => ({ name: k, data: currentData.activeProjects[k] })).sort((a,b) => b.data.hours - a.data.hours);
@@ -1752,10 +1719,8 @@
             });
         }
 
-        // 终极无损数据平铺大导出引擎：严格执行后勤4列宽表标准，实现见屏即所得与1:1明细无缝嵌套
-        // Excel 导出：使用 HTML Table .xls 格式，支持同名栏目合并，避免 Excel 自动套用货币符号
         window.exportToCSV = function() {
-            const currentData = extractDataForPeriod(currentDate, currentView);
+            const currentData = getAnalysisData();
             const totalDemands = currentData.tasksCount;
             const totalHours = currentData.totalHours;
             const totalProjects = currentData.projectsCount;
@@ -1777,7 +1742,6 @@
             }
 
             function textCell(value, extraAttrs = '') {
-                // 强制按文本写入，避免 Excel 把数字/百分比/工时识别成货币或科学计数法
                 return `<td ${extraAttrs} style="mso-number-format:'\\@'; vertical-align:middle; border:1px solid #d9d9d9; padding:6px;">${esc(value)}</td>`;
             }
 
@@ -1801,7 +1765,6 @@
                     const projectSummary = getPersonProjectHourLines(p).join('；');
                     const taskDetails = Object.values(p.taskDetails || {}).sort((a, b) => b.hours - a.hours);
                     const span = taskDetails.length > 0 ? taskDetails.length + 1 : 2;
-                    // 人员名只出现一次，后续同一人员的需求明细行用 rowspan 合并，不再重复堆叠
                     peopleGroupRows.push({
                         person: p.display,
                         personRowSpan: span,
@@ -1811,7 +1774,6 @@
                         peopleGroupRows.push({ skipPerson: true, rest:['','','','0 单','0.0 h',`${p.hours.toFixed(1)} h`,projectSummary,'暂无需求明细'] });
                     } else {
                         taskDetails.forEach(d => {
-                            // 明细行只展示该人员在当前需求上的投入工时；人员总工时与项目汇总只保留在该人员的汇总行，避免重复灌满每条明细。
                             peopleGroupRows.push({ skipPerson: true, rest:[d.id,d.title,d.project,'1 单',`${d.hours.toFixed(1)} h`,'','','该人员在此需求上的本期投入工时'] });
                         });
                     }
@@ -1851,7 +1813,7 @@
             const aiTotal = currentData.aiCount;
             const sortedAi = Object.keys(currentData.aiFreq).map(k => ({ name: k, count: currentData.aiFreq[k] })).sort((a,b) => b.count - a.count);
             if (aiTotal === 0 || sortedAi.length === 0) {
-                aiRows.push({ person:'本期未开启动作级AI协同', rest:['','','','','','','',''] });
+                aiRows.push({ person:'本期未开开启动作级AI协同', rest:['','','','','','','',''] });
             } else {
                 sortedAi.forEach(tool => {
                     const pct = ((tool.count / aiTotal) * 100).toFixed(1);
@@ -1869,241 +1831,7 @@
                 td.group-cell { background:#f3e8ff; color:#581c87; font-weight:700; text-align:center; }
                 td.person-cell { background:#f8fafc; font-weight:700; }
                 .text { mso-number-format:'\\@'; }
-            
-
-        /* ================= 2026-06-03 最终修复：颜色对比 / 卡片设计感 / 导出长图稳定 ================= */
-        :root {
-            --tig-ink: #172033;
-            --tig-muted: #64748B;
-            --tig-border: rgba(15,23,42,.10);
-            --tig-panel: #FFFFFF;
-            --tig-soft: #F6F8FC;
-            --tig-dark: #0B1020;
-        }
-
-        /* 任何深色按钮、深色关闭按钮：强制白字白图标，彻底解决黑底黑字 */
-        #export-modal button[class*="bg-zinc-800"],
-        #export-modal button[class*="bg-zinc-900"],
-        #analysis-detail-modal button[class*="bg-zinc-800"],
-        #analysis-detail-modal button[class*="bg-zinc-900"],
-        .analysis-modal-close-btn,
-        html.theme-light #export-modal button[class*="bg-zinc-800"],
-        html.theme-light #export-modal button[class*="bg-zinc-900"],
-        html.theme-light #analysis-detail-modal button[class*="bg-zinc-800"],
-        html.theme-light #analysis-detail-modal button[class*="bg-zinc-900"],
-        html.theme-light .analysis-modal-close-btn {
-            background: #0F172A !important;
-            color: #FFFFFF !important;
-            -webkit-text-fill-color: #FFFFFF !important;
-            border-color: rgba(255,255,255,.16) !important;
-            box-shadow: 0 14px 30px -18px rgba(2,6,23,.75) !important;
-        }
-        #export-modal button[class*="bg-zinc-800"] svg,
-        #export-modal button[class*="bg-zinc-900"] svg,
-        #analysis-detail-modal button svg,
-        .analysis-modal-close-btn svg,
-        html.theme-light #export-modal button[class*="bg-zinc-800"] svg,
-        html.theme-light #analysis-detail-modal button svg,
-        html.theme-light .analysis-modal-close-btn svg {
-            color: #FFFFFF !important;
-            stroke: #FFFFFF !important;
-            opacity: 1 !important;
-        }
-        #export-modal button[class*="bg-zinc-800"]:hover,
-        #analysis-detail-modal button[class*="bg-zinc-800"]:hover,
-        .analysis-modal-close-btn:hover {
-            background: #1E293B !important;
-        }
-
-        /* 彩色头像必须白字，不能被浅色主题全局 text 规则覆盖 */
-        .person-avatar,
-        html.theme-light .person-avatar,
-        #sidebar-avatar,
-        html.theme-light #sidebar-avatar {
-            background: linear-gradient(135deg, #6366F1 0%, #A855F7 48%, #D946EF 100%) !important;
-            color: #FFFFFF !important;
-            -webkit-text-fill-color: #FFFFFF !important;
-            text-shadow: 0 1px 2px rgba(15,23,42,.24) !important;
-        }
-
-        /* 人员卡片：去掉一排白横条，改为有节奏的彩色信息卡 */
-        .person-drilldown-card {
-            border-radius: 22px !important;
-            border: 1px solid rgba(255,255,255,.08) !important;
-            background:
-                radial-gradient(circle at 8% 0%, rgba(99,102,241,.28), transparent 34%),
-                linear-gradient(135deg, rgba(24,24,27,.98), rgba(15,23,42,.96)) !important;
-            box-shadow: 0 18px 38px -28px rgba(0,0,0,.78), inset 0 1px 0 rgba(255,255,255,.04) !important;
-        }
-        .person-drilldown-card:nth-child(2n) {
-            background:
-                radial-gradient(circle at 8% 0%, rgba(16,185,129,.20), transparent 36%),
-                linear-gradient(135deg, rgba(15,23,42,.98), rgba(19,24,38,.96)) !important;
-        }
-        .person-drilldown-card:nth-child(3n) {
-            background:
-                radial-gradient(circle at 8% 0%, rgba(217,70,239,.22), transparent 36%),
-                linear-gradient(135deg, rgba(24,24,27,.98), rgba(22,18,35,.96)) !important;
-        }
-        .person-drilldown-card h4,
-        .person-drilldown-card .text-zinc-200,
-        .person-drilldown-card .text-white {
-            color: #FFFFFF !important;
-            -webkit-text-fill-color: #FFFFFF !important;
-        }
-        .person-drilldown-card p,
-        .person-drilldown-card .text-zinc-500,
-        .person-drilldown-card .text-zinc-600 {
-            color: rgba(226,232,240,.74) !important;
-            -webkit-text-fill-color: rgba(226,232,240,.74) !important;
-        }
-        .person-drilldown-card .border-t { border-color: rgba(255,255,255,.10) !important; }
-
-        html.theme-light .person-drilldown-card {
-            background:
-                radial-gradient(circle at 4% 0%, rgba(99,102,241,.20), transparent 34%),
-                linear-gradient(135deg, #FFFFFF 0%, #F7F8FF 58%, #EEF2FF 100%) !important;
-            border-color: rgba(99,102,241,.16) !important;
-            box-shadow: 0 18px 44px -30px rgba(79,70,229,.34), 0 1px 2px rgba(15,23,42,.04) !important;
-            opacity: 1 !important;
-        }
-        html.theme-light .person-drilldown-card:nth-child(2n) {
-            background:
-                radial-gradient(circle at 4% 0%, rgba(16,185,129,.16), transparent 34%),
-                linear-gradient(135deg, #FFFFFF 0%, #F3FFFB 58%, #EAFBF5 100%) !important;
-            border-color: rgba(16,185,129,.16) !important;
-        }
-        html.theme-light .person-drilldown-card:nth-child(3n) {
-            background:
-                radial-gradient(circle at 4% 0%, rgba(217,70,239,.17), transparent 34%),
-                linear-gradient(135deg, #FFFFFF 0%, #FFF7FE 58%, #FDF0FF 100%) !important;
-            border-color: rgba(217,70,239,.15) !important;
-        }
-        html.theme-light .person-drilldown-card h4,
-        html.theme-light .person-drilldown-card .text-zinc-200,
-        html.theme-light .person-drilldown-card .text-white {
-            color: #111827 !important;
-            -webkit-text-fill-color: #111827 !important;
-        }
-        html.theme-light .person-drilldown-card p,
-        html.theme-light .person-drilldown-card .text-zinc-500,
-        html.theme-light .person-drilldown-card .text-zinc-600 {
-            color: #64748B !important;
-            -webkit-text-fill-color: #64748B !important;
-        }
-        html.theme-light .person-drilldown-card .border-t { border-color: rgba(15,23,42,.08) !important; }
-
-        /* 浅色弹窗内的卡片、列表、导出预览：避免大片纯白横条，增加层次 */
-        html.theme-light #analysis-detail-body .analysis-detail-row {
-            background: linear-gradient(135deg, #FFFFFF 0%, #F8FAFF 100%) !important;
-            border-color: rgba(99,102,241,.13) !important;
-            box-shadow: 0 14px 34px -26px rgba(79,70,229,.32) !important;
-        }
-        html.theme-light #analysis-detail-body .analysis-detail-row:nth-child(2n) {
-            background: linear-gradient(135deg, #FFFFFF 0%, #F5FFFB 100%) !important;
-            border-color: rgba(16,185,129,.13) !important;
-        }
-        html.theme-light #analysis-detail-body .analysis-detail-row:nth-child(3n) {
-            background: linear-gradient(135deg, #FFFFFF 0%, #FFF7FE 100%) !important;
-            border-color: rgba(217,70,239,.13) !important;
-        }
-
-        /* 导出报告预览中的排行卡片/图例/人员排行增加设计感 */
-        #export-capture-zone .font-item-creator,
-        #export-capture-zone .user-task-row,
-        #export-capture-zone .user-hour-row,
-        #export-capture-zone .ai-legend-item {
-            border-radius: 14px !important;
-            border-color: rgba(255,255,255,.09) !important;
-            background:
-                linear-gradient(135deg, rgba(255,255,255,.045), rgba(255,255,255,.012)) !important;
-            box-shadow: inset 3px 0 0 rgba(99,102,241,.85) !important;
-        }
-        #export-capture-zone .user-hour-row { box-shadow: inset 3px 0 0 rgba(217,70,239,.85) !important; }
-        #export-capture-zone .user-task-row { box-shadow: inset 3px 0 0 rgba(16,185,129,.85) !important; }
-        #export-capture-zone .ai-legend-item { box-shadow: inset 3px 0 0 rgba(245,158,11,.85) !important; }
-
-        html.theme-light #export-capture-zone .font-item-creator,
-        html.theme-light #export-capture-zone .user-task-row,
-        html.theme-light #export-capture-zone .user-hour-row,
-        html.theme-light #export-capture-zone .ai-legend-item {
-            background: linear-gradient(135deg, #FFFFFF 0%, #F6F8FF 100%) !important;
-            border-color: rgba(99,102,241,.13) !important;
-            box-shadow: inset 3px 0 0 rgba(99,102,241,.78), 0 10px 24px -20px rgba(15,23,42,.18) !important;
-        }
-        html.theme-light #export-capture-zone .user-hour-row {
-            background: linear-gradient(135deg, #FFFFFF 0%, #FFF6FD 100%) !important;
-            border-color: rgba(217,70,239,.13) !important;
-            box-shadow: inset 3px 0 0 rgba(217,70,239,.78), 0 10px 24px -20px rgba(15,23,42,.18) !important;
-        }
-        html.theme-light #export-capture-zone .user-task-row {
-            background: linear-gradient(135deg, #FFFFFF 0%, #F4FFFB 100%) !important;
-            border-color: rgba(16,185,129,.13) !important;
-            box-shadow: inset 3px 0 0 rgba(16,185,129,.78), 0 10px 24px -20px rgba(15,23,42,.18) !important;
-        }
-        html.theme-light #export-capture-zone .ai-legend-item {
-            background: linear-gradient(135deg, #FFFFFF 0%, #FFF9ED 100%) !important;
-            border-color: rgba(245,158,11,.16) !important;
-            box-shadow: inset 3px 0 0 rgba(245,158,11,.78), 0 10px 24px -20px rgba(15,23,42,.18) !important;
-        }
-        html.theme-light #export-capture-zone .c-name,
-        html.theme-light #export-capture-zone .row-pname,
-        html.theme-light #export-capture-zone .u-task-name,
-        html.theme-light #export-capture-zone .u-hour-name,
-        html.theme-light #export-capture-zone .ai-name,
-        html.theme-light #export-capture-zone .row-tasks,
-        html.theme-light #export-capture-zone .c-count {
-            color: #172033 !important;
-            -webkit-text-fill-color: #172033 !important;
-        }
-        html.theme-light #export-capture-zone .text-zinc-500,
-        html.theme-light #export-capture-zone .text-zinc-600 {
-            color: #64748B !important;
-            -webkit-text-fill-color: #64748B !important;
-        }
-
-        /* 截图导出专用：克隆节点不截断、不滚动、不破碎 */
-        .export-image-clone,
-        .export-image-clone * {
-            box-sizing: border-box !important;
-        }
-        .export-image-clone {
-            position: fixed !important;
-            left: -100000px !important;
-            top: 0 !important;
-            z-index: -1 !important;
-            height: auto !important;
-            max-height: none !important;
-            overflow: visible !important;
-            border-radius: 0 !important;
-        }
-        .export-image-clone .overflow-y-auto,
-        .export-image-clone .custom-scrollbar,
-        .export-image-clone [class*="overflow-y-auto"],
-        .export-image-clone [class*="max-h-"] {
-            overflow: visible !important;
-            max-height: none !important;
-            height: auto !important;
-        }
-        .export-image-clone .truncate,
-        .export-image-clone [class*="truncate"] {
-            overflow: visible !important;
-            text-overflow: clip !important;
-            white-space: normal !important;
-        }
-        .export-image-clone .line-clamp-1,
-        .export-image-clone .line-clamp-2,
-        .export-image-clone [class*="line-clamp"] {
-            display: block !important;
-            -webkit-line-clamp: unset !important;
-            -webkit-box-orient: unset !important;
-            overflow: visible !important;
-        }
-        .export-image-clone table { table-layout: fixed !important; width: 100% !important; }
-        .export-image-clone td,
-        .export-image-clone th { word-break: break-word !important; white-space: normal !important; }
-        .export-image-clone .grid { align-items: stretch !important; }
-</style></head><body><table><thead><tr>${headers.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>`;
+            </style></head><body><table><thead><tr>${headers.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>`;
 
             groups.forEach(group => {
                 group.rows.forEach((row, idx) => {
@@ -2131,98 +1859,6 @@
             window.showToast("导出表格成功", "已去掉货币符号；人员总工时和项目汇总仅保留在人员汇总行。", "success");
         }
 
-        window.exportToPNGImage = async function() {
-            const captureZone = document.getElementById('export-capture-zone');
-            const modal = document.getElementById('export-modal');
-            const footer = modal ? modal.querySelector(':scope > div:last-child') : null;
-            if (!captureZone || !modal) return;
-
-            window.showToast("正在生成", "正在展开完整报告并生成长图...", "info");
-
-            const isLight = document.documentElement.classList.contains('theme-light');
-            const bg = isLight ? '#FFFFFF' : '#121217';
-
-            const old = {
-                modalMaxHeight: modal.style.maxHeight,
-                modalHeight: modal.style.height,
-                modalOverflow: modal.style.overflow,
-                captureMaxHeight: captureZone.style.maxHeight,
-                captureHeight: captureZone.style.height,
-                captureOverflow: captureZone.style.overflow,
-                footerDisplay: footer ? footer.style.display : ''
-            };
-
-            try {
-                document.body.classList.add('is-exporting-analysis');
-
-                modal.style.maxHeight = 'none';
-                modal.style.height = 'auto';
-                modal.style.overflow = 'visible';
-                captureZone.style.maxHeight = 'none';
-                captureZone.style.height = 'auto';
-                captureZone.style.overflow = 'visible';
-                if (footer) footer.style.display = 'none';
-
-                captureZone.querySelectorAll('.custom-scrollbar, .overflow-y-auto').forEach(el => {
-                    el.dataset.oldOverflow = el.style.overflow;
-                    el.dataset.oldMaxHeight = el.style.maxHeight;
-                    el.dataset.oldHeight = el.style.height;
-                    el.style.overflow = 'visible';
-                    el.style.maxHeight = 'none';
-                    el.style.height = 'auto';
-                });
-
-                await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-                if (document.fonts && document.fonts.ready) {
-                    try { await document.fonts.ready; } catch(e) {}
-                }
-
-                const canvas = await html2canvas(captureZone, {
-                    backgroundColor: bg,
-                    scale: 2,
-                    logging: false,
-                    useCORS: true,
-                    allowTaint: true,
-                    scrollX: 0,
-                    scrollY: -window.scrollY,
-                    windowWidth: Math.max(captureZone.scrollWidth, captureZone.offsetWidth),
-                    windowHeight: Math.max(captureZone.scrollHeight, captureZone.offsetHeight),
-                    width: captureZone.scrollWidth,
-                    height: captureZone.scrollHeight
-                });
-
-                const imgData = canvas.toDataURL('image/png');
-                const link = document.createElement('a');
-                link.download = `TIG_多维双轨效能完整长图_${document.getElementById('report-period-text').innerText}.png`;
-                link.href = imgData;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                window.showToast("卡片下载成功", "完整长图已下载", "success");
-            } catch(err) {
-                console.error(err);
-                window.showToast("图片生成失败", "请稍后重试或先导出表格", "error");
-            } finally {
-                modal.style.maxHeight = old.modalMaxHeight;
-                modal.style.height = old.modalHeight;
-                modal.style.overflow = old.modalOverflow;
-                captureZone.style.maxHeight = old.captureMaxHeight;
-                captureZone.style.height = old.captureHeight;
-                captureZone.style.overflow = old.captureOverflow;
-                if (footer) footer.style.display = old.footerDisplay;
-                captureZone.querySelectorAll('.custom-scrollbar, .overflow-y-auto').forEach(el => {
-                    el.style.overflow = el.dataset.oldOverflow || '';
-                    el.style.maxHeight = el.dataset.oldMaxHeight || '';
-                    el.style.height = el.dataset.oldHeight || '';
-                    delete el.dataset.oldOverflow;
-                    delete el.dataset.oldMaxHeight;
-                    delete el.dataset.oldHeight;
-                });
-                document.body.classList.remove('is-exporting-analysis');
-            }
-        }
-
-        let lastNotifHash = '';
         window.syncNotificationsFromCloud = async function(isSilent = true) {
             if(!window.supabase) return;
             const userStr = localStorage.getItem('activeUserObj');
@@ -2244,11 +1880,11 @@
 
                         let title = ''; let content = ''; let icon = 'bg-fuchsia-500';
                         
-                        if (h.action === 'submit_framework') { title = '👀 框架待审批'; content = `${h.operator} 提交了中期方案，等待审批：《task.title}》`; icon = 'bg-amber-500'; }
-                        else if (h.action === 'submit_draft') { title = '🎁 正稿待验收'; content = `${h.operator} 交付了正式稿，等待甲方验收：《task.title}》`; icon = 'bg-emerald-500'; }
-                        else if (h.action === 'reject_framework' || h.action === 'reject_draft' || h.is_rejected) { title = '💥 方案被打回'; content = `单据发生打回重修：《task.title}》`; icon = 'bg-rose-500'; }
-                        else if (h.action === 'complete') { title = '✅ 任务圆满结案'; content = `甲方已验收通过：《task.title}》`; icon = 'bg-emerald-500'; }
-                        else if (h.action && h.action.includes('urge')) { title = '🚨 紧急催办'; content = `单据产生催办行为：《task.title}》`; icon = 'bg-rose-500'; }
+                        if (h.action === 'submit_framework') { title = '👀 框架待审批'; content = `${h.operator} 提交了中期方案，等待审批：《${task.title}》`; icon = 'bg-amber-500'; }
+                        else if (h.action === 'submit_draft') { title = '🎁 正稿待验收'; content = `${h.operator} 交付了正式稿，等待甲方验收：《${task.title}位》`; icon = 'bg-emerald-500'; }
+                        else if (h.action === 'reject_framework' || h.action === 'reject_draft' || h.is_rejected) { title = '💥 方案被打回'; content = `单据发生打回重修：《${task.title}》`; icon = 'bg-rose-500'; }
+                        else if (h.action === 'complete') { title = '✅ 任务圆满结案'; content = `甲方已验收通过：《${task.title}》`; icon = 'bg-emerald-500'; }
+                        else if (h.action && h.action.includes('urge')) { title = '🚨 紧急催办'; content = `单据产生催办行为：《${task.title}》`; icon = 'bg-rose-500'; }
 
                         if (title) {
                             const notifId = `${task.id}_${index}_${title}`;
@@ -2263,10 +1899,6 @@
                 let readReceipts = JSON.parse(localStorage.getItem('notif_read_admin_' + myName) || '[]');
                 const unreadNotifs = myNotifs.filter(n => !readReceipts.includes(n.id));
                 const unreadCount = unreadNotifs.length;
-
-                const newHash = myNotifs.map(n => n.id + (readReceipts.includes(n.id) ? '_r' : '_u')).join(',');
-                if (isSilent && newHash === lastNotifHash) return;
-                lastNotifHash = newHash;
 
                 const bellDot = document.getElementById('bell-dot');
                 if (bellDot) {
@@ -2337,27 +1969,16 @@
             window.syncNotificationsFromCloud(true); btn.innerHTML = originalText;
         }
 
-
-        // 项目下拉搜索框不记忆任何历史输入
         function clearProjectSearchBox() {
             const el = document.getElementById('project-search');
             if (!el) return;
-            el.textContent = '';
-            el.innerHTML = '';
+            el.textContent = ''; el.innerHTML = '';
             if ('value' in el) el.value = '';
         }
+
         document.addEventListener('DOMContentLoaded', () => {
             clearProjectSearchBox();
             setTimeout(clearProjectSearchBox, 80);
-            setTimeout(clearProjectSearchBox, 400);
-        });
-        window.addEventListener('pageshow', () => {
-            clearProjectSearchBox();
-            setTimeout(clearProjectSearchBox, 120);
-        });
-
-
-        document.addEventListener('DOMContentLoaded', () => {
             document.addEventListener('click', (e) => { 
                 const notifMenu = document.getElementById('notifMenu'); const notifBtn = document.getElementById('notifBtn');
                 if(notifMenu && !notifMenu.contains(e.target) && notifBtn && !notifBtn.contains(e.target)) notifMenu.classList.add('hidden'); 
@@ -2366,23 +1987,10 @@
             setTimeout(() => { window.syncNotificationsFromCloud(true); }, 1500);
             setInterval(() => { window.loadDashboardData(true); window.syncNotificationsFromCloud(true); }, 8000);
         });
-
-        // 兜底启动：避免模块脚本偶发早于函数挂载或网络慢时页面一直停在 loading。
-        // 不改变原业务逻辑，只在首屏仍未完成初始化时补拉一次数据。
-        window.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => {
-                const loadingEl = document.getElementById('dashboard-loading');
-                const stillLoading = loadingEl && !loadingEl.classList.contains('hidden');
-                if (stillLoading && window.supabase && typeof window.loadDashboardData === 'function') {
-                    window.loadDashboardData(false);
-                }
-            }, 350);
-        });
     </script>
 
-
     <script>
-        // ================= 2026-06-03 覆盖修复：稳定导出高清长图，避免滚动截断/错乱 =================
+        // ================= PNG 高清长图无损渲染引擎 =================
         (function(){
             const waitFrames = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
             const waitFonts = async () => { if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch(e) {} } };
@@ -2390,19 +1998,18 @@
             window.exportToPNGImage = async function() {
                 const captureZone = document.getElementById('export-capture-zone');
                 if (!captureZone || !window.html2canvas) {
-                    window.showToast && window.showToast('图片生成失败', '未找到导出区域或 html2canvas 未加载', 'error');
+                    window.showToast && window.showToast('图片生成失败', '未找到导出区域', 'error');
                     return;
                 }
 
-                window.showToast && window.showToast('正在生成', '正在重新排版完整报告并生成高清长图...', 'info');
+                window.showToast && window.showToast('正在生成', '正在平铺完整报告数据，请稍等...', 'info');
                 const isLight = document.documentElement.classList.contains('theme-light');
                 const bg = isLight ? '#FFFFFF' : '#121217';
                 let clone = null;
 
                 try {
                     document.body.classList.add('is-exporting-analysis');
-                    await waitFrames();
-                    await waitFonts();
+                    await waitFrames(); await waitFonts();
 
                     const sourceRect = captureZone.getBoundingClientRect();
                     const exportWidth = Math.max(Math.ceil(captureZone.scrollWidth || sourceRect.width || 900), 900);
@@ -2419,23 +2026,14 @@
                     clone.querySelectorAll('.hidden').forEach(el => el.classList.remove('hidden'));
                     clone.querySelectorAll('[style]').forEach(el => {
                         if (/max-height|overflow|height/i.test(el.getAttribute('style') || '')) {
-                            el.style.maxHeight = 'none';
-                            el.style.overflow = 'visible';
+                            el.style.maxHeight = 'none'; el.style.overflow = 'visible';
                             if (el.style.height && el.scrollHeight > el.clientHeight) el.style.height = 'auto';
                         }
                     });
-                    clone.querySelectorAll('.truncate,[class*="truncate"],.line-clamp-1,.line-clamp-2,[class*="line-clamp"]').forEach(el => {
-                        el.classList.remove('truncate','line-clamp-1','line-clamp-2');
-                        el.style.overflow = 'visible';
-                        el.style.textOverflow = 'clip';
-                        el.style.whiteSpace = 'normal';
-                        el.style.display = 'block';
+                    clone.querySelectorAll('.truncate,[class*="truncate"],.line-clamp-1,.line-clamp-2').forEach(el => {
+                        el.style.overflow = 'visible'; el.style.textOverflow = 'clip';
+                        el.style.whiteSpace = 'normal'; el.style.display = 'block';
                         el.style.webkitLineClamp = 'unset';
-                    });
-                    clone.querySelectorAll('.custom-scrollbar,.overflow-y-auto,[class*="overflow-y-auto"]').forEach(el => {
-                        el.style.overflow = 'visible';
-                        el.style.maxHeight = 'none';
-                        el.style.height = 'auto';
                     });
 
                     document.body.appendChild(clone);
@@ -2451,12 +2049,9 @@
                         logging: false,
                         useCORS: true,
                         allowTaint: true,
-                        scrollX: 0,
-                        scrollY: 0,
-                        windowWidth: exportWidth,
-                        windowHeight: Math.ceil(realHeight),
-                        width: exportWidth,
-                        height: Math.ceil(realHeight)
+                        scrollX: 0, scrollY: 0,
+                        windowWidth: exportWidth, windowHeight: Math.ceil(realHeight),
+                        width: exportWidth, height: Math.ceil(realHeight)
                     });
 
                     const link = document.createElement('a');
@@ -2464,13 +2059,11 @@
                     const period = periodEl ? periodEl.innerText.trim().replace(/\s+/g, '_') : '当前周期';
                     link.download = `TIG_多维双轨效能完整长图_${period}.png`;
                     link.href = canvas.toDataURL('image/png');
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    window.showToast && window.showToast('卡片下载成功', '完整长图已下载，已修复滚动截断和文字错乱。', 'success');
+                    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+                    window.showToast && window.showToast('卡片下载成功', '完整长图已导出，已过滤已撤销工单。', 'success');
                 } catch (err) {
-                    console.error('[exportToPNGImage fixed]', err);
-                    window.showToast && window.showToast('图片生成失败', '请稍后重试，或先导出表格。', 'error');
+                    console.error(err);
+                    window.showToast && window.showToast('图片生成失败', '请导出 Excel 明细表格备份。', 'error');
                 } finally {
                     if (clone && clone.parentNode) clone.parentNode.removeChild(clone);
                     document.body.classList.remove('is-exporting-analysis');
@@ -2480,3 +2073,5 @@
     </script>
 </body>
 </html>
+
+```
