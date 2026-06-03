@@ -368,7 +368,222 @@
         html.theme-light .submission-status-risk { color: #E11D48 !important; -webkit-text-fill-color: #E11D48 !important; }
         html.theme-light .submission-status-cancel { color: #64748B !important; -webkit-text-fill-color: #64748B !important; }
 
-    </style>
+    
+
+        /* ================= ✅ V4最终视觉锁定：恢复图2导航/顶部按钮风格，防止新增模块覆盖旧修复 ================= */
+        /* 侧边栏：不要回到大片白条，统一为图2的柔和胶囊导航 */
+        aside .flex-1 > button {
+            height: 54px !important;
+            border-radius: 16px !important;
+            padding: 0 18px !important;
+            margin-bottom: 10px !important;
+            background: rgba(255,255,255,.065) !important;
+            border: 1px solid rgba(255,255,255,.075) !important;
+            color: #CBD5E1 !important;
+            box-shadow: none !important;
+        }
+        aside .flex-1 > button span,
+        aside .flex-1 > button svg {
+            color: currentColor !important;
+            stroke: currentColor !important;
+            -webkit-text-fill-color: currentColor !important;
+        }
+        aside .flex-1 > button span { font-weight: 800 !important; }
+        aside .flex-1 > button:hover {
+            background: rgba(217,70,239,.11) !important;
+            color: #F0ABFC !important;
+            border-color: rgba(217,70,239,.22) !important;
+        }
+        aside .flex-1 > button.cursor-default {
+            background: linear-gradient(135deg, rgba(217,70,239,.22), rgba(99,102,241,.13)) !important;
+            border-color: rgba(217,70,239,.38) !important;
+            color: #F0ABFC !important;
+            box-shadow: inset 3px 0 0 #D946EF !important;
+        }
+        html.theme-light aside .flex-1 > button {
+            background: #F3F6FA !important;
+            border-color: transparent !important;
+            color: #64748B !important;
+            box-shadow: none !important;
+        }
+        html.theme-light aside .flex-1 > button:hover {
+            background: #EEF2F8 !important;
+            color: #334155 !important;
+            border-color: rgba(148,163,184,.12) !important;
+        }
+        html.theme-light aside .flex-1 > button.cursor-default {
+            background: linear-gradient(135deg, #F8E1FA 0%, #F3E8FF 100%) !important;
+            border: 1px solid #EEC6F6 !important;
+            color: #D946EF !important;
+            box-shadow: inset 3px 0 0 #D946EF !important;
+        }
+
+        /* 底部身份区：恢复图2结构和可读层级 */
+        aside > div:last-child {
+            min-height: 86px !important;
+            padding: 16px 20px !important;
+            background: rgba(12,12,14,.92) !important;
+            border-top: 1px solid rgba(255,255,255,.075) !important;
+        }
+        html.theme-light aside > div:last-child {
+            background: #FFFFFF !important;
+            border-top: 1px solid rgba(15,23,42,.07) !important;
+            box-shadow: 0 -8px 22px -20px rgba(15,23,42,.35) !important;
+        }
+        #sidebar-avatar {
+            background: linear-gradient(135deg, #4F46E5, #D946EF) !important;
+            border: 0 !important;
+            color: #FFFFFF !important;
+            -webkit-text-fill-color: #FFFFFF !important;
+        }
+        #sidebar-name { color: #F8FAFC !important; -webkit-text-fill-color: #F8FAFC !important; }
+        #sidebar-role { color: #F0ABFC !important; -webkit-text-fill-color: #F0ABFC !important; font-weight: 900 !important; }
+        html.theme-light #sidebar-name { color: #111827 !important; -webkit-text-fill-color: #111827 !important; }
+        html.theme-light #sidebar-role { color: #D946EF !important; -webkit-text-fill-color: #D946EF !important; }
+
+        /* 顶部关键按钮：文字是白色时，按钮必须是高饱和/深色，不准浅底白字 */
+        header button[onclick="window.openExportAnalysisModal()"] {
+            height: 44px !important;
+            min-width: 132px !important;
+            padding: 0 22px !important;
+            border-radius: 14px !important;
+            background: linear-gradient(135deg, #C026D3 0%, #7C3AED 55%, #4F46E5 100%) !important;
+            color: #FFFFFF !important;
+            -webkit-text-fill-color: #FFFFFF !important;
+            border: 0 !important;
+            box-shadow: 0 12px 26px -14px rgba(124,58,237,.75) !important;
+        }
+        header button[onclick="window.openExportAnalysisModal()"] svg { stroke: #FFFFFF !important; }
+        #btn-jump-current {
+            height: 42px !important;
+            min-width: 96px !important;
+            padding: 0 18px !important;
+            border-radius: 14px !important;
+            background: linear-gradient(135deg, #D946EF 0%, #A855F7 100%) !important;
+            color: #FFFFFF !important;
+            -webkit-text-fill-color: #FFFFFF !important;
+            border: 0 !important;
+            opacity: 1 !important;
+            box-shadow: 0 10px 20px -14px rgba(217,70,239,.7) !important;
+        }
+        #btn-jump-current[disabled], #btn-jump-current:disabled {
+            background: linear-gradient(135deg, #A855F7 0%, #7C3AED 100%) !important;
+            color: #FFFFFF !important;
+            -webkit-text-fill-color: #FFFFFF !important;
+            opacity: 1 !important;
+            cursor: not-allowed !important;
+        }
+
+        /* 深色模式兜底：模块内不再出现黑字/深灰字导致不可读 */
+        html:not(.theme-light) main .text-zinc-600,
+        html:not(.theme-light) main .text-zinc-500,
+        html:not(.theme-light) main .text-slate-500,
+        html:not(.theme-light) main .text-gray-500,
+        html:not(.theme-light) #export-modal .text-zinc-600,
+        html:not(.theme-light) #export-modal .text-zinc-500,
+        html:not(.theme-light) #analysis-detail-modal .text-zinc-600,
+        html:not(.theme-light) #analysis-detail-modal .text-zinc-500 {
+            color: #A5B4FC !important;
+            -webkit-text-fill-color: #A5B4FC !important;
+        }
+        html:not(.theme-light) main .text-zinc-400,
+        html:not(.theme-light) main .text-slate-400,
+        html:not(.theme-light) main .text-gray-400,
+        html:not(.theme-light) #export-modal .text-zinc-400,
+        html:not(.theme-light) #analysis-detail-modal .text-zinc-400 {
+            color: #C4B5FD !important;
+            -webkit-text-fill-color: #C4B5FD !important;
+        }
+        html:not(.theme-light) main .text-zinc-300,
+        html:not(.theme-light) #export-modal .text-zinc-300,
+        html:not(.theme-light) #analysis-detail-modal .text-zinc-300 {
+            color: #E0E7FF !important;
+            -webkit-text-fill-color: #E0E7FF !important;
+        }
+
+        /* 导出弹窗底部按钮再次锁定，避免被浅色主题覆盖 */
+        #btn-csv-export {
+            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%) !important;
+            color: #FFFFFF !important;
+            -webkit-text-fill-color: #FFFFFF !important;
+            border: 0 !important;
+            box-shadow: 0 12px 22px -16px rgba(79,70,229,.8) !important;
+        }
+        #btn-csv-export svg { stroke: #FFFFFF !important; }
+        #export-modal button[onclick="window.exportToPNGImage()"] {
+            background: linear-gradient(135deg, #D946EF 0%, #C026D3 100%) !important;
+            color: #FFFFFF !important;
+            -webkit-text-fill-color: #FFFFFF !important;
+        }
+
+
+        /* ================= ✅ V5 修复：页面问题模块 + 导出数字强制彩色高对比 ================= */
+        .leader-issue-panel {
+            border-radius: 24px !important;
+            border: 1px solid rgba(99,102,241,.18) !important;
+            background: linear-gradient(135deg, rgba(99,102,241,.08), rgba(217,70,239,.05), rgba(245,158,11,.04)) !important;
+            box-shadow: 0 18px 38px -28px rgba(79,70,229,.38) !important;
+        }
+        html.theme-light .leader-issue-panel {
+            background: linear-gradient(135deg, #FFFFFF 0%, #F7F5FF 55%, #FFF7ED 100%) !important;
+            border-color: rgba(99,102,241,.16) !important;
+        }
+        .leader-issue-card {
+            min-height: 102px;
+            border-radius: 18px !important;
+            border: 1px solid rgba(255,255,255,.08) !important;
+            background: rgba(255,255,255,.04) !important;
+            padding: 16px 18px !important;
+            cursor: pointer;
+            transition: all .18s ease;
+        }
+        .leader-issue-card:hover { transform: translateY(-2px); border-color: rgba(99,102,241,.35) !important; }
+        html.theme-light .leader-issue-card { background: #FFFFFF !important; border-color: rgba(15,23,42,.07) !important; box-shadow: 0 10px 22px -18px rgba(15,23,42,.25) !important; }
+        .leader-issue-label { font-size: 13px; font-weight: 900; margin-bottom: 10px; }
+        .leader-issue-num { font-size: 36px; line-height: 1; font-weight: 950; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing: -1px; }
+        .leader-issue-desc { font-size: 11px; font-weight: 800; margin-top: 8px; color: #A5B4FC !important; -webkit-text-fill-color: #A5B4FC !important; }
+        html.theme-light .leader-issue-desc { color: #64748B !important; -webkit-text-fill-color: #64748B !important; }
+        .issue-indigo { color: #6366F1 !important; -webkit-text-fill-color:#6366F1 !important; }
+        .issue-emerald { color: #10B981 !important; -webkit-text-fill-color:#10B981 !important; }
+        .issue-amber { color: #F59E0B !important; -webkit-text-fill-color:#F59E0B !important; }
+        .issue-rose { color: #F43F5E !important; -webkit-text-fill-color:#F43F5E !important; }
+        .leader-issue-table-title { color: #E0E7FF !important; -webkit-text-fill-color:#E0E7FF !important; font-weight: 900; }
+        html.theme-light .leader-issue-table-title { color: #111827 !important; -webkit-text-fill-color:#111827 !important; }
+        .leader-issue-table-meta { color: #A5B4FC !important; -webkit-text-fill-color:#A5B4FC !important; font-weight: 800; }
+        html.theme-light .leader-issue-table-meta { color: #4F46E5 !important; -webkit-text-fill-color:#4F46E5 !important; }
+
+        /* 导出弹窗顶部指标：浅色底严禁白字；数字必须大、彩色、醒目 */
+        #export-capture-zone #rep-m-demand-count,
+        #export-capture-zone #rep-m-hours,
+        #export-capture-zone #rep-m-projects,
+        #export-capture-zone #rep-m-people {
+            font-size: 34px !important;
+            line-height: 1 !important;
+            font-weight: 950 !important;
+            letter-spacing: -1px !important;
+            text-shadow: none !important;
+        }
+        #export-capture-zone #rep-m-demand-count { color: #D946EF !important; -webkit-text-fill-color:#D946EF !important; }
+        #export-capture-zone #rep-m-hours { color: #F59E0B !important; -webkit-text-fill-color:#F59E0B !important; }
+        #export-capture-zone #rep-m-projects { color: #10B981 !important; -webkit-text-fill-color:#10B981 !important; }
+        #export-capture-zone #rep-m-people { color: #6366F1 !important; -webkit-text-fill-color:#6366F1 !important; }
+        #export-capture-zone .density-tag { font-size: 12px !important; font-weight: 950 !important; padding: 5px 10px !important; border-radius: 999px !important; display: inline-flex; align-items:center; gap:4px; }
+        #export-capture-zone .density-heavy { color:#F43F5E !important; -webkit-text-fill-color:#F43F5E !important; background: rgba(244,63,94,.10) !important; border:1px solid rgba(244,63,94,.22) !important; }
+        #export-capture-zone .density-fast { color:#F59E0B !important; -webkit-text-fill-color:#F59E0B !important; background: rgba(245,158,11,.12) !important; border:1px solid rgba(245,158,11,.25) !important; }
+        #export-capture-zone .density-normal { color:#10B981 !important; -webkit-text-fill-color:#10B981 !important; background: rgba(16,185,129,.10) !important; border:1px solid rgba(16,185,129,.22) !important; }
+        #export-modal #btn-csv-export,
+        html.theme-light #export-modal #btn-csv-export,
+        html:not(.theme-light) #export-modal #btn-csv-export {
+            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 55%, #D946EF 100%) !important;
+            color: #FFFFFF !important;
+            -webkit-text-fill-color: #FFFFFF !important;
+            border: 0 !important;
+            opacity: 1 !important;
+            box-shadow: 0 14px 26px -16px rgba(79,70,229,.85) !important;
+        }
+        #export-modal #btn-csv-export svg { stroke: #FFFFFF !important; color: #FFFFFF !important; }
+
+</style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-fuchsia-500/30 text-zinc-300">
 
@@ -495,7 +710,7 @@
             </div>
         </header>
 
-        <div class="flex-1 p-8 md:p-10 overflow-y-hidden flex flex-col z-10 relative">
+        <div class="flex-1 p-8 md:p-10 overflow-y-auto custom-scrollbar flex flex-col z-10 relative">
             
             <div id="dashboard-loading" class="absolute inset-0 bg-[#0c0c0e]/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
                 <svg class="animate-spin h-8 w-8 text-fuchsia-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
@@ -530,6 +745,27 @@
                         <p class="text-[11px] text-zinc-500 mt-2" id="metric-trend-ai">对比前期: --</p>
                     </div>
                 </div>
+
+                <div id="leader-issue-panel" class="leader-issue-panel shrink-0 p-5 hidden">
+                    <div class="flex items-center justify-between gap-4 mb-4">
+                        <div>
+                            <h3 class="text-[16px] font-black text-white flex items-center gap-2">
+                                <span class="w-1.5 h-5 bg-rose-500 rounded-full"></span>
+                                本期提单问题追踪：已结束 / 未结束 / 延误风险
+                            </h3>
+                            <p class="text-[12px] text-indigo-300 font-bold mt-1">按创建 / 提单日期统计：当月提单即使后续未确认、未结束，也必须进入本期问题清单。</p>
+                        </div>
+                        <button onclick="window.openSubmissionIssueModal('all')" class="px-4 py-2 rounded-xl bg-indigo-600 text-white text-[12px] font-black btn-press shadow-lg shadow-indigo-600/20">查看全部明细</button>
+                    </div>
+                    <div id="leader-issue-stats" class="grid grid-cols-4 gap-4 mb-4"></div>
+                    <div class="border border-white/5 rounded-2xl overflow-hidden bg-white/[0.015]">
+                        <div class="grid grid-cols-[1.6fr_.8fr_.9fr_.8fr_.8fr_.7fr] gap-3 px-4 py-3 text-[12px] font-black text-indigo-300 border-b border-white/5">
+                            <div>提单需求</div><div>提报人</div><div>类目/项目</div><div>提单日期</div><div>当前状态</div><div class="text-right">本期工时</div>
+                        </div>
+                        <div id="leader-issue-list" class="divide-y divide-white/5"></div>
+                    </div>
+                </div>
+
 
                 <div class="flex gap-8 items-start flex-1 min-h-[400px]">
                     
@@ -746,7 +982,7 @@
                     复制带有完整工时与提报占比的 Markdown 简报
                 </button>
                 <div class="flex items-center gap-3">
-                    <button id="btn-csv-export" onclick="window.exportToCSV()" class="px-5 py-2.5 bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30 font-bold rounded-xl text-[12px] btn-press transition-colors flex items-center gap-2 border border-indigo-500/20">
+                    <button id="btn-csv-export" onclick="window.exportToCSV()" style="background:linear-gradient(135deg,#4F46E5,#7C3AED,#D946EF)!important;color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;border:0!important;" class="px-5 py-2.5 font-bold rounded-xl text-[12px] btn-press transition-colors flex items-center gap-2 border border-indigo-500/20">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
                         导出全量明细 Excel/CSV 表格
                     </button>
@@ -1354,6 +1590,7 @@
 
             const currentData = extractDataForPeriod(currentDate, currentView);
             window.analysisCurrentData = currentData;
+            renderLeaderIssuePanel(currentData);
             
             let prev1Data;
             if (currentView === 'month') {
@@ -1520,6 +1757,80 @@
             overlay.classList.remove('hidden');
             setTimeout(() => { overlay.classList.remove('opacity-0'); modal.classList.remove('scale-95'); }, 10);
         }
+
+
+        function renderLeaderIssuePanel(data) {
+            const panel = document.getElementById('leader-issue-panel');
+            const statsWrap = document.getElementById('leader-issue-stats');
+            const listWrap = document.getElementById('leader-issue-list');
+            if (!panel || !statsWrap || !listWrap) return;
+            const st = data.statusStats || { total:0, done:0, open:0, risk:0 };
+            panel.classList.remove('hidden');
+            const cards = [
+                { key:'all', label:'本期提单总量', num:st.total || 0, color:'issue-indigo', desc:'点击查看本期全部提单' },
+                { key:'done', label:'已结束', num:st.done || 0, color:'issue-emerald', desc:'点击查看已结束清单' },
+                { key:'open', label:'未结束', num:st.open || 0, color:'issue-amber', desc:'点击查看仍在流转清单' },
+                { key:'risk', label:'逾期 / 待确认风险', num:st.risk || 0, color:'issue-rose', desc:'点击查看风险问题单' }
+            ];
+            statsWrap.innerHTML = cards.map(c => `
+                <div class="leader-issue-card" onclick="window.openSubmissionIssueModal('${c.key}')">
+                    <div class="leader-issue-label ${c.color}">${c.label}</div>
+                    <div class="leader-issue-num ${c.color}">${c.num}</div>
+                    <div class="leader-issue-desc">${c.desc}</div>
+                </div>
+            `).join('');
+            const rows = (data.submittedTasks || []).slice().sort((a,b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+            if (!rows.length) {
+                listWrap.innerHTML = `<div class="px-4 py-8 text-center text-indigo-400 font-black text-[13px]">本期暂无提单需求</div>`;
+                return;
+            }
+            listWrap.innerHTML = rows.slice(0, 6).map(t => `
+                <div class="grid grid-cols-[1.6fr_.8fr_.9fr_.8fr_.8fr_.7fr] gap-3 px-4 py-3 text-[12px] hover:bg-white/[0.035] cursor-pointer" onclick="window.openSubmissionIssueModal('${t.statusInfo && t.statusInfo.group === 'risk' ? 'risk' : (t.statusInfo && t.statusInfo.group === 'done' ? 'done' : 'open')}')">
+                    <div class="leader-issue-table-title truncate" title="${safeHtml(t.title)}">${safeHtml(t.title)}</div>
+                    <div class="leader-issue-table-meta truncate">${safeHtml(t.creator)}</div>
+                    <div class="leader-issue-table-meta truncate" title="${safeHtml(t.project)}">${safeHtml(t.project)}</div>
+                    <div class="issue-indigo font-black">${formatShortDate(t.createdAt)}</div>
+                    <div class="${t.statusInfo ? t.statusInfo.cls : 'submission-status-open'} font-black truncate">${safeHtml(t.statusInfo ? t.statusInfo.label : '未结束')}</div>
+                    <div class="text-right issue-amber font-black">${(t.hours || 0).toFixed(1)}h</div>
+                </div>
+            `).join('');
+        }
+
+        window.openSubmissionIssueModal = function(filterType = 'all') {
+            const data = getAnalysisData();
+            const period = getCurrentPeriodLabel();
+            let rows = (data.submittedTasks || []).slice().sort((a,b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+            let titleSuffix = '全部提单';
+            if (filterType === 'done') { rows = rows.filter(t => t.statusInfo && t.statusInfo.group === 'done'); titleSuffix = '已结束提单'; }
+            else if (filterType === 'open') { rows = rows.filter(t => !t.statusInfo || ['open','risk'].includes(t.statusInfo.group)); titleSuffix = '未结束提单'; }
+            else if (filterType === 'risk') { rows = rows.filter(t => t.statusInfo && t.statusInfo.group === 'risk'); titleSuffix = '逾期 / 待确认风险提单'; }
+            const rowHtml = rows.map(t => `
+                <div class="analysis-detail-row">
+                    <div class="flex justify-between gap-5 items-start">
+                        <div class="min-w-0">
+                            <h3 class="detail-title text-[17px] font-black truncate" title="${safeHtml(t.title)}">${safeHtml(t.title)}</h3>
+                            <div class="flex flex-wrap gap-2 mt-3 text-[12px] font-black">
+                                <span class="px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/20 issue-indigo">提报人：${safeHtml(t.creator)}</span>
+                                <span class="px-2.5 py-1 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-500">类目：${safeHtml(t.project)}</span>
+                                <span class="px-2.5 py-1 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-500">提单：${formatShortDate(t.createdAt)}</span>
+                                ${t.dueDate ? `<span class="px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 issue-amber">期望：${formatShortDate(t.dueDate)}</span>` : ''}
+                            </div>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <p class="${t.statusInfo ? t.statusInfo.cls : 'submission-status-open'} font-black text-[15px]">${safeHtml(t.statusInfo ? t.statusInfo.label : '未结束')}</p>
+                            <p class="issue-amber font-mono font-black text-[24px] mt-2">${(t.hours || 0).toFixed(1)}h</p>
+                        </div>
+                    </div>
+                </div>`).join('');
+            const st = data.statusStats || { total:0, done:0, open:0, risk:0 };
+            const summary = `<div class="grid grid-cols-4 gap-3 mb-4">
+                <div class="analysis-detail-row text-center"><p class="issue-indigo text-[12px] font-black">总量</p><p class="issue-indigo font-mono text-[28px] font-black">${st.total || 0}</p></div>
+                <div class="analysis-detail-row text-center"><p class="issue-emerald text-[12px] font-black">已结束</p><p class="issue-emerald font-mono text-[28px] font-black">${st.done || 0}</p></div>
+                <div class="analysis-detail-row text-center"><p class="issue-amber text-[12px] font-black">未结束</p><p class="issue-amber font-mono text-[28px] font-black">${st.open || 0}</p></div>
+                <div class="analysis-detail-row text-center"><p class="issue-rose text-[12px] font-black">风险</p><p class="issue-rose font-mono text-[28px] font-black">${st.risk || 0}</p></div>
+            </div>`;
+            openAnalysisModalBase('提单问题追踪', `${period}：${titleSuffix}（${rows.length}）`, '这里专门核查“当月提单，但后续未确认/未结束导致没有进入总量”的遗漏风险。', summary + renderDetailRows(rowHtml ? [rowHtml] : [], '当前筛选下暂无问题单'));
+        };
 
         window.closeAnalysisDetailModal = function() {
             const overlay = document.getElementById('analysis-detail-overlay');
@@ -1730,10 +2041,13 @@
                     const tasksPct = totalDemands > 0 ? ((p.data.count / totalDemands) * 100).toFixed(1) : 0;
                     
                     let densityTag = '正常流转';
+                    let densityClass = 'density-normal';
                     if (parseFloat(tasksPct) > 25 && parseFloat(hoursPct) < 15) {
                         densityTag = '⚡️ 高频快钱需求';
+                        densityClass = 'density-fast';
                     } else if (parseFloat(hoursPct) > 30) {
                         densityTag = '🌋 资源重度黑洞';
+                        densityClass = 'density-heavy';
                     }
 
                     html += `
@@ -1741,7 +2055,7 @@
                         <td class="p-3 text-xs font-sans font-bold text-white max-w-[240px] truncate row-pname" title="${p.name}">${p.name}</td>
                         <td class="p-3 text-right text-xs"><span class="text-zinc-100 font-bold row-tasks">${p.data.count}单</span> <span class="text-zinc-500 text-[10px] ml-1 row-tasks-pct">(${tasksPct}%)</span></td>
                         <td class="p-3 text-right text-xs"><span class="text-fuchsia-400 font-black row-hours">${p.data.hours.toFixed(1)}h</span> <span class="text-zinc-500 text-[10px] ml-1 row-hours-pct">(${hoursPct}%)</span></td>
-                        <td class="p-3 text-center"><span class="text-[10px] px-2 py-0.5 rounded font-bold">${densityTag}</span></td>
+                        <td class="p-3 text-center"><span class="density-tag ${densityClass}">${densityTag}</span></td>
                     </tr>`;
                 });
                 dualMatrixBody.innerHTML = html;
