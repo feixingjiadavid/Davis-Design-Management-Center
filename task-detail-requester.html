@@ -533,6 +533,7 @@
 
         if(window.initApp) window.initApp();
     </script>
+    <script src="./notify-events.js"></script>
 
     <script>
         // ================= 💡 主题同步引擎 =================
@@ -721,6 +722,59 @@
                 }
             } catch(e) { console.error("通知派发异常:", e); }
         }
+
+
+
+        // ================= 站外通知事件中转：写入 notification_events，不影响原站内小铃铛 =================
+        function getTaskAbsoluteUrl(pageType) {
+            const page = pageType === 'designer' ? 'task-detail-designer.html' : 'task-detail-requester.html';
+            return `https://davis-design.cn/${page}?id=${currentTaskId}`;
+        }
+
+        function normalizeNotifyTarget(rawTarget) {
+            const target = (rawTarget || '').toString().trim();
+            if (!target || target === 'none') return { enName: null, displayName: null, email: null };
+            const isLikelyEnName = /^[a-zA-Z][a-zA-Z0-9_.-]*$/.test(target);
+            return {
+                enName: target,
+                displayName: target,
+                email: isLikelyEnName ? `${target.toLowerCase()}@webank.com` : null
+            };
+        }
+
+        window.safeCreateNotifyEvent = async function({
+            taskId = currentTaskId,
+            eventType = 'general',
+            targetEnName,
+            targetDisplayName,
+            targetEmail,
+            mobile,
+            title,
+            content,
+            actionUrl
+        } = {}) {
+            try {
+                if (!window.createNotifyEvent) {
+                    console.warn('notify-events.js 未加载，跳过站外通知事件写入');
+                    return { ok: false, skipped: true };
+                }
+                if (!title || !content) return { ok: false, skipped: true };
+                return await window.createNotifyEvent({
+                    taskId,
+                    eventType,
+                    targetEnName,
+                    targetDisplayName,
+                    targetEmail,
+                    mobile,
+                    title,
+                    content,
+                    actionUrl
+                });
+            } catch (err) {
+                console.error('站外通知事件写入失败，但不影响主流程:', err);
+                return { ok: false, error: err?.message || String(err) };
+            }
+        };
 
         async function fetchTaskData() {
             try {
@@ -1136,6 +1190,23 @@
 
                         if (targetIdentifier && targetIdentifier !== 'none') {
                             await window.insertDbNotification(targetIdentifier, content, `task-detail-designer.html?id=${currentTaskId}`, 'update');
+
+                            const targetInfo = normalizeNotifyTarget(targetIdentifier);
+                            const externalTitleMap = {
+                                approve_framework: '框架方案已通过',
+                                reject_framework: '框架方案被打回',
+                                reject_draft: '正稿被打回',
+                                complete: '需求已验收完成'
+                            };
+                            await window.safeCreateNotifyEvent({
+                                eventType: act || 'task_update',
+                                targetEnName: targetInfo.enName,
+                                targetDisplayName: targetInfo.displayName,
+                                targetEmail: targetInfo.email,
+                                title: externalTitleMap[act] || '需求流程更新',
+                                content: content,
+                                actionUrl: getTaskAbsoluteUrl('designer')
+                            });
                         }
                     }
                 }
@@ -1158,6 +1229,16 @@
                 };
 
                 if(await updateSupabaseState('terminated', '需求方已撤销该单据。', payload)) {
+                    const targetInfo = normalizeNotifyTarget(globalTaskData.assignee);
+                    await window.safeCreateNotifyEvent({
+                        eventType: 'terminated',
+                        targetEnName: targetInfo.enName,
+                        targetDisplayName: targetInfo.displayName,
+                        targetEmail: targetInfo.email,
+                        title: '需求已撤销',
+                        content: `《${globalTaskData.title || currentTaskId}》已由需求方撤销，设计流程终止。`,
+                        actionUrl: getTaskAbsoluteUrl('designer')
+                    });
                     showToast('已撤销', `需求单已安全撤销。`, 'info');
                     setTimeout(() => window.history.back(), 1000); 
                 }
@@ -1188,7 +1269,19 @@
                 }
 
                 if (targetIdentifier) {
-                    await window.insertDbNotification(targetIdentifier, content, `task-detail-designer.html?id=${currentTaskId}`, 'urgent');
+                    const urgeLinkType = (status === 'pending_approval' || status === 'reviewing' || status === 'pending') ? 'requester' : 'designer';
+                    await window.insertDbNotification(targetIdentifier, content, urgeLinkType === 'designer' ? `task-detail-designer.html?id=${currentTaskId}` : `task-detail-requester.html?id=${currentTaskId}`, 'urgent');
+
+                    const targetInfo = normalizeNotifyTarget(targetIdentifier);
+                    await window.safeCreateNotifyEvent({
+                        eventType: 'urgent',
+                        targetEnName: targetInfo.enName,
+                        targetDisplayName: targetInfo.displayName,
+                        targetEmail: targetInfo.email,
+                        title: '需求催办提醒',
+                        content: content,
+                        actionUrl: getTaskAbsoluteUrl(urgeLinkType)
+                    });
                     
                     // 写入历史，彻底唤醒红点
                     const dispName = currentUser.displayName || currentUser.enName || '相关人员';
@@ -1274,6 +1367,16 @@
                 };
 
                 if(await updateSupabaseState('terminated', '修改次数达阈值上限，需求方已将此单强行终止归档。', payload)) {
+                    const targetInfo = normalizeNotifyTarget(globalTaskData.assignee);
+                    await window.safeCreateNotifyEvent({
+                        eventType: 'terminated',
+                        targetEnName: targetInfo.enName,
+                        targetDisplayName: targetInfo.displayName,
+                        targetEmail: targetInfo.email,
+                        title: '需求已终止',
+                        content: `《${globalTaskData.title || currentTaskId}》因修改次数达到上限，已被需求方终止归档。`,
+                        actionUrl: getTaskAbsoluteUrl('designer')
+                    });
                     showToast('已强行终止', '单据已封存！即将为您跳转...', 'error');
                     setTimeout(() => window.history.back(), 2000);
                 }
