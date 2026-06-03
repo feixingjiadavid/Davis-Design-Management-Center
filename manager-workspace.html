@@ -1074,6 +1074,116 @@
             white-space: nowrap !important;
         }
 
+
+        /* ================= 终版修复：导出长图状态标签用纯文字，彻底解决文字掉出胶囊 ================= */
+        #export-capture-zone .admin-load-tag,
+        #export-capture-zone-clone-full .admin-load-tag,
+        body.is-exporting-longshot #export-capture-zone .admin-load-tag {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 118px !important;
+            min-width: 118px !important;
+            max-width: 118px !important;
+            height: 26px !important;
+            min-height: 26px !important;
+            max-height: 26px !important;
+            padding: 0 !important;
+            margin: 0 auto !important;
+            border-radius: 7px !important;
+            line-height: 26px !important;
+            vertical-align: middle !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            box-sizing: border-box !important;
+            font-size: 12px !important;
+            font-weight: 800 !important;
+            letter-spacing: 0 !important;
+            font-family: Arial, "Microsoft YaHei", "PingFang SC", sans-serif !important;
+            text-align: center !important;
+            transform: none !important;
+            position: relative !important;
+        }
+
+        #export-capture-zone .admin-load-tag .tag-icon,
+        #export-capture-zone-clone-full .admin-load-tag .tag-icon,
+        body.is-exporting-longshot #export-capture-zone .admin-load-tag .tag-icon,
+        #export-capture-zone .admin-load-tag .tag-icon::before,
+        #export-capture-zone-clone-full .admin-load-tag .tag-icon::before,
+        body.is-exporting-longshot #export-capture-zone .admin-load-tag .tag-icon::before {
+            display: none !important;
+            content: none !important;
+        }
+
+        #export-capture-zone .admin-load-tag .tag-text,
+        #export-capture-zone-clone-full .admin-load-tag .tag-text,
+        body.is-exporting-longshot #export-capture-zone .admin-load-tag .tag-text {
+            display: block !important;
+            width: 100% !important;
+            height: 26px !important;
+            line-height: 26px !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            position: static !important;
+            transform: none !important;
+            vertical-align: top !important;
+            text-align: center !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
+            font-size: 12px !important;
+            font-weight: 800 !important;
+            font-family: Arial, "Microsoft YaHei", "PingFang SC", sans-serif !important;
+        }
+
+        #export-capture-zone .admin-load-tag *,
+        #export-capture-zone-clone-full .admin-load-tag *,
+        body.is-exporting-longshot #export-capture-zone .admin-load-tag * {
+            line-height: 26px !important;
+            vertical-align: top !important;
+            transform: none !important;
+            position: static !important;
+        }
+
+        #export-capture-zone .admin-load-high,
+        #export-capture-zone-clone-full .admin-load-high,
+        body.is-exporting-longshot #export-capture-zone .admin-load-high {
+            background: #e11d48 !important;
+            border: 1px solid #fb7185 !important;
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
+        }
+
+        #export-capture-zone .admin-load-ok,
+        #export-capture-zone-clone-full .admin-load-ok,
+        body.is-exporting-longshot #export-capture-zone .admin-load-ok {
+            background: #10b981 !important;
+            border: 1px solid #6ee7b7 !important;
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
+        }
+
+        #export-capture-zone .admin-load-idle,
+        #export-capture-zone-clone-full .admin-load-idle,
+        body.is-exporting-longshot #export-capture-zone .admin-load-idle {
+            background: #64748b !important;
+            border: 1px solid #94a3b8 !important;
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff !important;
+        }
+
+        #export-capture-zone .admin-report-table td:nth-child(4),
+        #export-capture-zone-clone-full .admin-report-table td:nth-child(4),
+        body.is-exporting-longshot #export-capture-zone .admin-report-table td:nth-child(4) {
+            text-align: center !important;
+            vertical-align: middle !important;
+            line-height: 1 !important;
+            padding-top: 8px !important;
+            padding-bottom: 8px !important;
+            overflow: visible !important;
+        }
+
 </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-fuchsia-500/30 text-zinc-300">
@@ -2442,11 +2552,11 @@
                 let html = '';
                 sortedDesigners.forEach(d => {
                     const isEmpty = d.count === 0 && d.hours === 0;
-                    let loadTag = '<span class="admin-load-tag admin-load-idle inline-flex items-center justify-center gap-1 min-w-[92px] whitespace-nowrap text-[10px] text-white bg-slate-700 px-2 py-1 rounded border border-slate-500/30"><span class="tag-icon tag-idle">Zz</span><span class="tag-text">挂空/就绪</span></span>';
+                    let loadTag = '<span class="admin-load-tag admin-load-idle inline-flex items-center justify-center gap-1 min-w-[92px] whitespace-nowrap text-[10px] text-white bg-slate-700 px-2 py-1 rounded border border-slate-500/30"><span class="tag-text">挂空/就绪</span></span>';
                     if (d.count > 2) {
-                        loadTag = '<span class="admin-load-tag admin-load-high inline-flex items-center justify-center gap-1 min-w-[92px] whitespace-nowrap text-[10px] text-white bg-rose-600 border border-rose-500/40 px-2 py-1 rounded font-bold"><span class="tag-icon tag-fire"></span><span class="tag-text">高负荷压制</span></span>';
+                        loadTag = '<span class="admin-load-tag admin-load-high inline-flex items-center justify-center gap-1 min-w-[92px] whitespace-nowrap text-[10px] text-white bg-rose-600 border border-rose-500/40 px-2 py-1 rounded font-bold"><span class="tag-text">高负荷压制</span></span>';
                     } else if (d.count > 0 || d.hours > 0) {
-                        loadTag = '<span class="admin-load-tag admin-load-ok inline-flex items-center justify-center gap-1 min-w-[92px] whitespace-nowrap text-[10px] text-white bg-emerald-600 border border-emerald-500/40 px-2 py-1 rounded font-bold"><span class="tag-icon tag-check"></span><span class="tag-text">健康流转</span></span>';
+                        loadTag = '<span class="admin-load-tag admin-load-ok inline-flex items-center justify-center gap-1 min-w-[92px] whitespace-nowrap text-[10px] text-white bg-emerald-600 border border-emerald-500/40 px-2 py-1 rounded font-bold"><span class="tag-text">健康流转</span></span>';
                     }
 
                     html += `
