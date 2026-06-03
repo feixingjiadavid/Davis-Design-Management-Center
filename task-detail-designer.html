@@ -380,6 +380,44 @@
             box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.10) !important;
         }
 
+
+        /* 三次修正：开灯模式下生命周期日志不要在卡片里再套白色矩形；左下角头像必须彩底白字 */
+        html.theme-light #task-timeline-container {
+            background: transparent !important;
+            border: 0 !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            color: #111827 !important;
+        }
+        html.theme-light #task-timeline-container .timeline-line {
+            background-color: #e5e7eb !important;
+        }
+        html.theme-light #task-timeline-container p,
+        html.theme-light #task-timeline-container .text-zinc-300 {
+            color: #1f2937 !important;
+        }
+        html.theme-light #task-timeline-container .text-zinc-500,
+        html.theme-light #task-timeline-container .text-zinc-600 {
+            color: #94a3b8 !important;
+        }
+        html.theme-light #sidebar-avatar {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;
+            color: #ffffff !important;
+            border-color: rgba(79, 70, 229, 0.22) !important;
+            box-shadow: 0 10px 24px rgba(79, 70, 229, 0.22) !important;
+        }
+        html.theme-light #sidebar-avatar + div #sidebar-name,
+        html.theme-light #sidebar-name {
+            color: #111827 !important;
+        }
+        html.theme-light #sidebar-avatar + div p:not(#sidebar-name) {
+            color: #64748b !important;
+        }
+        html.theme-light aside > div:last-child {
+            background: rgba(255,255,255,0.92) !important;
+            border-color: #e5e7eb !important;
+        }
+
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-orange-500/30 text-zinc-300">
@@ -663,7 +701,11 @@
             const userStr = localStorage.getItem('activeUserObj');
             if (!userStr) { window.location.href = 'login.html'; return; }
             currentUser = JSON.parse(userStr);
-            document.getElementById('sidebar-avatar').innerText = currentUser.avatar || '?';
+            const sidebarAvatarEl = document.getElementById('sidebar-avatar');
+            if (sidebarAvatarEl) {
+                sidebarAvatarEl.innerText = currentUser.avatar || '?';
+                sidebarAvatarEl.className = `w-9 h-9 rounded-full ${currentUser.color || 'bg-indigo-600'} border border-white/10 flex items-center justify-center text-white font-bold text-sm shadow-lg shrink-0`;
+            }
             document.getElementById('sidebar-name').innerText = currentUser.displayName || currentUser.cnName || currentUser.enName;
             
             if(!currentTaskId) { alert("非法访问：未找到需求单号！"); window.location.href = 'assistant-workspace.html'; return; }
