@@ -121,6 +121,27 @@
         html.theme-light .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(100,116,139,.28); }
         html.theme-light .shadow-inner { box-shadow: inset 0 1px 2px rgba(15,23,42,.04) !important; }
         html.theme-light .btn-press:active { transform: scale(.97); }
+
+        /* 修复：开灯模式下左下角头像必须是彩色底 + 白色字，姓名/角色颜色清晰 */
+        html.theme-light #sidebar-avatar {
+            color: #ffffff !important;
+            border-color: transparent !important;
+            box-shadow: 0 10px 22px rgba(79, 70, 229, 0.20) !important;
+        }
+        html.theme-light #sidebar-avatar * {
+            color: #ffffff !important;
+        }
+        html.theme-light #sidebar-name {
+            color: #172033 !important;
+            font-weight: 800 !important;
+        }
+        html.theme-light #sidebar-role {
+            color: #ea580c !important;
+        }
+        html.theme-light #sidebar-role .text-orange-400,
+        html.theme-light #sidebar-role span {
+            color: #ea580c !important;
+        }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-orange-500/30 text-zinc-300">
@@ -195,7 +216,7 @@
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <svg class="h-4 w-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                     </div>
-                    <input type="text" id="asset-search" oninput="window.filterAssets()" class="w-full bg-[#121217] border border-white/10 rounded-xl pl-10 pr-10 py-2.5 text-sm text-white placeholder-zinc-500 outline-none focus:border-orange-500 transition-colors shadow-inner" placeholder="支持搜：202603、标签...">
+                    <input type="search" id="asset-search" name="asset_search_no_memory" value="" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="window.filterAssets()" class="w-full bg-[#121217] border border-white/10 rounded-xl pl-10 pr-10 py-2.5 text-sm text-white placeholder-zinc-500 outline-none focus:border-orange-500 transition-colors shadow-inner" placeholder="支持搜：202603、标签...">
                     <button id="clear-search-btn" onclick="window.clearAssetSearch()" class="absolute inset-y-0 right-0 pr-3 flex items-center text-zinc-500 hover:text-white transition-colors hidden btn-press">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                     </button>
@@ -321,6 +342,7 @@
             if (btn) btn.setAttribute('aria-pressed', isLight ? 'true' : 'false');
             const bellDot = document.getElementById('bell-dot');
             if (bellDot) bellDot.style.borderColor = isLight ? '#ffffff' : '#141417';
+            if (typeof normalizeSidebarProfileVisual === 'function') normalizeSidebarProfileVisual();
         }
 
         window.toggleTheme = function(event) {
@@ -415,9 +437,10 @@
             }
 
             const avatarEl = document.getElementById('sidebar-avatar');
-            if(avatarEl) { avatarEl.innerText = user.avatar || '?'; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-orange-600'} border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shadow-lg shrink-0`; }
+            if(avatarEl) { avatarEl.innerText = user.avatar || '?'; avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-orange-600'} flex items-center justify-center text-white font-bold text-sm shadow-lg shrink-0`; avatarEl.style.color = '#ffffff'; avatarEl.style.borderColor = 'transparent'; }
             if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.cnName || user.enName;
             if(document.getElementById('sidebar-role')) document.getElementById('sidebar-role').innerHTML = `<span class="text-orange-400 font-bold">当前视角: 设计方</span>`;
+            if (typeof normalizeSidebarProfileVisual === 'function') normalizeSidebarProfileVisual();
             
             const menuContainer = document.getElementById('dynamic-identity-list');
             if (menuContainer) {
@@ -610,6 +633,7 @@
                     container.insertAdjacentHTML('beforeend', sectionHtml);
                 });
 
+                window.resetAssetSearchInput && window.resetAssetSearchInput();
                 document.getElementById('assets-loading').classList.add('hidden');
                 
                 if(renderCount === 0) {
@@ -621,6 +645,20 @@
                 document.getElementById('assets-loading').innerHTML = `<p class="text-rose-500 font-bold">数据拉取失败</p><p class="text-xs text-zinc-500">${err.message}</p>`;
             }
         }
+
+
+        // 搜索框不记忆上一次输入，避免浏览器/页面恢复带出乱七八糟的默认值
+        window.resetAssetSearchInput = function() {
+            const inputEl = document.getElementById("asset-search");
+            const clearBtn = document.getElementById("clear-search-btn");
+            if (inputEl) {
+                inputEl.value = "";
+                inputEl.defaultValue = "";
+                inputEl.setAttribute("autocomplete", "off");
+                inputEl.setAttribute("name", "asset_search_no_memory");
+            }
+            if (clearBtn) clearBtn.classList.add("hidden");
+        };
 
         // ================= 💡 月份切换与超级检索 =================
         window.toggleDateDropdown = function() {
@@ -637,7 +675,7 @@
         // 💡 带 X 一键清空的输入框逻辑
         window.filterAssets = function() {
             const inputEl = document.getElementById("asset-search");
-            const input = inputEl.value.toLowerCase().trim();
+            const input = (inputEl ? inputEl.value : "").toLowerCase().trim();
             const clearBtn = document.getElementById("clear-search-btn");
             
             if (input.length > 0) clearBtn.classList.remove('hidden');
@@ -851,7 +889,36 @@
             btn.innerHTML = originalText;
         };
 
+
+        function normalizeSidebarProfileVisual() {
+            const avatarEl = document.getElementById('sidebar-avatar');
+            const nameEl = document.getElementById('sidebar-name');
+            const roleEl = document.getElementById('sidebar-role');
+            if (avatarEl) {
+                const userStr = localStorage.getItem('activeUserObj');
+                let user = {};
+                try { user = JSON.parse(userStr || '{}'); } catch(e) {}
+                avatarEl.innerText = user.avatar || avatarEl.innerText || '?';
+                avatarEl.className = `w-9 h-9 rounded-full ${user.color || 'bg-orange-600'} flex items-center justify-center text-white font-bold text-sm shadow-lg shrink-0`;
+                avatarEl.style.color = '#ffffff';
+                avatarEl.style.borderColor = 'transparent';
+            }
+            if (nameEl) nameEl.style.color = document.documentElement.classList.contains('theme-light') ? '#172033' : '';
+            if (roleEl && document.documentElement.classList.contains('theme-light')) roleEl.style.color = '#ea580c';
+        }
+
+
+        window.addEventListener('pageshow', function() {
+            window.resetAssetSearchInput && window.resetAssetSearchInput();
+            setTimeout(function() {
+                window.resetAssetSearchInput && window.resetAssetSearchInput();
+                if (typeof window.filterAssets === 'function') window.filterAssets();
+            }, 0);
+        });
+
         document.addEventListener('DOMContentLoaded', () => {
+            window.resetAssetSearchInput && window.resetAssetSearchInput();
+            setTimeout(() => window.resetAssetSearchInput && window.resetAssetSearchInput(), 0);
             if(initRBAC()) {
                 const idBtn = document.getElementById('identityBtn');
                 const idMenu = document.getElementById('identityMenu');
