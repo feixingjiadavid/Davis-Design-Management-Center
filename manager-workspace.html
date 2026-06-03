@@ -488,6 +488,50 @@
             border-color: #c7d2fe !important;
         }
 
+
+        /* 已完结列表：按钮必须可读可点，不能黑底黑字 */
+        .completed-detail-btn,
+        body.theme-light .completed-detail-btn {
+            background: #4F46E5 !important;
+            color: #FFFFFF !important;
+            -webkit-text-fill-color: #FFFFFF !important;
+            border-color: rgba(79,70,229,0.36) !important;
+            box-shadow: 0 8px 18px -12px rgba(79,70,229,.55) !important;
+            opacity: 1 !important;
+        }
+        .completed-detail-btn:hover,
+        body.theme-light .completed-detail-btn:hover {
+            background: #4338CA !important;
+            color: #FFFFFF !important;
+            -webkit-text-fill-color: #FFFFFF !important;
+            border-color: rgba(67,56,202,0.52) !important;
+        }
+        body.theme-light #tasks-list-container .completed-detail-btn * {
+            color: #FFFFFF !important;
+            -webkit-text-fill-color: #FFFFFF !important;
+        }
+        body.theme-light #tasks-list-container .bg-zinc-800,
+        body.theme-light #tasks-list-container .hover\:bg-zinc-700:hover {
+            color: #FFFFFF !important;
+            -webkit-text-fill-color: #FFFFFF !important;
+        }
+
+
+        /* 修复导出长图文字错位与顶部统计卡点击反馈 */
+        .admin-metric-card { cursor: pointer !important; }
+        #export-capture-zone-clone-full,
+        #export-capture-zone-clone-full * {
+            transform: none !important;
+            text-rendering: geometricPrecision;
+            -webkit-font-smoothing: antialiased;
+        }
+        #export-capture-zone-clone-full {
+            contain: none !important;
+        }
+        #export-capture-zone-clone-full .sticky {
+            position: static !important;
+        }
+
 </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-fuchsia-500/30 text-zinc-300">
@@ -743,7 +787,7 @@
                     <button onclick="window.shiftExportReportMonth(1)" class="w-9 h-9 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-white/5 flex items-center justify-center transition-colors btn-press" title="查看下个月报告">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="9 18 15 12 9 6"></polyline></svg>
                     </button>
-                    <button onclick="window.jumpExportReportCurrentMonth()" class="px-3 py-2 rounded-xl bg-fuchsia-600/20 text-fuchsia-400 border border-fuchsia-500/20 text-[12px] font-bold hover:bg-fuchsia-600/30 transition-colors btn-press">本月</button>
+                    <button id="export-current-period-btn" onclick="window.jumpExportReportCurrentPeriod()" class="px-3 py-2 rounded-xl bg-fuchsia-600/20 text-fuchsia-400 border border-fuchsia-500/20 text-[12px] font-bold hover:bg-fuchsia-600/30 transition-colors btn-press">本月</button>
                 </div>
 
                 <button onclick="closeExportAnalysisModal()" class="text-zinc-500 hover:text-white bg-zinc-800/80 hover:bg-zinc-700 rounded-full p-1.5 transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
@@ -1036,6 +1080,7 @@
         // ================= 💡 时间视图控制与切换 =================
         window.switchView = function(view) {
             currentView = view;
+            setTimeout(updateExportPeriodControls, 0);
             const btns = ['week', 'month', 'year'];
             btns.forEach(b => {
                 const btn = document.getElementById(`btn-view-${b}`);
@@ -1581,7 +1626,7 @@
                 if (window.currentTab === 'completed') {
                     sColor = t.status === 'terminated' ? 'rose' : 'zinc'; 
                     sText = t.status === 'terminated' ? '已强行终止' : '已验收完结';
-                    btnHtml = `<button onclick="event.stopPropagation(); window.location.href='task-detail-requester.html?id=${t.id}'" class="text-zinc-300 bg-zinc-800 hover:bg-zinc-700 px-4 py-1.5 rounded-lg text-[11px] font-bold transition-colors btn-press border border-zinc-700 shadow-sm">查看详情快照</button>`;
+                    btnHtml = `<button onclick="event.stopPropagation(); window.location.href='task-detail-requester.html?id=${t.id}'" class="completed-detail-btn text-white bg-indigo-600 hover:bg-indigo-500 px-4 py-1.5 rounded-lg text-[11px] font-bold transition-colors btn-press border border-indigo-500/40 shadow-sm">查看详情快照</button>`;
                 } else {
                     switch(t.status) {
                         case 'pending': sColor = 'sky'; sText = '待接单'; btnHtml = `<button class="text-sky-400 bg-sky-500/10 px-3 py-1 rounded text-[11px] font-bold">待响应</button>`; break;
@@ -1742,17 +1787,45 @@
         };
 
         window.shiftExportReportMonth = function(delta) {
-            currentView = 'month';
-            currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + delta, 1);
+            currentDate = shiftDateByCurrentView(currentDate, delta);
             updateDataAndRender();
+            setTimeout(updateExportPeriodControls, 0);
         };
 
-        window.jumpExportReportCurrentMonth = function() {
-            currentView = 'month';
+        window.jumpExportReportCurrentPeriod = function() {
             currentDate = new Date();
             updateDataAndRender();
+            setTimeout(updateExportPeriodControls, 0);
         };
 
+
+
+        function getCurrentViewUnitText() {
+            if (currentView === 'week') return '本周';
+            if (currentView === 'year') return '本年';
+            return '本月';
+        }
+
+        function getCurrentViewShiftDelta(delta) {
+            if (currentView === 'week') return { days: delta * 7 };
+            if (currentView === 'year') return { years: delta };
+            return { months: delta };
+        }
+
+        function shiftDateByCurrentView(date, delta) {
+            const d = new Date(date);
+            if (currentView === 'week') d.setDate(d.getDate() + delta * 7);
+            else if (currentView === 'year') d.setFullYear(d.getFullYear() + delta);
+            else d.setMonth(d.getMonth() + delta);
+            return d;
+        }
+
+        function updateExportPeriodControls() {
+            const mini = document.getElementById('export-period-mini');
+            const currentBtn = document.getElementById('export-current-period-btn');
+            if (mini) mini.innerText = document.getElementById('current-date-text') ? document.getElementById('current-date-text').innerText : '';
+            if (currentBtn) currentBtn.innerText = getCurrentViewUnitText();
+        }
 
         window.closeExportAnalysisModal = function() {
             const overlay = document.getElementById('export-modal-overlay');
@@ -1779,6 +1852,7 @@
             if (mini) mini.innerText = rangeText;
             
             document.getElementById('report-period-text-modal').innerText = rangeText;
+            updateExportPeriodControls();
             document.getElementById('report-gen-time').innerText = new Date().toISOString().split('T')[0] + ' ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
             // 1. 动态绘制生命周期分布状态条
@@ -1930,58 +2004,114 @@
 
         window.exportToPNGImage = function() {
             const captureZone = document.getElementById('export-capture-zone');
-            const modal = document.getElementById('export-modal');
             if (!captureZone) return;
 
-            window.showToast("图片渲染中", "正在生成完整长图，不只截取当前可视区域...", "info");
+            window.showToast("图片渲染中", "正在生成完整长图，不截取当前可视区域...", "info");
+
+            const isLight = document.body.classList.contains('theme-light');
+            const bg = isLight ? '#FFFFFF' : '#121217';
+
+            // 克隆完整报告到屏幕内不可见但可渲染的位置，避免 left:-99999px 导致字体/定位错位
+            const cloneWrap = document.createElement('div');
+            cloneWrap.style.position = 'fixed';
+            cloneWrap.style.left = '0';
+            cloneWrap.style.top = '0';
+            cloneWrap.style.width = captureZone.offsetWidth + 'px';
+            cloneWrap.style.maxHeight = 'none';
+            cloneWrap.style.height = 'auto';
+            cloneWrap.style.overflow = 'visible';
+            cloneWrap.style.opacity = '0';
+            cloneWrap.style.pointerEvents = 'none';
+            cloneWrap.style.zIndex = '-1';
+            cloneWrap.style.background = bg;
+            cloneWrap.style.transform = 'none';
 
             const clone = captureZone.cloneNode(true);
             clone.id = 'export-capture-zone-clone-full';
             clone.classList.add('export-capturing-full');
-            clone.style.position = 'fixed';
-            clone.style.left = '-99999px';
-            clone.style.top = '0';
             clone.style.width = captureZone.offsetWidth + 'px';
-            clone.style.maxHeight = 'none';
+            clone.style.maxWidth = 'none';
             clone.style.height = 'auto';
+            clone.style.maxHeight = 'none';
             clone.style.overflow = 'visible';
-            clone.style.background = document.body.classList.contains('theme-light') ? '#FFFFFF' : '#121217';
-            clone.style.padding = window.getComputedStyle(captureZone).padding;
-            document.body.appendChild(clone);
+            clone.style.transform = 'none';
+            clone.style.background = bg;
+            clone.style.boxSizing = 'border-box';
 
-            const oldMax = captureZone.style.maxHeight;
-            const oldOverflow = captureZone.style.overflowY;
-            captureZone.classList.add('export-capturing-full');
-            if (modal) modal.classList.add('export-capturing-full');
+            // 防止底部固定操作栏、滚动容器高度影响截图
+            clone.querySelectorAll('.sticky, [style*="position: sticky"]').forEach(el => {
+                el.style.position = 'static';
+            });
+            clone.querySelectorAll('.overflow-y-auto, .custom-scrollbar').forEach(el => {
+                el.style.overflow = 'visible';
+                el.style.maxHeight = 'none';
+                el.style.height = 'auto';
+            });
 
-            html2canvas(clone, {
-                backgroundColor: document.body.classList.contains('theme-light') ? '#FFFFFF' : '#121217',
-                scale: 2,
-                logging: false,
-                useCORS: true,
-                windowWidth: clone.scrollWidth,
-                windowHeight: clone.scrollHeight,
-                height: clone.scrollHeight
-            }).then(canvas => {
-                const imgData = canvas.toDataURL('image/png');
-                const link = document.createElement('a');
-                link.download = `TIG_全局就绪统筹完整长图_${document.getElementById('current-date-text').innerText}.png`;
-                link.href = imgData;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                window.showToast("PNG 下载成功", "完整长图报告已下载", "success");
-            }).catch(err => {
-                console.error(err);
-                window.showToast("PNG 生成失败", "请稍后重试或先导出表格", "error");
-            }).finally(() => {
-                clone.remove();
-                captureZone.classList.remove('export-capturing-full');
-                if (modal) modal.classList.remove('export-capturing-full');
-                captureZone.style.maxHeight = oldMax;
-                captureZone.style.overflowY = oldOverflow;
+            cloneWrap.appendChild(clone);
+            document.body.appendChild(cloneWrap);
+
+            // 等待浏览器完成字体和布局
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    html2canvas(clone, {
+                        backgroundColor: bg,
+                        scale: 2,
+                        logging: false,
+                        useCORS: true,
+                        allowTaint: true,
+                        scrollX: 0,
+                        scrollY: 0,
+                        windowWidth: clone.scrollWidth,
+                        windowHeight: clone.scrollHeight,
+                        width: clone.scrollWidth,
+                        height: clone.scrollHeight
+                    }).then(canvas => {
+                        const imgData = canvas.toDataURL('image/png');
+                        const link = document.createElement('a');
+                        link.download = `TIG_全局就绪统筹完整长图_${document.getElementById('current-date-text').innerText}.png`;
+                        link.href = imgData;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        window.showToast("PNG 下载成功", "完整长图报告已下载", "success");
+                    }).catch(err => {
+                        console.error(err);
+                        window.showToast("PNG 生成失败", "请稍后重试或先导出表格", "error");
+                    }).finally(() => {
+                        cloneWrap.remove();
+                    });
+                });
             });
         }
+
+
+        function bindAdminMetricCards() {
+            const map = [
+                ['metric-card-ongoing', 'ongoing'],
+                ['metric-card-pending', 'pending'],
+                ['metric-card-completed', 'completed']
+            ];
+            map.forEach(([id, type]) => {
+                const el = document.getElementById(id);
+                if (!el || el.__metricBound) return;
+                el.__metricBound = true;
+                el.style.cursor = 'pointer';
+                el.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (typeof window.openAdminMetricModal === 'function') {
+                        window.openAdminMetricModal(type);
+                    }
+                });
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            bindAdminMetricCards();
+            setTimeout(bindAdminMetricCards, 300);
+            setTimeout(updateExportPeriodControls, 300);
+        });
 
         // ================= 🔔 全局消息通知引擎 =================
         let lastNotifHash = '';
