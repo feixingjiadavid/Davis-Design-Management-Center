@@ -42,6 +42,9 @@
         .hide-scroll::-webkit-scrollbar { display: none; }
         .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
 
+        #emptyState { display: none; }
+        #emptyState.is-visible { display: flex; }
+
 
         /* ===== Index 同步开灯 / 关灯主题，仅覆盖浅色模式；深色模式保持原样 ===== */
         html.theme-light, html.theme-light body { background: #f5f7fb !important; color: #172033 !important; color-scheme: light; }
@@ -678,10 +681,14 @@
                 });
 
                 window.resetAssetSearchInput && window.resetAssetSearchInput();
+                window.__assetsReady = true;
+                if (renderCount > 0) window.setAssetsEmptyState && window.setAssetsEmptyState(false);
                 document.getElementById('assets-loading').classList.add('hidden');
                 
                 if(renderCount === 0) {
-                    document.getElementById('emptyState').style.display = 'flex';
+                    window.setAssetsEmptyState && window.setAssetsEmptyState(true, '尚未发现任何匹配的完结资产');
+                } else {
+                    window.setAssetsEmptyState && window.setAssetsEmptyState(false);
                 }
 
             } catch (err) {
@@ -702,6 +709,21 @@
                 inputEl.setAttribute("name", "asset_search_no_memory");
             }
             if (clearBtn) clearBtn.classList.add("hidden");
+        };
+
+
+        window.__assetsReady = false;
+
+        window.setAssetsEmptyState = function(visible, message) {
+            const empty = document.getElementById('emptyState');
+            if (!empty) return;
+            if (message) {
+                const txt = document.getElementById('emptyStateText');
+                if (txt) txt.innerText = message;
+            }
+            empty.classList.toggle('hidden', !visible);
+            empty.classList.toggle('is-visible', !!visible);
+            empty.style.display = visible ? 'flex' : 'none';
         };
 
         // ================= 💡 月份切换与超级检索 =================
@@ -757,11 +779,15 @@
                 }
             });
 
+            const hasCards = document.querySelectorAll('.asset-card').length > 0;
+            if(!window.__assetsReady || !hasCards) {
+                window.setAssetsEmptyState && window.setAssetsEmptyState(false);
+                return;
+            }
             if(globalVisibleCount === 0) {
-                document.getElementById('emptyState').style.display = 'flex';
-                document.getElementById('emptyStateText').innerText = window.activeMonthFilter === 'all' ? '没有找到匹配的资产' : '该月份下暂无任何资产';
+                window.setAssetsEmptyState && window.setAssetsEmptyState(true, window.activeMonthFilter === 'all' ? '没有找到匹配的资产' : '该月份下暂无任何资产');
             } else {
-                document.getElementById('emptyState').style.display = 'none';
+                window.setAssetsEmptyState && window.setAssetsEmptyState(false);
             }
         }
 
@@ -957,15 +983,16 @@
 
         window.addEventListener('pageshow', function() {
             window.resetAssetSearchInput && window.resetAssetSearchInput();
+            window.setAssetsEmptyState && window.setAssetsEmptyState(false);
             setTimeout(function() {
                 window.resetAssetSearchInput && window.resetAssetSearchInput();
-                if (typeof window.filterAssets === 'function') window.filterAssets();
+                window.setAssetsEmptyState && window.setAssetsEmptyState(false);
             }, 0);
         });
 
         document.addEventListener('DOMContentLoaded', () => {
             window.resetAssetSearchInput && window.resetAssetSearchInput();
-            setTimeout(() => window.resetAssetSearchInput && window.resetAssetSearchInput(), 0);
+            setTimeout(() => { window.resetAssetSearchInput && window.resetAssetSearchInput(); window.setAssetsEmptyState && window.setAssetsEmptyState(false); }, 0);
             if(initRBAC()) {
                 const idBtn = document.getElementById('identityBtn');
                 const idMenu = document.getElementById('identityMenu');
