@@ -122,6 +122,50 @@
         html.theme-light .shadow-inner { box-shadow: inset 0 1px 2px rgba(15,23,42,.04) !important; }
         html.theme-light .btn-press:active { transform: scale(.97); }
 
+        /* 修复：开灯模式下身份菜单当前项与其他页面保持一致，不再出现深色块深字 */
+        html.theme-light #identityMenu .identity-option-current {
+            background: #eef2ff !important;
+            color: #4f46e5 !important;
+            border: 1px solid #c7d2fe !important;
+        }
+        html.theme-light #identityMenu .identity-option-current span,
+        html.theme-light #identityMenu .identity-option-current svg {
+            color: #4f46e5 !important;
+        }
+        html.theme-light #identityMenu .identity-option-normal {
+            background: #f1f5f9 !important;
+            color: #475569 !important;
+        }
+        html.theme-light #identityMenu .identity-option-normal:hover {
+            background: #eef2ff !important;
+            color: #4f46e5 !important;
+        }
+        html.theme-light #identityMenu .identity-icon-current {
+            background: #dbe4ff !important;
+            color: #4f46e5 !important;
+        }
+        html.theme-light #identityMenu .identity-icon-req {
+            background: #eef2ff !important;
+            color: #4f46e5 !important;
+        }
+        html.theme-light #identityMenu .identity-icon-admin {
+            background: #fdf4ff !important;
+            color: #c026d3 !important;
+        }
+        html.theme-light #identityBtn {
+            color: #172033 !important;
+            background: rgba(255,255,255,.92) !important;
+        }
+        html.theme-light #identityBtn .text-orange-500 {
+            color: #f97316 !important;
+        }
+        html.theme-light #notif-wrapper {
+            z-index: 100000 !important;
+        }
+        html.theme-light #notifBtn {
+            pointer-events: auto !important;
+        }
+
         /* 修复：开灯模式下左下角头像必须是彩色底 + 白色字，姓名/角色颜色清晰 */
         html.theme-light #sidebar-avatar {
             color: #ffffff !important;
@@ -232,7 +276,7 @@
                     </button>
 
                     <div class="relative" id="notif-wrapper">
-                        <button id="notifBtn" onclick="window.toggleNotificationPanel(event)" class="w-10 h-10 rounded-xl bg-[#141417] border border-white/5 flex items-center justify-center text-zinc-400 hover:text-white transition-colors btn-press relative">
+                        <button id="notifBtn" class="w-10 h-10 rounded-xl bg-[#141417] border border-white/5 flex items-center justify-center text-zinc-400 hover:text-white transition-colors btn-press relative">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
                             <span id="bell-dot" class="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-[#141417] animate-pulse hidden"></span>
                         </button>
@@ -446,13 +490,13 @@
             if (menuContainer) {
                 let html = '';
                 if ((user.perms || []).includes('req')) { 
-                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='index.html'"><div class="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div><span class="text-[13px] font-medium">需求方 (去发单/验收)</span></div>`; 
+                    html += `<div class="identity-option-normal flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='index.html'"><div class="identity-icon-req w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div><span class="text-[13px] font-medium">需求方角色 (去发单/验收)</span></div>`; 
                 }
                 if ((user.perms || []).includes('design')) { 
-                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#362013] text-orange-400 cursor-default border border-orange-900/50"><div class="w-7 h-7 rounded-lg bg-orange-500/20 flex items-center justify-center text-orange-500"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div><span class="text-[13px] font-bold">设计方 (当前)</span></div>`; 
+                    html += `<div class="identity-option-current flex items-center gap-3 px-3 py-3 rounded-xl bg-[#362013] text-orange-400 cursor-default border border-orange-900/50"><div class="identity-icon-current w-7 h-7 rounded-lg bg-orange-500/20 flex items-center justify-center text-orange-500"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div><span class="text-[13px] font-bold">设计方角色 (当前)</span></div>`; 
                 }
                 if ((user.perms || []).includes('admin')) { 
-                    html += `<div class="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='manager-workspace.html'"><div class="w-7 h-7 rounded-lg bg-fuchsia-500/10 text-fuchsia-400 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="21"></line></svg></div><span class="text-[13px] font-medium">管理方 (统筹/大盘)</span></div>`; 
+                    html += `<div class="identity-option-normal flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white cursor-pointer btn-press transition-colors" onclick="window.location.href='manager-workspace.html'"><div class="identity-icon-admin w-7 h-7 rounded-lg bg-fuchsia-500/10 text-fuchsia-400 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="21"></line></svg></div><span class="text-[13px] font-medium">管理方角色 (统筹大盘)</span></div>`; 
                 }
                 menuContainer.innerHTML = html;
             }
@@ -841,7 +885,10 @@
         };
 
         window.toggleNotificationPanel = function(event) {
-            if(event) event.stopPropagation();
+            if(event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
             const dropdown = document.getElementById('notifMenu');
             if(dropdown) {
                 dropdown.classList.toggle('hidden');
@@ -849,7 +896,7 @@
                     window.syncNotificationsFromCloud(true);
                 }
             }
-        }
+        };
 
         window.markReadAndGoDesign = function(id, taskId) {
             const userStr = localStorage.getItem('activeUserObj');
@@ -926,7 +973,10 @@
                 
                 const notifBtn = document.getElementById('notifBtn');
                 const notifMenu = document.getElementById('notifMenu');
-                if(notifBtn && notifMenu) notifBtn.addEventListener('click', (e) => { e.stopPropagation(); notifMenu.classList.toggle('hidden'); });
+                if(notifBtn && notifMenu && !notifBtn.dataset.bound) {
+                    notifBtn.dataset.bound = '1';
+                    notifBtn.addEventListener('click', (e) => window.toggleNotificationPanel(e));
+                }
 
                 document.addEventListener('click', (e) => { 
                     if(idMenu && !idMenu.contains(e.target)) idMenu.classList.add('hidden'); 
