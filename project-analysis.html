@@ -583,7 +583,109 @@
         }
         #export-modal #btn-csv-export svg { stroke: #FFFFFF !important; color: #FFFFFF !important; }
 
-</style>
+
+
+        /* ================= ✅ V6 最终修复：问题追踪做成紧凑可点击模块，下方榜单恢复原展示高度 ================= */
+        #core-analysis-board {
+            height: 560px !important;
+            min-height: 560px !important;
+        }
+        #core-analysis-board > div {
+            height: 560px !important;
+            min-height: 560px !important;
+        }
+        #leader-issue-panel {
+            padding: 18px 20px !important;
+            margin-bottom: 0 !important;
+        }
+        #leader-issue-panel .leader-issue-card {
+            min-height: 92px !important;
+            padding: 14px 18px !important;
+        }
+        #leader-issue-panel .leader-issue-num {
+            font-size: 34px !important;
+        }
+        #leader-issue-panel #leader-issue-stats {
+            margin-bottom: 0 !important;
+        }
+        /* 明细表不再常驻占页面高度：领导要的是页面问题卡片 + 点击弹窗看清单 */
+        #leader-issue-panel > .border {
+            display: none !important;
+        }
+        #leader-issue-panel h3,
+        #leader-issue-panel p,
+        #leader-issue-panel .leader-issue-label,
+        #leader-issue-panel .leader-issue-desc {
+            -webkit-text-fill-color: currentColor !important;
+        }
+        /* 保持与资源统筹中心一致的主框架：左侧和顶部不被新增模块挤压变形 */
+        aside { width: 240px !important; min-width: 240px !important; }
+        header { min-height: 88px !important; }
+        html.theme-light aside,
+        html.theme-light header {
+            background: rgba(255,255,255,.82) !important;
+            border-color: rgba(15,23,42,.06) !important;
+        }
+        html.theme-light aside .rounded-2xl,
+        html.theme-light header .rounded-xl,
+        html.theme-light header .rounded-\[14px\] {
+            box-shadow: 0 8px 20px -18px rgba(15,23,42,.22) !important;
+        }
+        /* 导出弹窗：任何浅色底上的关键数据严禁白/灰，强制彩色大字 */
+        #export-capture-zone #rep-m-demand-count,
+        #export-capture-zone #rep-m-hours,
+        #export-capture-zone #rep-m-projects,
+        #export-capture-zone #rep-m-people {
+            display: block !important;
+            font-size: 36px !important;
+            line-height: 1 !important;
+            font-weight: 950 !important;
+            letter-spacing: -1px !important;
+            opacity: 1 !important;
+            text-shadow: none !important;
+        }
+        #export-capture-zone #rep-m-demand-count { color: #D946EF !important; -webkit-text-fill-color: #D946EF !important; }
+        #export-capture-zone #rep-m-hours { color: #F59E0B !important; -webkit-text-fill-color: #F59E0B !important; }
+        #export-capture-zone #rep-m-projects { color: #6366F1 !important; -webkit-text-fill-color: #6366F1 !important; }
+        #export-capture-zone #rep-m-people { color: #10B981 !important; -webkit-text-fill-color: #10B981 !important; }
+        #export-capture-zone .density-badge,
+        #export-capture-zone .density-risk,
+        #export-capture-zone .density-normal {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            min-width: 92px !important;
+            padding: 6px 10px !important;
+            border-radius: 999px !important;
+            font-weight: 950 !important;
+            font-size: 12px !important;
+            opacity: 1 !important;
+        }
+        #export-capture-zone .density-risk {
+            color: #E11D48 !important;
+            -webkit-text-fill-color: #E11D48 !important;
+            background: rgba(244,63,94,.10) !important;
+            border: 1px solid rgba(244,63,94,.22) !important;
+        }
+        #export-capture-zone .density-normal {
+            color: #10B981 !important;
+            -webkit-text-fill-color: #10B981 !important;
+            background: rgba(16,185,129,.10) !important;
+            border: 1px solid rgba(16,185,129,.22) !important;
+        }
+        #export-modal #btn-csv-export,
+        html.theme-light #export-modal #btn-csv-export,
+        html:not(.theme-light) #export-modal #btn-csv-export {
+            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 55%, #D946EF 100%) !important;
+            color: #FFFFFF !important;
+            -webkit-text-fill-color: #FFFFFF !important;
+            opacity: 1 !important;
+            border: 0 !important;
+            box-shadow: 0 14px 30px -18px rgba(79,70,229,.9) !important;
+        }
+        #export-modal #btn-csv-export svg { stroke: #FFFFFF !important; color: #FFFFFF !important; }
+
+    </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-fuchsia-500/30 text-zinc-300">
 
@@ -717,7 +819,7 @@
                 <p class="text-xs text-zinc-500 font-bold tracking-widest uppercase">SYNCING ANALYSIS DATA...</p>
             </div>
 
-            <div class="w-full max-w-[1400px] mx-auto flex flex-col gap-8 h-full">
+            <div class="w-full max-w-[1400px] mx-auto flex flex-col gap-8 min-h-full">
                 
                 <div class="grid grid-cols-4 gap-6 shrink-0">
                     <div id="metric-card-hours" data-metric-type="hours" onclick="window.openMetricDetailModal('hours')" class="metric-drilldown-card bg-[#121217] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden group hover:border-indigo-500/30 transition-colors">
@@ -767,9 +869,9 @@
                 </div>
 
 
-                <div class="flex gap-8 items-start flex-1 min-h-[400px]">
+                <div id="core-analysis-board" class="flex gap-8 items-start shrink-0 min-h-[560px]">
                     
-                    <div class="flex-1 flex flex-col bg-[#16161d] border border-white/5 rounded-3xl p-6 shadow-xl min-w-0 h-full">
+                    <div class="flex-1 flex flex-col bg-[#16161d] border border-white/5 rounded-3xl p-6 shadow-xl min-w-0 h-[560px]">
                         <div class="flex items-center justify-between mb-6 pb-4 border-b border-white/5 shrink-0">
                             <h3 class="text-[15px] font-bold text-white flex items-center gap-2">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
@@ -791,7 +893,7 @@
                         </div>
                     </div>
 
-                    <div class="flex-1 flex flex-col bg-[#16161d] border border-white/5 rounded-3xl p-6 shadow-xl min-w-0 h-full">
+                    <div class="flex-1 flex flex-col bg-[#16161d] border border-white/5 rounded-3xl p-6 shadow-xl min-w-0 h-[560px]">
                         <div class="flex items-center justify-between mb-6 pb-4 border-b border-white/5 shrink-0">
                             <h3 class="text-[15px] font-bold text-white flex items-center gap-2">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
@@ -1989,6 +2091,21 @@
             document.getElementById('rep-m-demand-count').innerText = totalDemands; 
             document.getElementById('rep-m-projects').innerText = currentData.projectsCount;
             document.getElementById('rep-m-people').innerText = actualPeople;
+            ;[
+                ['rep-m-demand-count', '#D946EF'],
+                ['rep-m-hours', '#F59E0B'],
+                ['rep-m-projects', '#6366F1'],
+                ['rep-m-people', '#10B981']
+            ].forEach(([id, color]) => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.style.setProperty('color', color, 'important');
+                    el.style.setProperty('-webkit-text-fill-color', color, 'important');
+                    el.style.setProperty('font-size', '36px', 'important');
+                    el.style.setProperty('font-weight', '950', 'important');
+                    el.style.setProperty('opacity', '1', 'important');
+                }
+            });
             
             const year = currentDate.getFullYear(); const month = currentDate.getMonth();
             let periodStr = ''; let viewTag = '';
@@ -2429,6 +2546,108 @@
             font-size: 12px !important;
             font-weight: 900 !important;
         }
+
+    
+
+        /* ================= ✅ V6 最终修复：问题追踪做成紧凑可点击模块，下方榜单恢复原展示高度 ================= */
+        #core-analysis-board {
+            height: 560px !important;
+            min-height: 560px !important;
+        }
+        #core-analysis-board > div {
+            height: 560px !important;
+            min-height: 560px !important;
+        }
+        #leader-issue-panel {
+            padding: 18px 20px !important;
+            margin-bottom: 0 !important;
+        }
+        #leader-issue-panel .leader-issue-card {
+            min-height: 92px !important;
+            padding: 14px 18px !important;
+        }
+        #leader-issue-panel .leader-issue-num {
+            font-size: 34px !important;
+        }
+        #leader-issue-panel #leader-issue-stats {
+            margin-bottom: 0 !important;
+        }
+        /* 明细表不再常驻占页面高度：领导要的是页面问题卡片 + 点击弹窗看清单 */
+        #leader-issue-panel > .border {
+            display: none !important;
+        }
+        #leader-issue-panel h3,
+        #leader-issue-panel p,
+        #leader-issue-panel .leader-issue-label,
+        #leader-issue-panel .leader-issue-desc {
+            -webkit-text-fill-color: currentColor !important;
+        }
+        /* 保持与资源统筹中心一致的主框架：左侧和顶部不被新增模块挤压变形 */
+        aside { width: 240px !important; min-width: 240px !important; }
+        header { min-height: 88px !important; }
+        html.theme-light aside,
+        html.theme-light header {
+            background: rgba(255,255,255,.82) !important;
+            border-color: rgba(15,23,42,.06) !important;
+        }
+        html.theme-light aside .rounded-2xl,
+        html.theme-light header .rounded-xl,
+        html.theme-light header .rounded-\[14px\] {
+            box-shadow: 0 8px 20px -18px rgba(15,23,42,.22) !important;
+        }
+        /* 导出弹窗：任何浅色底上的关键数据严禁白/灰，强制彩色大字 */
+        #export-capture-zone #rep-m-demand-count,
+        #export-capture-zone #rep-m-hours,
+        #export-capture-zone #rep-m-projects,
+        #export-capture-zone #rep-m-people {
+            display: block !important;
+            font-size: 36px !important;
+            line-height: 1 !important;
+            font-weight: 950 !important;
+            letter-spacing: -1px !important;
+            opacity: 1 !important;
+            text-shadow: none !important;
+        }
+        #export-capture-zone #rep-m-demand-count { color: #D946EF !important; -webkit-text-fill-color: #D946EF !important; }
+        #export-capture-zone #rep-m-hours { color: #F59E0B !important; -webkit-text-fill-color: #F59E0B !important; }
+        #export-capture-zone #rep-m-projects { color: #6366F1 !important; -webkit-text-fill-color: #6366F1 !important; }
+        #export-capture-zone #rep-m-people { color: #10B981 !important; -webkit-text-fill-color: #10B981 !important; }
+        #export-capture-zone .density-badge,
+        #export-capture-zone .density-risk,
+        #export-capture-zone .density-normal {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            min-width: 92px !important;
+            padding: 6px 10px !important;
+            border-radius: 999px !important;
+            font-weight: 950 !important;
+            font-size: 12px !important;
+            opacity: 1 !important;
+        }
+        #export-capture-zone .density-risk {
+            color: #E11D48 !important;
+            -webkit-text-fill-color: #E11D48 !important;
+            background: rgba(244,63,94,.10) !important;
+            border: 1px solid rgba(244,63,94,.22) !important;
+        }
+        #export-capture-zone .density-normal {
+            color: #10B981 !important;
+            -webkit-text-fill-color: #10B981 !important;
+            background: rgba(16,185,129,.10) !important;
+            border: 1px solid rgba(16,185,129,.22) !important;
+        }
+        #export-modal #btn-csv-export,
+        html.theme-light #export-modal #btn-csv-export,
+        html:not(.theme-light) #export-modal #btn-csv-export {
+            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 55%, #D946EF 100%) !important;
+            color: #FFFFFF !important;
+            -webkit-text-fill-color: #FFFFFF !important;
+            opacity: 1 !important;
+            border: 0 !important;
+            box-shadow: 0 14px 30px -18px rgba(79,70,229,.9) !important;
+        }
+        #export-modal #btn-csv-export svg { stroke: #FFFFFF !important; color: #FFFFFF !important; }
 
     </style></head><body><table><thead><tr>${headers.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>`;
 
