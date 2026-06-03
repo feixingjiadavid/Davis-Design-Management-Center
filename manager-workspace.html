@@ -408,6 +408,86 @@
             color: #B45309 !important;
             border-color: #FDE68A !important;
         }
+
+        /* ================= 本轮修复：资源统筹页交互与视觉 ================= */
+        body.theme-light #tasks-list-container,
+        body.theme-light #tasks-list-container.custom-scrollbar,
+        body.theme-light #tasks-list-container::-webkit-scrollbar-track,
+        body.theme-light #tasks-list-container::-webkit-scrollbar-corner {
+            background: transparent !important;
+        }
+        body.theme-light #tasks-list-container {
+            scrollbar-color: rgba(15,23,42,.18) transparent;
+        }
+        body.theme-light #tasks-list-container::before,
+        body.theme-light #tasks-list-container::after {
+            background: transparent !important;
+            display: none !important;
+        }
+        body.theme-light .admin-task-list-shell,
+        body.theme-light .admin-task-list-shell > .relative,
+        body.theme-light .admin-task-list-shell [id="tasks-list-container"] {
+            background: transparent !important;
+        }
+
+        .admin-metric-card {
+            cursor: pointer;
+            transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+        }
+        .admin-metric-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(217,70,239,.34) !important;
+            box-shadow: 0 18px 38px -24px rgba(217,70,239,.55) !important;
+        }
+        body.theme-light .admin-metric-card:hover {
+            background: #ffffff !important;
+            border-color: rgba(99,102,241,.20) !important;
+            box-shadow: 0 20px 40px -22px rgba(99,102,241,.35), 0 8px 18px rgba(15,23,42,.06) !important;
+        }
+
+        body.theme-light #metric-insight-modal,
+        body.theme-light #metric-insight-modal .bg-\[\#16161d\],
+        body.theme-light #metric-insight-modal .bg-\[\#09090b\] {
+            background: #ffffff !important;
+            color: #172033 !important;
+        }
+        body.theme-light #metric-insight-modal h2,
+        body.theme-light #metric-insight-modal h3,
+        body.theme-light #metric-insight-modal .text-white {
+            color: #172033 !important;
+            -webkit-text-fill-color: #172033 !important;
+        }
+        body.theme-light #metric-insight-modal .metric-insight-summary {
+            background: #f8fafc !important;
+            border-color: #e2e8f0 !important;
+        }
+        body.theme-light #metric-insight-modal .metric-insight-card {
+            background: #ffffff !important;
+            border-color: #e5e7eb !important;
+            box-shadow: 0 8px 24px -18px rgba(15,23,42,.22) !important;
+        }
+        body.theme-light #metric-insight-modal .metric-insight-card:hover {
+            background: #f8fafc !important;
+            border-color: #c7d2fe !important;
+        }
+
+        /* 导出弹窗里的报告预览不要被视窗高度裁掉，生成图时也能拿完整长图 */
+        #export-capture-zone.export-capturing-full {
+            max-height: none !important;
+            height: auto !important;
+            overflow: visible !important;
+        }
+        #export-modal.export-capturing-full {
+            max-height: none !important;
+            height: auto !important;
+            overflow: visible !important;
+        }
+        body.theme-light #export-period-mini {
+            background: #f8fafc !important;
+            color: #4338ca !important;
+            border-color: #c7d2fe !important;
+        }
+
 </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-fuchsia-500/30 text-zinc-300">
@@ -557,7 +637,7 @@
             </div>
 
             <div class="flex gap-6 mb-8 overflow-x-auto custom-scrollbar pb-2">
-                <div class="bg-[#16161d] border border-white/5 rounded-3xl p-5 flex flex-col gap-2 min-w-[240px] shadow-lg relative overflow-hidden">
+                <div id="metric-card-ongoing" onclick="window.openAdminMetricModal(\'ongoing\')" class="admin-metric-card bg-[#16161d] border border-white/5 rounded-3xl p-5 flex flex-col gap-2 min-w-[240px] shadow-lg relative overflow-hidden" title="点击查看当期进行中工单">
                     <div class="flex items-center gap-5 mb-1">
                         <div class="w-14 h-14 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
@@ -569,7 +649,7 @@
                     </div>
                 </div>
 
-                <div class="bg-[#16161d] border border-white/5 rounded-3xl p-5 flex flex-col gap-2 min-w-[240px] shadow-lg relative overflow-hidden">
+                <div id="metric-card-pending" onclick="window.openAdminMetricModal(\'pending\')" class="admin-metric-card bg-[#16161d] border border-white/5 rounded-3xl p-5 flex flex-col gap-2 min-w-[240px] shadow-lg relative overflow-hidden" title="点击查看当期挂滞审批">
                     <div class="flex items-center gap-5 mb-1">
                         <div class="w-14 h-14 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
@@ -581,7 +661,7 @@
                     </div>
                 </div>
 
-                <div class="bg-[#16161d] border border-white/5 rounded-3xl p-5 flex flex-col gap-2 min-w-[260px] shadow-lg relative overflow-hidden">
+                <div id="metric-card-completed" onclick="window.openAdminMetricModal(\'completed\')" class="admin-metric-card bg-[#16161d] border border-white/5 rounded-3xl p-5 flex flex-col gap-2 min-w-[260px] shadow-lg relative overflow-hidden" title="点击查看当期完结工单">
                     <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-indigo-500/50"></div>
                     <div class="flex items-center gap-5 mb-2">
                         <div class="w-14 h-14 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20">
@@ -596,7 +676,7 @@
             </div>
 
             <div class="flex-1 flex gap-10 min-h-0">
-                <div class="flex-[1.5] flex flex-col bg-[#121217]/50 border border-white/5 rounded-3xl p-6 shadow-xl relative min-w-0">
+                <div class="admin-task-list-shell flex-[1.5] flex flex-col bg-[#121217]/50 border border-white/5 rounded-3xl p-6 shadow-xl relative min-w-0">
                     
                     <div class="flex items-center gap-6 mb-4 border-b border-white/10 px-2 shrink-0">
                         <button onclick="window.switchTab('ongoing')" id="tab-ongoing" class="text-[14px] font-bold text-emerald-400 border-b-2 border-emerald-500 pb-3 flex items-center gap-2 transition-colors btn-press">
@@ -654,6 +734,18 @@
                     </h2>
                     <p class="text-[11px] text-zinc-500 mt-0.5">多维实时提取：流转节点积压配比、全员执行负荷矩阵、精细化产能统筹数据</p>
                 </div>
+                
+                <div class="flex items-center gap-2">
+                    <button onclick="window.shiftExportReportMonth(-1)" class="w-9 h-9 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-white/5 flex items-center justify-center transition-colors btn-press" title="查看上个月报告">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    </button>
+                    <span id="export-period-mini" class="min-w-[120px] text-center px-3 py-2 rounded-xl bg-zinc-800/80 border border-white/5 text-[12px] font-black text-zinc-200">当前周期</span>
+                    <button onclick="window.shiftExportReportMonth(1)" class="w-9 h-9 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white border border-white/5 flex items-center justify-center transition-colors btn-press" title="查看下个月报告">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </button>
+                    <button onclick="window.jumpExportReportCurrentMonth()" class="px-3 py-2 rounded-xl bg-fuchsia-600/20 text-fuchsia-400 border border-fuchsia-500/20 text-[12px] font-bold hover:bg-fuchsia-600/30 transition-colors btn-press">本月</button>
+                </div>
+
                 <button onclick="closeExportAnalysisModal()" class="text-zinc-500 hover:text-white bg-zinc-800/80 hover:bg-zinc-700 rounded-full p-1.5 transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
             </div>
 
@@ -741,6 +833,34 @@
         </div>
     </div>
 
+
+
+    <div id="metric-insight-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-6">
+        <div id="metric-insight-modal" class="w-full max-w-3xl bg-[#121217] border border-fuchsia-500/30 rounded-3xl shadow-[0_25px_80px_-20px_rgba(217,70,239,0.35)] scale-95 transition-transform duration-300 overflow-hidden relative">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-fuchsia-500 via-purple-500 to-indigo-500"></div>
+            <div class="p-7 border-b border-white/5 bg-[#16161d] flex items-start justify-between gap-6">
+                <div>
+                    <div id="metric-insight-pill" class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-black bg-fuchsia-500/10 text-fuchsia-400 border border-fuchsia-500/20 mb-3">
+                        <span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500 animate-pulse"></span>
+                        大盘筛查
+                    </div>
+                    <h2 id="metric-insight-title" class="text-[20px] font-black text-white">对应工单清单</h2>
+                    <p id="metric-insight-desc" class="text-[13px] text-zinc-400 leading-relaxed mt-2">系统已按当前周期筛出对应内容，请进入需求详情处理或查看。</p>
+                </div>
+                <button onclick="window.closeAdminMetricModal()" class="text-zinc-500 hover:text-white bg-white/5 hover:bg-white/10 rounded-full p-2 transition-colors btn-press shrink-0">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div id="metric-insight-list" class="p-7 max-h-[56vh] overflow-y-auto custom-scrollbar space-y-3"></div>
+            <div class="p-6 border-t border-white/5 bg-[#16161d] flex items-center justify-between gap-4">
+                <p id="metric-insight-footer" class="text-[11px] text-zinc-500">点击条目可进入需求详情页。</p>
+                <div class="flex gap-3 shrink-0">
+                    <button onclick="window.closeAdminMetricModal()" class="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-[12px] font-bold btn-press border border-white/5">关闭</button>
+                    <button id="metric-insight-primary" onclick="window.openFirstAdminMetricTask()" class="px-6 py-2.5 bg-fuchsia-600 hover:bg-fuchsia-500 text-white rounded-xl text-[12px] font-bold btn-press shadow-lg shadow-fuchsia-900/30">打开第一条</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div id="pending-approval-reminder-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[99998] hidden opacity-0 transition-opacity duration-200 flex items-center justify-center p-6">
         <div id="pending-approval-reminder-modal" class="w-full max-w-3xl bg-[#121217] border border-amber-500/30 rounded-3xl shadow-[0_25px_80px_-20px_rgba(245,158,11,0.35)] scale-95 transition-transform duration-200 overflow-hidden relative">
@@ -1322,6 +1442,9 @@
             // 锁定当前筛选周期的全量数据快照
             const periodData = extractGlobalDataForPeriod(currentDate, currentView);
             window.finalPeriodDataSnapshot = periodData;
+            if (document.getElementById('export-modal-overlay') && !document.getElementById('export-modal-overlay').classList.contains('hidden')) {
+                setTimeout(() => window.openExportAnalysisModal && window.openExportAnalysisModal(true), 0);
+            }
 
             const pendingApprovalReminderTasks = getPendingApprovalTasksForReminder(periodData);
             if (!window.pendingApprovalReminderShown && pendingApprovalReminderTasks.length > 0) {
@@ -1502,6 +1625,135 @@
         }
 
         // ================= 💡 全量真实数据：审计导出面板交互引擎 =================
+
+        // ================= 顶部三张统计卡：弹窗查看对应清单 =================
+        window.adminMetricModalTasks = [];
+
+        function adminMetricStatusMeta(t) {
+            if (!t) return { color: 'zinc', text: '未知', action: '查看详情' };
+            if (t.status === 'pending_approval') return { color: 'amber', text: '框架审批中', action: '去审批' };
+            if (t.status === 'processing') return { color: 'orange', text: '制作中', action: '查看进度' };
+            if (t.status === 'pending' || t.status === 'pending_accept') return { color: 'sky', text: '待接单/待确认', action: '去处理' };
+            if (t.status === 'reviewing') return { color: 'emerald', text: '验收中', action: '查看验收' };
+            if (t.status === 'rejected') return { color: 'rose', text: '被打回', action: '督办修改' };
+            if (t.status === 'terminated') return { color: 'rose', text: '已终止', action: '查看详情' };
+            if (t.status === 'completed' || t.status === 'archived') return { color: 'indigo', text: '已完结归档', action: '查看归档' };
+            return { color: 'zinc', text: '流转中', action: '查看详情' };
+        }
+
+        function getAdminMetricTasks(type) {
+            const snap = window.finalPeriodDataSnapshot;
+            if (!snap) return [];
+            if (type === 'ongoing') return snap.ongoingTasks || [];
+            if (type === 'pending') return (snap.ongoingTasks || []).filter(t => t.status === 'pending_approval');
+            if (type === 'completed') return snap.completedTasks || [];
+            return [];
+        }
+
+        function getAdminMetricConfig(type, count) {
+            if (type === 'ongoing') return {
+                pill: '流转中工单',
+                title: `当期进行中工单（${count}）`,
+                desc: '以下为当前周期仍在流转中的需求，请优先处理阻塞在审批、制作、验收等关键节点的事项。',
+                empty: '当前周期没有进行中的工单。',
+                footer: '建议优先处理临期、待审批和被打回的需求，避免堆积。',
+                primary: '打开第一条进行中需求'
+            };
+            if (type === 'pending') return {
+                pill: '挂滞审批',
+                title: `当期挂滞审批需求（${count}）`,
+                desc: '以下需求停留在框架审批节点，请进入详情完成审批，避免后续排期和交付被卡住。',
+                empty: '当前周期没有挂滞审批需求。',
+                footer: '审批通过后，需求将继续流转；打回后会回到设计师修改。',
+                primary: '开始审批第一条'
+            };
+            return {
+                pill: '已完结归档',
+                title: `当期完结工单（${count}）`,
+                desc: '以下为当前周期已完成或已归档的需求，可进入详情查看留档快照、交付版本和流转记录。',
+                empty: '当前周期暂无已完结工单。',
+                footer: '完结工单用于复盘和归档，不再作为待办处理。',
+                primary: '查看第一条归档'
+            };
+        }
+
+        window.openAdminMetricModal = function(type) {
+            const overlay = document.getElementById('metric-insight-overlay');
+            const modal = document.getElementById('metric-insight-modal');
+            const list = document.getElementById('metric-insight-list');
+            if (!overlay || !modal || !list) return;
+
+            const tasks = [...getAdminMetricTasks(type)].sort((a,b) => getTaskDueTime(a) - getTaskDueTime(b));
+            window.adminMetricModalTasks = tasks;
+            const cfg = getAdminMetricConfig(type, tasks.length);
+
+            document.getElementById('metric-insight-pill').innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500 animate-pulse"></span>${cfg.pill}`;
+            document.getElementById('metric-insight-title').innerText = cfg.title;
+            document.getElementById('metric-insight-desc').innerText = cfg.desc;
+            document.getElementById('metric-insight-footer').innerText = cfg.footer;
+            const primary = document.getElementById('metric-insight-primary');
+            primary.innerText = cfg.primary;
+            primary.disabled = tasks.length === 0;
+            primary.classList.toggle('opacity-50', tasks.length === 0);
+
+            if (tasks.length === 0) {
+                list.innerHTML = `<div class="metric-insight-summary rounded-2xl border border-white/5 bg-white/[0.02] p-6 text-center text-zinc-500 text-sm">${cfg.empty}</div>`;
+            } else {
+                list.innerHTML = tasks.map(t => {
+                    const meta = adminMetricStatusMeta(t);
+                    return `
+                        <div class="metric-insight-card bg-[#18181b] border border-white/5 rounded-2xl p-5 hover:border-${meta.color}-500/50 transition-colors cursor-pointer" onclick="window.location.href='task-detail-requester.html?id=${t.id}'">
+                            <div class="flex justify-between items-start gap-4 mb-4">
+                                <div class="min-w-0">
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <span class="text-[10px] font-mono font-black bg-white/5 px-2 py-0.5 rounded border border-white/10 text-zinc-400">${t.id}</span>
+                                        <span class="text-[11px] font-black text-${meta.color}-400 bg-${meta.color}-500/10 border border-${meta.color}-500/20 px-2 py-0.5 rounded">${meta.text}</span>
+                                    </div>
+                                    <h3 class="text-[15px] font-black text-white leading-snug">${t.title || '未命名需求'}</h3>
+                                </div>
+                                <button onclick="event.stopPropagation(); window.location.href='task-detail-requester.html?id=${t.id}'" class="shrink-0 px-4 py-2 rounded-xl text-[12px] font-bold text-white bg-${meta.color}-600 hover:bg-${meta.color}-500 transition-colors btn-press">${meta.action}</button>
+                            </div>
+                            <div class="grid grid-cols-3 gap-3 text-[11px] text-zinc-500 border-t border-white/5 pt-3">
+                                <span class="truncate">发起人：<b class="text-zinc-300">${t.creator || '--'}</b></span>
+                                <span class="truncate">执行人：<b class="text-zinc-300">${t.assignee === 'none' ? '暂未分配' : (t.assignee || '--')}</b></span>
+                                <span class="text-right">期望交付：<b class="text-rose-400">${t.due_date || '未定'}</b></span>
+                            </div>
+                        </div>`;
+                }).join('');
+            }
+
+            overlay.classList.remove('hidden');
+            setTimeout(() => { overlay.classList.remove('opacity-0'); modal.classList.remove('scale-95'); }, 10);
+        };
+
+        window.closeAdminMetricModal = function() {
+            const overlay = document.getElementById('metric-insight-overlay');
+            const modal = document.getElementById('metric-insight-modal');
+            if (!overlay || !modal) return;
+            overlay.classList.add('opacity-0');
+            modal.classList.add('scale-95');
+            setTimeout(() => overlay.classList.add('hidden'), 300);
+        };
+
+        window.openFirstAdminMetricTask = function() {
+            if (window.adminMetricModalTasks && window.adminMetricModalTasks.length > 0) {
+                window.location.href = `task-detail-requester.html?id=${window.adminMetricModalTasks[0].id}`;
+            }
+        };
+
+        window.shiftExportReportMonth = function(delta) {
+            currentView = 'month';
+            currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + delta, 1);
+            updateDataAndRender();
+        };
+
+        window.jumpExportReportCurrentMonth = function() {
+            currentView = 'month';
+            currentDate = new Date();
+            updateDataAndRender();
+        };
+
+
         window.closeExportAnalysisModal = function() {
             const overlay = document.getElementById('export-modal-overlay');
             const modal = document.getElementById('export-modal');
@@ -1513,7 +1765,7 @@
             }, 260);
         }
 
-        window.openExportAnalysisModal = function() {
+        window.openExportAnalysisModal = function(isRefreshOnly = false) {
             const overlay = document.getElementById('export-modal-overlay');
             const modal = document.getElementById('export-modal');
             
@@ -1522,6 +1774,9 @@
 
             const absoluteTotal = snap.totalAbsoluteCount;
             const rangeText = document.getElementById('current-date-text').innerText;
+            const safePct = (val) => absoluteTotal > 0 ? ((val / absoluteTotal) * 100).toFixed(1) : '0.0';
+            const mini = document.getElementById('export-period-mini');
+            if (mini) mini.innerText = rangeText;
             
             document.getElementById('report-period-text-modal').innerText = rangeText;
             document.getElementById('report-gen-time').innerText = new Date().toISOString().split('T')[0] + ' ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
@@ -1534,12 +1789,12 @@
                 statusBar.innerHTML = `<div class="w-full h-full bg-zinc-900 text-zinc-600 italic flex items-center justify-center text-[10px]">当前周期无工单资产流转</div>`;
                 statusLegend.innerHTML = `<div class="col-span-2 text-zinc-500 italic text-xs">暂无生命周期分布占比</div>`;
             } else {
-                const pctPending = ((snap.statusCounts.pending_accept / absoluteTotal) * 100).toFixed(1);
-                const pctProc = ((snap.statusCounts.processing / absoluteTotal) * 100).toFixed(1);
-                const pctAppr = ((snap.statusCounts.pending_approval / absoluteTotal) * 100).toFixed(1);
-                const pctReview = ((snap.statusCounts.reviewing / absoluteTotal) * 100).toFixed(1);
-                const pctReject = ((snap.statusCounts.rejected / absoluteTotal) * 100).toFixed(1);
-                const pctComp = ((snap.statusCounts.completed / absoluteTotal) * 100).toFixed(1);
+                const pctPending = safePct(snap.statusCounts.pending_accept);
+                const pctProc = safePct(snap.statusCounts.processing);
+                const pctAppr = safePct(snap.statusCounts.pending_approval);
+                const pctReview = safePct(snap.statusCounts.reviewing);
+                const pctReject = safePct(snap.statusCounts.rejected);
+                const pctComp = safePct(snap.statusCounts.completed);
 
                 statusBar.innerHTML = `
                     <div class="bg-sky-500 h-full" style="width: ${pctPending}%"></div>
@@ -1621,11 +1876,11 @@
             md += `* **大盘工单流转总量**: \`${absoluteTotal} 单\` (流转中: \`${snap.ongoingTasks.length}单\` | 已结案: \`${snap.completedTasks.length}单\`)\n\n`;
             
             md += `#### 1️⃣ 核心生命周期积压水位明细:\n`;
-            md += `- 待响应接单: ${snap.statusCounts.pending_accept} 单 (占 ${((snap.statusCounts.pending_accept/absoluteTotal)*100).toFixed(1)}%)\n`;
-            md += `- 正在制作中: ${snap.statusCounts.processing} 单 (占 ${((snap.statusCounts.processing/absoluteTotal)*100).toFixed(1)}%)\n`;
-            md += `- 待总监审批: ${snap.statusCounts.pending_approval} 单 (占 ${((snap.statusCounts.pending_approval/absoluteTotal)*100).toFixed(1)}%)\n`;
-            md += `- 甲方验收中: ${snap.statusCounts.reviewing} 单 (占 ${((snap.statusCounts.reviewing/absoluteTotal)*100).toFixed(1)}%)\n`;
-            md += `- 被打回重修: ${snap.statusCounts.rejected} 单 (占 ${((snap.statusCounts.rejected/absoluteTotal)*100).toFixed(1)}%)\n`;
+            md += `- 待响应接单: ${snap.statusCounts.pending_accept} 单 (占 ${safePct(snap.statusCounts.pending_accept)}%)\n`;
+            md += `- 正在制作中: ${snap.statusCounts.processing} 单 (占 ${safePct(snap.statusCounts.processing)}%)\n`;
+            md += `- 待总监审批: ${snap.statusCounts.pending_approval} 单 (占 ${safePct(snap.statusCounts.pending_approval)}%)\n`;
+            md += `- 甲方验收中: ${snap.statusCounts.reviewing} 单 (占 ${safePct(snap.statusCounts.reviewing)}%)\n`;
+            md += `- 被打回重修: ${snap.statusCounts.rejected} 单 (占 ${safePct(snap.statusCounts.rejected)}%)\n`;
             
             md += `\n#### 2️⃣ 常驻人员执行压强与出勤时长全景统筹:\n`;
             sortedDesigners.forEach((d, i) => {
@@ -1646,16 +1901,17 @@
 
             const absoluteTotal = snap.totalAbsoluteCount;
             const rangeText = document.getElementById('current-date-text').innerText;
+            const safePct = (val) => absoluteTotal > 0 ? ((val / absoluteTotal) * 100).toFixed(1) : '0.0';
             let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
             
             csvContent += "数据层级分类,目标审计分类项,当前累计单量/锁定工时,大盘单量占比百分比\n";
             csvContent += `全局统筹快照,大盘工单绝对总量,${absoluteTotal} 单,周期: ${rangeText}\n`;
-            csvContent += `生命周期拓扑,待响应接单,${snap.statusCounts.pending_accept} 单,占总单量 ${((snap.statusCounts.pending_accept/absoluteTotal)*100).toFixed(1)}%\n`;
-            csvContent += `生命周期拓扑,正在制作中,${snap.statusCounts.processing} 单,占总单量 ${((snap.statusCounts.processing/absoluteTotal)*100).toFixed(1)}%\n`;
-            csvContent += `生命周期拓扑,待总监把关审批,${snap.statusCounts.pending_approval} 单,占总单量 ${((snap.statusCounts.pending_approval/absoluteTotal)*100).toFixed(1)}%\n`;
-            csvContent += `生命周期拓扑,甲方验收中,${snap.statusCounts.reviewing} 单,占总单量 ${((snap.statusCounts.reviewing/absoluteTotal)*100).toFixed(1)}%\n`;
-            csvContent += `生命周期拓扑,打回修改重修,${snap.statusCounts.rejected} 单,占总单量 ${((snap.statusCounts.rejected/absoluteTotal)*100).toFixed(1)}%\n`;
-            csvContent += `生命周期拓扑,已验收完结归档,${snap.statusCounts.completed} 单,占总单量 ${((snap.statusCounts.completed/absoluteTotal)*100).toFixed(1)}%\n`;
+            csvContent += `生命周期拓扑,待响应接单,${snap.statusCounts.pending_accept} 单,占总单量 ${safePct(snap.statusCounts.pending_accept)}%\n`;
+            csvContent += `生命周期拓扑,正在制作中,${snap.statusCounts.processing} 单,占总单量 ${safePct(snap.statusCounts.processing)}%\n`;
+            csvContent += `生命周期拓扑,待总监把关审批,${snap.statusCounts.pending_approval} 单,占总单量 ${safePct(snap.statusCounts.pending_approval)}%\n`;
+            csvContent += `生命周期拓扑,甲方验收中,${snap.statusCounts.reviewing} 单,占总单量 ${safePct(snap.statusCounts.reviewing)}%\n`;
+            csvContent += `生命周期拓扑,打回修改重修,${snap.statusCounts.rejected} 单,占总单量 ${safePct(snap.statusCounts.rejected)}%\n`;
+            csvContent += `生命周期拓扑,已验收完结归档,${snap.statusCounts.completed} 单,占总单量 ${safePct(snap.statusCounts.completed)}%\n`;
 
             // 人员全量明细覆盖写入
             Object.values(snap.peopleMap).sort((a,b) => b.count - a.count || b.hours - a.hours).forEach(d => {
@@ -1674,13 +1930,56 @@
 
         window.exportToPNGImage = function() {
             const captureZone = document.getElementById('export-capture-zone');
-            window.showToast("图片渲染中", "正在将全盘统筹卡片抓取转译为 PNG...", "info");
-            html2canvas(captureZone, { backgroundColor: '#121217', scale: 2, logging: false, useCORS: true }).then(canvas => {
+            const modal = document.getElementById('export-modal');
+            if (!captureZone) return;
+
+            window.showToast("图片渲染中", "正在生成完整长图，不只截取当前可视区域...", "info");
+
+            const clone = captureZone.cloneNode(true);
+            clone.id = 'export-capture-zone-clone-full';
+            clone.classList.add('export-capturing-full');
+            clone.style.position = 'fixed';
+            clone.style.left = '-99999px';
+            clone.style.top = '0';
+            clone.style.width = captureZone.offsetWidth + 'px';
+            clone.style.maxHeight = 'none';
+            clone.style.height = 'auto';
+            clone.style.overflow = 'visible';
+            clone.style.background = document.body.classList.contains('theme-light') ? '#FFFFFF' : '#121217';
+            clone.style.padding = window.getComputedStyle(captureZone).padding;
+            document.body.appendChild(clone);
+
+            const oldMax = captureZone.style.maxHeight;
+            const oldOverflow = captureZone.style.overflowY;
+            captureZone.classList.add('export-capturing-full');
+            if (modal) modal.classList.add('export-capturing-full');
+
+            html2canvas(clone, {
+                backgroundColor: document.body.classList.contains('theme-light') ? '#FFFFFF' : '#121217',
+                scale: 2,
+                logging: false,
+                useCORS: true,
+                windowWidth: clone.scrollWidth,
+                windowHeight: clone.scrollHeight,
+                height: clone.scrollHeight
+            }).then(canvas => {
                 const imgData = canvas.toDataURL('image/png');
                 const link = document.createElement('a');
-                link.download = `TIG_全局就绪统筹快照_${document.getElementById('current-date-text').innerText}.png`;
-                link.href = imgData; document.body.appendChild(link); link.click(); document.body.removeChild(link);
-                window.showToast("PNG 下载成功", "可视统筹简报高清快照已下载", "success");
+                link.download = `TIG_全局就绪统筹完整长图_${document.getElementById('current-date-text').innerText}.png`;
+                link.href = imgData;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.showToast("PNG 下载成功", "完整长图报告已下载", "success");
+            }).catch(err => {
+                console.error(err);
+                window.showToast("PNG 生成失败", "请稍后重试或先导出表格", "error");
+            }).finally(() => {
+                clone.remove();
+                captureZone.classList.remove('export-capturing-full');
+                if (modal) modal.classList.remove('export-capturing-full');
+                captureZone.style.maxHeight = oldMax;
+                captureZone.style.overflowY = oldOverflow;
             });
         }
 
