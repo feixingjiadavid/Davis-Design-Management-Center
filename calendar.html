@@ -19,119 +19,140 @@
         html.theme-light-preload { background: #F4F5F7 !important; color: #1D1D1F !important; }
         html.theme-light-preload body { background: #F4F5F7 !important; color: #1D1D1F !important; }
 
-        /* ================= 日历需求状态区分：未完结必须比已完结更突出 ================= */
-        .event-pill {
+        /* ================= 最终修正：日历卡片按状态强区分 ================= */
+        .calendar-status-open,
+        .calendar-status-processing,
+        .calendar-status-pending,
+        .calendar-status-pending_accept,
+        .calendar-status-pending_approval,
+        .calendar-status-reviewing,
+        .calendar-status-rejected {
             position: relative;
-            overflow: hidden;
-            border-radius: 10px;
-            font-weight: 800;
-        }
-        .event-pill.status-open,
-        .event-pill.status-processing,
-        .event-pill.status-pending,
-        .event-pill.status-pending-accept,
-        .event-pill.status-pending-approval,
-        .event-pill.status-reviewing,
-        .event-pill.status-rejected {
-            border-width: 1px !important;
+            opacity: 1 !important;
+            border-width: 1.5px !important;
             border-style: solid !important;
-            box-shadow: 0 8px 18px -14px currentColor !important;
+            box-shadow: 0 10px 22px -16px currentColor !important;
         }
-        .event-pill.status-open::before,
-        .event-pill.status-processing::before,
-        .event-pill.status-pending::before,
-        .event-pill.status-pending-accept::before,
-        .event-pill.status-pending-approval::before,
-        .event-pill.status-reviewing::before,
-        .event-pill.status-rejected::before {
+        .calendar-status-open::before,
+        .calendar-status-processing::before,
+        .calendar-status-pending::before,
+        .calendar-status-pending_accept::before,
+        .calendar-status-pending_approval::before,
+        .calendar-status-reviewing::before,
+        .calendar-status-rejected::before {
             content: "";
             position: absolute;
             left: 0;
             top: 0;
             bottom: 0;
-            width: 3px;
-            border-radius: 10px 0 0 10px;
+            width: 4px;
+            border-radius: 12px 0 0 12px;
             background: currentColor;
-            opacity: .95;
         }
 
-        .event-pill.status-completed,
-        .event-pill.status-archived,
-        .event-pill.status-terminated {
-            opacity: .55;
-            font-weight: 600;
+        .calendar-status-processing { background: rgba(249,115,22,.14) !important; border-color: rgba(249,115,22,.50) !important; color: #fb923c !important; }
+        .calendar-status-pending_approval { background: rgba(245,158,11,.14) !important; border-color: rgba(245,158,11,.52) !important; color: #fbbf24 !important; }
+        .calendar-status-reviewing { background: rgba(16,185,129,.14) !important; border-color: rgba(16,185,129,.52) !important; color: #34d399 !important; }
+        .calendar-status-rejected { background: rgba(244,63,94,.16) !important; border-color: rgba(244,63,94,.58) !important; color: #fb7185 !important; }
+        .calendar-status-pending_accept,
+        .calendar-status-pending { background: rgba(14,165,233,.14) !important; border-color: rgba(14,165,233,.52) !important; color: #38bdf8 !important; }
+        .calendar-status-open { background: rgba(99,102,241,.14) !important; border-color: rgba(99,102,241,.52) !important; color: #818cf8 !important; }
+
+        .calendar-status-completed,
+        .calendar-status-archived,
+        .calendar-status-terminated {
+            background: rgba(113,113,122,.07) !important;
+            border-color: rgba(113,113,122,.20) !important;
             border-style: dashed !important;
+            color: #71717a !important;
             box-shadow: none !important;
+            opacity: .48 !important;
             filter: grayscale(.25);
         }
 
-        .event-pill.status-processing { background: rgba(249,115,22,.14) !important; color: #fb923c !important; border-color: rgba(249,115,22,.46) !important; }
-        .event-pill.status-pending-approval { background: rgba(245,158,11,.14) !important; color: #f59e0b !important; border-color: rgba(245,158,11,.46) !important; }
-        .event-pill.status-reviewing { background: rgba(16,185,129,.14) !important; color: #34d399 !important; border-color: rgba(16,185,129,.46) !important; }
-        .event-pill.status-rejected { background: rgba(244,63,94,.15) !important; color: #fb7185 !important; border-color: rgba(244,63,94,.50) !important; }
-        .event-pill.status-pending-accept,
-        .event-pill.status-pending { background: rgba(14,165,233,.14) !important; color: #38bdf8 !important; border-color: rgba(14,165,233,.46) !important; }
-        .event-pill.status-open { background: rgba(99,102,241,.14) !important; color: #818cf8 !important; border-color: rgba(99,102,241,.46) !important; }
-        .event-pill.status-completed,
-        .event-pill.status-archived { background: rgba(113,113,122,.08) !important; color: #71717a !important; border-color: rgba(113,113,122,.20) !important; }
-        .event-pill.status-terminated { background: rgba(113,113,122,.08) !important; color: #71717a !important; border-color: rgba(113,113,122,.20) !important; }
-
-        body.theme-light .calendar-events .event-pill.status-processing {
+        body.theme-light .calendar-events .calendar-status-processing,
+        body.theme-light .week-card.calendar-status-processing,
+        body.theme-light #period-modal-list .calendar-status-processing {
             background: #fff7ed !important;
-            color: #c2410c !important;
             border-color: #fdba74 !important;
-            box-shadow: 0 8px 18px rgba(249,115,22,.10) !important;
+            color: #c2410c !important;
+            box-shadow: 0 10px 22px rgba(249,115,22,.12) !important;
         }
-        body.theme-light .calendar-events .event-pill.status-pending-approval {
+        body.theme-light .calendar-events .calendar-status-pending_approval,
+        body.theme-light .week-card.calendar-status-pending_approval,
+        body.theme-light #period-modal-list .calendar-status-pending_approval {
             background: #fffbeb !important;
-            color: #b45309 !important;
             border-color: #fcd34d !important;
-            box-shadow: 0 8px 18px rgba(245,158,11,.10) !important;
+            color: #b45309 !important;
+            box-shadow: 0 10px 22px rgba(245,158,11,.12) !important;
         }
-        body.theme-light .calendar-events .event-pill.status-reviewing {
+        body.theme-light .calendar-events .calendar-status-reviewing,
+        body.theme-light .week-card.calendar-status-reviewing,
+        body.theme-light #period-modal-list .calendar-status-reviewing {
             background: #ecfdf5 !important;
-            color: #047857 !important;
             border-color: #6ee7b7 !important;
-            box-shadow: 0 8px 18px rgba(16,185,129,.10) !important;
+            color: #047857 !important;
+            box-shadow: 0 10px 22px rgba(16,185,129,.12) !important;
         }
-        body.theme-light .calendar-events .event-pill.status-rejected {
+        body.theme-light .calendar-events .calendar-status-rejected,
+        body.theme-light .week-card.calendar-status-rejected,
+        body.theme-light #period-modal-list .calendar-status-rejected {
             background: #fff1f2 !important;
-            color: #be123c !important;
             border-color: #fda4af !important;
-            box-shadow: 0 8px 18px rgba(225,29,72,.10) !important;
+            color: #be123c !important;
+            box-shadow: 0 10px 22px rgba(225,29,72,.12) !important;
         }
-        body.theme-light .calendar-events .event-pill.status-pending-accept,
-        body.theme-light .calendar-events .event-pill.status-pending {
+        body.theme-light .calendar-events .calendar-status-pending_accept,
+        body.theme-light .calendar-events .calendar-status-pending,
+        body.theme-light .week-card.calendar-status-pending_accept,
+        body.theme-light .week-card.calendar-status-pending,
+        body.theme-light #period-modal-list .calendar-status-pending_accept,
+        body.theme-light #period-modal-list .calendar-status-pending {
             background: #e0f2fe !important;
-            color: #0369a1 !important;
             border-color: #7dd3fc !important;
-            box-shadow: 0 8px 18px rgba(14,165,233,.10) !important;
+            color: #0369a1 !important;
+            box-shadow: 0 10px 22px rgba(14,165,233,.12) !important;
         }
-        body.theme-light .calendar-events .event-pill.status-open {
+        body.theme-light .calendar-events .calendar-status-open,
+        body.theme-light .week-card.calendar-status-open,
+        body.theme-light #period-modal-list .calendar-status-open {
             background: #eef2ff !important;
-            color: #4338ca !important;
             border-color: #c7d2fe !important;
-            box-shadow: 0 8px 18px rgba(79,70,229,.10) !important;
+            color: #4338ca !important;
+            box-shadow: 0 10px 22px rgba(79,70,229,.12) !important;
         }
-        body.theme-light .calendar-events .event-pill.status-completed,
-        body.theme-light .calendar-events .event-pill.status-archived,
-        body.theme-light .calendar-events .event-pill.status-terminated {
+        body.theme-light .calendar-events .calendar-status-completed,
+        body.theme-light .calendar-events .calendar-status-archived,
+        body.theme-light .calendar-events .calendar-status-terminated,
+        body.theme-light .week-card.calendar-status-completed,
+        body.theme-light .week-card.calendar-status-archived,
+        body.theme-light .week-card.calendar-status-terminated,
+        body.theme-light #period-modal-list .calendar-status-completed,
+        body.theme-light #period-modal-list .calendar-status-archived,
+        body.theme-light #period-modal-list .calendar-status-terminated {
             background: #f8fafc !important;
-            color: #94a3b8 !important;
             border-color: #e2e8f0 !important;
+            color: #94a3b8 !important;
             box-shadow: none !important;
-            opacity: .58 !important;
+            opacity: .52 !important;
+            filter: grayscale(.25);
         }
-        body.theme-light .calendar-events .event-pill.status-completed::before,
-        body.theme-light .calendar-events .event-pill.status-archived::before,
-        body.theme-light .calendar-events .event-pill.status-terminated::before {
-            display: none !important;
+
+        body.theme-light .calendar-status-processing .text-white,
+        body.theme-light .calendar-status-pending_approval .text-white,
+        body.theme-light .calendar-status-reviewing .text-white,
+        body.theme-light .calendar-status-rejected .text-white,
+        body.theme-light .calendar-status-pending_accept .text-white,
+        body.theme-light .calendar-status-pending .text-white,
+        body.theme-light .calendar-status-open .text-white {
+            color: #111827 !important;
+            font-weight: 900 !important;
         }
-        body.theme-light .calendar-events .event-pill.status-completed:hover,
-        body.theme-light .calendar-events .event-pill.status-archived:hover,
-        body.theme-light .calendar-events .event-pill.status-terminated:hover {
-            background: #f1f5f9 !important;
-            border-color: #cbd5e1 !important;
+        body.theme-light .calendar-status-completed .text-white,
+        body.theme-light .calendar-status-archived .text-white,
+        body.theme-light .calendar-status-terminated .text-white {
+            color: #64748b !important;
+            font-weight: 700 !important;
         }
 
     </style>
@@ -992,7 +1013,10 @@
             const textStyle = isFinished ? 'text-zinc-500' : `text-${sColor}-400`;
             const tagClass = `text-${sColor}-400 bg-${sColor}-500/10 border border-${sColor}-500/20`;
 
-            return { sColor, sText, iconHtml, borderStyle, textStyle, tagClass, isFinished };
+            
+            const statusKey = (task.status || 'open').replace(/[^a-zA-Z0-9_]/g, '');
+            const calendarStatusClass = `calendar-status-${statusKey || 'open'}`;
+            return { sColor, sText, iconHtml, borderStyle, textStyle, tagClass, isFinished, calendarStatusClass };
         }
 
         // ================= 💡 全局悬浮气泡引擎 (Hover Detail) =================
@@ -1309,7 +1333,7 @@
                 let pillsHtml = tasks.map(t => {
                     const st = parseTaskStatus(t);
                     return `
-                    <div onmouseenter="showHoverCard(event, '${t.id}')" onmouseleave="hideHoverCard()" onclick="event.stopPropagation(); window.location.href='task-detail-requester.html?id=${t.id}'" class="p-2 rounded-lg border border-white/5 bg-[#16161d] transition-all shadow-sm event-pill ${st.isFinished ? 'opacity-50' : ''}">
+                    <div onmouseenter="showHoverCard(event, '${t.id}')" onmouseleave="hideHoverCard()" onclick="event.stopPropagation(); window.location.href='task-detail-requester.html?id=${t.id}'" class="p-2 rounded-lg border border-white/5 bg-[#16161d] transition-all shadow-sm event-pill ${st.calendarStatusClass}">
                         <div class="text-[11px] font-bold text-white mb-0.5 truncate">${t.title}</div>
                         <div class="text-[10px] ${st.textStyle} flex items-center gap-1 truncate">${st.iconHtml} ${st.sText}</div>
                     </div>`;
@@ -1370,7 +1394,7 @@
                 let cardsHtml = tasks.map(t => {
                     const st = parseTaskStatus(t);
                     return `
-                    <div onmouseenter="showHoverCard(event, '${t.id}')" onmouseleave="hideHoverCard()" onclick="event.stopPropagation(); window.location.href='task-detail-requester.html?id=${t.id}'" class="p-3 rounded-xl week-card border-l-2 ${st.borderStyle} bg-[#1a1a24] ${st.isFinished?'opacity-50':''}">
+                    <div onmouseenter="showHoverCard(event, '${t.id}')" onmouseleave="hideHoverCard()" onclick="event.stopPropagation(); window.location.href='task-detail-requester.html?id=${t.id}'" class="p-3 rounded-xl week-card border-l-2 ${st.borderStyle} bg-[#1a1a24] ${st.calendarStatusClass}">
                         <div class="flex justify-between items-start mb-2">
                             <span class="text-[9px] ${st.tagClass} px-1.5 py-0.5 rounded font-mono inline-block">${t.id}</span>
                             <span class="text-[10px] ${st.textStyle}">${st.iconHtml} ${st.sText}</span>
@@ -1486,7 +1510,7 @@
                     const assignee = t.assignee === 'none' ? '待定' : t.assignee;
                     const creator = t.creator || '未知';
                     list.innerHTML += `
-                        <div onclick="window.location.href='task-detail-requester.html?id=${t.id}'" class="bg-[#1a1a24] border border-white/5 p-4 rounded-2xl hover:border-indigo-500/50 cursor-pointer transition-colors group btn-press ${st.isFinished ? 'opacity-50' : ''}">
+                        <div onclick="window.location.href='task-detail-requester.html?id=${t.id}'" class="bg-[#1a1a24] border border-white/5 p-4 rounded-2xl hover:border-indigo-500/50 cursor-pointer transition-colors group btn-press ${st.calendarStatusClass}">
                             <div class="flex justify-between items-center mb-3">
                                 <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded ${st.tagClass}">${t.id}</span>
                                 <span class="text-[11px] ${st.textStyle} font-bold">${st.iconHtml} ${st.sText}</span>
