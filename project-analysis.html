@@ -234,6 +234,85 @@
         html.theme-light .keep-white,
         html.theme-light .keep-white * { color: #FFFFFF !important; }
 
+
+        /* ================= 本轮修复：项目投入分析页交互/可读性/导出完整性 ================= */
+        #project-search[contenteditable="true"]:empty::before {
+            content: attr(data-placeholder);
+            color: #71717a;
+            pointer-events: none;
+        }
+        html.theme-light #project-search[contenteditable="true"]:empty::before { color: #94a3b8; }
+
+        .metric-drilldown-card,
+        .person-drilldown-card {
+            cursor: pointer !important;
+        }
+        .metric-drilldown-card:hover,
+        .person-drilldown-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(99,102,241,.26) !important;
+            box-shadow: 0 22px 44px -28px rgba(99,102,241,.45) !important;
+        }
+
+        /* 彩色头像上必须白字，避免浅色模式全局 text-zinc 覆盖 */
+        .person-avatar,
+        html.theme-light .person-avatar,
+        #sidebar-avatar,
+        html.theme-light #sidebar-avatar {
+            color: #FFFFFF !important;
+            -webkit-text-fill-color: #FFFFFF !important;
+            font-weight: 900 !important;
+        }
+
+        #analysis-detail-overlay { z-index: 1000002 !important; }
+        html.theme-light #analysis-detail-modal {
+            background: #FFFFFF !important;
+            color: #172033 !important;
+            border-color: rgba(15,23,42,.10) !important;
+            box-shadow: 0 28px 86px -28px rgba(15,23,42,.32), 0 2px 10px rgba(15,23,42,.06) !important;
+        }
+        html.theme-light #analysis-detail-modal .bg-\[\#16161d\],
+        html.theme-light #analysis-detail-modal .bg-\[\#121217\],
+        html.theme-light #analysis-detail-modal .bg-\[\#18181b\] {
+            background: #F8FAFC !important;
+            border-color: #E2E8F0 !important;
+        }
+        html.theme-light #analysis-detail-title,
+        html.theme-light #analysis-detail-modal h3,
+        html.theme-light #analysis-detail-modal .text-white {
+            color: #172033 !important;
+            -webkit-text-fill-color: #172033 !important;
+        }
+        .analysis-modal-close-btn,
+        html.theme-light .analysis-modal-close-btn {
+            background: #111827 !important;
+            color: #FFFFFF !important;
+            -webkit-text-fill-color: #FFFFFF !important;
+        }
+        .analysis-detail-row {
+            background: rgba(255,255,255,.02);
+            border: 1px solid rgba(255,255,255,.06);
+            border-radius: 16px;
+            padding: 16px;
+        }
+        html.theme-light .analysis-detail-row {
+            background: #FFFFFF;
+            border-color: #E5E7EB;
+            box-shadow: 0 10px 24px -18px rgba(15,23,42,.18);
+        }
+
+        /* 导出图片时展开全量内容，不截断 max-height */
+        body.is-exporting-analysis #export-modal,
+        body.is-exporting-analysis #export-capture-zone {
+            max-height: none !important;
+            height: auto !important;
+            overflow: visible !important;
+        }
+        body.is-exporting-analysis #export-modal .sticky,
+        body.is-exporting-analysis #export-modal [style*="position: sticky"] {
+            position: static !important;
+        }
+
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-fuchsia-500/30 text-zinc-300">
@@ -301,13 +380,13 @@
                     <span class="bg-fuchsia-500/20 text-fuchsia-400 text-[11px] px-2.5 py-0.5 rounded-lg border border-fuchsia-500/30">管理视角</span>
                     <div id="sync-indicator" class="hidden w-2 h-2 rounded-full bg-emerald-500 animate-pulse ml-2" title="云端连接中..."></div>
                 </h2>
-                <p class="text-[12px] text-zinc-500">基于客观填报数据，直观呈现每位成员的产能分布与项目的资源消耗情况。</p>
+                <p class="text-[12px] text-zinc-500">直观呈现每位成员的产能分布与项目工时消耗情况。</p>
             </div>
             
             <div class="flex items-center gap-6">
                 <button onclick="window.openExportAnalysisModal()" class="px-5 py-2 bg-gradient-to-r from-fuchsia-600 via-purple-600 to-indigo-600 hover:from-fuchsia-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-[0_4px_20px_rgba(217,70,239,0.25)] hover:shadow-[0_4px_25px_rgba(217,70,239,0.4)] transition-all btn-press text-[13px] flex items-center gap-2 border border-white/10">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-                    全盘总结分析导出
+                    数据导出
                 </button>
 
                 <button id="themeToggleBtn" onclick="window.togglePageTheme()" class="bg-[#141417] border border-white/10 text-zinc-300 rounded-[14px] flex items-center justify-center hover:bg-[#1a1a1f] transition-colors btn-press" title="切换浅色/深色页面">
@@ -371,25 +450,25 @@
             <div class="w-full max-w-[1400px] mx-auto flex flex-col gap-8 h-full">
                 
                 <div class="grid grid-cols-4 gap-6 shrink-0">
-                    <div class="bg-[#121217] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden group hover:border-indigo-500/30 transition-colors">
+                    <div id="metric-card-hours" data-metric-type="hours" onclick="window.openMetricDetailModal('hours')" class="metric-drilldown-card bg-[#121217] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden group hover:border-indigo-500/30 transition-colors">
                         <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-indigo-500"></div>
                         <p class="text-[12px] text-zinc-500 font-bold mb-2">当期投入总人力 (h)</p>
                         <p class="text-[40px] font-black text-white font-mono leading-none mb-1" id="metric-cur-hours">0.0</p>
                         <p class="text-[11px] text-zinc-500 mt-2" id="metric-trend-hours">对比前期: --</p>
                     </div>
-                    <div class="bg-[#121217] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden group hover:border-fuchsia-500/30 transition-colors">
+                    <div id="metric-card-people" data-metric-type="people" onclick="window.openMetricDetailModal('people')" class="metric-drilldown-card bg-[#121217] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden group hover:border-fuchsia-500/30 transition-colors">
                         <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-fuchsia-500"></div>
                         <p class="text-[12px] text-zinc-500 font-bold mb-2">当期有产出的总人数</p>
                         <p class="text-[40px] font-black text-white font-mono leading-none mb-1" id="metric-cur-people">0</p>
                         <p class="text-[11px] text-zinc-500 mt-2" id="metric-trend-people">对比前期: --</p>
                     </div>
-                    <div class="bg-[#121217] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden group hover:border-emerald-500/30 transition-colors">
+                    <div id="metric-card-projects" data-metric-type="projects" onclick="window.openMetricDetailModal('projects')" class="metric-drilldown-card bg-[#121217] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden group hover:border-emerald-500/30 transition-colors">
                         <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-emerald-500"></div>
                         <p class="text-[12px] text-zinc-500 font-bold mb-2">当期活跃/流转项目数</p>
                         <p class="text-[40px] font-black text-white font-mono leading-none mb-1" id="metric-cur-projects">0</p>
                         <p class="text-[11px] text-zinc-500 mt-2" id="metric-trend-projects">对比前期: --</p>
                     </div>
-                    <div class="bg-[#121217] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden group hover:border-amber-500/30 transition-colors">
+                    <div id="metric-card-ai" data-metric-type="ai" onclick="window.openMetricDetailModal('ai')" class="metric-drilldown-card bg-[#121217] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden group hover:border-amber-500/30 transition-colors">
                         <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-amber-500"></div>
                         <p class="text-[12px] text-zinc-500 font-bold mb-2">当期 AI 工具介入频次</p>
                         <p class="text-[40px] font-black text-amber-400 font-mono leading-none mb-1" id="metric-cur-ai">0</p>
@@ -412,7 +491,7 @@
                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-zinc-500 shrink-0"><polyline points="6 9 12 15 18 9"></polyline></svg>
                                 </button>
                                 <div id="project-dropdown" class="hidden absolute top-full right-0 mt-2 w-64 bg-[#1a1a24] border border-white/10 rounded-2xl shadow-2xl py-2 z-50 dropdown-enter max-h-[300px] overflow-y-auto custom-scrollbar">
-                                    <div class="px-4 py-2 border-b border-white/5 mb-1"><input type="text" id="project-search" oninput="filterProjectList()" class="w-full bg-[#09090b] border border-white/10 rounded-lg px-3 py-1.5 text-[12px] text-white outline-none focus:border-fuchsia-500" placeholder="检索项目..."></div>
+                                    <div class="px-4 py-2 border-b border-white/5 mb-1"><div id="project-search" role="searchbox" contenteditable="true" data-placeholder="检索项目..." spellcheck="false" oninput="filterProjectList()" onkeydown="if(event.key==='Enter'){event.preventDefault();}" class="w-full bg-[#09090b] border border-white/10 rounded-lg px-3 py-1.5 text-[12px] text-white outline-none focus:border-fuchsia-500 min-h-[32px] whitespace-nowrap overflow-hidden"></div></div>
                                     <div id="project-dropdown-list"></div>
                                 </div>
                             </div>
@@ -597,6 +676,29 @@
         </div>
     </div>
 
+
+    <div id="analysis-detail-overlay" class="fixed inset-0 bg-black/75 backdrop-blur-md z-[100000] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-6" onclick="if(event.target===this) window.closeAnalysisDetailModal()">
+        <div id="analysis-detail-modal" class="w-full max-w-4xl bg-[#121217] border border-white/10 rounded-3xl shadow-2xl scale-95 transition-transform duration-300 overflow-hidden">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-fuchsia-500 via-indigo-500 to-emerald-500"></div>
+            <div class="p-6 border-b border-white/5 flex justify-between items-start gap-6">
+                <div>
+                    <div id="analysis-detail-pill" class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-fuchsia-500/10 text-fuchsia-400 border border-fuchsia-500/20 text-[11px] font-black mb-3">
+                        <span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500"></span> 明细穿透
+                    </div>
+                    <h2 id="analysis-detail-title" class="text-[22px] font-black text-white">数据明细</h2>
+                    <p id="analysis-detail-desc" class="text-[13px] text-zinc-400 mt-2 leading-relaxed">当前周期数据穿透展示。</p>
+                </div>
+                <button onclick="window.closeAnalysisDetailModal()" class="analysis-modal-close-btn w-10 h-10 rounded-full bg-zinc-800 hover:bg-zinc-700 text-white flex items-center justify-center btn-press shrink-0">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div id="analysis-detail-body" class="p-6 max-h-[62vh] overflow-y-auto custom-scrollbar space-y-4"></div>
+            <div class="p-5 border-t border-white/5 bg-[#16161d] flex justify-end">
+                <button onclick="window.closeAnalysisDetailModal()" class="analysis-modal-close-btn px-6 py-3 rounded-xl bg-zinc-900 hover:bg-black text-white font-bold text-[13px] btn-press">关闭</button>
+            </div>
+        </div>
+    </div>
+
     <div id="action-toast" class="fixed top-8 right-8 z-[100000] hidden">
         <div class="bg-[#1a1a1f] border border-white/10 p-4 rounded-2xl shadow-2xl flex items-center gap-3 w-72">
             <div id="toast-icon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400">
@@ -745,6 +847,8 @@
         window.toggleDropdown = function(id) {
             const dropdown = document.getElementById(id);
             if (id === 'project-dropdown') {
+                const ps = document.getElementById('project-search');
+                if (ps) { ps.textContent = ''; ps.innerHTML = ''; if ('value' in ps) ps.value = ''; }
                 window.renderProjectList();
             } else if (id === 'date-dropdown') {
                 const year = currentDate.getFullYear();
@@ -800,9 +904,15 @@
             updateDataAndRender();
         }
 
-        window.filterProjectList = function() { window.renderProjectList(document.getElementById('project-search').value.toLowerCase()); }
+        window.filterProjectList = function() {
+            const el = document.getElementById('project-search');
+            const q = el ? ((el.value !== undefined ? el.value : el.textContent) || '').toLowerCase().trim() : '';
+            window.renderProjectList(q);
+        }
 
         window.renderProjectList = function(filterText = '') {
+            const searchEl = document.getElementById('project-search');
+            if (!filterText && searchEl) { searchEl.textContent = ''; searchEl.innerHTML = ''; if ('value' in searchEl) searchEl.value = ''; }
             const listEl = document.getElementById('project-dropdown-list');
             let filtered = allProjects.filter(p => p.toLowerCase().includes(filterText));
             let html = `<button onclick="selectProject('all')" class="w-full text-left px-5 py-2 text-[13px] ${currentSelectedProject==='all'?'text-fuchsia-400 bg-fuchsia-500/10 font-bold':'text-zinc-300 hover:bg-white/5'} transition-colors">全部项目大盘</button>`;
@@ -1093,6 +1203,7 @@
             }
 
             const currentData = extractDataForPeriod(currentDate, currentView);
+            window.analysisCurrentData = currentData;
             
             let prev1Data;
             if (currentView === 'month') {
@@ -1199,7 +1310,7 @@
                     }
 
                     pHtml += `
-                    <div class="${bgClass} border rounded-2xl p-4 relative overflow-hidden group transition-all mb-4">
+                    <div class="person-drilldown-card ${bgClass} border rounded-2xl p-4 relative overflow-hidden group transition-all mb-4" data-person="${p.en}" onclick="window.openPersonDetailModal && window.openPersonDetailModal(this.dataset.person)">
                         ${!isEmpty ? '<div class="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500/50 group-hover:w-1.5 transition-all"></div>' : ''}
                         <div class="flex justify-between items-start mb-2 pl-2">
                             <div class="flex items-center gap-3">
@@ -1230,6 +1341,183 @@
                 pplContainer.innerHTML = pHtml;
             }
         }
+
+
+        // ================= 指标/人员明细弹窗 =================
+        function getCurrentPeriodLabel() {
+            const el = document.getElementById('current-date-text');
+            return el ? el.innerText : '';
+        }
+
+        function getAnalysisData() {
+            const data = extractDataForPeriod(currentDate, currentView);
+            window.analysisCurrentData = data;
+            return data;
+        }
+
+        function renderDetailRows(rows, emptyText = '暂无数据') {
+            if (!rows || rows.length === 0) {
+                return `<div class="analysis-detail-row text-center text-zinc-500 text-sm py-10">${emptyText}</div>`;
+            }
+            return rows.join('');
+        }
+
+        function openAnalysisModalBase(pill, title, desc, bodyHtml) {
+            document.getElementById('analysis-detail-pill').innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-fuchsia-500"></span>${pill}`;
+            document.getElementById('analysis-detail-title').innerText = title;
+            document.getElementById('analysis-detail-desc').innerText = desc;
+            document.getElementById('analysis-detail-body').innerHTML = bodyHtml;
+            const overlay = document.getElementById('analysis-detail-overlay');
+            const modal = document.getElementById('analysis-detail-modal');
+            overlay.classList.remove('hidden');
+            setTimeout(() => { overlay.classList.remove('opacity-0'); modal.classList.remove('scale-95'); }, 10);
+        }
+
+        window.closeAnalysisDetailModal = function() {
+            const overlay = document.getElementById('analysis-detail-overlay');
+            const modal = document.getElementById('analysis-detail-modal');
+            if (!overlay || !modal) return;
+            overlay.classList.add('opacity-0');
+            modal.classList.add('scale-95');
+            setTimeout(() => overlay.classList.add('hidden'), 260);
+        };
+
+        window.openMetricDetailModal = function(type) {
+            const data = getAnalysisData();
+            const people = Object.values(data.peopleMap || {});
+            const period = getCurrentPeriodLabel();
+
+            if (type === 'hours') {
+                const active = people.filter(p => p.hours > 0).sort((a,b) => b.hours - a.hours);
+                const rows = active.map(p => `
+                    <div class="analysis-detail-row">
+                        <div class="flex justify-between items-start gap-4 mb-3">
+                            <div>
+                                <h3 class="text-white font-black text-[15px]">${p.display} <span class="text-zinc-500 text-[11px] font-mono">${p.en}</span></h3>
+                                <p class="text-zinc-500 text-[12px] mt-1">承接 ${p.uniqueTasksSet.size} 个独立工单</p>
+                            </div>
+                            <div class="text-right text-indigo-400 font-mono font-black text-[18px]">${p.hours.toFixed(1)} h</div>
+                        </div>
+                        <div class="text-[12px] text-zinc-400 leading-relaxed">${getPersonProjectHourLines(p).join('；') || '暂无项目工时明细'}</div>
+                    </div>`);
+                openAnalysisModalBase('投入总人力', `当期投入总人力明细（${data.totalHours.toFixed(1)}h）`, `${period} 内所有人员产生的有效工时明细。`, renderDetailRows(rows, '当前周期暂无工时'));
+                return;
+            }
+
+            if (type === 'people') {
+                const active = people.filter(p => p.hours > 0 || p.uniqueTasksSet.size > 0).sort((a,b) => b.hours - a.hours);
+                const rows = active.map(p => `
+                    <div class="analysis-detail-row cursor-pointer hover:border-indigo-500/30" onclick="window.openPersonDetailModal('${p.en}')">
+                        <div class="flex justify-between items-center">
+                            <div class="flex items-center gap-3">
+                                <div class="person-avatar w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-500 flex items-center justify-center text-white font-black text-[12px]">${p.display.substring(0,2).toUpperCase()}</div>
+                                <div>
+                                    <h3 class="text-white font-black">${p.display}</h3>
+                                    <p class="text-zinc-500 text-[11px] font-mono">${p.en}</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-fuchsia-400 font-mono font-black">${p.hours.toFixed(1)} h</p>
+                                <p class="text-zinc-500 text-[11px]">${p.uniqueTasksSet.size} 单</p>
+                            </div>
+                        </div>
+                    </div>`);
+                openAnalysisModalBase('有产出人数', `当期有产出的总人数（${active.length}）`, `${period} 内有工时或承接动作的人员。点击人员可继续查看个人明细。`, renderDetailRows(rows, '当前周期暂无有产出人员'));
+                return;
+            }
+
+            if (type === 'projects') {
+                const projects = Object.keys(data.activeProjects || {}).map(k => ({ name: k, data: data.activeProjects[k] })).sort((a,b) => b.data.hours - a.data.hours);
+                const rows = projects.map(p => {
+                    const pct = data.totalHours > 0 ? ((p.data.hours / data.totalHours) * 100).toFixed(1) : '0.0';
+                    return `<div class="analysis-detail-row">
+                        <div class="flex justify-between items-start gap-4">
+                            <div>
+                                <h3 class="text-white font-black text-[15px]">${p.name}</h3>
+                                <p class="text-zinc-500 text-[12px] mt-1">涉及 ${p.data.count} 个独立需求</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-emerald-400 font-mono font-black text-[18px]">${p.data.hours.toFixed(1)} h</p>
+                                <p class="text-zinc-500 text-[11px]">占总工时 ${pct}%</p>
+                            </div>
+                        </div>
+                    </div>`;
+                });
+                openAnalysisModalBase('活跃项目', `当期活跃/流转项目数（${data.projectsCount}）`, `${period} 内有新增需求或产生工时的项目。`, renderDetailRows(rows, '当前周期暂无活跃项目'));
+                return;
+            }
+
+            if (type === 'ai') {
+                const tools = Object.keys(data.aiFreq || {}).map(k => ({ name: k, count: data.aiFreq[k] })).sort((a,b) => b.count - a.count);
+                const rows = tools.map(t => {
+                    const pct = data.aiCount > 0 ? ((t.count / data.aiCount) * 100).toFixed(1) : '0.0';
+                    return `<div class="analysis-detail-row">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-white font-black text-[15px]">${t.name}</h3>
+                            <div class="text-right">
+                                <p class="text-amber-400 font-mono font-black text-[18px]">${t.count} 次</p>
+                                <p class="text-zinc-500 text-[11px]">占比 ${pct}%</p>
+                            </div>
+                        </div>
+                    </div>`;
+                });
+                openAnalysisModalBase('AI 工具频次', `当期 AI 工具介入频次（${data.aiCount}）`, `${period} 内设计交付动作中记录到的 AI 工具使用频次。`, renderDetailRows(rows, '当前周期暂无 AI 工具介入记录'));
+            }
+        };
+
+        window.openPersonDetailModal = function(personKey) {
+            const data = getAnalysisData();
+            const p = (data.peopleMap || {})[personKey];
+            if (!p) return;
+
+            const taskRows = Object.values(p.taskDetails || {}).sort((a,b) => b.hours - a.hours).map(d => `
+                <div class="analysis-detail-row">
+                    <div class="flex justify-between items-start gap-4">
+                        <div class="min-w-0">
+                            <div class="text-[10px] font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded inline-flex mb-2">${d.id}</div>
+                            <h3 class="text-white font-black text-[15px] leading-snug">${d.title}</h3>
+                            <p class="text-zinc-500 text-[12px] mt-1">归属项目：${d.project || '未归属'}</p>
+                        </div>
+                        <div class="text-right text-fuchsia-400 font-mono font-black text-[18px] shrink-0">${d.hours.toFixed(1)} h</div>
+                    </div>
+                </div>`);
+
+            const projectRows = getPersonProjectHourLines(p).map(line => `<span class="inline-flex px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[12px] font-bold mr-2 mb-2">${line}</span>`).join('');
+
+            const aiRows = Object.keys(p.aiTools || {}).map(k => `<span class="inline-flex px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[12px] font-bold mr-2 mb-2">${k}：${p.aiTools[k]}次</span>`).join('');
+
+            const body = `
+                <div class="analysis-detail-row">
+                    <div class="flex items-center justify-between gap-4">
+                        <div class="flex items-center gap-4">
+                            <div class="person-avatar w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-500 flex items-center justify-center text-white font-black">${p.display.substring(0,2).toUpperCase()}</div>
+                            <div>
+                                <h3 class="text-white text-[18px] font-black">${p.display}</h3>
+                                <p class="text-zinc-500 text-[12px] font-mono">${p.en}</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-fuchsia-400 font-mono text-[24px] font-black">${p.hours.toFixed(1)} h</p>
+                            <p class="text-zinc-500 text-[12px]">${p.uniqueTasksSet.size} 个独立工单</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="analysis-detail-row">
+                    <h3 class="text-white font-black mb-3">项目工时汇总</h3>
+                    <div>${projectRows || '<span class="text-zinc-500 text-sm">暂无项目工时</span>'}</div>
+                </div>
+                <div class="analysis-detail-row">
+                    <h3 class="text-white font-black mb-3">AI 工具使用</h3>
+                    <div>${aiRows || '<span class="text-zinc-500 text-sm">纯手绘 / 未记录 AI 工具</span>'}</div>
+                </div>
+                <div>
+                    <h3 class="text-white font-black mb-3">需求投入明细</h3>
+                    <div class="space-y-3">${renderDetailRows(taskRows, '该人员当期没有需求明细')}</div>
+                </div>
+            `;
+            openAnalysisModalBase('个人工时穿透', `${p.display} 的当期人力数据`, `${getCurrentPeriodLabel()} 内该人员参与的项目、需求与工时拆分。`, body);
+        };
+
 
         window.openExportAnalysisModal = function() {
             const overlay = document.getElementById('export-modal-overlay');
@@ -1262,7 +1550,7 @@
                 creatorContainer.innerHTML = `<div class="col-span-2 text-xs text-zinc-500 italic py-2">暂无需求方提报数据</div>`;
             } else {
                 let html = '';
-                sortedCreators.slice(0, 6).forEach((c, idx) => {
+                sortedCreators.forEach((c, idx) => {
                     const pct = totalDemands > 0 ? ((c.count / totalDemands) * 100).toFixed(1) : 0;
                     const titleListStr = (c.taskTitles || []).join('；');
                     html += `
@@ -1609,16 +1897,95 @@
             window.showToast("导出表格成功", "已去掉货币符号；人员总工时和项目汇总仅保留在人员汇总行。", "success");
         }
 
-        window.exportToPNGImage = function() {
+        window.exportToPNGImage = async function() {
             const captureZone = document.getElementById('export-capture-zone');
-            window.showToast("正在生成", "高保真全屏报告截图渲染中...", "info");
-            html2canvas(captureZone, { backgroundColor: '#121217', scale: 2, logging: false, useCORS: true }).then(canvas => {
+            const modal = document.getElementById('export-modal');
+            const footer = modal ? modal.querySelector(':scope > div:last-child') : null;
+            if (!captureZone || !modal) return;
+
+            window.showToast("正在生成", "正在展开完整报告并生成长图...", "info");
+
+            const isLight = document.documentElement.classList.contains('theme-light');
+            const bg = isLight ? '#FFFFFF' : '#121217';
+
+            const old = {
+                modalMaxHeight: modal.style.maxHeight,
+                modalHeight: modal.style.height,
+                modalOverflow: modal.style.overflow,
+                captureMaxHeight: captureZone.style.maxHeight,
+                captureHeight: captureZone.style.height,
+                captureOverflow: captureZone.style.overflow,
+                footerDisplay: footer ? footer.style.display : ''
+            };
+
+            try {
+                document.body.classList.add('is-exporting-analysis');
+
+                modal.style.maxHeight = 'none';
+                modal.style.height = 'auto';
+                modal.style.overflow = 'visible';
+                captureZone.style.maxHeight = 'none';
+                captureZone.style.height = 'auto';
+                captureZone.style.overflow = 'visible';
+                if (footer) footer.style.display = 'none';
+
+                captureZone.querySelectorAll('.custom-scrollbar, .overflow-y-auto').forEach(el => {
+                    el.dataset.oldOverflow = el.style.overflow;
+                    el.dataset.oldMaxHeight = el.style.maxHeight;
+                    el.dataset.oldHeight = el.style.height;
+                    el.style.overflow = 'visible';
+                    el.style.maxHeight = 'none';
+                    el.style.height = 'auto';
+                });
+
+                await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                if (document.fonts && document.fonts.ready) {
+                    try { await document.fonts.ready; } catch(e) {}
+                }
+
+                const canvas = await html2canvas(captureZone, {
+                    backgroundColor: bg,
+                    scale: 2,
+                    logging: false,
+                    useCORS: true,
+                    allowTaint: true,
+                    scrollX: 0,
+                    scrollY: -window.scrollY,
+                    windowWidth: Math.max(captureZone.scrollWidth, captureZone.offsetWidth),
+                    windowHeight: Math.max(captureZone.scrollHeight, captureZone.offsetHeight),
+                    width: captureZone.scrollWidth,
+                    height: captureZone.scrollHeight
+                });
+
                 const imgData = canvas.toDataURL('image/png');
                 const link = document.createElement('a');
-                link.download = `TIG_多维双轨效能简报_${document.getElementById('report-period-text').innerText}.png`;
-                link.href = imgData; document.body.appendChild(link); link.click(); document.body.removeChild(link);
-                window.showToast("卡片下载成功", "高保真图片简报已下载", "success");
-            });
+                link.download = `TIG_多维双轨效能完整长图_${document.getElementById('report-period-text').innerText}.png`;
+                link.href = imgData;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.showToast("卡片下载成功", "完整长图已下载", "success");
+            } catch(err) {
+                console.error(err);
+                window.showToast("图片生成失败", "请稍后重试或先导出表格", "error");
+            } finally {
+                modal.style.maxHeight = old.modalMaxHeight;
+                modal.style.height = old.modalHeight;
+                modal.style.overflow = old.modalOverflow;
+                captureZone.style.maxHeight = old.captureMaxHeight;
+                captureZone.style.height = old.captureHeight;
+                captureZone.style.overflow = old.captureOverflow;
+                if (footer) footer.style.display = old.footerDisplay;
+                captureZone.querySelectorAll('.custom-scrollbar, .overflow-y-auto').forEach(el => {
+                    el.style.overflow = el.dataset.oldOverflow || '';
+                    el.style.maxHeight = el.dataset.oldMaxHeight || '';
+                    el.style.height = el.dataset.oldHeight || '';
+                    delete el.dataset.oldOverflow;
+                    delete el.dataset.oldMaxHeight;
+                    delete el.dataset.oldHeight;
+                });
+                document.body.classList.remove('is-exporting-analysis');
+            }
         }
 
         let lastNotifHash = '';
@@ -1735,6 +2102,26 @@
             localStorage.setItem('notif_read_admin_' + myName, JSON.stringify(readReceipts));
             window.syncNotificationsFromCloud(true); btn.innerHTML = originalText;
         }
+
+
+        // 项目下拉搜索框不记忆任何历史输入
+        function clearProjectSearchBox() {
+            const el = document.getElementById('project-search');
+            if (!el) return;
+            el.textContent = '';
+            el.innerHTML = '';
+            if ('value' in el) el.value = '';
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            clearProjectSearchBox();
+            setTimeout(clearProjectSearchBox, 80);
+            setTimeout(clearProjectSearchBox, 400);
+        });
+        window.addEventListener('pageshow', () => {
+            clearProjectSearchBox();
+            setTimeout(clearProjectSearchBox, 120);
+        });
+
 
         document.addEventListener('DOMContentLoaded', () => {
             document.addEventListener('click', (e) => { 
