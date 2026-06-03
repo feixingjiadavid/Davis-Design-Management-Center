@@ -1869,7 +1869,241 @@
                 td.group-cell { background:#f3e8ff; color:#581c87; font-weight:700; text-align:center; }
                 td.person-cell { background:#f8fafc; font-weight:700; }
                 .text { mso-number-format:'\\@'; }
-            </style></head><body><table><thead><tr>${headers.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>`;
+            
+
+        /* ================= 2026-06-03 最终修复：颜色对比 / 卡片设计感 / 导出长图稳定 ================= */
+        :root {
+            --tig-ink: #172033;
+            --tig-muted: #64748B;
+            --tig-border: rgba(15,23,42,.10);
+            --tig-panel: #FFFFFF;
+            --tig-soft: #F6F8FC;
+            --tig-dark: #0B1020;
+        }
+
+        /* 任何深色按钮、深色关闭按钮：强制白字白图标，彻底解决黑底黑字 */
+        #export-modal button[class*="bg-zinc-800"],
+        #export-modal button[class*="bg-zinc-900"],
+        #analysis-detail-modal button[class*="bg-zinc-800"],
+        #analysis-detail-modal button[class*="bg-zinc-900"],
+        .analysis-modal-close-btn,
+        html.theme-light #export-modal button[class*="bg-zinc-800"],
+        html.theme-light #export-modal button[class*="bg-zinc-900"],
+        html.theme-light #analysis-detail-modal button[class*="bg-zinc-800"],
+        html.theme-light #analysis-detail-modal button[class*="bg-zinc-900"],
+        html.theme-light .analysis-modal-close-btn {
+            background: #0F172A !important;
+            color: #FFFFFF !important;
+            -webkit-text-fill-color: #FFFFFF !important;
+            border-color: rgba(255,255,255,.16) !important;
+            box-shadow: 0 14px 30px -18px rgba(2,6,23,.75) !important;
+        }
+        #export-modal button[class*="bg-zinc-800"] svg,
+        #export-modal button[class*="bg-zinc-900"] svg,
+        #analysis-detail-modal button svg,
+        .analysis-modal-close-btn svg,
+        html.theme-light #export-modal button[class*="bg-zinc-800"] svg,
+        html.theme-light #analysis-detail-modal button svg,
+        html.theme-light .analysis-modal-close-btn svg {
+            color: #FFFFFF !important;
+            stroke: #FFFFFF !important;
+            opacity: 1 !important;
+        }
+        #export-modal button[class*="bg-zinc-800"]:hover,
+        #analysis-detail-modal button[class*="bg-zinc-800"]:hover,
+        .analysis-modal-close-btn:hover {
+            background: #1E293B !important;
+        }
+
+        /* 彩色头像必须白字，不能被浅色主题全局 text 规则覆盖 */
+        .person-avatar,
+        html.theme-light .person-avatar,
+        #sidebar-avatar,
+        html.theme-light #sidebar-avatar {
+            background: linear-gradient(135deg, #6366F1 0%, #A855F7 48%, #D946EF 100%) !important;
+            color: #FFFFFF !important;
+            -webkit-text-fill-color: #FFFFFF !important;
+            text-shadow: 0 1px 2px rgba(15,23,42,.24) !important;
+        }
+
+        /* 人员卡片：去掉一排白横条，改为有节奏的彩色信息卡 */
+        .person-drilldown-card {
+            border-radius: 22px !important;
+            border: 1px solid rgba(255,255,255,.08) !important;
+            background:
+                radial-gradient(circle at 8% 0%, rgba(99,102,241,.28), transparent 34%),
+                linear-gradient(135deg, rgba(24,24,27,.98), rgba(15,23,42,.96)) !important;
+            box-shadow: 0 18px 38px -28px rgba(0,0,0,.78), inset 0 1px 0 rgba(255,255,255,.04) !important;
+        }
+        .person-drilldown-card:nth-child(2n) {
+            background:
+                radial-gradient(circle at 8% 0%, rgba(16,185,129,.20), transparent 36%),
+                linear-gradient(135deg, rgba(15,23,42,.98), rgba(19,24,38,.96)) !important;
+        }
+        .person-drilldown-card:nth-child(3n) {
+            background:
+                radial-gradient(circle at 8% 0%, rgba(217,70,239,.22), transparent 36%),
+                linear-gradient(135deg, rgba(24,24,27,.98), rgba(22,18,35,.96)) !important;
+        }
+        .person-drilldown-card h4,
+        .person-drilldown-card .text-zinc-200,
+        .person-drilldown-card .text-white {
+            color: #FFFFFF !important;
+            -webkit-text-fill-color: #FFFFFF !important;
+        }
+        .person-drilldown-card p,
+        .person-drilldown-card .text-zinc-500,
+        .person-drilldown-card .text-zinc-600 {
+            color: rgba(226,232,240,.74) !important;
+            -webkit-text-fill-color: rgba(226,232,240,.74) !important;
+        }
+        .person-drilldown-card .border-t { border-color: rgba(255,255,255,.10) !important; }
+
+        html.theme-light .person-drilldown-card {
+            background:
+                radial-gradient(circle at 4% 0%, rgba(99,102,241,.20), transparent 34%),
+                linear-gradient(135deg, #FFFFFF 0%, #F7F8FF 58%, #EEF2FF 100%) !important;
+            border-color: rgba(99,102,241,.16) !important;
+            box-shadow: 0 18px 44px -30px rgba(79,70,229,.34), 0 1px 2px rgba(15,23,42,.04) !important;
+            opacity: 1 !important;
+        }
+        html.theme-light .person-drilldown-card:nth-child(2n) {
+            background:
+                radial-gradient(circle at 4% 0%, rgba(16,185,129,.16), transparent 34%),
+                linear-gradient(135deg, #FFFFFF 0%, #F3FFFB 58%, #EAFBF5 100%) !important;
+            border-color: rgba(16,185,129,.16) !important;
+        }
+        html.theme-light .person-drilldown-card:nth-child(3n) {
+            background:
+                radial-gradient(circle at 4% 0%, rgba(217,70,239,.17), transparent 34%),
+                linear-gradient(135deg, #FFFFFF 0%, #FFF7FE 58%, #FDF0FF 100%) !important;
+            border-color: rgba(217,70,239,.15) !important;
+        }
+        html.theme-light .person-drilldown-card h4,
+        html.theme-light .person-drilldown-card .text-zinc-200,
+        html.theme-light .person-drilldown-card .text-white {
+            color: #111827 !important;
+            -webkit-text-fill-color: #111827 !important;
+        }
+        html.theme-light .person-drilldown-card p,
+        html.theme-light .person-drilldown-card .text-zinc-500,
+        html.theme-light .person-drilldown-card .text-zinc-600 {
+            color: #64748B !important;
+            -webkit-text-fill-color: #64748B !important;
+        }
+        html.theme-light .person-drilldown-card .border-t { border-color: rgba(15,23,42,.08) !important; }
+
+        /* 浅色弹窗内的卡片、列表、导出预览：避免大片纯白横条，增加层次 */
+        html.theme-light #analysis-detail-body .analysis-detail-row {
+            background: linear-gradient(135deg, #FFFFFF 0%, #F8FAFF 100%) !important;
+            border-color: rgba(99,102,241,.13) !important;
+            box-shadow: 0 14px 34px -26px rgba(79,70,229,.32) !important;
+        }
+        html.theme-light #analysis-detail-body .analysis-detail-row:nth-child(2n) {
+            background: linear-gradient(135deg, #FFFFFF 0%, #F5FFFB 100%) !important;
+            border-color: rgba(16,185,129,.13) !important;
+        }
+        html.theme-light #analysis-detail-body .analysis-detail-row:nth-child(3n) {
+            background: linear-gradient(135deg, #FFFFFF 0%, #FFF7FE 100%) !important;
+            border-color: rgba(217,70,239,.13) !important;
+        }
+
+        /* 导出报告预览中的排行卡片/图例/人员排行增加设计感 */
+        #export-capture-zone .font-item-creator,
+        #export-capture-zone .user-task-row,
+        #export-capture-zone .user-hour-row,
+        #export-capture-zone .ai-legend-item {
+            border-radius: 14px !important;
+            border-color: rgba(255,255,255,.09) !important;
+            background:
+                linear-gradient(135deg, rgba(255,255,255,.045), rgba(255,255,255,.012)) !important;
+            box-shadow: inset 3px 0 0 rgba(99,102,241,.85) !important;
+        }
+        #export-capture-zone .user-hour-row { box-shadow: inset 3px 0 0 rgba(217,70,239,.85) !important; }
+        #export-capture-zone .user-task-row { box-shadow: inset 3px 0 0 rgba(16,185,129,.85) !important; }
+        #export-capture-zone .ai-legend-item { box-shadow: inset 3px 0 0 rgba(245,158,11,.85) !important; }
+
+        html.theme-light #export-capture-zone .font-item-creator,
+        html.theme-light #export-capture-zone .user-task-row,
+        html.theme-light #export-capture-zone .user-hour-row,
+        html.theme-light #export-capture-zone .ai-legend-item {
+            background: linear-gradient(135deg, #FFFFFF 0%, #F6F8FF 100%) !important;
+            border-color: rgba(99,102,241,.13) !important;
+            box-shadow: inset 3px 0 0 rgba(99,102,241,.78), 0 10px 24px -20px rgba(15,23,42,.18) !important;
+        }
+        html.theme-light #export-capture-zone .user-hour-row {
+            background: linear-gradient(135deg, #FFFFFF 0%, #FFF6FD 100%) !important;
+            border-color: rgba(217,70,239,.13) !important;
+            box-shadow: inset 3px 0 0 rgba(217,70,239,.78), 0 10px 24px -20px rgba(15,23,42,.18) !important;
+        }
+        html.theme-light #export-capture-zone .user-task-row {
+            background: linear-gradient(135deg, #FFFFFF 0%, #F4FFFB 100%) !important;
+            border-color: rgba(16,185,129,.13) !important;
+            box-shadow: inset 3px 0 0 rgba(16,185,129,.78), 0 10px 24px -20px rgba(15,23,42,.18) !important;
+        }
+        html.theme-light #export-capture-zone .ai-legend-item {
+            background: linear-gradient(135deg, #FFFFFF 0%, #FFF9ED 100%) !important;
+            border-color: rgba(245,158,11,.16) !important;
+            box-shadow: inset 3px 0 0 rgba(245,158,11,.78), 0 10px 24px -20px rgba(15,23,42,.18) !important;
+        }
+        html.theme-light #export-capture-zone .c-name,
+        html.theme-light #export-capture-zone .row-pname,
+        html.theme-light #export-capture-zone .u-task-name,
+        html.theme-light #export-capture-zone .u-hour-name,
+        html.theme-light #export-capture-zone .ai-name,
+        html.theme-light #export-capture-zone .row-tasks,
+        html.theme-light #export-capture-zone .c-count {
+            color: #172033 !important;
+            -webkit-text-fill-color: #172033 !important;
+        }
+        html.theme-light #export-capture-zone .text-zinc-500,
+        html.theme-light #export-capture-zone .text-zinc-600 {
+            color: #64748B !important;
+            -webkit-text-fill-color: #64748B !important;
+        }
+
+        /* 截图导出专用：克隆节点不截断、不滚动、不破碎 */
+        .export-image-clone,
+        .export-image-clone * {
+            box-sizing: border-box !important;
+        }
+        .export-image-clone {
+            position: fixed !important;
+            left: -100000px !important;
+            top: 0 !important;
+            z-index: -1 !important;
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
+            border-radius: 0 !important;
+        }
+        .export-image-clone .overflow-y-auto,
+        .export-image-clone .custom-scrollbar,
+        .export-image-clone [class*="overflow-y-auto"],
+        .export-image-clone [class*="max-h-"] {
+            overflow: visible !important;
+            max-height: none !important;
+            height: auto !important;
+        }
+        .export-image-clone .truncate,
+        .export-image-clone [class*="truncate"] {
+            overflow: visible !important;
+            text-overflow: clip !important;
+            white-space: normal !important;
+        }
+        .export-image-clone .line-clamp-1,
+        .export-image-clone .line-clamp-2,
+        .export-image-clone [class*="line-clamp"] {
+            display: block !important;
+            -webkit-line-clamp: unset !important;
+            -webkit-box-orient: unset !important;
+            overflow: visible !important;
+        }
+        .export-image-clone table { table-layout: fixed !important; width: 100% !important; }
+        .export-image-clone td,
+        .export-image-clone th { word-break: break-word !important; white-space: normal !important; }
+        .export-image-clone .grid { align-items: stretch !important; }
+</style></head><body><table><thead><tr>${headers.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>`;
 
             groups.forEach(group => {
                 group.rows.forEach((row, idx) => {
@@ -2144,6 +2378,105 @@
                 }
             }, 350);
         });
+    </script>
+
+
+    <script>
+        // ================= 2026-06-03 覆盖修复：稳定导出高清长图，避免滚动截断/错乱 =================
+        (function(){
+            const waitFrames = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+            const waitFonts = async () => { if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch(e) {} } };
+
+            window.exportToPNGImage = async function() {
+                const captureZone = document.getElementById('export-capture-zone');
+                if (!captureZone || !window.html2canvas) {
+                    window.showToast && window.showToast('图片生成失败', '未找到导出区域或 html2canvas 未加载', 'error');
+                    return;
+                }
+
+                window.showToast && window.showToast('正在生成', '正在重新排版完整报告并生成高清长图...', 'info');
+                const isLight = document.documentElement.classList.contains('theme-light');
+                const bg = isLight ? '#FFFFFF' : '#121217';
+                let clone = null;
+
+                try {
+                    document.body.classList.add('is-exporting-analysis');
+                    await waitFrames();
+                    await waitFonts();
+
+                    const sourceRect = captureZone.getBoundingClientRect();
+                    const exportWidth = Math.max(Math.ceil(captureZone.scrollWidth || sourceRect.width || 900), 900);
+
+                    clone = captureZone.cloneNode(true);
+                    clone.id = 'export-capture-zone-clone-' + Date.now();
+                    clone.classList.add('export-image-clone');
+                    clone.style.width = exportWidth + 'px';
+                    clone.style.background = bg;
+                    clone.style.padding = getComputedStyle(captureZone).padding || '24px';
+                    clone.style.color = isLight ? '#172033' : '#E5E7EB';
+
+                    clone.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+                    clone.querySelectorAll('.hidden').forEach(el => el.classList.remove('hidden'));
+                    clone.querySelectorAll('[style]').forEach(el => {
+                        if (/max-height|overflow|height/i.test(el.getAttribute('style') || '')) {
+                            el.style.maxHeight = 'none';
+                            el.style.overflow = 'visible';
+                            if (el.style.height && el.scrollHeight > el.clientHeight) el.style.height = 'auto';
+                        }
+                    });
+                    clone.querySelectorAll('.truncate,[class*="truncate"],.line-clamp-1,.line-clamp-2,[class*="line-clamp"]').forEach(el => {
+                        el.classList.remove('truncate','line-clamp-1','line-clamp-2');
+                        el.style.overflow = 'visible';
+                        el.style.textOverflow = 'clip';
+                        el.style.whiteSpace = 'normal';
+                        el.style.display = 'block';
+                        el.style.webkitLineClamp = 'unset';
+                    });
+                    clone.querySelectorAll('.custom-scrollbar,.overflow-y-auto,[class*="overflow-y-auto"]').forEach(el => {
+                        el.style.overflow = 'visible';
+                        el.style.maxHeight = 'none';
+                        el.style.height = 'auto';
+                    });
+
+                    document.body.appendChild(clone);
+                    await waitFrames();
+
+                    const realHeight = Math.max(clone.scrollHeight, clone.offsetHeight, clone.getBoundingClientRect().height);
+                    clone.style.height = realHeight + 'px';
+                    await waitFrames();
+
+                    const canvas = await html2canvas(clone, {
+                        backgroundColor: bg,
+                        scale: 2,
+                        logging: false,
+                        useCORS: true,
+                        allowTaint: true,
+                        scrollX: 0,
+                        scrollY: 0,
+                        windowWidth: exportWidth,
+                        windowHeight: Math.ceil(realHeight),
+                        width: exportWidth,
+                        height: Math.ceil(realHeight)
+                    });
+
+                    const link = document.createElement('a');
+                    const periodEl = document.getElementById('report-period-text');
+                    const period = periodEl ? periodEl.innerText.trim().replace(/\s+/g, '_') : '当前周期';
+                    link.download = `TIG_多维双轨效能完整长图_${period}.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.showToast && window.showToast('卡片下载成功', '完整长图已下载，已修复滚动截断和文字错乱。', 'success');
+                } catch (err) {
+                    console.error('[exportToPNGImage fixed]', err);
+                    window.showToast && window.showToast('图片生成失败', '请稍后重试，或先导出表格。', 'error');
+                } finally {
+                    if (clone && clone.parentNode) clone.parentNode.removeChild(clone);
+                    document.body.classList.remove('is-exporting-analysis');
+                }
+            };
+        })();
     </script>
 </body>
 </html>
