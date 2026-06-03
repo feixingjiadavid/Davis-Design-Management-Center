@@ -349,6 +349,65 @@
             border-color: transparent !important;
         }
 
+
+        /* 最终兜底：开灯模式待办提醒弹窗文字必须清晰可读 */
+        body.theme-light #self-todo-reminder-modal {
+            background: #ffffff !important;
+            color: #172033 !important;
+        }
+        body.theme-light #self-todo-reminder-modal h2,
+        body.theme-light #self-todo-reminder-modal h3,
+        body.theme-light #self-todo-reminder-modal .todo-modal-title {
+            color: #172033 !important;
+            -webkit-text-fill-color: #172033 !important;
+        }
+        body.theme-light #self-todo-reminder-modal p,
+        body.theme-light #self-todo-reminder-modal span,
+        body.theme-light #self-todo-reminder-modal b {
+            -webkit-text-fill-color: currentColor;
+        }
+        body.theme-light #self-todo-reminder-modal .todo-summary-box {
+            background: #fff7ed !important;
+            border: 1px solid #fed7aa !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.75) !important;
+        }
+        body.theme-light #self-todo-reminder-modal .todo-summary-title {
+            color: #c2410c !important;
+            -webkit-text-fill-color: #c2410c !important;
+            font-weight: 900 !important;
+        }
+        body.theme-light #self-todo-reminder-modal .todo-summary-desc {
+            color: #9a3412 !important;
+            -webkit-text-fill-color: #9a3412 !important;
+            opacity: .95 !important;
+            font-weight: 600 !important;
+        }
+        body.theme-light #self-todo-reminder-modal .todo-summary-count {
+            color: #ea580c !important;
+            -webkit-text-fill-color: #ea580c !important;
+        }
+        body.theme-light #self-todo-reminder-modal .todo-list-card {
+            background: #ffffff !important;
+            border-color: #e5e7eb !important;
+        }
+        body.theme-light #self-todo-reminder-modal .todo-list-card .todo-card-title {
+            color: #111827 !important;
+            -webkit-text-fill-color: #111827 !important;
+        }
+        body.theme-light #self-todo-reminder-modal .todo-list-card .todo-card-meta,
+        body.theme-light #self-todo-reminder-modal .todo-list-card .todo-card-meta span {
+            color: #6b7280 !important;
+            -webkit-text-fill-color: #6b7280 !important;
+        }
+        body.theme-light #self-todo-reminder-modal .todo-list-card .todo-card-meta b {
+            color: #374151 !important;
+            -webkit-text-fill-color: #374151 !important;
+        }
+        body.theme-light #self-todo-reminder-modal .todo-list-card .todo-card-meta .todo-due {
+            color: #e11d48 !important;
+            -webkit-text-fill-color: #e11d48 !important;
+        }
+
     </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-orange-500/30 text-zinc-300">
@@ -783,32 +842,32 @@
             if (!overlay || !modal || !list) return;
 
             list.innerHTML = `
-                <div class="mb-4 bg-orange-500/10 border border-orange-500/20 rounded-2xl p-4 flex items-center justify-between">
+                <div class="todo-summary-box mb-4 bg-orange-500/10 border border-orange-500/20 rounded-2xl p-4 flex items-center justify-between">
                     <div>
-                        <p class="text-[13px] text-orange-300 font-bold">当前共有 ${window.selfTodoReminderTasks.length} 个未办事项需要你处理</p>
-                        <p class="text-[11px] text-orange-200/60 mt-1">已按状态优先级和截止日期自动排序，越靠前越建议优先处理。</p>
+                        <p class="todo-summary-title text-[13px] text-orange-300 font-bold">当前共有 ${window.selfTodoReminderTasks.length} 个未办事项需要你处理</p>
+                        <p class="todo-summary-desc text-[11px] text-orange-200/60 mt-1">已按状态优先级和截止日期自动排序，越靠前越建议优先处理。</p>
                     </div>
-                    <div class="text-[28px] font-black text-orange-400 font-mono">${window.selfTodoReminderTasks.length}</div>
+                    <div class="todo-summary-count text-[28px] font-black text-orange-400 font-mono">${window.selfTodoReminderTasks.length}</div>
                 </div>
                 <div class="space-y-3">
                     ${window.selfTodoReminderTasks.map(task => {
                         const meta = getSelfTodoMeta(task);
                         return `
-                        <div class="bg-[#18181b] border border-${meta.color}-500/20 rounded-2xl p-4 hover:border-${meta.color}-500/50 transition-colors">
+                        <div class="todo-list-card bg-[#18181b] border border-${meta.color}-500/20 rounded-2xl p-4 hover:border-${meta.color}-500/50 transition-colors">
                             <div class="flex items-start justify-between gap-4 mb-3">
                                 <div class="min-w-0">
                                     <div class="flex items-center gap-2 mb-2">
                                         <span class="font-mono text-[10px] font-black text-${meta.color}-400 bg-${meta.color}-500/10 px-2 py-0.5 rounded border border-${meta.color}-500/20">${task.id}</span>
                                         <span class="text-[11px] font-bold text-${meta.color}-400">${meta.label}</span>
                                     </div>
-                                    <h3 class="text-[15px] font-bold text-white leading-snug truncate">${task.title || '无标题需求'}</h3>
+                                    <h3 class="todo-card-title text-[15px] font-bold text-white leading-snug truncate">${task.title || '无标题需求'}</h3>
                                 </div>
                                 <button onclick="event.stopPropagation(); window.location.href='task-detail-designer.html?id=${task.id}'" class="shrink-0 px-3 py-2 bg-${meta.color}-600 hover:bg-${meta.color}-500 text-white rounded-lg text-[12px] font-bold btn-press transition-colors">${meta.action}</button>
                             </div>
-                            <div class="grid grid-cols-3 gap-3 text-[11px] text-zinc-500 border-t border-white/5 pt-3">
+                            <div class="todo-card-meta grid grid-cols-3 gap-3 text-[11px] text-zinc-500 border-t border-white/5 pt-3">
                                 <span class="truncate">发起人：<b class="text-zinc-300">${task.creator || '--'}</b></span>
                                 <span class="truncate">项目：<b class="text-zinc-300">${task.project || '--'}</b></span>
-                                <span class="text-right">截止：<b class="text-rose-400">${task.due_date || '未定'}</b></span>
+                                <span class="text-right">截止：<b class="todo-due text-rose-400">${task.due_date || '未定'}</b></span>
                             </div>
                         </div>`;
                     }).join('')}
