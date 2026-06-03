@@ -8,10 +8,10 @@
         (function(){
             try {
                 if (localStorage.getItem('requestHallTheme') === 'light') {
-                    document.documentElement.classList.add('theme-light');
-                    document.documentElement.style.backgroundColor = '#F5F6FA';
+                    document.documentElement.classList.add('theme-light', 'theme-light-preload');
+                    document.documentElement.style.background = '#F4F5F7';
                 } else {
-                    document.documentElement.style.backgroundColor = '#09090b';
+                    document.documentElement.style.background = '#09090b';
                 }
             } catch(e) {}
         })();
@@ -539,9 +539,220 @@
         #export-modal #btn-csv-export svg { stroke: #FFFFFF !important; color: #FFFFFF !important; }
 
 
-    </style>
+    
+
+        /* ================= V9：完全跟 workspace 导航/侧边栏视觉锁定 =================
+           只锁定公共框架：aside / header / 底部身份 / 回到本月按钮。
+           避免项目分析页之前的 html.theme-light 通用规则把侧栏、顶部按钮又覆盖成另一套样式。
+        */
+        html.theme-light-preload,
+        html.theme-light-preload body,
+        html.theme-light,
+        html.theme-light body,
+        body.theme-light {
+            background: #F4F5F7 !important;
+        }
+
+        /* 顶部与侧栏必须和 workspace 一样：磨砂白，不允许被 bg-[#09090b] 转成整片灰底 */
+        html.theme-light aside,
+        html.theme-light header,
+        body.theme-light aside,
+        body.theme-light header {
+            background: rgba(255,255,255,0.78) !important;
+            backdrop-filter: blur(24px) saturate(180%) !important;
+            -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+            border-color: rgba(0,0,0,0.06) !important;
+            box-shadow: none !important;
+        }
+        html.theme-light aside[class*="bg-[#09090b]"],
+        body.theme-light aside[class*="bg-[#09090b]"],
+        html.theme-light header[class*="bg-[#09090b]"],
+        body.theme-light header[class*="bg-[#09090b]"] {
+            background: rgba(255,255,255,0.78) !important;
+        }
+        html.theme-light main,
+        body.theme-light main,
+        html.theme-light #main-content-area,
+        body.theme-light #main-content-area {
+            background: transparent !important;
+        }
+
+        /* 侧边栏菜单：统一 workspace 的胶囊块，不再出现另一套更重的样式 */
+        html.theme-light aside .flex-1 button,
+        body.theme-light aside .flex-1 button {
+            min-height: 50px !important;
+            border-radius: 16px !important;
+            box-shadow: none !important;
+        }
+        html.theme-light aside .flex-1 button:not(.cursor-default),
+        body.theme-light aside .flex-1 button:not(.cursor-default) {
+            background: #F1F5F9 !important;
+            border-color: transparent !important;
+            color: #64748B !important;
+            -webkit-text-fill-color: #64748B !important;
+        }
+        html.theme-light aside .flex-1 button:not(.cursor-default) svg,
+        body.theme-light aside .flex-1 button:not(.cursor-default) svg {
+            color: #64748B !important;
+            stroke: currentColor !important;
+        }
+        html.theme-light aside .flex-1 button:not(.cursor-default):hover,
+        body.theme-light aside .flex-1 button:not(.cursor-default):hover {
+            background: #E2E8F0 !important;
+            color: #334155 !important;
+            -webkit-text-fill-color: #334155 !important;
+        }
+        html.theme-light aside .flex-1 button.cursor-default,
+        body.theme-light aside .flex-1 button.cursor-default {
+            background: #FDF4FF !important;
+            border: 1px solid #F5D0FE !important;
+            color: #D946EF !important;
+            -webkit-text-fill-color: #D946EF !important;
+            box-shadow: none !important;
+        }
+        html.theme-light aside .flex-1 button.cursor-default svg,
+        body.theme-light aside .flex-1 button.cursor-default svg,
+        html.theme-light aside .flex-1 button.cursor-default span,
+        body.theme-light aside .flex-1 button.cursor-default span {
+            color: #D946EF !important;
+            -webkit-text-fill-color: #D946EF !important;
+            stroke: currentColor !important;
+        }
+
+        /* 侧栏 Logo 与底部身份区：文案绝不能白字；只有头像保持白字 */
+        html.theme-light aside h1,
+        body.theme-light aside h1,
+        html.theme-light #sidebar-name,
+        body.theme-light #sidebar-name {
+            color: #1D1D1F !important;
+            -webkit-text-fill-color: #1D1D1F !important;
+        }
+        html.theme-light #sidebar-role,
+        body.theme-light #sidebar-role {
+            color: #A21CAF !important;
+            -webkit-text-fill-color: #A21CAF !important;
+            font-weight: 700 !important;
+        }
+        html.theme-light #sidebar-avatar,
+        body.theme-light #sidebar-avatar {
+            background: linear-gradient(135deg, #6366F1 0%, #C026D3 58%, #F97316 100%) !important;
+            color: #FFFFFF !important;
+            -webkit-text-fill-color: #FFFFFF !important;
+            border-color: rgba(255,255,255,0.70) !important;
+            box-shadow: 0 8px 18px -10px rgba(124,58,237,0.65) !important;
+        }
+        html.theme-light aside > div:last-child,
+        body.theme-light aside > div:last-child {
+            background: rgba(255,255,255,0.86) !important;
+            border-color: rgba(0,0,0,0.06) !important;
+        }
+        html.theme-light aside > div:last-child button,
+        body.theme-light aside > div:last-child button {
+            color: #64748B !important;
+            -webkit-text-fill-color: #64748B !important;
+            background: transparent !important;
+        }
+        html.theme-light aside > div:last-child button:hover,
+        body.theme-light aside > div:last-child button:hover {
+            background: #F1F5F9 !important;
+            color: #A21CAF !important;
+            -webkit-text-fill-color: #A21CAF !important;
+        }
+
+        /* 顶部控件：和 workspace 一致；“回到本月”不能浅底白字 */
+        html.theme-light header h2,
+        body.theme-light header h2 {
+            color: #1D1D1F !important;
+            -webkit-text-fill-color: #1D1D1F !important;
+        }
+        html.theme-light header p,
+        body.theme-light header p {
+            color: #86868B !important;
+            -webkit-text-fill-color: #86868B !important;
+        }
+        html.theme-light header [class*="bg-[#121217]"],
+        body.theme-light header [class*="bg-[#121217]"],
+        html.theme-light header [class*="bg-[#141417]"],
+        body.theme-light header [class*="bg-[#141417]"] {
+            background: #FFFFFF !important;
+            border-color: rgba(0,0,0,0.06) !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important;
+        }
+        html.theme-light #btn-jump-current,
+        body.theme-light #btn-jump-current {
+            background: #FDF4FF !important;
+            color: #A21CAF !important;
+            -webkit-text-fill-color: #A21CAF !important;
+            border: 1px solid #F5D0FE !important;
+            box-shadow: none !important;
+        }
+        html.theme-light #btn-jump-current:hover,
+        body.theme-light #btn-jump-current:hover {
+            background: #FAE8FF !important;
+            color: #86198F !important;
+            -webkit-text-fill-color: #86198F !important;
+        }
+        html.theme-light header button.bg-gradient-to-r,
+        body.theme-light header button.bg-gradient-to-r,
+        html.theme-light header button.bg-gradient-to-r *,
+        body.theme-light header button.bg-gradient-to-r * {
+            color: #FFFFFF !important;
+            -webkit-text-fill-color: #FFFFFF !important;
+        }
+        html.theme-light #identityBtn,
+        body.theme-light #identityBtn {
+            background: #FFFFFF !important;
+            border-color: rgba(0,0,0,0.06) !important;
+            color: #A21CAF !important;
+            -webkit-text-fill-color: #A21CAF !important;
+        }
+        html.theme-light #notifBtn,
+        body.theme-light #notifBtn,
+        html.theme-light #themeToggleBtn,
+        body.theme-light #themeToggleBtn {
+            background: #FFFFFF !important;
+            border-color: rgba(0,0,0,0.06) !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important;
+        }
+        html.theme-light #themeToggleBtn,
+        body.theme-light #themeToggleBtn {
+            color: #F59E0B !important;
+            -webkit-text-fill-color: #F59E0B !important;
+        }
+        html.theme-light #notifBtn,
+        body.theme-light #notifBtn {
+            color: #334155 !important;
+            -webkit-text-fill-color: #334155 !important;
+        }
+
+        /* 月度切换：避免全局白字覆盖选中态 */
+        html.theme-light #btn-view-week,
+        html.theme-light #btn-view-year,
+        body.theme-light #btn-view-week,
+        body.theme-light #btn-view-year {
+            color: #515154 !important;
+            -webkit-text-fill-color: #515154 !important;
+        }
+        html.theme-light #btn-view-month,
+        body.theme-light #btn-view-month {
+            background: #FDF4FF !important;
+            color: #A21CAF !important;
+            -webkit-text-fill-color: #A21CAF !important;
+            border-color: #F5D0FE !important;
+        }
+</style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-fuchsia-500/30 text-zinc-300">
+
+    <script>
+        (function() {
+            try {
+                if (localStorage.getItem('requestHallTheme') === 'light') {
+                    document.body.classList.add('theme-light');
+                }
+            } catch(e) {}
+        })();
+    </script>
 
     <div class="absolute inset-0 bg-[#09090b] z-0 pointer-events-none"></div>
     <div class="absolute top-0 right-1/4 w-[800px] h-[600px] bg-fuchsia-900/10 rounded-full blur-[180px] pointer-events-none z-0"></div>
@@ -996,6 +1207,7 @@
         window.applyPageTheme = function(theme) {
             const isLight = theme === 'light';
             document.documentElement.classList.toggle('theme-light', isLight);
+            document.documentElement.classList.toggle('theme-light-preload', isLight);
             document.body && document.body.classList.toggle('theme-light', isLight);
             try { localStorage.setItem('requestHallTheme', isLight ? 'light' : 'dark'); } catch(e) {}
 
