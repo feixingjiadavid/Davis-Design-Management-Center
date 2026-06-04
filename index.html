@@ -851,28 +851,36 @@
 
         window.cancelTask = async function(taskId) {
             if(!window.supabase) return;
-            window.showConfirm("确认撤销并存档", `确定要撤销需求单 ${taskId} 吗？<br><br>撤销后不会删除，会进入「已撤销需求存档」。后续项目恢复时，可以从存档里重新打开并继续编辑上一轮信息。`, async () => {
+            window.showConfirm("确认撤销并存档", `确定要撤销需求单 ${taskId} 吗？<br><br>规则：需求方在设计师未提交设计图前可以撤销；撤销后不会删除，会进入「已撤销需求存档」。`, async () => {
                 try {
                     const { data: oldTask, error: fetchErr } = await window.supabase
                         .from(window.DB_TABLE)
-                        .select('history_json')
+                        .select('*')
                         .eq('id', taskId)
                         .single();
                     if (fetchErr) throw fetchErr;
 
+                    const user = JSON.parse(localStorage.getItem('activeUserObj') || '{}');
+                    const creator = oldTask.creator || '';
+                    const isOwner = creator === user.displayName || creator === user.cnName || creator === user.enName || creator === (user.enName || '').toLowerCase();
+                    if (!canRequesterCancelTask(oldTask, isOwner)) {
+                        window.showAlert('不可撤销', '当前需求已经进入设计图提交/验收阶段，不能再直接撤销；如需中止，请走关闭/作废流程。', 'warning');
+                        return;
+                    }
+
                     let hist = [];
                     try { hist = JSON.parse(oldTask.history_json || '[]'); } catch(e) { hist = []; }
-                    const user = JSON.parse(localStorage.getItem('activeUserObj') || '{}');
                     const operator = user.displayName || user.cnName || user.enName || '需求方';
                     hist.push({
                         action: 'cancel_archive',
                         operator: `${operator} (需求方)`,
                         time: new Date().toISOString(),
-                        reply: '因项目延期/暂停，需求方撤销该需求并归入存档，可后续重新编辑恢复。'
+                        reply: '设计师未提交设计图前，需求方撤销该需求并归入存档，可后续重新编辑恢复。'
                     });
 
                     const { error } = await window.supabase.from(window.DB_TABLE).update({
                         status: 'cancelled',
+                        assignee: 'none',
                         summary_desc: '需求已撤销并存档，后续可重新编辑恢复。',
                         history_json: JSON.stringify(hist)
                     }).eq('id', taskId);
@@ -900,6 +908,18 @@
         }
         
         window.submitPwdChange = function() { window.showAlert('提示', '系统演示环境暂不可自助修改密码，请联系管理员。', 'info'); window.closePwdModal(); }
+
+        function hasDesignerSubmittedWork(task) {
+            let hist = [];
+            try { hist = JSON.parse(task.history_json || '[]'); } catch(e) { hist = []; }
+            return hist.some(h => h && (h.action === 'submit_framework' || h.action === 'submit_draft'));
+        }
+
+        function canRequesterCancelTask(task, isOwner) {
+            if (!isOwner) return false;
+            const status = task.status;
+            return status === 'pending' || status === 'pending_accept' || (status === 'processing' && !hasDesignerSubmittedWork(task));
+        }
 
         function createTaskHTML(task, currentUser) {
             const currentUserEn = currentUser.enName ? currentUser.enName.toLowerCase() : '';
@@ -958,7 +978,7 @@
             const isCancelled = task.status === 'cancelled';
             const borderColBase = isUrgent ? 'rgba(244,63,94,0.7)' : sColor.replace('text-', 'rgba(').replace('sky','56,189,248').replace('amber','251,191,36').replace('emerald','16,185,129').replace('rose','244,63,94').replace('orange','249,115,22').replace('zinc','113,113,122').replace('violet','139,92,246') + ',0.3)';
             const breatheClass = isUrgent ? 'breathe-rose' : '';
-            const canCancel = (task.status === 'pending' || task.status === 'pending_accept' || task.status === 'rejected') && isOwner;
+            const canCancel = canRequesterCancelTask(task, isOwner);
             const cancelBtn = canCancel ? `<button onclick="event.stopPropagation(); window.cancelTask('${task.id}')" class="text-[10px] text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded ml-2 hover:bg-rose-500 hover:text-white transition-colors">撤销</button>` : '';
             const reopenBtn = isCancelled ? `<button onclick="event.stopPropagation(); window.openArchivedTaskForEdit('${task.id}')" class="text-[10px] text-violet-300 bg-violet-500/10 px-2.5 py-1 rounded ml-2 hover:bg-violet-500 hover:text-white transition-colors font-bold">重新编辑</button>` : '';
 
