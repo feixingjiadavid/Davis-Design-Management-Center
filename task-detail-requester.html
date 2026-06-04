@@ -960,6 +960,18 @@
         }
 
         // ================= 💡 智能 Action Panel =================
+        function hasDesignerSubmittedWork() {
+            return (globalHistoryArr || []).some(h =>
+                h && (h.action === 'submit_framework' || h.action === 'submit_draft')
+            );
+        }
+
+        function canRequesterCancelCurrentTask(status) {
+            // 产品规则：需求方在设计师未提交设计图前可以撤销。
+            // 待接单/待分配阶段可撤销；已接单 processing 但没有任何设计师提交记录时也可撤销。
+            return (status === 'pending' || status === 'pending_accept' || (status === 'processing' && !hasDesignerSubmittedWork()));
+        }
+
         function renderSmartActionPanel() {
             const status = globalTaskData.status;
             const enName = currentUser.enName.toLowerCase();
@@ -993,7 +1005,7 @@
                     pnlHtml = `
                         <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-sky-500/50"></div>
                         <h3 class="text-[16px] font-bold text-sky-400 mb-2">等待设计接单确认</h3>
-                        <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">系统正在统筹分配中，如果发现需求填写有误，您可以在对方接单前随时撤销本需求并重新发起。</p>
+                        <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">系统正在统筹分配中。如果发现需求填写有误，在设计师提交设计图前，您可以撤销本需求并重新发起。</p>
                         <button onclick="actionCancel()" class="w-full py-3.5 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/30 rounded-xl text-[13px] font-bold btn-press transition-all">撤销该需求</button>
                     `;
                 } else {
@@ -1010,8 +1022,11 @@
                         <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-orange-500"></div>
                         <div class="w-14 h-14 bg-orange-500/10 text-orange-500 rounded-full flex items-center justify-center mb-5"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></div>
                         <h3 class="text-[16px] font-bold text-white mb-3">设计师爆肝作图中</h3>
-                        <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">设计师 ${globalTaskData.assignee || ''} 已接手该单，正在根据您的需求产出设计图。若进度缓慢，可点击下方按钮催促。</p>
-                        <button onclick="actionUrge(this)" class="w-full py-3.5 bg-[#1a1a24] hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white rounded-xl text-[13px] font-bold transition-all btn-press flex items-center justify-center gap-2"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>发送催办系统提醒</button>
+                        <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">设计师 ${globalTaskData.assignee || ''} 已接手该单，正在根据您的需求产出设计图。设计师未提交设计图前，需求方仍可撤销；如只是进度较慢，也可以发送催办。</p>
+                        <div class="space-y-3">
+                            ${canRequesterCancelCurrentTask(status) ? `<button onclick="actionCancel()" class="w-full py-3.5 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/30 rounded-xl text-[13px] font-bold btn-press transition-all">撤销该需求</button>` : ''}
+                            <button onclick="actionUrge(this)" class="w-full py-3.5 bg-[#1a1a24] hover:bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white rounded-xl text-[13px] font-bold transition-all btn-press flex items-center justify-center gap-2"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>发送催办系统提醒</button>
+                        </div>
                     `;
                 } else {
                     pnlHtml = `<div class="text-center py-6 text-zinc-500 text-sm">系统处理中，旁观者无操作权限。</div>`;
@@ -1111,14 +1126,24 @@
                 `;
 
             } else {
-                sCol = status==='terminated'?'rose':'zinc'; sText = status==='terminated'?'已强行终止 (废弃)':'任务已圆满结项';
-                sIcon = status==='terminated'?`<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`:`<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+                sCol = status === 'terminated' ? 'rose' : (status === 'cancelled' ? 'violet' : 'zinc');
+                sText = status === 'terminated' ? '已强行终止 (废弃)' : (status === 'cancelled' ? '已撤销存档' : '任务已圆满结项');
+                sIcon = (status === 'terminated' || status === 'cancelled') ? `<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>` : `<svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
                 
-                pnlClasses = 'bg-[#121217] border border-white/10 rounded-3xl p-7 shadow-xl relative overflow-hidden opacity-60';
+                const canRestoreTerminated = status === 'terminated' && (isCreator || isSuperAdmin);
+                pnlClasses = canRestoreTerminated 
+                    ? 'bg-[#121217] border border-rose-500/20 rounded-3xl p-7 shadow-xl relative overflow-hidden'
+                    : 'bg-[#121217] border border-white/10 rounded-3xl p-7 shadow-xl relative overflow-hidden opacity-60';
                 pnlHtml = `
                     <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-${sCol}-500"></div>
                     <h3 class="text-[16px] font-bold text-white mb-3">${sText}</h3>
-                    <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">该需求在此刻已永久封存闭环，感谢你的设计输出。左侧为您参与提交的所有历史版本记录供复盘。</p>
+                    <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">${status === 'cancelled' ? '该需求已由需求方撤销并归入存档，不再进入设计流转。如需恢复，请回到排号大厅的撤销存档重新编辑。' : '该需求当前已被终止封存。如果是误操作，需求方或超管可以恢复到终止前的流转状态，历史记录会完整保留。'}</p>
+                    ${canRestoreTerminated ? `
+                        <button onclick="actionRestoreTerminated()" class="w-full py-3.5 bg-sky-500/10 hover:bg-sky-500 text-sky-400 hover:text-white border border-sky-500/30 rounded-xl text-[13px] font-bold btn-press transition-all flex items-center justify-center gap-2">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+                            恢复该需求继续流转
+                        </button>
+                    ` : ''}
                 `;
             }
 
@@ -1144,6 +1169,7 @@
                     else if(h.action === 'submit_framework') { dotColor = 'amber'; actionTxt = '设计师上传了框架版本 ' + h.version; }
                     else if(h.action === 'complete') { dotColor = 'emerald'; actionTxt = '甲方验收成功完结'; }
                     else if(h.action === 'terminate') { dotColor = 'rose'; actionTxt = '任务被强行终止'; subTxt = h.reply || ''; }
+                    else if(h.action === 'restore_terminated') { dotColor = 'sky'; actionTxt = '误终止需求已恢复'; subTxt = h.reply || ''; }
                     else if(h.action === 'transfer') { dotColor = 'orange'; actionTxt = '任务发生转单'; subTxt = h.reply || ''; }
                     else if(h.action === 'accept') { dotColor = 'sky'; actionTxt = '接单并给出排期'; subTxt = h.reply || ''; }
                     else if(h.action === 'urge' || h.action === 'urge_req' || h.action === 'urge_leader') { dotColor = 'rose'; actionTxt = '发送了催办提醒'; subTxt = h.reply || ''; }
@@ -1164,12 +1190,13 @@
         }
 
         // ================= 🚀🚀🚀 全局动作状态同步与智能邮件分发枢纽 🚀🚀🚀 =================
-        async function updateSupabaseState(newStatus, newSummary, actionPayload) {
+        async function updateSupabaseState(newStatus, newSummary, actionPayload, extraFields = {}) {
             globalHistoryArr.push(actionPayload);
             const { error } = await window.supabase.from(window.DB_TABLE).update({
                 status: newStatus, 
                 summary_desc: newSummary,
-                history_json: JSON.stringify(globalHistoryArr)
+                history_json: JSON.stringify(globalHistoryArr),
+                ...extraFields
             }).eq('id', currentTaskId);
             
             if(error) { showAlert("错误", "云端状态更新失败：" + error.message, "danger"); return false; }
@@ -1215,31 +1242,113 @@
             return true;
         }
 
-        // 💡 核心修复2：撤销需求不删记录，而是状态更新为 terminated，记录历史
+        // 💡 产品逻辑：需求方在设计师未提交设计图前可撤销；撤销进入 cancelled 存档，不再用 terminated
+
+        function inferStatusBeforeTerminate() {
+            const effectiveHistory = (globalHistoryArr || []).filter(h => h && h.action !== 'terminate' && h.action !== 'restore_terminated');
+            const last = effectiveHistory[effectiveHistory.length - 1] || null;
+            const hasAssignee = globalTaskData && globalTaskData.assignee && globalTaskData.assignee !== 'none';
+
+            if (last) {
+                if (last.action === 'submit_draft') return 'reviewing';
+                if (last.action === 'submit_framework') return 'pending_approval';
+                if (last.action === 'approve_framework') return 'processing';
+                if (last.action === 'accept') return 'processing';
+                if (last.action === 'reject_draft' || last.action === 'reject_framework' || last.is_rejected) return 'rejected';
+                if (last.action === 'create') return hasAssignee ? 'pending_accept' : 'pending';
+            }
+            return hasAssignee ? 'processing' : 'pending_accept';
+        }
+
+        // 💡 误操作终止恢复：仅需求方/超管可用，恢复到终止前最合理的流程状态
+        window.actionRestoreTerminated = async function() {
+            if (globalTaskData?.status !== 'terminated') {
+                showAlert('无法恢复', '当前需求不是终止状态，不需要恢复。', 'warning');
+                return;
+            }
+
+            const enName = (currentUser.enName || '').toLowerCase();
+            const dispName = currentUser.displayName || currentUser.cnName || currentUser.enName;
+            const isCreator = (dispName === globalTaskData.creator || enName === (globalTaskData.creator || '').toLowerCase());
+            const isSuperAdmin = enName === 'davidxxu' || enName === 'davidxu' || enName === 'ponyxu';
+            if (!isCreator && !isSuperAdmin) {
+                showAlert('无权恢复', '只有需求发起人或超管可以恢复误终止的需求。', 'danger');
+                return;
+            }
+
+            const restoreStatus = inferStatusBeforeTerminate();
+            const statusTextMap = {
+                pending: '排队统筹中',
+                pending_accept: '待设计接单',
+                processing: '设计制作中',
+                pending_approval: '框架待审批',
+                reviewing: '正稿待验收',
+                rejected: '打回重修中'
+            };
+
+            showConfirm('确认恢复需求', `确定要恢复这条误终止的需求吗？<br><br>系统将恢复到：<b>${statusTextMap[restoreStatus] || restoreStatus}</b><br>历史版本和终止记录都会保留。`, async () => {
+                const payload = {
+                    action: 'restore_terminated',
+                    operator: `${dispName} (恢复操作)`,
+                    time: new Date().toISOString(),
+                    reply: `误操作终止后恢复需求，状态恢复为：${statusTextMap[restoreStatus] || restoreStatus}`,
+                    is_rejected: false,
+                    reply_by: '恢复终止'
+                };
+
+                if (await updateSupabaseState(restoreStatus, '误操作终止已恢复，需求继续流转。', payload)) {
+                    try {
+                        const targetInfo = normalizeNotifyTarget(globalTaskData.assignee);
+                        if (globalTaskData.assignee && globalTaskData.assignee !== 'none') {
+                            await window.safeCreateNotifyEvent({
+                                eventType: 'restore_terminated',
+                                targetEnName: targetInfo.enName,
+                                targetDisplayName: targetInfo.displayName,
+                                targetEmail: targetInfo.email,
+                                title: '需求已恢复流转',
+                                content: `《${globalTaskData.title || currentTaskId}》已从误终止状态恢复，请继续处理。`,
+                                actionUrl: getTaskAbsoluteUrl('designer')
+                            });
+                        }
+                    } catch (err) { console.error('恢复通知发送失败', err); }
+                    showToast('已恢复需求', `需求已恢复到「${statusTextMap[restoreStatus] || restoreStatus}」。`, 'success');
+                    setTimeout(() => window.location.reload(), 900);
+                }
+            }, 'primary');
+        }
+
         window.actionCancel = async function() { 
-            showConfirm("确认撤销", "确定要撤销该需求单吗？撤销后该需求将被置为【已终止】状态，不再进行流转。", async () => {
+            const status = globalTaskData?.status;
+            if (!canRequesterCancelCurrentTask(status)) {
+                showAlert("不可撤销", "当前需求已经进入设计图提交/验收阶段，不能再直接撤销；如需中止，请走关闭/作废流程。", "warning");
+                return;
+            }
+
+            showConfirm("确认撤销", "确定要撤销该需求单吗？<br><br>规则：设计师未提交设计图前可以撤销；撤销后会进入【已撤销需求存档】，不会删除历史记录。", async () => {
                 const dispName = currentUser.displayName || currentUser.enName || '需求方';
                 const payload = {
-                    action: 'terminate', 
+                    action: 'cancel_archive', 
                     operator: `${dispName} (需求方)`, 
                     time: new Date().toISOString(),
-                    reply: '发起人主动撤销了该需求单。',
-                    is_rejected: true, 
+                    reply: '设计师未提交设计图前，发起人主动撤销了该需求单，已归入撤销存档。',
+                    is_rejected: false, 
                     reply_by: '发起人撤回'
                 };
 
-                if(await updateSupabaseState('terminated', '需求方已撤销该单据。', payload)) {
+                if(await updateSupabaseState('cancelled', '需求已撤销并存档，后续可重新编辑恢复。', payload, { assignee: 'none' })) {
                     const targetInfo = normalizeNotifyTarget(globalTaskData.assignee);
-                    await window.safeCreateNotifyEvent({
-                        eventType: 'terminated',
-                        targetEnName: targetInfo.enName,
-                        targetDisplayName: targetInfo.displayName,
-                        targetEmail: targetInfo.email,
-                        title: '需求已撤销',
-                        content: `《${globalTaskData.title || currentTaskId}》已由需求方撤销，设计流程终止。`,
-                        actionUrl: getTaskAbsoluteUrl('designer')
-                    });
-                    showToast('已撤销', `需求单已安全撤销。`, 'info');
+                    if (globalTaskData.assignee && globalTaskData.assignee !== 'none') {
+                        await window.safeCreateNotifyEvent({
+                            eventType: 'cancelled',
+                            targetEnName: targetInfo.enName,
+                            targetDisplayName: targetInfo.displayName,
+                            targetEmail: targetInfo.email,
+                            title: '需求已撤销',
+                            content: `《${globalTaskData.title || currentTaskId}》已由需求方撤销并进入存档，无需继续设计。`,
+                            actionUrl: getTaskAbsoluteUrl('designer')
+                        });
+                    }
+                    showToast('已撤销并存档', `需求单已进入撤销存档。`, 'info');
                     setTimeout(() => window.history.back(), 1000); 
                 }
             }, "danger");
