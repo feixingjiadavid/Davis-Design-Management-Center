@@ -376,6 +376,58 @@
         const PAGE_TYPE = 'design';
 
 
+        // ================= 私有化准备：designs bucket signed URL 兼容层 =================
+        // 当前仍保留 public URL 兜底；后续 bucket 改 private 后，页面会优先使用 signed URL。
+        const DESIGN_PUBLIC_MARKER = '/storage/v1/object/public/designs/';
+
+        function extractDesignFilePathFromUrl(url) {
+            const raw = String(url || '').trim();
+            if (!raw) return '';
+            const markerIndex = raw.indexOf(DESIGN_PUBLIC_MARKER);
+            if (markerIndex >= 0) {
+                return decodeURIComponent(raw.slice(markerIndex + DESIGN_PUBLIC_MARKER.length).split('?')[0]);
+            }
+            // 如果本身就是纯 path，也允许作为 filePath 使用
+            if (!/^https?:\/\//i.test(raw) && !raw.startsWith('data:') && !raw.startsWith('blob:')) {
+                return raw.replace(/^\/+/, '');
+            }
+            return '';
+        }
+
+        async function getDesignSignedUrl(filePathOrUrl) {
+            try {
+                if (!window.supabase) return null;
+                const filePath = extractDesignFilePathFromUrl(filePathOrUrl);
+                if (!filePath || filePath.includes('..') || filePath.startsWith('/') || filePath.includes('\\')) return null;
+
+                const { data, error } = await window.supabase.functions.invoke('get-design-signed-url', {
+                    body: { filePath }
+                });
+
+                if (error || !data || !data.ok || !data.signedUrl) {
+                    console.warn('signed URL 获取失败，回退 public URL：', error || data);
+                    return null;
+                }
+
+                return data.signedUrl;
+            } catch (err) {
+                console.warn('signed URL 获取异常，回退 public URL：', err);
+                return null;
+            }
+        }
+
+        async function applySignedUrlsToAssetImages(rootEl = document) {
+            const imgs = Array.from(rootEl.querySelectorAll('img[data-design-img="true"]'));
+            await Promise.all(imgs.map(async (img) => {
+                const publicUrl = img.getAttribute('data-public-url') || img.getAttribute('src') || '';
+                const filePath = img.getAttribute('data-file-path') || extractDesignFilePathFromUrl(publicUrl);
+                const signedUrl = await getDesignSignedUrl(filePath || publicUrl);
+                if (signedUrl) img.src = signedUrl;
+            }));
+        }
+
+
+
         // ================= 开灯 / 关灯主题：同步 index 页面 =================
         const THEME_STORAGE_KEY = 'requestHallTheme';
 
@@ -643,7 +695,7 @@
                             <div class="asset-card bg-[#121217] rounded-2xl border border-white/5 overflow-hidden group cursor-pointer shadow-lg relative" data-search="${searchStr}" onclick="window.location.href='${targetUrl}'">
                                 ${downloadBtnHtml}
                                 <div class="bg-zinc-900 relative overflow-hidden min-h-[150px]">
-                                    <img src="${task._finalImg}" class="w-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                    <img src="${task._finalImg}" data-design-img="true" data-public-url="${task._finalImg}" data-file-path="${extractDesignFilePathFromUrl(task._finalImg)}" class="w-full object-cover group-hover:scale-105 transition-transform duration-500">
                                 </div>
                                 <div class="p-5 flex flex-col gap-3">
                                     <div>
@@ -682,6 +734,7 @@
                 window.__assetsReady = true;
                 if (renderCount > 0) window.setAssetsEmptyState && window.setAssetsEmptyState(false);
                 document.getElementById('assets-loading').classList.add('hidden');
+                applySignedUrlsToAssetImages(container);
                 
                 if(renderCount === 0) {
                     window.setAssetsEmptyState && window.setAssetsEmptyState(true, '尚未发现任何匹配的完结资产');
