@@ -646,6 +646,63 @@
             modal.classList.remove('hidden'); void modal.offsetWidth; modal.style.display = 'flex'; setTimeout(() => modal.classList.add('visible'), 10);
         }
 
+        // ================= Signed URL 准备：不阻塞页面，失败自动回退 public URL =================
+        const DESIGN_SIGNED_URL_FUNCTION = 'https://supffjeeouibhqdfqosk.supabase.co/functions/v1/get-design-signed-url';
+        const DESIGN_SIGNED_URL_ANON_KEY = 'sb_publishable_v6fbIaU52lLFacywiIKvUw_x1gc1ckQ';
+
+        function escapeAttr(value) {
+            return String(value || '').replace(/[&<"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '"': '&quot;', "'": '&#39;' }[m]));
+        }
+
+        function extractDesignFilePath(publicUrl) {
+            const raw = String(publicUrl || '').trim();
+            const marker = '/storage/v1/object/public/designs/';
+            const idx = raw.indexOf(marker);
+            if (idx >= 0) return decodeURIComponent(raw.slice(idx + marker.length).split('?')[0]);
+            return '';
+        }
+
+        async function getDesignSignedUrl(filePath, fallbackUrl = '') {
+            const normalizedPath = String(filePath || extractDesignFilePath(fallbackUrl) || '').trim();
+            if (!normalizedPath) return fallbackUrl || '';
+            try {
+                const resp = await fetch(DESIGN_SIGNED_URL_FUNCTION, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${DESIGN_SIGNED_URL_ANON_KEY}`,
+                        'apikey': DESIGN_SIGNED_URL_ANON_KEY
+                    },
+                    body: JSON.stringify({ filePath: normalizedPath })
+                });
+                const json = await resp.json().catch(() => ({}));
+                if (resp.ok && json && json.ok && json.signedUrl) return json.signedUrl;
+            } catch (err) {
+                console.warn('signed url 获取失败，回退 public URL：', err);
+            }
+            return fallbackUrl || '';
+        }
+
+        window.openSignedPreview = async function(publicUrl, filePath) {
+            const finalUrl = await getDesignSignedUrl(filePath, publicUrl);
+            if (finalUrl) window.openPreview(finalUrl);
+        };
+
+        window.upgradeDesignImagesToSignedUrl = function(root) {
+            const scope = root || document;
+            const imgs = scope.querySelectorAll ? scope.querySelectorAll('img[data-design-img="1"]') : [];
+            imgs.forEach(async (img) => {
+                const publicUrl = img.dataset.publicUrl || img.getAttribute('src') || '';
+                const filePath = img.dataset.filePath || extractDesignFilePath(publicUrl);
+                const signedUrl = await getDesignSignedUrl(filePath, publicUrl);
+                if (signedUrl && img.src !== signedUrl) {
+                    img.src = signedUrl;
+                    const previewWrap = img.closest('[data-design-preview-wrap="1"]');
+                    if (previewWrap) previewWrap.dataset.publicUrl = signedUrl;
+                }
+            });
+        };
+
         window.closePreview = function() {
             const modal = document.getElementById('image-preview-modal');
             modal.classList.remove('visible'); setTimeout(() => { modal.style.display = 'none'; modal.classList.add('hidden'); }, 300);
@@ -916,12 +973,17 @@
                     `;
                 }
 
+                const imgPublicUrl = sub.img_url || '';
+                const imgFilePath = sub.img_file_path || sub.design_file_path || extractDesignFilePath(imgPublicUrl);
+                const safeImgPublicUrl = escapeAttr(imgPublicUrl);
+                const safeImgFilePath = escapeAttr(imgFilePath);
+
                 html += `
                     <div class="bg-[#16161d] border border-white/5 rounded-2xl p-5 relative overflow-hidden flex gap-6 hover:border-${badgeCol}-500/30 transition-colors group shadow-md">
                         <div class="absolute right-0 top-0 bg-${badgeCol}-500/10 text-${badgeCol}-500 text-[10px] font-bold px-3 py-1 rounded-bl-xl border-b border-l border-${badgeCol}-500/20">${badgeTxt}</div>
                         
-                        <div class="w-[280px] aspect-video bg-[#09090b] rounded-xl border border-white/10 overflow-hidden relative shadow-inner p-1 flex items-center justify-center shrink-0 cursor-pointer" onclick="openPreview('${sub.img_url}')">
-                            <img src="${sub.img_url}" class="max-w-full max-h-full object-contain group-hover:scale-[1.02] transition-transform">
+                        <div data-design-preview-wrap="1" data-public-url="${safeImgPublicUrl}" data-file-path="${safeImgFilePath}" class="w-[280px] aspect-video bg-[#09090b] rounded-xl border border-white/10 overflow-hidden relative shadow-inner p-1 flex items-center justify-center shrink-0 cursor-pointer" onclick="openSignedPreview(this.dataset.publicUrl, this.dataset.filePath)">
+                            <img data-design-img="1" data-public-url="${safeImgPublicUrl}" data-file-path="${safeImgFilePath}" src="${safeImgPublicUrl}" class="max-w-full max-h-full object-contain group-hover:scale-[1.02] transition-transform">
                             <div class="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded backdrop-blur-sm pointer-events-none">点击看大图</div>
                         </div>
                         
