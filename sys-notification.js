@@ -6,6 +6,27 @@
 const SysNotification = {
     currentUser: null,
 
+    escapeHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    },
+
+    safeInternalUrl(url) {
+        try {
+            if (!url) return '';
+            const u = new URL(String(url), window.location.origin);
+            const allowedHost = window.location.hostname;
+            if (u.hostname !== allowedHost && u.hostname !== 'davis-design.cn') return '';
+            return u.href;
+        } catch (e) {
+            return '';
+        }
+    },
+
     async init() {
         // 1. 确保 supabase 已就绪
         if (!window.supabase) {
@@ -72,9 +93,9 @@ const SysNotification = {
             user_id: targetId,
             target_email: targetEmail, 
             sender_name: sender, 
-            content: content,
+            content: this.escapeHtml(content),
             category: category || 'info', 
-            link_url: url,
+            link_url: this.safeInternalUrl(url),
             is_read: false // 【新增】确保新建的通知默认是未读状态
         }]);
     },
@@ -84,8 +105,10 @@ const SysNotification = {
         const toast = document.createElement('div');
         toast.className = 'sys-toast-node';
         if (data.category === 'urge') toast.style.borderLeftColor = "#ff4d4f";
-        toast.innerHTML = `<strong>🔔 系统提醒</strong><div style="font-size:13px; color:#666;">${data.content}</div>`;
-        toast.onclick = () => { if (data.link_url) window.location.href = data.link_url; };
+        const safeContent = this.escapeHtml(data.content);
+        const safeUrl = this.safeInternalUrl(data.link_url);
+        toast.innerHTML = `<strong>🔔 系统提醒</strong><div style="font-size:13px; color:#666;">${safeContent}</div>`;
+        toast.onclick = () => { if (safeUrl) window.location.href = safeUrl; };
         container.appendChild(toast);
         setTimeout(() => toast.remove(), 8000);
     },
