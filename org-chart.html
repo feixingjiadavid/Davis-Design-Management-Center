@@ -872,12 +872,30 @@
             customConfirm('业务隔离移除', `确定要在系统后台注销成员 <span class="text-rose-500 font-bold">[ ${displayName} ]</span> 的卡片吗？<br><br><b>此操作将移除该人在 org_members 中的配置，并尝试隐藏他的登录。</b>`, async () => {
                 
                 try {
-                    // 从专表中删除权限配置
-                    await window.supabase.from(window.DB_ORG_TABLE).delete().eq('en_name', enName);
-                    // 尝试从底层的 users 表中剔除（隐去卡片）
-                    await window.supabase.from(window.DB_USERS_TABLE).delete().eq('email', `${enName}@webank.com`).catch(()=> {});
+                    // 安全版：不再前端 delete 用户/成员，改为“软移除”
+                    // RLS 会禁止前端 delete，避免被攻击者批量删成员。
+                    const { error: disableErr } = await window.supabase
+                        .from(window.DB_ORG_TABLE)
+                        .update({
+                            display_name: `${displayName}（已停用）`,
+                            perms: [],
+                            disabled: true
+                        })
+                        .eq('en_name', enName);
 
-                    showToast('移除成功', '该账号业务卡片已清除。', 'success');
+                    if (disableErr) {
+                        // 如果表里还没有 disabled 字段，则退化为只清空权限，不影响现有系统。
+                        const { error: fallbackErr } = await window.supabase
+                            .from(window.DB_ORG_TABLE)
+                            .update({
+                                display_name: `${displayName}（已停用）`,
+                                perms: []
+                            })
+                            .eq('en_name', enName);
+                        if (fallbackErr) throw fallbackErr;
+                    }
+
+                    showToast('已软移除', '该成员权限已清空，不再直接删除数据库记录。', 'success');
                     window.loadUsersFromCloud();
                 } catch(e) { customAlert('注销失败', e.message, null, false, 'error'); }
             });
