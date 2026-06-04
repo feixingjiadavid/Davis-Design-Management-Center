@@ -639,10 +639,9 @@
         }
         window.showToast = showToast;
 
-        window.openPreview = async function(srcUrl) {
+        window.openPreview = function(srcUrl) {
             if(!srcUrl) return; 
-            const finalUrl = await getSignedDesignUrl(srcUrl);
-            document.getElementById('modal-image').src = finalUrl;
+            document.getElementById('modal-image').src = srcUrl;
             const modal = document.getElementById('image-preview-modal');
             modal.classList.remove('hidden'); void modal.offsetWidth; modal.style.display = 'flex'; setTimeout(() => modal.classList.add('visible'), 10);
         }
@@ -656,50 +655,6 @@
             const a = document.createElement('a'); a.href = dataBase64; a.download = name; a.click();
             showToast('下载成功', '原始附件提取成功', 'success');
         }
-
-
-        // ================= 🔐 设计稿私有化预备：优先使用 signed URL，失败回退 public URL =================
-        function escapeAttr(value) {
-            return String(value || '')
-                .replace(/&/g, '&amp;')
-                .replace(/"/g, '&quot;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;');
-        }
-
-        function getDesignFilePathFromUrl(urlOrPath) {
-            const raw = String(urlOrPath || '').trim();
-            if (!raw) return '';
-            const marker = '/storage/v1/object/public/designs/';
-            let filePath = raw;
-            const markerIndex = raw.indexOf(marker);
-            if (markerIndex >= 0) filePath = raw.slice(markerIndex + marker.length);
-            filePath = filePath.split('?')[0].split('#')[0];
-            try { filePath = decodeURIComponent(filePath); } catch(e) {}
-            filePath = filePath.replace(/^\/+/, '');
-            if (!filePath || filePath.includes('..') || filePath.includes('\') || filePath.length > 300) return '';
-            return filePath;
-        }
-
-        async function getSignedDesignUrl(urlOrPath) {
-            const fallbackUrl = String(urlOrPath || '').trim();
-            const filePath = getDesignFilePathFromUrl(fallbackUrl);
-            if (!filePath || !window.supabase || !window.supabase.functions) return fallbackUrl;
-            try {
-                const { data, error } = await window.supabase.functions.invoke('get-design-signed-url', {
-                    body: { filePath }
-                });
-                if (error || !data || !data.signedUrl) {
-                    console.warn('signed url 获取失败，回退 public url:', error || data);
-                    return fallbackUrl;
-                }
-                return data.signedUrl;
-            } catch (err) {
-                console.warn('signed url 调用异常，回退 public url:', err);
-                return fallbackUrl;
-            }
-        }
-        window.getSignedDesignUrl = getSignedDesignUrl;
 
         const approveOverlay = document.getElementById('approve-modal-overlay');
         const approveModal = document.getElementById('approve-modal');
@@ -831,7 +786,7 @@
                 
                 calculateRejectThreshold();
                 renderStaticInfo();
-                await renderVersionHistory(); 
+                renderVersionHistory(); 
                 renderResourceSummary(); 
                 renderSmartActionPanel();
                 renderTimeline();
@@ -910,7 +865,7 @@
             panel.classList.remove('hidden');
         }
 
-        async function renderVersionHistory() {
+        function renderVersionHistory() {
             const container = document.getElementById('version-history-container');
             const block = document.getElementById('version-history-block');
             
@@ -941,13 +896,8 @@
 
             block.classList.remove('hidden');
             let html = '';
-            const renderedSubmissions = await Promise.all([...submissions].reverse().map(async (sub) => {
-                const originalImgUrl = sub.img_url || sub.design_img_url || sub.image_url || '';
-                const signedImgUrl = await getSignedDesignUrl(originalImgUrl);
-                return { ...sub, original_img_url: originalImgUrl, display_img_url: signedImgUrl || originalImgUrl };
-            }));
             
-            renderedSubmissions.forEach((sub) => {
+            [...submissions].reverse().forEach((sub) => {
                 let badgeCol = sub.fate === 'approved' ? 'emerald' : (sub.fate === 'rejected' ? 'rose' : 'amber');
                 let badgeTxt = sub.fate === 'approved' ? '已过审 / 验收' : (sub.fate === 'rejected' ? '被打回' : '等待审核中');
                 let typeTxt = sub.action === 'submit_framework' ? '框架方案' : '正式定稿';
@@ -970,8 +920,8 @@
                     <div class="bg-[#16161d] border border-white/5 rounded-2xl p-5 relative overflow-hidden flex gap-6 hover:border-${badgeCol}-500/30 transition-colors group shadow-md">
                         <div class="absolute right-0 top-0 bg-${badgeCol}-500/10 text-${badgeCol}-500 text-[10px] font-bold px-3 py-1 rounded-bl-xl border-b border-l border-${badgeCol}-500/20">${badgeTxt}</div>
                         
-                        <div class="w-[280px] aspect-video bg-[#09090b] rounded-xl border border-white/10 overflow-hidden relative shadow-inner p-1 flex items-center justify-center shrink-0 cursor-pointer" data-preview-src="${escapeAttr(sub.original_img_url || sub.display_img_url)}" onclick="openPreview(this.dataset.previewSrc)">
-                            <img src="${escapeAttr(sub.display_img_url || sub.original_img_url)}" class="max-w-full max-h-full object-contain group-hover:scale-[1.02] transition-transform">
+                        <div class="w-[280px] aspect-video bg-[#09090b] rounded-xl border border-white/10 overflow-hidden relative shadow-inner p-1 flex items-center justify-center shrink-0 cursor-pointer" onclick="openPreview('${sub.img_url}')">
+                            <img src="${sub.img_url}" class="max-w-full max-h-full object-contain group-hover:scale-[1.02] transition-transform">
                             <div class="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded backdrop-blur-sm pointer-events-none">点击看大图</div>
                         </div>
                         
