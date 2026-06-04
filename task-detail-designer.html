@@ -694,6 +694,62 @@
             toast.classList.remove('hidden'); setTimeout(() => { toast.classList.add('hidden'); }, 3000);
         }
 
+
+
+        // ================= Signed URL 准备层：不阻塞页面，失败自动回退 public URL =================
+        function escapeAttr(value) {
+            return String(value || '').replace(/[&<>"]/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+        }
+
+        function extractDesignFilePath(imgUrl) {
+            const raw = String(imgUrl || '').trim();
+            if (!raw || raw.startsWith('data:') || raw.startsWith('blob:')) return '';
+            const marker = '/storage/v1/object/public/designs/';
+            const idx = raw.indexOf(marker);
+            if (idx >= 0) {
+                return decodeURIComponent(raw.slice(idx + marker.length).split('?')[0]);
+            }
+            if (!/^https?:\/\//i.test(raw) && !raw.startsWith('/') && !raw.includes('..')) return raw;
+            return '';
+        }
+
+        async function resolveDesignImageUrl(imgUrl, filePath) {
+            const fallbackUrl = String(imgUrl || '').trim();
+            const path = String(filePath || '').trim() || extractDesignFilePath(fallbackUrl);
+            if (!path || !window.supabase?.functions?.invoke) return fallbackUrl;
+            try {
+                const { data, error } = await window.supabase.functions.invoke('get-design-signed-url', {
+                    body: { filePath: path }
+                });
+                if (!error && data?.ok && data?.signedUrl) return data.signedUrl;
+            } catch (err) {
+                console.warn('signed URL 获取失败，回退 public URL：', err);
+            }
+            return fallbackUrl;
+        }
+
+        function hydrateSignedDesignImages(root = document) {
+            const imgs = Array.from(root.querySelectorAll('img[data-design-public-url], img[data-design-file-path]'));
+            imgs.forEach(async (img) => {
+                const originalUrl = img.getAttribute('data-design-public-url') || img.getAttribute('src') || '';
+                const filePath = img.getAttribute('data-design-file-path') || '';
+                const resolvedUrl = await resolveDesignImageUrl(originalUrl, filePath);
+                if (resolvedUrl && img.src !== resolvedUrl) img.src = resolvedUrl;
+            });
+        }
+
+        window.openPreviewSigned = async function(elementOrUrl) {
+            if (typeof elementOrUrl === 'string') {
+                const resolved = await resolveDesignImageUrl(elementOrUrl, '');
+                return window.openPreview(resolved || elementOrUrl);
+            }
+            const el = elementOrUrl;
+            const publicUrl = el?.getAttribute?.('data-design-public-url') || '';
+            const filePath = el?.getAttribute?.('data-design-file-path') || '';
+            const resolved = await resolveDesignImageUrl(publicUrl, filePath);
+            return window.openPreview(resolved || publicUrl);
+        };
+
         const urlParams = new URLSearchParams(window.location.search);
         const currentTaskId = urlParams.get('id');
         let globalTaskData = null; let globalHistoryArr = []; let currentUser = null;
@@ -1016,8 +1072,8 @@ async function fetchTaskData() {
                 html += `
                     <div class="bg-[#16161d] border border-white/5 rounded-2xl p-5 relative overflow-hidden flex gap-6 hover:border-${badgeCol}-500/30 transition-colors group shadow-md">
                         <div class="absolute right-0 top-0 bg-${badgeCol}-500/10 text-${badgeCol}-500 text-[10px] font-bold px-3 py-1 rounded-bl-xl border-b border-l border-${badgeCol}-500/20">${badgeTxt}</div>
-                        <div class="w-[280px] aspect-video bg-[#09090b] rounded-xl border border-white/10 overflow-hidden relative shadow-inner p-1 flex items-center justify-center shrink-0 cursor-pointer" onclick="openPreview('${sub.img_url}')">
-                            <img src="${sub.img_url || ''}" onerror="this.style.display='none'; this.parentElement.querySelector('.img-broken-tip')?.classList.remove('hidden');" class="max-w-full max-h-full object-contain group-hover:scale-[1.02] transition-transform">
+                        <div class="w-[280px] aspect-video bg-[#09090b] rounded-xl border border-white/10 overflow-hidden relative shadow-inner p-1 flex items-center justify-center shrink-0 cursor-pointer" data-design-public-url="${escapeAttr(sub.img_url || '')}" data-design-file-path="${escapeAttr(sub.img_file_path || sub.design_file_path || '')}" onclick="openPreviewSigned(this)">
+                            <img src="${escapeAttr(sub.img_url || '')}" data-design-public-url="${escapeAttr(sub.img_url || '')}" data-design-file-path="${escapeAttr(sub.img_file_path || sub.design_file_path || '')}" onerror="this.style.display='none'; this.parentElement.querySelector('.img-broken-tip')?.classList.remove('hidden');" class="max-w-full max-h-full object-contain group-hover:scale-[1.02] transition-transform">
                             <div class="img-broken-tip hidden text-center text-zinc-500 text-[12px] px-4">
                                 <div class="text-2xl mb-2">🖼️</div>
                                 <div class="font-bold text-zinc-400 mb-1">预览图加载失败</div>
@@ -1042,6 +1098,7 @@ async function fetchTaskData() {
                     </div>`;
             });
             container.innerHTML = html;
+            hydrateSignedDesignImages(container);
         }
 
         function renderSmartDesignerPanel() {
@@ -1540,14 +1597,14 @@ async function fetchTaskData() {
         }
 
         // 💡 补全看大图核心业务逻辑函数
-        window.openPreview = function(imgUrl) {
+        window.openPreview = async function(imgUrl) {
             const modal = document.getElementById('image-preview-modal');
             const modalImg = document.getElementById('modal-image');
             if (!modal || !modalImg) return;
 
             if (imgUrl) {
-                // 如果传入了图纸网络URL，直接渲染
-                modalImg.src = imgUrl;
+                // 优先尝试 signed URL，失败自动回退原 public URL / base64 / blob
+                modalImg.src = await resolveDesignImageUrl(imgUrl, '');
             } else if (localPreviewUrl) {
                 // 如果未传URL且本地上传缓存有效，渲染当前待上传的新版本图纸
                 modalImg.src = localPreviewUrl;
