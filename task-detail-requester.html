@@ -656,9 +656,18 @@
 
         function extractDesignFilePath(publicUrl) {
             const raw = String(publicUrl || '').trim();
-            const marker = '/storage/v1/object/public/designs/';
-            const idx = raw.indexOf(marker);
-            if (idx >= 0) return decodeURIComponent(raw.slice(idx + marker.length).split('?')[0]);
+            if (!raw) return '';
+            const markers = [
+                '/storage/v1/object/public/designs/',
+                '/storage/v1/object/sign/designs/',
+                '/storage/v1/object/authenticated/designs/'
+            ];
+            for (const marker of markers) {
+                const idx = raw.indexOf(marker);
+                if (idx >= 0) return decodeURIComponent(raw.slice(idx + marker.length).split('?')[0]);
+            }
+            // 兼容少量历史数据：如果本来就只存了文件名/path，也直接当作 path 使用
+            if (!/^https?:\/\//i.test(raw) && !raw.startsWith('data:') && /\.(png|jpe?g|webp|gif|pdf)$/i.test(raw)) return raw;
             return '';
         }
 
@@ -692,13 +701,26 @@
             const scope = root || document;
             const imgs = scope.querySelectorAll ? scope.querySelectorAll('img[data-design-img="1"]') : [];
             imgs.forEach(async (img) => {
-                const publicUrl = img.dataset.publicUrl || img.getAttribute('src') || '';
-                const filePath = img.dataset.filePath || extractDesignFilePath(publicUrl);
-                const signedUrl = await getDesignSignedUrl(filePath, publicUrl);
-                if (signedUrl && img.src !== signedUrl) {
-                    img.src = signedUrl;
-                    const previewWrap = img.closest('[data-design-preview-wrap="1"]');
-                    if (previewWrap) previewWrap.dataset.publicUrl = signedUrl;
+                const originalPublicUrl = img.dataset.publicUrl || img.getAttribute('src') || '';
+                const filePath = img.dataset.filePath || extractDesignFilePath(originalPublicUrl);
+                const previewWrap = img.closest('[data-design-preview-wrap="1"]');
+                if (previewWrap && originalPublicUrl && !previewWrap.dataset.originalPublicUrl) {
+                    previewWrap.dataset.originalPublicUrl = originalPublicUrl;
+                }
+                try {
+                    const signedUrl = await getDesignSignedUrl(filePath, originalPublicUrl);
+                    if (signedUrl) {
+                        img.onload = () => { img.style.opacity = '1'; };
+                        img.onerror = () => { img.style.opacity = '0.35'; };
+                        img.src = signedUrl;
+                        img.dataset.signedUrl = signedUrl;
+                        if (previewWrap) {
+                            previewWrap.dataset.signedUrl = signedUrl;
+                            previewWrap.dataset.filePath = filePath || previewWrap.dataset.filePath || '';
+                        }
+                    }
+                } catch (err) {
+                    console.warn('预览图 signed URL 加载失败：', err);
                 }
             });
         };
@@ -982,8 +1004,8 @@
                     <div class="bg-[#16161d] border border-white/5 rounded-2xl p-5 relative overflow-hidden flex gap-6 hover:border-${badgeCol}-500/30 transition-colors group shadow-md">
                         <div class="absolute right-0 top-0 bg-${badgeCol}-500/10 text-${badgeCol}-500 text-[10px] font-bold px-3 py-1 rounded-bl-xl border-b border-l border-${badgeCol}-500/20">${badgeTxt}</div>
                         
-                        <div data-design-preview-wrap="1" data-public-url="${safeImgPublicUrl}" data-file-path="${safeImgFilePath}" class="w-[280px] aspect-video bg-[#09090b] rounded-xl border border-white/10 overflow-hidden relative shadow-inner p-1 flex items-center justify-center shrink-0 cursor-pointer" onclick="openSignedPreview(this.dataset.publicUrl, this.dataset.filePath)">
-                            <img data-design-img="1" data-public-url="${safeImgPublicUrl}" data-file-path="${safeImgFilePath}" src="${safeImgPublicUrl}" class="max-w-full max-h-full object-contain group-hover:scale-[1.02] transition-transform">
+                        <div data-design-preview-wrap="1" data-public-url="${safeImgPublicUrl}" data-file-path="${safeImgFilePath}" class="w-[280px] aspect-video bg-[#09090b] rounded-xl border border-white/10 overflow-hidden relative shadow-inner p-1 flex items-center justify-center shrink-0 cursor-pointer" onclick="openSignedPreview(this.dataset.originalPublicUrl || this.dataset.publicUrl || this.dataset.signedUrl, this.dataset.filePath)">
+                            <img data-design-img="1" data-public-url="${safeImgPublicUrl}" data-file-path="${safeImgFilePath}" src="" alt="设计稿预览图" class="max-w-full max-h-full object-contain group-hover:scale-[1.02] transition-transform opacity-40">
                             <div class="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded backdrop-blur-sm pointer-events-none">点击看大图</div>
                         </div>
                         
@@ -1019,6 +1041,8 @@
                 `;
             });
             container.innerHTML = html;
+            // designs bucket 已改 private 后，卡片小图必须主动换成 signed URL；否则旧 public URL 会破图
+            window.upgradeDesignImagesToSignedUrl(container);
         }
 
         // ================= 💡 智能 Action Panel =================
