@@ -733,8 +733,28 @@
             imgs.forEach(async (img) => {
                 const originalUrl = img.getAttribute('data-design-public-url') || img.getAttribute('src') || '';
                 const filePath = img.getAttribute('data-design-file-path') || '';
-                const resolvedUrl = await resolveDesignImageUrl(originalUrl, filePath);
-                if (resolvedUrl && img.src !== resolvedUrl) img.src = resolvedUrl;
+                const parent = img.parentElement;
+                const brokenTip = parent?.querySelector?.('.img-broken-tip');
+                try {
+                    const resolvedUrl = await resolveDesignImageUrl(originalUrl, filePath);
+                    if (resolvedUrl) {
+                        img.onload = () => {
+                            img.style.display = '';
+                            brokenTip?.classList.add('hidden');
+                        };
+                        img.onerror = () => {
+                            img.style.display = 'none';
+                            brokenTip?.classList.remove('hidden');
+                        };
+                        img.src = resolvedUrl;
+                    }
+                } catch (err) {
+                    console.warn('图片签名链接渲染失败：', err);
+                    if (originalUrl) {
+                        img.style.display = '';
+                        img.src = originalUrl;
+                    }
+                }
             });
         }
 
