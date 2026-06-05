@@ -646,17 +646,14 @@
             modal.classList.remove('hidden'); void modal.offsetWidth; modal.style.display = 'flex'; setTimeout(() => modal.classList.add('visible'), 10);
         }
 
-        // ================= Signed URL 准备：不阻塞页面，失败自动回退 public URL =================
-        const DESIGN_SIGNED_URL_FUNCTION = 'https://supffjeeouibhqdfqosk.supabase.co/functions/v1/get-design-signed-url';
-        const DESIGN_SIGNED_URL_ANON_KEY = 'sb_publishable_v6fbIaU52lLFacywiIKvUw_x1gc1ckQ';
-
+        // ================= Signed URL 准备层：bucket private 后图片必须先换成 signed URL =================
         function escapeAttr(value) {
-            return String(value || '').replace(/[&<"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '"': '&quot;', "'": '&#39;' }[m]));
+            return String(value || '').replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
         }
 
-        function extractDesignFilePath(publicUrl) {
-            const raw = String(publicUrl || '').trim();
-            if (!raw) return '';
+        function extractDesignFilePath(imgUrl) {
+            const raw = String(imgUrl || '').trim();
+            if (!raw || raw.startsWith('data:') || raw.startsWith('blob:')) return '';
             const markers = [
                 '/storage/v1/object/public/designs/',
                 '/storage/v1/object/sign/designs/',
@@ -666,54 +663,63 @@
                 const idx = raw.indexOf(marker);
                 if (idx >= 0) return decodeURIComponent(raw.slice(idx + marker.length).split('?')[0]);
             }
-            // 兼容少量历史数据：如果本来就只存了文件名/path，也直接当作 path 使用
-            if (!/^https?:\/\//i.test(raw) && !raw.startsWith('data:') && /\.(png|jpe?g|webp|gif|pdf)$/i.test(raw)) return raw;
+            // 兼容只存文件名/path 的历史数据
+            if (!/^https?:\/\//i.test(raw) && !raw.startsWith('/') && !raw.includes('..') && /\.(png|jpe?g|webp|gif|pdf)$/i.test(raw)) return raw;
             return '';
         }
 
-        async function getDesignSignedUrl(filePath, fallbackUrl = '') {
-            const normalizedPath = String(filePath || extractDesignFilePath(fallbackUrl) || '').trim();
-            if (!normalizedPath) return fallbackUrl || '';
+        async function resolveDesignImageUrl(imgUrl, filePath) {
+            const fallbackUrl = String(imgUrl || '').trim();
+            const path = String(filePath || '').trim() || extractDesignFilePath(fallbackUrl);
+            if (!path) return fallbackUrl;
+
             try {
-                const resp = await fetch(DESIGN_SIGNED_URL_FUNCTION, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${DESIGN_SIGNED_URL_ANON_KEY}`,
-                        'apikey': DESIGN_SIGNED_URL_ANON_KEY
-                    },
-                    body: JSON.stringify({ filePath: normalizedPath })
-                });
-                const json = await resp.json().catch(() => ({}));
-                if (resp.ok && json && json.ok && json.signedUrl) return json.signedUrl;
+                // 用当前 supabase client 调 Edge Function，避免硬编码错误 anon key / Authorization
+                if (window.supabase?.functions?.invoke) {
+                    const { data, error } = await window.supabase.functions.invoke('get-design-signed-url', {
+                        body: { filePath: path }
+                    });
+                    if (!error && data?.ok && data?.signedUrl) return data.signedUrl;
+                    if (error) console.warn('signed URL function error:', error);
+                }
             } catch (err) {
-                console.warn('signed url 获取失败，回退 public URL：', err);
+                console.warn('signed URL 获取失败，回退 public URL：', err);
             }
-            return fallbackUrl || '';
+            return fallbackUrl;
         }
 
         window.openSignedPreview = async function(publicUrl, filePath) {
-            const finalUrl = await getDesignSignedUrl(filePath, publicUrl);
+            const finalUrl = await resolveDesignImageUrl(publicUrl, filePath);
             if (finalUrl) window.openPreview(finalUrl);
         };
 
         window.upgradeDesignImagesToSignedUrl = function(root) {
             const scope = root || document;
-            const imgs = scope.querySelectorAll ? scope.querySelectorAll('img[data-design-img="1"]') : [];
+            const imgs = scope.querySelectorAll ? scope.querySelectorAll('img[data-design-img="1"], img[data-design-public-url], img[data-design-file-path]') : [];
             imgs.forEach(async (img) => {
-                const originalPublicUrl = img.dataset.publicUrl || img.getAttribute('src') || '';
-                const filePath = img.dataset.filePath || extractDesignFilePath(originalPublicUrl);
-                const previewWrap = img.closest('[data-design-preview-wrap="1"]');
-                if (previewWrap && originalPublicUrl && !previewWrap.dataset.originalPublicUrl) {
-                    previewWrap.dataset.originalPublicUrl = originalPublicUrl;
-                }
+                const originalUrl = img.dataset.publicUrl || img.getAttribute('data-design-public-url') || img.getAttribute('src') || '';
+                const filePath = img.dataset.filePath || img.getAttribute('data-design-file-path') || extractDesignFilePath(originalUrl);
+                const previewWrap = img.closest('[data-design-preview-wrap="1"]') || img.parentElement;
+                const brokenTip = previewWrap?.querySelector?.('.img-broken-tip');
+                if (previewWrap && originalUrl && !previewWrap.dataset.originalPublicUrl) previewWrap.dataset.originalPublicUrl = originalUrl;
+
                 try {
-                    const signedUrl = await getDesignSignedUrl(filePath, originalPublicUrl);
+                    const signedUrl = await resolveDesignImageUrl(originalUrl, filePath);
                     if (signedUrl) {
-                        img.onload = () => { img.style.opacity = '1'; };
-                        img.onerror = () => { img.style.opacity = '0.35'; };
+                        img.onload = () => {
+                            img.style.opacity = '1';
+                            img.style.display = '';
+                            brokenTip?.classList.add('hidden');
+                        };
+                        img.onerror = () => {
+                            img.style.opacity = '0.35';
+                            img.style.display = '';
+                            brokenTip?.classList.remove('hidden');
+                        };
                         img.src = signedUrl;
                         img.dataset.signedUrl = signedUrl;
+                        img.setAttribute('data-design-public-url', originalUrl);
+                        img.setAttribute('data-design-file-path', filePath || '');
                         if (previewWrap) {
                             previewWrap.dataset.signedUrl = signedUrl;
                             previewWrap.dataset.filePath = filePath || previewWrap.dataset.filePath || '';
