@@ -162,8 +162,39 @@
 
             const btn = document.getElementById('register-btn');
             const originalText = btn.innerText;
-            btn.innerText = "云端写入中...";
+            btn.innerText = "权限校验中...";
             btn.disabled = true;
+
+            // 【安全加固】注册前先校验白名单。
+            // 只有 public.users 表里存在且 disabled=false 的邮箱，才允许继续注册。
+            try {
+                const { data: allowData, error: allowError } = await window.supabase.functions.invoke('check-signup-allowed', {
+                    body: { email: realEmail }
+                });
+
+                if (allowError) {
+                    console.error('白名单校验失败：', allowError);
+                    alert('权限校验失败，请稍后重试，或联系系统管理员。');
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                    return;
+                }
+
+                if (!allowData || allowData.allowed !== true) {
+                    alert('暂无注册权限：当前企微账号不在系统白名单中，暂无法注册使用。请联系系统管理员添加白名单后再试。');
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                    return;
+                }
+            } catch (checkErr) {
+                console.error('白名单校验异常：', checkErr);
+                alert('权限校验异常，请稍后重试，或联系系统管理员。');
+                btn.innerText = originalText;
+                btn.disabled = false;
+                return;
+            }
+
+            btn.innerText = "云端写入中...";
 
             // 【核心】写入 Supabase 云端
             const { data, error } = await window.supabase.auth.signUp({
