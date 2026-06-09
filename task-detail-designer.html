@@ -957,112 +957,6 @@
             return await createTaskNotifyEventSafely(options);
         };
 
-        // ================= 设计师催办兜底：直接写 notification_events =================
-        // 解决：notify-events.js 在设计师页解析 creator=33 时失败，导致催办需求方无记录。
-        async function createDesignerUrgentEventDirectly({
-            taskId = currentTaskId,
-            targetIdentifier,
-            title = '需求催办提醒',
-            content = '',
-            actionUrl
-        } = {}) {
-            try {
-                if (!window.supabase) {
-                    return { ok: false, error: 'Supabase 未初始化' };
-                }
-
-                const raw = String(targetIdentifier || '').trim();
-                if (!raw) {
-                    return { ok: false, error: 'targetIdentifier_empty' };
-                }
-
-                let targetEnName = null;
-                let targetDisplayName = raw;
-                let targetEmail = null;
-
-                // 1. 如果已经是内部邮箱
-                if (/^[A-Z0-9._%+-]+@webank\.com$/i.test(raw)) {
-                    targetEmail = raw.toLowerCase();
-                    targetEnName = targetEmail.split('@')[0];
-                }
-
-                // 2. 如果是英文名
-                if (!targetEmail && /^[a-zA-Z][a-zA-Z0-9._-]{0,79}$/.test(raw)) {
-                    targetEnName = raw.toLowerCase();
-                    targetEmail = `${targetEnName}@webank.com`;
-                }
-
-                // 3. 从 user_profiles 解析，兼容 display_name = 33
-                if (!targetEmail) {
-                    const { data: profiles, error: profileErr } = await window.supabase
-                        .from('user_profiles')
-                        .select('en_name, cn_name, display_name');
-
-                    if (profileErr) {
-                        console.warn('user_profiles 查询失败：', profileErr);
-                    }
-
-                    if (Array.isArray(profiles)) {
-                        const key = raw.toLowerCase();
-                        const matched = profiles.find(row => {
-                            const en = String(row.en_name || '').toLowerCase();
-                            const cn = String(row.cn_name || '').toLowerCase();
-                            const display = String(row.display_name || '').toLowerCase();
-                            return en === key || cn === key || display === key;
-                        });
-
-                        if (matched && matched.en_name) {
-                            targetEnName = String(matched.en_name).trim().toLowerCase();
-                            targetDisplayName = matched.display_name || matched.cn_name || raw;
-                            targetEmail = `${targetEnName}@webank.com`;
-                        }
-                    }
-                }
-
-                if (!targetEmail) {
-                    return {
-                        ok: false,
-                        error: 'target_email_not_resolved',
-                        targetIdentifier: raw
-                    };
-                }
-
-                const cleanTaskId = String(taskId || '').trim();
-                const payload = {
-                    task_id: cleanTaskId,
-                    event_type: 'urgent',
-                    target_email: targetEmail,
-                    target_en_name: targetEnName,
-                    target_display_name: targetDisplayName,
-                    title: String(title || '需求催办提醒').slice(0, 100),
-                    content: String(content || '').slice(0, 3000),
-                    action_url: actionUrl || `https://davis-design.cn/task-detail-requester.html?id=${encodeURIComponent(cleanTaskId)}`,
-                    email_status: 'pending',
-                    bot_status: 'pending',
-                    email_sent_at: null,
-                    error_message: null
-                };
-
-                const { data, error } = await window.supabase
-                    .from('notification_events')
-                    .insert([payload])
-                    .select()
-                    .single();
-
-                if (error) {
-                    console.error('设计师催办 notification_events 直接写入失败：', error);
-                    return { ok: false, error: error.message || String(error), payload };
-                }
-
-                console.log('✅ 设计师催办 notification_events 已写入：', data || payload);
-                return { ok: true, data: data || payload };
-            } catch (err) {
-                console.error('设计师催办 notification_events 直接写入异常：', err);
-                return { ok: false, error: err?.message || String(err) };
-            }
-        }
-
-
 async function fetchTaskData() {
             try {
                 const { data, error } = await window.supabase.from(window.DB_TABLE).select('*').eq('id', currentTaskId).single();
@@ -1469,36 +1363,40 @@ async function fetchTaskData() {
             btn.innerHTML = '<svg class="animate-spin h-3.5 w-3.5 mr-2 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle></svg> 发送中...';
             btn.disabled = true;
 
-            if (globalTaskData && globalTaskData.creator) {
-                const directResult = await createDesignerUrgentEventDirectly({
-                    taskId: currentTaskId,
-                    targetIdentifier: globalTaskData.creator,
-                    title: '需求催办提醒',
-                    content: `设计师已提交最终稿件，请尽快验收确认：《${globalTaskData.title || currentTaskId}》。`,
-                    actionUrl: buildTaskDetailUrl('task-detail-requester.html')
+            try {
+                // 关键修复：设计师催需求方不再由前端直接 insert notification_events。
+                // 统一调用 Supabase RPC，由数据库 security definer 函数负责：
+                // 1. 读取 test_tasks.creator
+                // 2. 从 notify_user_map 解析邮箱
+                // 3. 写入 notification_events
+                const { data, error } = await window.supabase.rpc('designer_urge_requester_notification', {
+                    p_task_id: currentTaskId
                 });
 
-                if (!directResult?.ok) {
+                if (error || !data || data.ok === false) {
                     btn.disabled = false;
                     btn.innerHTML = '重新催办';
-                    showToast('催办失败', directResult?.error || 'notification_events 没有写入', 'error');
-                    console.error('催办需求方验收失败：', directResult);
+                    const msg = error?.message || data?.error || '数据库未写入 notification_events';
+                    showToast('催办失败', msg, 'error');
+                    console.error('催办需求方验收失败：', { error, data });
                     return;
                 }
 
-                // 站内小铃铛保留，但不再影响邮件催办
+                // 站内小铃铛保留，但失败不影响邮件催办
                 try {
-                    await insertDbNotification(
-                        globalTaskData.creator,
-                        `🚨 催办提醒：设计师交付了最终稿件，请火速验收：《${globalTaskData.title || currentTaskId}》。`,
-                        `task-detail-requester.html?id=${currentTaskId}`,
-                        'urgent'
-                    );
+                    if (globalTaskData && globalTaskData.creator) {
+                        await insertDbNotification(
+                            globalTaskData.creator,
+                            `🚨 催办提醒：设计师交付了最终稿件，请火速验收：《${globalTaskData.title || currentTaskId}》。`,
+                            `task-detail-requester.html?id=${currentTaskId}`,
+                            'urgent'
+                        );
+                    }
                 } catch (noticeErr) {
-                    console.warn('站内通知失败，但邮件催办事件已写入：', noticeErr);
+                    console.warn('站内通知失败，但 notification_events 已写入：', noticeErr);
                 }
 
-                // 历史轨迹保留，但失败也不影响邮件催办
+                // 历史轨迹保留，但失败不影响邮件催办
                 try {
                     const dispName = currentUser.displayName || currentUser.enName || '设计师';
                     globalHistoryArr.push({
@@ -1512,13 +1410,19 @@ async function fetchTaskData() {
                         .update({ history_json: JSON.stringify(globalHistoryArr) })
                         .eq('id', currentTaskId);
                 } catch (historyErr) {
-                    console.warn('历史轨迹写入失败，但邮件催办事件已写入：', historyErr);
+                    console.warn('历史轨迹写入失败，但 notification_events 已写入：', historyErr);
                 }
-            }
 
-            btn.innerHTML = '✓ 已催办';
-            btn.className = "w-full py-3.5 bg-zinc-800 border border-zinc-700 text-zinc-500 rounded-xl text-[13px] font-bold cursor-not-allowed mb-3";
-            showToast('已提醒', '催办事件已写入，Bot 将通过内部邮箱提醒需求方', 'success');
+                btn.innerHTML = '✓ 已催办';
+                btn.className = "w-full py-3.5 bg-zinc-800 border border-zinc-700 text-zinc-500 rounded-xl text-[13px] font-bold cursor-not-allowed mb-3";
+                showToast('已提醒', '催办事件已写入，Bot 将通过内部邮箱提醒需求方', 'success');
+                console.log('✅ 设计师催办需求方成功：', data);
+            } catch (err) {
+                btn.disabled = false;
+                btn.innerHTML = '重新催办';
+                showToast('催办失败', err?.message || String(err), 'error');
+                console.error('催办需求方验收异常：', err);
+            }
         }
 
         function renderTimeline() {
