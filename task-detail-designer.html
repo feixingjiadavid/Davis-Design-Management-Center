@@ -851,39 +851,59 @@
             return /^[a-zA-Z][a-zA-Z0-9._-]*$/.test(String(value || '').trim());
         }
 
-        async function resolveNotifyTarget(targetIdentifier, fallbackDisplayName = '') {
+        async function resolveNotifyTarget(targetIdentifier, fallbackDisplayName = '', fallbackEmail = '') {
             const raw = String(targetIdentifier || '').trim();
+            const rawLower = raw.toLowerCase();
+            const fallbackMail = String(fallbackEmail || '').trim().toLowerCase();
+
             let result = {
-                targetEnName: isLikelyEnName(raw) ? raw.toLowerCase() : null,
+                targetEnName: isLikelyEnName(raw) ? rawLower : null,
                 targetDisplayName: fallbackDisplayName || raw || '相关同事',
-                targetEmail: isLikelyEnName(raw) ? `${raw.toLowerCase()}@webank.com` : null,
+                targetEmail: /^[A-Z0-9._%+-]+@webank\.com$/i.test(raw)
+                    ? rawLower
+                    : (isLikelyEnName(raw) ? `${rawLower}@webank.com` : (fallbackMail || null)),
                 mobile: null
             };
 
             if (!window.supabase || !raw) return result;
 
             try {
-                const lowered = raw.toLowerCase();
-                const { data: usersData, error } = await window.supabase
-                    .from('users')
-                    .select('email, name, enName');
+                const lowered = rawLower;
 
-                if (!error && Array.isArray(usersData)) {
+                // 兼容 users 表字段可能没有 enName 的情况：先查常见字段，失败则降级查 email/name。
+                let usersData = [];
+                let firstError = null;
+                try {
+                    const res = await window.supabase.from('users').select('email, name, enName, disabled');
+                    usersData = res.data || [];
+                    firstError = res.error;
+                } catch (e) { firstError = e; }
+
+                if (firstError) {
+                    const res2 = await window.supabase.from('users').select('email, name, disabled');
+                    usersData = res2.data || [];
+                }
+
+                if (Array.isArray(usersData)) {
                     const matched = usersData.find(x => {
-                        const en = String(x.enName || '').toLowerCase();
+                        if (x.disabled === true) return false;
+                        const email = String(x.email || '').toLowerCase();
+                        const en = String(x.enName || email.split('@')[0] || '').toLowerCase();
                         const name = String(x.name || '').toLowerCase();
-                        return en === lowered ||
+                        return email === lowered ||
+                            en === lowered ||
                             name === lowered ||
                             (en && lowered.includes(en)) ||
                             (name && lowered.includes(name));
                     });
 
                     if (matched) {
-                        const enName = matched.enName || result.targetEnName;
+                        const email = String(matched.email || '').toLowerCase();
+                        const enName = matched.enName || (email.includes('@') ? email.split('@')[0] : result.targetEnName);
                         result = {
-                            targetEnName: enName || null,
+                            targetEnName: enName || result.targetEnName,
                             targetDisplayName: matched.name || fallbackDisplayName || enName || raw,
-                            targetEmail: matched.email || (enName ? `${String(enName).toLowerCase()}@webank.com` : result.targetEmail),
+                            targetEmail: email || (enName ? `${String(enName).toLowerCase()}@webank.com` : result.targetEmail),
                             mobile: null
                         };
                     }
@@ -892,7 +912,50 @@
                 console.warn('站外通知目标用户解析失败，使用兜底信息：', err);
             }
 
+            // 兜底：如果上面没有命中，但传入的是邮箱，仍然保证可发。
+            if (!result.targetEmail && /^[A-Z0-9._%+-]+@webank\.com$/i.test(raw)) {
+                result.targetEmail = rawLower;
+                result.targetEnName = rawLower.split('@')[0];
+            }
+
             return result;
+        }
+
+        function getPossibleCreatorEmail() {
+            if (!globalTaskData) return '';
+            return globalTaskData.creator_email || globalTaskData.requester_email || globalTaskData.submitter_email || globalTaskData.user_email || globalTaskData.email || '';
+        }
+
+        function getPossibleAssigneeEmail() {
+            if (!globalTaskData) return '';
+            return globalTaskData.assignee_email || globalTaskData.designer_email || '';
+        }
+
+        async function writeExternalUrgentNotify(targetIdentifier, options = {}) {
+            const {
+                title = '需求催办提醒',
+                content = '',
+                pageName = 'task-detail-requester.html',
+                fallbackDisplayName = '',
+                fallbackEmail = ''
+            } = options;
+
+            const targetInfo = await resolveNotifyTarget(targetIdentifier, fallbackDisplayName || targetIdentifier, fallbackEmail);
+            const notifyResult = await createTaskNotifyEventSafely({
+                taskId: currentTaskId,
+                eventType: 'urgent',
+                ...targetInfo,
+                title,
+                content,
+                actionUrl: buildTaskDetailUrl(pageName)
+            });
+
+            if (!notifyResult || notifyResult.ok === false) {
+                console.warn('催办 notification_events 写入失败，Bot 将无法接管邮件：', notifyResult, targetIdentifier, targetInfo);
+            } else {
+                console.log('催办 notification_events 已写入，等待 Bot 内部邮箱接管：', currentTaskId, targetInfo.targetEmail || targetInfo.targetDisplayName);
+            }
+            return notifyResult;
         }
 
         async function createTaskNotifyEventSafely(options) {
@@ -1267,8 +1330,16 @@ async function fetchTaskData() {
             btn.innerHTML = '<svg class="animate-spin h-3.5 w-3.5 mr-2 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle></svg> 发送中...';
             btn.disabled = true;
             if (globalTaskData) {
-                // 原有的外部发信机制保留
-                await insertDbNotification('judyzzhang', `🚨 催办提醒：设计师已提交框架，请火速审批：《${globalTaskData.title || currentTaskId}》。`, `task-detail-requester.html?id=${currentTaskId}`, 'urgent');
+                const urgeContent = `🚨 催办提醒：设计师已提交框架，请火速审批：《${globalTaskData.title || currentTaskId}》。`;
+                // 站内通知保留
+                await insertDbNotification('judyzzhang', urgeContent, `task-detail-requester.html?id=${currentTaskId}`, 'urgent');
+                // 站外通知事件：写入 notification_events，交给 Bot 内部邮箱发送
+                await writeExternalUrgentNotify('judyzzhang', {
+                    content: urgeContent,
+                    pageName: 'task-detail-requester.html',
+                    fallbackDisplayName: '丹楠姐',
+                    fallbackEmail: 'judyzzhang@webank.com'
+                });
                 
                 // 新增：写入历史轨迹，触发站内铃铛
                 const dispName = currentUser.displayName || currentUser.enName || '设计师';
@@ -1286,8 +1357,16 @@ async function fetchTaskData() {
             btn.innerHTML = '<svg class="animate-spin h-3.5 w-3.5 mr-2 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle></svg> 发送中...';
             btn.disabled = true;
             if (globalTaskData && globalTaskData.creator) {
-                // 原有的外部发信机制保留
-                await insertDbNotification(globalTaskData.creator, `🚨 催办提醒：设计师交付了最终稿件，请火速验收：《${globalTaskData.title || currentTaskId}》。`, `task-detail-requester.html?id=${currentTaskId}`, 'urgent');
+                const urgeContent = `🚨 催办提醒：设计师交付了最终稿件，请火速验收：《${globalTaskData.title || currentTaskId}》。`;
+                // 站内通知保留
+                await insertDbNotification(globalTaskData.creator, urgeContent, `task-detail-requester.html?id=${currentTaskId}`, 'urgent');
+                // 站外通知事件：写入 notification_events，交给 Bot 内部邮箱发送
+                await writeExternalUrgentNotify(globalTaskData.creator, {
+                    content: urgeContent,
+                    pageName: 'task-detail-requester.html',
+                    fallbackDisplayName: globalTaskData.creator || '需求方',
+                    fallbackEmail: getPossibleCreatorEmail()
+                });
                 
                 // 新增：写入历史轨迹，触发站内铃铛
                 const dispName = currentUser.displayName || currentUser.enName || '设计师';
