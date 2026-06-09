@@ -930,15 +930,61 @@
         }
 
         async function createTaskNotifyEventSafely(options) {
+            // 关键修复：催办必须真正写入 notification_events，Bot 才能巡检发内部邮件。
+            // 优先使用 notify-events.js；如果它未加载、字段不匹配或写入失败，则直接兜底写表。
+            const payload = {
+                task_id: options.taskId || options.task_id || currentTaskId,
+                event_type: options.eventType || options.event_type || 'urgent',
+                target_email: options.targetEmail || options.target_email || null,
+                target_en_name: options.targetEnName || options.target_en_name || null,
+                target_display_name: options.targetDisplayName || options.target_display_name || null,
+                title: options.title || '需求催办提醒',
+                content: options.content || '',
+                action_url: options.actionUrl || options.action_url || buildTaskDetailUrl('task-detail-requester.html'),
+                email_status: 'pending',
+                error_message: null,
+                email_sent_at: null
+            };
+
             try {
-                if (typeof window.createNotifyEvent !== 'function') {
-                    console.warn('notify-events.js 未加载，跳过站外通知事件写入');
-                    return { ok: false, error: 'notify-events.js 未加载' };
+                if (!window.supabase) {
+                    return { ok: false, error: 'supabase 未初始化' };
                 }
-                return await window.createNotifyEvent(options);
+
+                // 没有收件邮箱时也写入 failed 事件，方便排查，而不是页面显示已催办但系统无记录。
+                if (!payload.target_email) {
+                    payload.email_status = 'failed';
+                    payload.error_message = 'target_email_empty_in_designer_page';
+                }
+
+                if (typeof window.createNotifyEvent === 'function') {
+                    try {
+                        const result = await window.createNotifyEvent(options);
+                        if (result && result.ok !== false) {
+                            return result;
+                        }
+                        console.warn('notify-events.js 写入失败，启用直接写表兜底：', result);
+                    } catch (innerErr) {
+                        console.warn('notify-events.js 异常，启用直接写表兜底：', innerErr);
+                    }
+                }
+
+                const { data, error } = await window.supabase
+                    .from('notification_events')
+                    .insert([payload])
+                    .select()
+                    .single();
+
+                if (error) {
+                    console.error('notification_events 直接写入失败：', error);
+                    return { ok: false, error: error.message || String(error), payload };
+                }
+
+                console.log('notification_events 已写入：', data);
+                return { ok: true, data };
             } catch (err) {
                 console.error('站外通知事件写入异常，但不影响主流程：', err);
-                return { ok: false, error: err?.message || String(err) };
+                return { ok: false, error: err?.message || String(err), payload };
             }
         }
 
@@ -1306,7 +1352,7 @@ async function fetchTaskData() {
 
                 // 新增：写入 notification_events，交给 Bot 用内部邮箱发送
                 const notifyTarget = await resolveNotifyTarget('judyzzhang', '丹楠姐');
-                await createTaskNotifyEventSafely({
+                const notifyEventResult = await createTaskNotifyEventSafely({
                     taskId: currentTaskId,
                     eventType: 'urgent',
                     ...notifyTarget,
@@ -1314,6 +1360,9 @@ async function fetchTaskData() {
                     content: `设计师已提交框架方案，请尽快审批：《${globalTaskData.title || currentTaskId}》。`,
                     actionUrl: buildTaskDetailUrl('task-detail-requester.html')
                 });
+                if (!notifyEventResult?.ok) {
+                    console.warn('催办邮件事件未成功写入 notification_events：', notifyEventResult);
+                }
                 
                 // 新增：写入历史轨迹，触发站内铃铛
                 const dispName = currentUser.displayName || currentUser.enName || '设计师';
@@ -1336,7 +1385,7 @@ async function fetchTaskData() {
 
                 // 新增：写入 notification_events，交给 Bot 用内部邮箱发送
                 const notifyTarget = await resolveNotifyTarget(globalTaskData.creator, globalTaskData.creator || '需求方');
-                await createTaskNotifyEventSafely({
+                const notifyEventResult = await createTaskNotifyEventSafely({
                     taskId: currentTaskId,
                     eventType: 'urgent',
                     ...notifyTarget,
@@ -1344,11 +1393,14 @@ async function fetchTaskData() {
                     content: `设计师已提交最终稿件，请尽快验收确认：《${globalTaskData.title || currentTaskId}》。`,
                     actionUrl: buildTaskDetailUrl('task-detail-requester.html')
                 });
+                if (!notifyEventResult?.ok) {
+                    console.warn('催办邮件事件未成功写入 notification_events：', notifyEventResult);
+                }
                 
                 // 新增：写入历史轨迹，触发站内铃铛
                 const dispName = currentUser.displayName || currentUser.enName || '设计师';
                 globalHistoryArr.push({
-                    action: 'urge_req', operator: `${dispName} (设计师)`, time: new Date().toISOString(), reply: '发起了紧急催办，请需求方火速验收正稿'
+                    action: 'urge_requester', operator: `${dispName} (设计师)`, time: new Date().toISOString(), reply: '发起了紧急催办，请需求方火速验收正稿'
                 });
                 await window.supabase.from(window.DB_TABLE).update({ history_json: JSON.stringify(globalHistoryArr) }).eq('id', currentTaskId);
             }
@@ -1371,7 +1423,7 @@ async function fetchTaskData() {
                     else if(h.action === 'terminate') { dotColor = 'rose'; actionTxt = '任务被强行终止'; subTxt = h.reply || ''; }
                     else if(h.action === 'transfer') { dotColor = 'orange'; actionTxt = '任务发生转单'; subTxt = h.reply || ''; }
                     else if(h.action === 'accept') { dotColor = 'sky'; actionTxt = '接单并给出排期'; subTxt = h.reply || ''; }
-                    else if(h.action === 'urge_leader' || h.action === 'urge_req') { dotColor = 'rose'; actionTxt = '发送催办提醒'; subTxt = h.reply || ''; }
+                    else if(h.action === 'urge_leader' || h.action === 'urge_req' || h.action === 'urge_requester') { dotColor = 'rose'; actionTxt = '发送催办提醒'; subTxt = h.reply || ''; }
                     
                     html += `
                     <div class="relative flex gap-4 z-10 pb-6 group">
