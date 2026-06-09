@@ -931,27 +931,52 @@
 
         async function createTaskNotifyEventSafely(options) {
             try {
-                if (typeof window.createNotifyEvent !== 'function') {
-                    console.warn('notify-events.js 未加载，跳过站外通知事件写入');
-                    return { ok: false, error: 'notify-events.js 未加载' };
+                if (typeof window.createNotifyEvent === 'function') {
+                    const result = await window.createNotifyEvent(options);
+                    if (result && result.ok !== false) {
+                        console.log('notification_events 写入成功：', result);
+                        return result;
+                    }
+                    console.warn('notify-events.js 写入失败，改用 Edge Function 授权调用：', result);
+                } else {
+                    console.warn('notify-events.js 未加载，改用 Edge Function 授权调用');
                 }
 
-                const result = await window.createNotifyEvent(options);
-
-                if (!result || result.ok === false) {
-                    console.warn('notification_events 写入失败：', result);
-                    return { ok: false, error: result?.error || 'createNotifyEvent_failed', data: result };
+                if (!window.supabase?.functions?.invoke) {
+                    return { ok: false, error: 'supabase.functions.invoke 不可用' };
                 }
 
-                console.log('notification_events 写入成功：', result);
-                return result;
+                // 关键修复：不要 fetch 直连 Edge Function URL。
+                // fetch 没有 Authorization header，会触发 Missing authorization header。
+                // functions.invoke 会自动带上 Supabase 的 Authorization/apikey。
+                const { data, error } = await window.supabase.functions.invoke('send-notification-emails', {
+                    body: {
+                        action: 'create_notification_event',
+                        task_id: options.taskId || currentTaskId,
+                        event_type: options.eventType || 'urgent',
+                        target_email: options.targetEmail || null,
+                        target_en_name: options.targetEnName || null,
+                        target_display_name: options.targetDisplayName || null,
+                        mobile: options.mobile || null,
+                        title: options.title || '需求催办提醒',
+                        content: options.content || '',
+                        action_url: options.actionUrl || buildTaskDetailUrl('task-detail-requester.html')
+                    }
+                });
+
+                if (error || data?.ok === false) {
+                    console.error('催办事件写入 Edge Function 失败：', error || data);
+                    return { ok: false, error: error?.message || data?.error || 'edge_function_failed', data };
+                }
+
+                console.log('催办事件已通过 Edge Function 写入 notification_events：', data);
+                return data || { ok: true };
             } catch (err) {
                 console.error('站外通知事件写入异常，但不影响主流程：', err);
                 return { ok: false, error: err?.message || String(err) };
             }
         }
 
-        // 和需求方页面保持同名能力，避免两个页面调用链路不一致
         window.safeCreateNotifyEvent = async function(options) {
             return await createTaskNotifyEventSafely(options);
         };
@@ -1320,7 +1345,7 @@ async function fetchTaskData() {
 
                 // 新增：写入 notification_events，交给 Bot 用内部邮箱发送
                 const notifyTarget = await resolveNotifyTarget('judyzzhang', '丹楠姐');
-                const notifyResult = await window.safeCreateNotifyEvent({
+                await window.safeCreateNotifyEvent({
                     taskId: currentTaskId,
                     eventType: 'urgent',
                     ...notifyTarget,
@@ -1328,9 +1353,6 @@ async function fetchTaskData() {
                     content: `设计师已提交框架方案，请尽快审批：《${globalTaskData.title || currentTaskId}》。`,
                     actionUrl: buildTaskDetailUrl('task-detail-requester.html')
                 });
-                if (!notifyResult?.ok) {
-                    console.warn('催办领导审批的 notification_events 写入失败：', notifyResult);
-                }
                 
                 // 新增：写入历史轨迹，触发站内铃铛
                 const dispName = currentUser.displayName || currentUser.enName || '设计师';
@@ -1353,7 +1375,7 @@ async function fetchTaskData() {
 
                 // 新增：写入 notification_events，交给 Bot 用内部邮箱发送
                 const notifyTarget = await resolveNotifyTarget(globalTaskData.creator, globalTaskData.creator || '需求方');
-                const notifyResult = await window.safeCreateNotifyEvent({
+                await window.safeCreateNotifyEvent({
                     taskId: currentTaskId,
                     eventType: 'urgent',
                     ...notifyTarget,
@@ -1361,9 +1383,6 @@ async function fetchTaskData() {
                     content: `设计师已提交最终稿件，请尽快验收确认：《${globalTaskData.title || currentTaskId}》。`,
                     actionUrl: buildTaskDetailUrl('task-detail-requester.html')
                 });
-                if (!notifyResult?.ok) {
-                    console.warn('催办需求方验收的 notification_events 写入失败：', notifyResult);
-                }
                 
                 // 新增：写入历史轨迹，触发站内铃铛
                 const dispName = currentUser.displayName || currentUser.enName || '设计师';
@@ -1474,7 +1493,7 @@ async function fetchTaskData() {
                     await insertDbNotification(globalTaskData.creator, `【已接单】设计师 ${currentUser.displayName || currentUser.enName} 已接手你的需求：《${globalTaskData.title}》，预计交稿：${fwDate}。`, `task-detail-requester.html?id=${currentTaskId}`, 'update'); 
 
                     const notifyTarget = await resolveNotifyTarget(globalTaskData.creator);
-                    await createTaskNotifyEventSafely({
+                    await window.safeCreateNotifyEvent({
                         taskId: currentTaskId,
                         eventType: 'accepted',
                         ...notifyTarget,
@@ -1505,7 +1524,7 @@ async function fetchTaskData() {
                     await insertDbNotification(globalTaskData.creator, `【需求被退回】设计师因需求不清晰退回了你的单子：《${globalTaskData.title}》，原因：${reason}。`, `task-detail-requester.html?id=${currentTaskId}`, 'urgent'); 
 
                     const notifyTarget = await resolveNotifyTarget(globalTaskData.creator);
-                    await createTaskNotifyEventSafely({
+                    await window.safeCreateNotifyEvent({
                         taskId: currentTaskId,
                         eventType: 'designer_rejected_order',
                         ...notifyTarget,
@@ -1663,7 +1682,7 @@ async function fetchTaskData() {
                     await insertDbNotification('judyzzhang', `【框架待审】设计师 ${currentUser.displayName || currentUser.enName} 上传了中期方案：《${globalTaskData.title}》，请您火速审批把关。`, `task-detail-requester.html?id=${currentTaskId}`, 'urgent');
 
                     const notifyTarget = await resolveNotifyTarget('judyzzhang', '丹楠姐');
-                    await createTaskNotifyEventSafely({
+                    await window.safeCreateNotifyEvent({
                         taskId: currentTaskId,
                         eventType: 'pending_approval',
                         ...notifyTarget,
@@ -1676,7 +1695,7 @@ async function fetchTaskData() {
                         await insertDbNotification(globalTaskData.creator, `【正稿待收】设计师 ${currentUser.displayName || currentUser.enName} 交付了正式设计稿：《${globalTaskData.title}》，请您火速验收。`, `task-detail-requester.html?id=${currentTaskId}`, 'urgent');
 
                         const notifyTarget = await resolveNotifyTarget(globalTaskData.creator);
-                        await createTaskNotifyEventSafely({
+                        await window.safeCreateNotifyEvent({
                             taskId: currentTaskId,
                             eventType: 'reviewing',
                             ...notifyTarget,
