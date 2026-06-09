@@ -1,8 +1,8 @@
 // notify-events.js
 // 安全版：站外通知事件中转层
-// 修复版：设计师页面催需求方时，支持 display_name = 33 -> user_profiles.en_name -> @webank.com
-// 关键修复：不再使用 Supabase .or(...) 查询 user_profiles，避免 display_name=33 时 PostgREST 400。
-// 真正发邮件仍由 Bot 巡检 notification_events 后使用内部邮箱能力发送。
+// 最终修复：不再依赖 user_profiles 视图新增 email；改查真实映射表 notify_user_map。
+// 你需要先在 Supabase SQL Editor 创建 notify_user_map 表，并把 en_name/cn_name/display_name 映射进去。
+// Bot 仍然通过 notification_events 巡检后用内部邮箱发件。
 
 (function () {
   const ALLOWED_EVENT_TYPES = new Set([
@@ -70,85 +70,36 @@
     }
   }
 
-  async function resolveFromUserProfiles(rawValue) {
+  async function resolveFromNotifyUserMap(rawValue) {
     const key = normalize(rawValue);
     if (!window.supabase || !key) return null;
 
     try {
-      // 不使用 .or(...)，避免 display_name=33 时 PostgREST 解析 400。
-      // 当前 user_profiles 量很小，直接拉轻量字段后前端匹配最稳。
       const { data, error } = await window.supabase
-        .from("user_profiles")
-        .select("en_name, cn_name, display_name");
+        .from("notify_user_map")
+        .select("alias, en_name, display_name, email")
+        .eq("alias", key)
+        .limit(1);
 
       if (error) {
-        console.warn("user_profiles 查询失败：", error);
+        console.warn("notify_user_map 查询失败：", error);
         return null;
       }
 
-      if (!Array.isArray(data)) return null;
+      const row = Array.isArray(data) ? data[0] : null;
+      if (!row) return null;
 
-      const matched = data.find((row) => {
-        const en = normalize(row.en_name);
-        const cn = normalize(row.cn_name);
-        const display = normalize(row.display_name);
-        return en === key || cn === key || display === key;
-      });
-
-      if (!matched || !matched.en_name) return null;
-
-      const en = safeEnName(matched.en_name);
-      if (!en) return null;
-
-      return {
-        enName: en,
-        email: `${en}@webank.com`,
-        displayName: cleanText(matched.display_name || matched.cn_name || rawValue, 80),
-      };
-    } catch (err) {
-      console.warn("从 user_profiles 解析通知对象异常：", err);
-      return null;
-    }
-  }
-
-  async function resolveFromUsers(rawValue) {
-    const key = normalize(rawValue);
-    if (!window.supabase || !key) return null;
-
-    try {
-      // 同样不使用 .or(...)，避免特殊昵称导致 400。
-      const { data, error } = await window.supabase
-        .from("users")
-        .select("email, name, enName");
-
-      if (error) {
-        console.warn("users 查询失败：", error);
-        return null;
-      }
-
-      if (!Array.isArray(data)) return null;
-
-      const matched = data.find((row) => {
-        const email = normalize(row.email);
-        const name = normalize(row.name);
-        const en = normalize(row.enName);
-        return email === key || name === key || en === key;
-      });
-
-      if (!matched) return null;
-
-      const email = safeWebankEmail(matched.email, matched.enName);
-      const en = safeEnName(matched.enName) || (email ? email.split("@")[0] : null);
-
+      const email = safeWebankEmail(row.email, row.en_name);
+      const en = safeEnName(row.en_name) || (email ? email.split("@")[0] : null);
       if (!email || !en) return null;
 
       return {
         enName: en,
         email,
-        displayName: cleanText(matched.name || rawValue || en, 80),
+        displayName: cleanText(row.display_name || row.alias || rawValue, 80),
       };
     } catch (err) {
-      console.warn("从 users 解析通知对象异常：", err);
+      console.warn("从 notify_user_map 解析通知对象异常：", err);
       return null;
     }
   }
@@ -178,7 +129,7 @@
       };
     }
 
-    // 3. displayName 如果是英文名，也可以直接拼邮箱
+    // 3. displayName 如果本身是英文名，也可以直接拼邮箱
     const displayAsEn = safeEnName(rawDisplayName);
     if (displayAsEn) {
       return {
@@ -188,21 +139,13 @@
       };
     }
 
-    // 4. displayName / 中文名 / 昵称从 user_profiles 解析。这里就是修 33 的关键。
-    const byProfile =
-      (await resolveFromUserProfiles(rawDisplayName)) ||
-      (await resolveFromUserProfiles(rawEnName)) ||
-      (await resolveFromUserProfiles(rawEmail));
+    // 4. 真实映射表：支持 33 / 黄丹 / debbiehuang 都查到 debbiehuang@webank.com
+    const byMap =
+      (await resolveFromNotifyUserMap(rawDisplayName)) ||
+      (await resolveFromNotifyUserMap(rawEnName)) ||
+      (await resolveFromNotifyUserMap(rawEmail));
 
-    if (byProfile) return byProfile;
-
-    // 5. users 表兜底
-    const byUser =
-      (await resolveFromUsers(rawDisplayName)) ||
-      (await resolveFromUsers(rawEnName)) ||
-      (await resolveFromUsers(rawEmail));
-
-    if (byUser) return byUser;
+    if (byMap) return byMap;
 
     return {
       enName: null,
@@ -246,7 +189,7 @@
         console.warn("非法通知邮箱，已拦截：", targetEmail, targetEnName, targetDisplayName, target);
         return {
           ok: false,
-          error: "通知邮箱必须是 @webank.com，且需要能从 user_profiles/users 解析",
+          error: "通知对象没有在 notify_user_map 中找到邮箱",
           target,
         };
       }
