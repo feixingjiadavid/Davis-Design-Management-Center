@@ -419,6 +419,22 @@
         }
 
     </style>
+
+    <script>
+        // 邮件/企微/外部链接打开详情页时没有可用上一页，必须兜底回设计执行看板
+        window.safeReturnToDesignerHall = function () {
+            try {
+                const ref = document.referrer || "";
+                const sameSite = ref && new URL(ref).origin === window.location.origin;
+                if (sameSite && window.history.length > 1) {
+                    window.history.back();
+                    return;
+                }
+            } catch (e) {}
+            window.location.href = "assistant-workspace.html";
+        };
+    </script>
+
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-orange-500/30 text-zinc-300">
 
@@ -436,7 +452,7 @@
         </div>
 
         <div class="flex-1 overflow-y-auto p-5 space-y-2">
-            <button onclick="window.location.href='assistant-workspace.html'" class="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-white/10 text-white hover:bg-white/20 transition-all btn-press shadow-sm">
+            <button onclick="window.safeReturnToDesignerHall()" class="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-white/10 text-white hover:bg-white/20 transition-all btn-press shadow-sm">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
                 <span class="font-bold text-[14px]">返回执行看板</span>
             </button>
@@ -1289,7 +1305,7 @@ async function fetchTaskData() {
                         </div>
                     </div>
                     <button onclick="${urgeFn}" class="w-full py-3.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-[13px] font-bold transition-all btn-press mb-3 shadow-[0_0_15px_rgba(249,115,22,0.3)]">${urgeText}</button>
-                    <button onclick="window.location.href='assistant-workspace.html'" class="w-full py-3 bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white rounded-xl text-[12px] font-bold transition-all btn-press">返回执行看板</button>
+                    <button onclick="window.safeReturnToDesignerHall()" class="w-full py-3 bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white rounded-xl text-[12px] font-bold transition-all btn-press">返回执行看板</button>
                 `;
             } else {
                 sCol = status==='terminated'?'rose':'zinc'; sText = status==='terminated'?'已强行终止 (废弃)':'任务已圆满结项';
@@ -1300,7 +1316,7 @@ async function fetchTaskData() {
                     <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-${sCol}-500"></div>
                     <h3 class="text-[16px] font-bold text-white mb-3">${sText}</h3>
                     <p class="text-[12px] text-zinc-400 leading-relaxed mb-6">该需求在此刻已永久封存闭环，感谢你的设计输出。左侧为您参与提交的所有历史版本记录供复盘。</p>
-                    <button onclick="window.location.href='assistant-workspace.html'" class="w-full py-3.5 bg-[#1a1a24] border border-zinc-700 text-zinc-400 hover:bg-zinc-800 hover:text-white rounded-xl text-[13px] font-bold transition-all btn-press">返回工作台</button>
+                    <button onclick="window.safeReturnToDesignerHall()" class="w-full py-3.5 bg-[#1a1a24] border border-zinc-700 text-zinc-400 hover:bg-zinc-800 hover:text-white rounded-xl text-[13px] font-bold transition-all btn-press">返回工作台</button>
                 `;
             }
 
@@ -1533,7 +1549,7 @@ async function fetchTaskData() {
                 }
             }
             closeActionModals(); showToast('✅ 接单成功', '任务已分配给您并进入制作池。', 'success');
-            setTimeout(() => { window.location.href = 'assistant-workspace.html'; }, 1000);
+            setTimeout(() => { window.safeReturnToDesignerHall(); }, 1000);
         }
 
         window.submitRejectOrder = async function() {
@@ -1564,7 +1580,7 @@ async function fetchTaskData() {
                 }
             }
             closeActionModals(); showToast('已退回', '该需求已退回给甲方。', 'info');
-            setTimeout(() => { window.location.href = 'assistant-workspace.html'; }, 1000);
+            setTimeout(() => { window.safeReturnToDesignerHall(); }, 1000);
         }
 
 
@@ -1737,7 +1753,7 @@ async function fetchTaskData() {
             }
 
             showToast('推送成功', `该节点产出已流转至下一步。`, 'success');
-            setTimeout(() => { window.location.href = 'assistant-workspace.html'; }, 1500);
+            setTimeout(() => { window.safeReturnToDesignerHall(); }, 1500);
         }
 
         // 💡 补全看大图核心业务逻辑函数
