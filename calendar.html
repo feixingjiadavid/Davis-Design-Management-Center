@@ -1233,7 +1233,7 @@
             if(syncDot) syncDot.classList.remove('hidden');
 
             try {
-                const { data, error } = await window.supabase.from('test_tasks').select('*').order('due_date', { ascending: true });
+                const { data, error } = await window.supabase.from('test_tasks').select('id, title, project, status, creator, assignee, due_date, created_at, history_json').order('due_date', { ascending: true }).limit(500);
                 if (error) throw error;
                 
                 myAllTasks = (data || []).filter(t => {
@@ -1255,7 +1255,7 @@
                 switchView('month');
                 document.getElementById('calendar-loading').classList.add('hidden');
                 
-                setInterval(window.syncNotificationsFromCloud, 8000);
+                window.ioOptimizedInterval(() => { window.syncNotificationsFromCloud(); }, window.IO_OPT_NOTIFY_POLL_MS);
                 window.syncNotificationsFromCloud();
 
             } catch (err) {
@@ -1821,7 +1821,7 @@
             const isLeader = currentUserEn === 'judyzzhang' || currentUserEn === 'davidxxu';
 
             try {
-                const { data, error } = await window.supabase.from('test_tasks').select('id, creator, assignee, status, history_json').order('created_at', { ascending: false }).limit(100);
+                const { data, error } = await window.supabase.from('test_tasks').select('id, creator, assignee, status, history_json').order('created_at', { ascending: false }).limit(80);
                 if(error) throw error;
 
                 let knownHistories = JSON.parse(localStorage.getItem('known_histories_req') || '{}');
@@ -1943,8 +1943,20 @@
             });
 
             window.loadNotifications();
-            setInterval(() => { window.loadTasksFromCloud(true); }, 8000);
+            window.ioOptimizedInterval(() => { window.loadTasksFromCloud(true); }, window.IO_OPT_TASK_POLL_MS);
         });
+
+
+        // ================= IO 优化：统一降低轮询频率，后台页不打库 =================
+        window.IO_OPT_NOTIFY_POLL_MS = window.IO_OPT_NOTIFY_POLL_MS || 60000;      // 通知：60秒
+        window.IO_OPT_TASK_POLL_MS = window.IO_OPT_TASK_POLL_MS || 60000;          // 普通任务列表：60秒
+        window.IO_OPT_DASHBOARD_POLL_MS = window.IO_OPT_DASHBOARD_POLL_MS || 120000; // 大盘/分析页：120秒
+        window.ioOptimizedInterval = window.ioOptimizedInterval || function(callback, ms) {
+            return setInterval(() => {
+                if (document.visibilityState !== 'visible') return;
+                if (typeof callback === 'function') callback();
+            }, ms);
+        };
 
     </script>
 </body>
