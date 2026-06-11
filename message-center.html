@@ -477,10 +477,8 @@
             // 初始化拉取一次
             window.loadMsgs(false);
 
-            // 为系统注入“心跳”，每 8 秒静默轮询，彻底告别系统“死机”
-            setInterval(() => {
-                window.loadMsgs(true);
-            }, 8000);
+            // IO优化：消息中心不再 8 秒扫库；仅在页面可见时每 60 秒刷新
+            window.ioOptimizedInterval(() => { window.loadMsgs(true); }, window.IO_OPT_NOTIFY_POLL_MS);
         }
 
         // 💡 彻底修复版：上帝视角无盲区查库 + 精准三端隔离 + 防滚动条乱跳
@@ -509,7 +507,8 @@
                 // 彻底抛弃 notifications 表，直连任务表读取轨迹！
                 const { data: tasks, error } = await window.supabase.from('test_tasks')
                     .select('id, title, creator, assignee, history_json')
-                    .order('created_at', { ascending: false });
+                    .order('created_at', { ascending: false })
+                    .limit(120);
                 
                 if (error) throw error;
 
@@ -697,6 +696,18 @@
             else if (currentRole === 'design') window.location.href = 'assistant-workspace.html';
             else window.location.href = 'manager-workspace.html';
         }
+
+        // ================= IO 优化：统一降低轮询频率，后台页不打库 =================
+        window.IO_OPT_NOTIFY_POLL_MS = window.IO_OPT_NOTIFY_POLL_MS || 60000;      // 通知：60秒
+        window.IO_OPT_TASK_POLL_MS = window.IO_OPT_TASK_POLL_MS || 60000;          // 普通任务列表：60秒
+        window.IO_OPT_DASHBOARD_POLL_MS = window.IO_OPT_DASHBOARD_POLL_MS || 120000; // 大盘/分析页：120秒
+        window.ioOptimizedInterval = window.ioOptimizedInterval || function(callback, ms) {
+            return setInterval(() => {
+                if (document.visibilityState !== 'visible') return;
+                if (typeof callback === 'function') callback();
+            }, ms);
+        };
+
     </script>
 </body>
 </html>
