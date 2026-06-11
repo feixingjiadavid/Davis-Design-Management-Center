@@ -140,16 +140,54 @@
     function setVal(id, v) { const el = document.getElementById(id); if (el && v) el.value = v; }
     function norm(v){ return String(v || '').trim(); }
 
-    function initPrefill() {
-      if (!ticket) failPage('这个链接缺少一次性提单票据。请回到企业微信，让小戴维斯重新生成提单链接。');
-      prefill = payloadStr ? b64JsonDecode(payloadStr) : {};
-      const creator = prefill.creator || '已由 Bot 校验';
-      document.getElementById('display-creator').innerText = creator;
+    async function initPrefill() {
+      if (!ticket) {
+        failPage('这个链接缺少一次性提单票据。请回到企业微信，让小戴维斯重新生成提单链接。');
+        return;
+      }
+
+      // 优先从一次性 ticket 读取真实提单人和预填信息。
+      // 这样页面展示的提单身份会和企业微信发话人一致，而不是只显示“已由 Bot 校验”。
+      try {
+        const res = await fetch(GATEWAY_URL, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ action: 'read_quick_form_ticket', ticket })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+        prefill = (data.initial_payload && typeof data.initial_payload === 'object') ? data.initial_payload : {};
+        const displayName = data.display_name || '';
+        const creator = data.creator || '';
+        document.getElementById('display-creator').innerText = displayName && creator ? `${displayName}（${creator}）` : (creator || displayName || '已由 Bot 校验');
+      } catch (err) {
+        // 兼容旧 payload 链接；但新工作流应走 ticket 读取。
+        prefill = payloadStr ? b64JsonDecode(payloadStr) : {};
+        const creator = prefill.creator || '';
+        document.getElementById('display-creator').innerText = creator || '票据读取失败';
+        failPage((err instanceof Error ? err.message : String(err)) || '提单票据读取失败，请回企业微信重新生成链接。');
+        return;
+      }
+
+      const descParts = [];
+      const fullDesc = prefill.full_desc || prefill.desc || '';
+      if (fullDesc) descParts.push(fullDesc);
+      if (prefill.size) descParts.push(`尺寸：${prefill.size}`);
+      if (prefill.notes) descParts.push(`补充说明：${prefill.notes}`);
+
       setVal('req-short-title', prefill.title || '');
-      setVal('req-title', prefill.desc || '');
-      setVal('req-type', prefill.type || '');
+      setVal('req-title', descParts.join('\n\n'));
+      setVal('req-type', prefill.type || prefill.request_type || '');
       setVal('req-project', prefill.project || '');
       setVal('req-date', prefill.due_date || '');
+      setVal('req-link', prefill.link || '');
+
+      if (prefill.assignee) {
+        const a = String(prefill.assignee || '').trim();
+        if (a && a !== 'none') setVal('req-assignee-input', a);
+      }
+
       if (Array.isArray(prefill.channels)) {
         document.querySelectorAll('.req-channel').forEach(cb => { if (prefill.channels.includes(cb.value)) cb.checked = true; });
       }
