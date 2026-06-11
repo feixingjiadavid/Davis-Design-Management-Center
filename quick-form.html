@@ -18,6 +18,7 @@
     .invalid-field { border-color:#ef4444 !important; animation:shake .3s; }
     @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-4px)} 75%{transform:translateX(4px)} }
     .hint { background:rgba(99,102,241,.10); border:1px solid rgba(99,102,241,.22); }
+    .error-hint { background:rgba(244,63,94,.12); border:1px solid rgba(244,63,94,.32); }
   </style>
 </head>
 <body class="p-4 md:p-10 flex justify-center items-start min-h-screen">
@@ -32,9 +33,10 @@
       </div>
     </div>
 
-    <div id="bot-prefill-hint" class="hidden hint rounded-2xl p-4 mb-6 text-[12px] leading-6 text-indigo-100">
-      小戴维斯已帮你预填部分内容。请检查并补齐红星字段，确认后即可免登录提交。
+    <div id="secure-hint" class="hint rounded-2xl p-4 mb-6 text-[12px] leading-6 text-indigo-100">
+      这个链接由小戴维斯校验企业微信身份后生成。提交时系统会再次校验一次性票据，并以 Bot 识别到的企业微信英文名作为提单人。
     </div>
+    <div id="fatal-hint" class="hidden error-hint rounded-2xl p-4 mb-6 text-[12px] leading-6 text-rose-100"></div>
 
     <form id="quickForm" class="space-y-6" novalidate>
       <div>
@@ -43,7 +45,7 @@
       </div>
 
       <div>
-        <label class="block text-[12px] font-bold text-zinc-400 mb-2 uppercase">2. 需求描述 <span class="text-rose-500">*</span></label>
+        <label class="block text-[12px] font-bold text-zinc-400 mb-2 uppercase">2. 设计内容 <span class="text-rose-500">*</span></label>
         <textarea id="req-title" class="w-full px-4 py-3.5 rounded-xl text-sm h-32 resize-none custom-scrollbar" placeholder="请说明背景、用途、文案、尺寸、风格、参考方向、交付物等。" maxlength="3000"></textarea>
         <p class="text-[11px] text-zinc-600 mt-2">建议写清：用在哪里、尺寸、文案是否已定、是否需要源文件、参考图/链接。</p>
       </div>
@@ -59,7 +61,7 @@
         </div>
         <div class="relative" id="project-wrapper">
           <label class="block text-[12px] font-bold text-zinc-400 mb-2 uppercase">4. 归属项目 <span class="text-rose-500">*</span></label>
-          <input type="text" id="req-project" class="w-full px-4 py-3.5 rounded-xl text-sm" placeholder="点选或搜索..." onfocus="showProjectDrop()" oninput="filterProjectDrop()">
+          <input type="text" id="req-project" class="w-full px-4 py-3.5 rounded-xl text-sm" placeholder="点选或搜索..." readonly>
           <div id="project-dropdown" class="hidden absolute left-0 right-0 top-[100%] mt-1 bg-[#121217] border border-zinc-700 rounded-xl shadow-2xl z-[999] max-h-56 overflow-y-auto custom-scrollbar py-2"></div>
         </div>
       </div>
@@ -74,15 +76,15 @@
           <label class="cursor-pointer"><input type="checkbox" value="电视机" class="hidden pill-checkbox req-channel"><div class="border border-zinc-700 bg-[#09090b] text-zinc-500 text-[10px] px-4 py-2 rounded-full transition-all">电视机</div></label>
           <label class="cursor-pointer"><input type="checkbox" value="异形牌" class="hidden pill-checkbox req-channel"><div class="border border-zinc-700 bg-[#09090b] text-zinc-500 text-[10px] px-4 py-2 rounded-full transition-all">异形牌</div></label>
           <label class="cursor-pointer"><input type="checkbox" value="We视角" class="hidden pill-checkbox req-channel"><div class="border border-zinc-700 bg-[#09090b] text-zinc-500 text-[10px] px-4 py-2 rounded-full transition-all">We视角</div></label>
-          <label class="cursor-pointer"><input type="checkbox" value="其他" id="channel-other-cb" class="hidden pill-checkbox req-channel" onchange="toggleOtherInput()"><div class="border border-zinc-700 bg-[#09090b] text-zinc-500 text-[10px] px-4 py-2 rounded-full transition-all">其他</div></label>
+          <label class="cursor-pointer"><input type="checkbox" value="其他" id="channel-other-cb" class="hidden pill-checkbox req-channel"><div class="border border-zinc-700 bg-[#09090b] text-zinc-500 text-[10px] px-4 py-2 rounded-full transition-all">其他</div></label>
         </div>
-        <input type="text" id="req-channel-other" placeholder="请填写具体渠道..." class="hidden w-full mt-3 rounded-xl px-4 py-2.5 text-sm" maxlength="80">
+        <input type="text" id="req-channel-other" placeholder="请手写具体渠道..." class="hidden w-full mt-3 bg-[#09090b] border border-zinc-700 rounded-xl px-4 py-2.5 text-sm">
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div class="relative" id="assignee-wrapper">
           <label class="block text-[12px] font-bold text-zinc-400 mb-2 uppercase">6. 期望执行人 <span class="text-zinc-600">可选</span></label>
-          <input type="text" id="req-assignee-input" class="w-full px-4 py-3 rounded-xl text-sm" placeholder="不确定就选系统统筹" onfocus="showAssigneeDrop()" oninput="filterAssigneeDrop()">
+          <input type="text" id="req-assignee-input" class="w-full px-4 py-3 rounded-xl text-sm" placeholder="默认系统统筹" readonly>
           <div id="assignee-dropdown" class="hidden absolute left-0 right-0 top-[100%] mt-1 bg-[#121217] border border-zinc-700 rounded-xl shadow-2xl z-[999] max-h-56 overflow-y-auto custom-scrollbar py-2"></div>
         </div>
         <div>
@@ -92,13 +94,14 @@
       </div>
 
       <div>
-        <label class="block text-[12px] font-bold text-zinc-400 mb-2 uppercase">8. 参考链接 / 附件链接 <span class="text-zinc-600">选填</span></label>
-        <input type="url" id="req-link" class="w-full px-4 py-3 rounded-xl text-sm" placeholder="腾讯文档、网盘、图片链接等。为了保护数据库，不在这里上传大文件。" maxlength="1000">
+        <label class="block text-[12px] font-bold text-zinc-400 mb-2 uppercase">8. 参考链接 <span class="text-zinc-600">选填</span></label>
+        <input type="url" id="req-link" class="w-full px-4 py-3 rounded-xl text-sm" placeholder="腾讯文档、网盘、图片链接等。">
       </div>
 
       <div>
         <label class="block text-[12px] font-bold text-zinc-400 mb-2 uppercase">9. 参考补充说明 <span class="text-zinc-600">选填</span></label>
-        <textarea id="req-extra" class="w-full px-4 py-3.5 rounded-xl text-sm h-20 resize-none custom-scrollbar" placeholder="例如：参考图已发群里 / 文案在腾讯文档里 / 需要透明底 PNG 等。" maxlength="800"></textarea>
+        <textarea id="req-extra" class="w-full px-4 py-3 rounded-xl text-sm h-24 resize-none" placeholder="例如：参考图已发群里 / 文案在腾讯文档里 / 需要透明底 PNG 等。" maxlength="1000"></textarea>
+        <p class="text-[11px] text-zinc-600 mt-2">为保护数据库 IO，本页不再上传大附件。请使用腾讯文档、网盘、群文件或图片链接。</p>
       </div>
 
       <button type="submit" id="submitBtn" class="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold shadow-xl transition-all active:scale-95">
@@ -107,165 +110,116 @@
     </form>
   </div>
 
-  <script type="module">
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
-    const supabase = createClient('https://supffjeeouibhqdfqosk.supabase.co', 'sb_publishable_v6fbIaU52lLFacywiIKvUw_x1gc1ckQ');
-
-    const PROJECT_LIST = ["Smart文化-OpenTalk", "Smart文化-1024", "Smart文化-后勤小管家", "Smart文化-小蓝书运营", "Smart文化-送物机器人", "荣誉体系-即时激励", "荣誉体系-荣誉奖项", "荣誉体系-AI奖项", "荣誉体系-最佳拍档", "荣誉体系-科技合作社", "荣誉体系-极客团", "年度大会-武汉", "年度大会-上海", "年度大会-行庆", "HR侧相关-周年庆", "HR侧相关-初八团拜", "工会相关-团建旅游", "工会相关-运动季", "工会相关-文体活动", "常规活动-新人入职", "常规活动-科技合规银监人行类支持", "常规活动-年决", "常规活动-管理团队活动", "常规活动-外籍员工支持", "品宣支持", "科技子支持", "行品宣设计对接", "部门-基科", "部门-数业", "部门-贷款", "部门-存款", "部门-企同", "部门-财富", "部门-政科", "部门-数发", "部门-安全", "部门-上海", "部门-武汉", "部门-成都", "部门-科管", "其他-待统筹判断"];
-    const ASSIGNEE_LIST = ['不指定 (系统统筹)', 'anckyyu', 'davidxxu', 'debbiehuang', 'evazzhu', 'hscheng', 'mengmengli', 'skylerhuang', 'sophiachen', 'tiaouyang', 'v_lijuangchen', 'v_lucui', 'v_sijieli', 'v_siyifu', 'v_sjtian', 'v_wbchye', 'v_wbjgao', 'v_wbmtli', 'v_zqlan', 'wenjiawu', 'yamyzhang', 'yaozhong', 'yoshyliu', 'zoeyzhou'].sort();
+  <script>
+    const GATEWAY_URL = 'https://supffjeeouibhqdfqosk.supabase.co/functions/v1/quick-form-gateway';
+    const PROJECT_LIST = ["Smart文化-OpenTalk","Smart文化-1024","Smart文化-后勤小管家","Smart文化-小蓝书运营","Smart文化-送物机器人","荣誉体系-即时激励","荣誉体系-荣誉奖项","荣誉体系-AI奖项","荣誉体系-最佳拍档","荣誉体系-科技合作社","荣誉体系-极客团","年度大会-武汉","年度大会-上海","年度大会-行庆","HR侧相关-周年庆","HR侧相关-初八团拜","工会相关-团建旅游","工会相关-运动季","工会相关-文体活动","常规活动-新人入职","常规活动-科技合规银监人行类支持","常规活动-年决","常规活动-管理团队活动","常规活动-外籍员工支持","品宣支持","科技子支持","行品宣设计对接","部门-基科","部门-数业","部门-贷款","部门-存款","部门-企同","部门-财富","部门-政科","部门-数发","部门-安全","部门-上海","部门-武汉","部门-成都","部门-科管","其他-待统筹判断"];
+    const ASSIGNEE_LIST = ['不指定 (系统统筹)','anckyyu','davidxxu','debbiehuang','evazzhu','hscheng','mengmengli','skylerhuang','sophiachen','tiaouyang','v_lijuangchen','v_lucui','v_sijieli','v_siyifu','v_sjtian','v_wbchye','v_wbjgao','v_wbmtli','v_zqlan','wenjiawu','yamyzhang','yaozhong','yoshyliu','zoeyzhou'].sort();
 
     const params = new URLSearchParams(window.location.search);
-    let creatorId = clean(params.get('creator') || '神秘提单人', 80);
-    document.getElementById('display-creator').innerText = creatorId;
+    const ticket = params.get('ticket') || '';
+    const payloadStr = params.get('payload') || '';
+    let prefill = {};
 
-    function clean(value, maxLen = 3000) {
-      return String(value || '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, maxLen);
-    }
-    function decodePayload(raw) {
-      if (!raw) return null;
+    function b64JsonDecode(s) {
       try {
-        let s = raw.replace(/-/g, '+').replace(/_/g, '/');
-        while (s.length % 4) s += '=';
-        const bin = atob(s);
-        const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+        const pad = '='.repeat((4 - s.length % 4) % 4);
+        const raw = atob((s + pad).replace(/-/g, '+').replace(/_/g, '/'));
+        const bytes = Uint8Array.from(raw, c => c.charCodeAt(0));
         return JSON.parse(new TextDecoder().decode(bytes));
-      } catch (e) {
-        console.warn('payload 解析失败', e);
-        return null;
+      } catch(e) { return {}; }
+    }
+
+    function failPage(msg) {
+      const hint = document.getElementById('fatal-hint');
+      hint.classList.remove('hidden');
+      hint.innerText = msg;
+      document.getElementById('submitBtn').disabled = true;
+      document.getElementById('submitBtn').classList.add('opacity-50');
+    }
+
+    function setVal(id, v) { const el = document.getElementById(id); if (el && v) el.value = v; }
+    function norm(v){ return String(v || '').trim(); }
+
+    function initPrefill() {
+      if (!ticket) failPage('这个链接缺少一次性提单票据。请回到企业微信，让小戴维斯重新生成提单链接。');
+      prefill = payloadStr ? b64JsonDecode(payloadStr) : {};
+      const creator = prefill.creator || '已由 Bot 校验';
+      document.getElementById('display-creator').innerText = creator;
+      setVal('req-short-title', prefill.title || '');
+      setVal('req-title', prefill.desc || '');
+      setVal('req-type', prefill.type || '');
+      setVal('req-project', prefill.project || '');
+      setVal('req-date', prefill.due_date || '');
+      if (Array.isArray(prefill.channels)) {
+        document.querySelectorAll('.req-channel').forEach(cb => { if (prefill.channels.includes(cb.value)) cb.checked = true; });
       }
     }
-    function setVal(id, val) { if (val) document.getElementById(id).value = clean(val, id === 'req-link' ? 1000 : 3000); }
-    function checkChannels(raw) {
-      const values = Array.isArray(raw) ? raw : String(raw || '').split(',').map(s => s.trim()).filter(Boolean);
-      values.forEach(v => {
-        const target = Array.from(document.querySelectorAll('.req-channel')).find(cb => cb.value === v);
-        if (target) target.checked = true;
-      });
-    }
-    function prefillFromBot() {
-      const payload = decodePayload(params.get('payload')) || {};
-      const data = Object.assign({}, payload);
-      ['title','desc','project','type','assignee','due_date','link','extra','creator','channels'].forEach(k => {
-        if (params.has(k)) data[k] = params.get(k);
-      });
-      if (data.creator) {
-        creatorId = clean(data.creator, 80);
-        document.getElementById('display-creator').innerText = creatorId;
-      }
-      setVal('req-short-title', data.title);
-      setVal('req-title', data.desc || data.full_desc);
-      setVal('req-project', data.project);
-      setVal('req-type', data.type);
-      setVal('req-assignee-input', data.assignee);
-      setVal('req-date', data.due_date || data.date);
-      setVal('req-link', data.link);
-      setVal('req-extra', data.extra);
-      if (data.channels) checkChannels(data.channels);
-      if (Object.keys(data).length > 0) document.getElementById('bot-prefill-hint').classList.remove('hidden');
+
+    function renderDrop(id, data, inputId, filter='') {
+      const drop = document.getElementById(id);
+      drop.classList.remove('hidden');
+      const filtered = data.filter(i => i.toLowerCase().includes(filter.toLowerCase()));
+      drop.innerHTML = filtered.map(item => `<div class="px-4 py-2.5 drop-item cursor-pointer text-[13px] border-b border-white/5 last:border-0" data-v="${item.replace(/"/g, '&quot;')}">${item}</div>`).join('');
+      drop.querySelectorAll('[data-v]').forEach(el => el.onclick = () => { document.getElementById(inputId).value = el.dataset.v; drop.classList.add('hidden'); });
     }
 
     document.addEventListener('click', (e) => {
-      const projWrap = document.getElementById('project-wrapper');
-      const assWrap = document.getElementById('assignee-wrapper');
-      if (projWrap && !projWrap.contains(e.target)) document.getElementById('project-dropdown').classList.add('hidden');
-      if (assWrap && !assWrap.contains(e.target)) document.getElementById('assignee-dropdown').classList.add('hidden');
+      const p = document.getElementById('project-wrapper');
+      const a = document.getElementById('assignee-wrapper');
+      if (p && !p.contains(e.target)) document.getElementById('project-dropdown').classList.add('hidden');
+      if (a && !a.contains(e.target)) document.getElementById('assignee-dropdown').classList.add('hidden');
     });
+    document.getElementById('req-project').addEventListener('click', () => renderDrop('project-dropdown', PROJECT_LIST, 'req-project'));
+    document.getElementById('req-assignee-input').addEventListener('click', () => renderDrop('assignee-dropdown', ASSIGNEE_LIST, 'req-assignee-input'));
+    document.getElementById('channel-other-cb').addEventListener('change', () => document.getElementById('req-channel-other').classList.toggle('hidden', !document.getElementById('channel-other-cb').checked));
 
     function validate() {
       document.querySelectorAll('.invalid-field').forEach(el => el.classList.remove('invalid-field'));
-      const fields = [
-        { id: 'req-short-title', name: '需求标题' },
-        { id: 'req-title', name: '需求描述' },
-        { id: 'req-type', name: '产出类型' },
-        { id: 'req-project', name: '归属项目' },
-        { id: 'req-date', name: '交付日期' }
-      ];
-      for (let field of fields) {
-        const el = document.getElementById(field.id);
-        if (!el.value.trim()) {
-          el.classList.add('invalid-field');
-          alert(`请填写必填项：${field.name}`);
-          el.focus();
-          return false;
-        }
+      const fields = [['req-short-title','需求标题'],['req-title','设计内容'],['req-type','产出类型'],['req-project','归属项目'],['req-date','交付日期']];
+      for (const [id, name] of fields) {
+        const el = document.getElementById(id);
+        if (!norm(el.value)) { el.classList.add('invalid-field'); alert(`请填写必填项：${name}`); el.focus(); return false; }
       }
-      if (document.querySelectorAll('.req-channel:checked').length === 0) {
-        document.getElementById('channel-container').classList.add('invalid-field');
-        alert('请至少选择一个期望分发渠道。');
-        return false;
-      }
+      if (document.querySelectorAll('.req-channel:checked').length === 0) { document.getElementById('channel-container').classList.add('invalid-field'); alert('请至少选择一个期望分发渠道！'); return false; }
       return true;
-    }
-
-    window.showProjectDrop = () => renderDrop('project-dropdown', PROJECT_LIST, 'req-project', document.getElementById('req-project').value);
-    window.filterProjectDrop = () => renderDrop('project-dropdown', PROJECT_LIST, 'req-project', document.getElementById('req-project').value);
-    window.showAssigneeDrop = () => renderDrop('assignee-dropdown', ASSIGNEE_LIST, 'req-assignee-input', document.getElementById('req-assignee-input').value);
-    window.filterAssigneeDrop = () => renderDrop('assignee-dropdown', ASSIGNEE_LIST, 'req-assignee-input', document.getElementById('req-assignee-input').value);
-
-    function renderDrop(id, data, inputId, filter = '') {
-      const drop = document.getElementById(id);
-      drop.classList.remove('hidden');
-      const f = clean(filter, 80).toLowerCase();
-      const filtered = data.filter(i => i.toLowerCase().includes(f));
-      drop.innerHTML = filtered.map(item => `<div class="px-4 py-2.5 drop-item cursor-pointer text-[13px] border-b border-white/5 last:border-0" data-val="${encodeURIComponent(item)}">${escapeHtml(item)}</div>`).join('');
-      Array.from(drop.querySelectorAll('[data-val]')).forEach(node => {
-        node.onclick = () => { document.getElementById(inputId).value = decodeURIComponent(node.dataset.val); drop.classList.add('hidden'); };
-      });
-    }
-    function escapeHtml(value) { return String(value || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
-
-    window.toggleOtherInput = () => {
-      const el = document.getElementById('req-channel-other');
-      el.classList.toggle('hidden', !document.getElementById('channel-other-cb').checked);
     }
 
     document.getElementById('quickForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!validate()) return;
-
       const btn = document.getElementById('submitBtn');
-      const original = btn.innerText;
-      btn.innerText = '提交中...';
-      btn.disabled = true;
-
-      const assigneeInput = clean(document.getElementById('req-assignee-input').value, 80);
-      const assigneeVal = (!assigneeInput || assigneeInput === '不指定 (系统统筹)') ? 'none' : assigneeInput;
+      btn.innerText = '提交中...'; btn.disabled = true;
+      const assigneeInput = norm(document.getElementById('req-assignee-input').value);
       const channels = Array.from(document.querySelectorAll('.req-channel:checked')).map(cb => cb.value);
-      const other = clean(document.getElementById('req-channel-other').value, 80);
+      const other = norm(document.getElementById('req-channel-other').value);
       if (other) channels.push(`其他: ${other}`);
-      const extra = clean(document.getElementById('req-extra').value, 800);
-      const fullDesc = clean(document.getElementById('req-title').value, 3000) + (extra ? `\n\n【参考补充说明】\n${extra}` : '');
-      const taskId = 'TK-' + Date.now().toString().slice(-6);
-
-      const taskData = {
-        id: taskId,
-        title: clean(document.getElementById('req-short-title').value, 80),
-        full_desc: fullDesc,
-        project: clean(document.getElementById('req-project').value, 120),
-        due_date: document.getElementById('req-date').value,
-        assignee: assigneeVal,
-        link: clean(document.getElementById('req-link').value, 1000),
-        creator: creatorId,
-        channels: channels,
-        status: assigneeVal === 'none' ? 'pending' : 'pending_accept',
-        file_name: '',
-        file_data: null,
-        summary_desc: assigneeVal === 'none' ? '已通过企业微信免登录快捷提单提交，等待统筹。' : `已通过企业微信免登录快捷提单提交，指派给 ${assigneeVal}，等待接单。`,
-        history_json: JSON.stringify([{ action: 'create', operator: `${creatorId} (需求方)`, time: new Date().toISOString(), reply: '通过企业微信 Bot / 免登录快捷提单发起新需求' }])
+      const fullDesc = norm(document.getElementById('req-title').value) + (norm(document.getElementById('req-extra').value) ? `\n\n补充说明：${norm(document.getElementById('req-extra').value)}` : '');
+      const body = {
+        action: 'submit_quick_form',
+        ticket,
+        payload: {
+          title: norm(document.getElementById('req-short-title').value),
+          full_desc: fullDesc,
+          type: norm(document.getElementById('req-type').value),
+          project: norm(document.getElementById('req-project').value),
+          due_date: norm(document.getElementById('req-date').value),
+          assignee: (assigneeInput && assigneeInput !== '不指定 (系统统筹)') ? assigneeInput : 'none',
+          link: norm(document.getElementById('req-link').value),
+          channels
+        }
       };
-
-      const { error } = await supabase.from('test_tasks').insert([taskData]);
-      if (error) {
-        alert('提交失败：' + error.message + '\n\n请截图发给 davidxxu。');
-        btn.innerText = original;
-        btn.disabled = false;
-        return;
+      try {
+        const res = await fetch(GATEWAY_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        document.body.innerHTML = `<div class="flex flex-col items-center justify-center min-h-screen text-center p-6"><div class="w-20 h-20 bg-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/20"><svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg></div><h2 class="text-2xl font-bold text-white">需求已同步成功</h2><p class="text-zinc-500 mt-3 text-sm leading-relaxed">工单号 ${data.task_id || ''} 已录入戴维斯大厅。<br>提单人：${data.creator || '系统已校验'}</p></div>`;
+      } catch (err) {
+        alert('提交失败：' + err.message + '\n\n请截图发给 davidxxu。');
+        btn.innerText = '重新提交'; btn.disabled = false;
       }
-      const detailUrl = `task-detail-requester.html?id=${encodeURIComponent(taskId)}`;
-      document.body.innerHTML = `<div class="flex flex-col items-center justify-center min-h-screen text-center p-6"><div class="w-20 h-20 bg-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/20"><svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg></div><h2 class="text-2xl font-bold text-white">需求已同步成功</h2><p class="text-zinc-500 mt-3 text-sm leading-relaxed">工单号 <b class="text-indigo-300">${escapeHtml(taskId)}</b> 已录入戴维斯大厅。<br>后续可在企业微信里问“小戴，查我的需求”。</p><a href="${detailUrl}" class="mt-8 inline-flex px-5 py-3 rounded-xl bg-indigo-600 text-white font-bold text-sm">查看需求详情</a></div>`;
     });
 
-    prefillFromBot();
+    initPrefill();
   </script>
 </body>
 </html>
