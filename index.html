@@ -652,6 +652,18 @@
     <script>
         const PAGE_TYPE = 'req'; 
 
+
+        // ================= IO 优化：统一降低轮询频率，后台页不打库 =================
+        window.IO_OPT_NOTIFY_POLL_MS = window.IO_OPT_NOTIFY_POLL_MS || 60000;      // 通知：60秒
+        window.IO_OPT_TASK_POLL_MS = window.IO_OPT_TASK_POLL_MS || 60000;          // 普通任务列表：60秒
+        window.IO_OPT_DASHBOARD_POLL_MS = window.IO_OPT_DASHBOARD_POLL_MS || 120000; // 大盘/分析页：120秒
+        window.ioOptimizedInterval = window.ioOptimizedInterval || function(callback, ms) {
+            return setInterval(() => {
+                if (document.visibilityState !== 'visible') return;
+                if (typeof callback === 'function') callback();
+            }, ms);
+        };
+
         // ================= 开灯 / 关灯主题切换 =================
         window.applyPageTheme = function(theme) {
             const isLight = theme === 'light';
@@ -1103,8 +1115,8 @@
         }
 
         // 全量分页拉取，避免 Supabase 默认/手写 limit 只取到最近数据，导致 3-4 月历史需求看不到
-        async function fetchAllTaskRows(selectFields) {
-            const pageSize = 1000;
+        async function fetchAllTaskRows(selectFields, maxRows = 500) {
+            const pageSize = Math.min(500, maxRows);
             let from = 0;
             let allRows = [];
 
@@ -1121,7 +1133,7 @@
                 const rows = data || [];
                 allRows = allRows.concat(rows);
 
-                if (rows.length < pageSize) break;
+                if (rows.length < pageSize || allRows.length >= maxRows) break;
                 from += pageSize;
             }
 
@@ -1145,7 +1157,7 @@
 
             try {
                 // 只拉一次全量有效数据，再在前端按状态拆分，确保系统使用以来的历史数据都能被列表与数量统计覆盖。
-                const allData = await fetchAllTaskRows(window.LIGHT_FIELDS);
+                const allData = await fetchAllTaskRows(window.LIGHT_FIELDS, isSilent ? 200 : 500);
 
                 const ongoingC = document.getElementById('ongoing-tasks-container');
                 const completedC = document.getElementById('completed-tasks-container');
@@ -1881,7 +1893,7 @@
                 });
 
                 // 启动全局通信渲染引擎
-                setInterval(() => { window.loadTasksFromCloud(true); }, 8000); 
+                window.ioOptimizedInterval(() => { window.loadTasksFromCloud(true); }, window.IO_OPT_TASK_POLL_MS); 
             }
         });
 
@@ -1906,7 +1918,8 @@
                 // 直接拉取所有工单数据，通过内部流转历史(history_json)智能生成通知！脱离死板数据库束缚！
                 const { data: tasks, error } = await window.supabase.from(window.DB_TABLE)
                     .select('id, title, creator, history_json')
-                    .order('created_at', { ascending: false });
+                    .order('created_at', { ascending: false })
+                    .limit(120);
                 
                 if (error) throw error;
 
@@ -2049,7 +2062,7 @@
 
         // 启动轮询
         setTimeout(() => { window.syncNotificationsFromCloud(true); }, 1500);
-        setInterval(() => { window.syncNotificationsFromCloud(true); }, 8000);
+        window.ioOptimizedInterval(() => { window.syncNotificationsFromCloud(true); }, window.IO_OPT_NOTIFY_POLL_MS);
     </script>
 </body>
 </html>
