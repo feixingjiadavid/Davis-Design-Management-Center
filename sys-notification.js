@@ -167,7 +167,7 @@ const SysNotification = {
         if (!this.currentUser) return [];
         const { data, error } = await window.supabase
             .from('notifications')
-            .select('*')
+            .select('id, user_id, sender_name, content, category, link_url, is_read, created_at')
             .eq('user_id', this.currentUser.id)
             .order('created_at', { ascending: false })
             .limit(limit);
