@@ -761,6 +761,18 @@
         })();
 
 
+
+        // ================= IO 优化：统一降低轮询频率，后台页不打库 =================
+        window.IO_OPT_NOTIFY_POLL_MS = window.IO_OPT_NOTIFY_POLL_MS || 60000;      // 通知：60秒
+        window.IO_OPT_TASK_POLL_MS = window.IO_OPT_TASK_POLL_MS || 60000;          // 普通任务列表：60秒
+        window.IO_OPT_DASHBOARD_POLL_MS = window.IO_OPT_DASHBOARD_POLL_MS || 120000; // 大盘/分析页：120秒
+        window.ioOptimizedInterval = window.ioOptimizedInterval || function(callback, ms) {
+            return setInterval(() => {
+                if (document.visibilityState !== 'visible') return;
+                if (typeof callback === 'function') callback();
+            }, ms);
+        };
+
         // ================= 初始化与拉取数据 =================
         function initRBAC() {
             const userStr = localStorage.getItem('activeUserObj');
@@ -799,7 +811,7 @@
             const isSuperAdmin = currentUserEn === 'davidxxu' || currentUserEn === 'judyzzhang';
 
             try {
-                const { data, error } = await window.supabase.from(window.DB_TABLE).select('*').order('created_at', { ascending: false });
+                const { data, error } = await window.supabase.from(window.DB_TABLE).select('id, title, project, status, creator, assignee, due_date, created_at').order('created_at', { ascending: false }).limit(500);
                 if(error) throw error;
 
                 const tbody = document.getElementById('recordTableBody');
@@ -1141,7 +1153,7 @@
 
             window.loadNotifications();
             // 每 10 秒刷新一次未读通知状态
-            setInterval(() => { window.loadNotifications(); }, 10000);
+            window.ioOptimizedInterval(() => { window.loadNotifications(); }, window.IO_OPT_NOTIFY_POLL_MS);
         });
 
     </script>
