@@ -1843,7 +1843,7 @@
 
             try {
                 // 拉取用户配置表
-                const { data: users, error: uErr } = await window.supabase.from('user_profiles').select('*');
+                const { data: users, error: uErr } = await window.supabase.from('user_profiles').select('id, en_name, cn_name, display_name, email, role, perms, avatar, color');
                 systemUsers = [];
                 if (!uErr && users) {
                     users.forEach(u => {
@@ -1857,7 +1857,7 @@
                     });
                 }
 
-                const { data: tasks, error } = await window.supabase.from(window.DB_TABLE).select('id, title, project, status, creator, assignee, due_date, history_json, created_at').order('created_at', { ascending: false });
+                const { data: tasks, error } = await window.supabase.from(window.DB_TABLE).select('id, title, project, status, creator, assignee, due_date, history_json, created_at').order('created_at', { ascending: false }).limit(500);
                 if (error) throw error;
                 myAllTasks = tasks || [];
 
@@ -2759,7 +2759,7 @@
             const rolePrefix = isAdmin ? 'admin' : 'req';
 
             try {
-                const { data: tasks, error } = await window.supabase.from(window.DB_TABLE).select('id, title, creator, assignee, history_json').order('created_at', { ascending: false });
+                const { data: tasks, error } = await window.supabase.from(window.DB_TABLE).select('id, title, creator, assignee, history_json').order('created_at', { ascending: false }).limit(120);
                 if (error) throw error;
 
                 let myNotifs = [];
@@ -2888,7 +2888,7 @@
 
             window.loadDashboardData();
             setTimeout(() => { window.syncNotificationsFromCloud(true); }, 1500);
-            setInterval(() => { window.loadDashboardData(true); window.syncNotificationsFromCloud(true); }, 8000);
+            window.ioOptimizedInterval(() => { window.loadDashboardData(true); window.syncNotificationsFromCloud(true); }, window.IO_OPT_DASHBOARD_POLL_MS);
         });
     
         // 顶部三张统计卡点击兜底：事件委托，保证点击一定弹出清单
