@@ -154,6 +154,48 @@ let displayName = "";
 let phase = "framework";
 let imageData = null;
 
+function renderDonePage(payload = {}) {
+  const taskId = payload.task_id || new URLSearchParams(location.search).get("task") || "";
+  const title = payload.task_title || "";
+  const status = payload.next_status_label || payload.next_status || "";
+  const detailUrl = payload.detail_url || (taskId ? `https://davis-design.cn/task-detail-designer.html?id=${encodeURIComponent(taskId)}` : "https://davis-design.cn/assistant-workspace.html");
+
+  document.body.innerHTML = `
+    <div style="min-height:100vh;background:#09090b;color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;display:flex;align-items:center;justify-content:center;padding:28px;">
+      <div style="width:min(620px,100%);background:#121217;border:1px solid rgba(34,197,94,.32);border-radius:30px;padding:42px 36px;box-shadow:0 28px 88px rgba(0,0,0,.45);text-align:center;">
+        <div style="width:74px;height:74px;border-radius:999px;background:rgba(34,197,94,.14);border:1px solid rgba(34,197,94,.38);display:flex;align-items:center;justify-content:center;margin:0 auto 22px;color:#34d399;font-size:40px;font-weight:900;">✓</div>
+        <h1 style="margin:0 0 12px;font-size:30px;font-weight:950;color:#fff;">提交完成</h1>
+        <p style="margin:0;color:#a1a1aa;line-height:1.8;font-size:15px;">方案已成功提交到戴维斯设计系统，需求状态、历史版本、工时与通知已写入。</p>
+        <div style="margin:28px 0;padding:20px;border-radius:20px;background:#052e16;border:1px solid rgba(34,197,94,.28);text-align:left;color:#bbf7d0;line-height:1.9;font-size:14px;">
+          <div><b>需求编号：</b>${taskId || "--"}</div>
+          ${title ? `<div><b>需求标题：</b>${title}</div>` : ""}
+          ${status ? `<div><b>下一状态：</b>${status}</div>` : ""}
+        </div>
+        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+          <a href="${detailUrl}" style="text-decoration:none;background:#27272a;color:#fff;border:1px solid rgba(255,255,255,.08);border-radius:15px;padding:14px 18px;font-weight:900;">查看需求详情</a>
+          <button onclick="try{window.close()}catch(e){}" style="background:linear-gradient(135deg,#22c55e,#10b981);color:#052e16;border:0;border-radius:15px;padding:14px 18px;font-weight:950;cursor:pointer;">完成，关闭页面</button>
+        </div>
+        <p style="margin:18px 0 0;color:#71717a;font-size:12px;line-height:1.6;">如果页面无法自动关闭，请直接返回企业微信。</p>
+      </div>
+    </div>
+  `;
+}
+
+function checkDoneMode() {
+  const params = new URLSearchParams(location.search);
+  if (params.get("done") === "1") {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem("davis_quick_delivery_done") || "{}");
+      renderDonePage(saved);
+    } catch (e) {
+      renderDonePage({});
+    }
+    return true;
+  }
+  return false;
+}
+
+
 function $(id){ return document.getElementById(id); }
 function setText(id,val){ const el=$(id); if(el) el.textContent = val || "--"; }
 function showMsg(text, ok=false){ $("result").className = ok ? "ok" : "err"; $("result").textContent = text; }
@@ -216,6 +258,7 @@ $("dropzone").addEventListener("dragleave", () => $("dropzone").classList.remove
 $("dropzone").addEventListener("drop", e => { e.preventDefault(); $("dropzone").classList.remove("drag"); handleFile(e.dataTransfer.files && e.dataTransfer.files[0]); });
 
 async function init(){
+  if (checkDoneMode()) return;
   renderTools();
   if(!ticket) return showMsg("链接缺少 ticket，请回企业微信重新生成。");
   try{
@@ -271,8 +314,19 @@ $("submit-btn").addEventListener("click", async () => {
       desc:$("delivery-desc").value.trim(),
       ai_tools:aiTools
     });
-    showMsg(data.replyText || "提交成功", true);
-    btn.textContent = "已提交";
+    const donePayload = {
+      task_id: data.task_id || (task && task.id) || "",
+      task_title: (task && task.title) || "",
+      next_status: data.next_status || "",
+      next_status_label: data.next_status === "pending_approval" ? "领导审批框架中" : data.next_status === "reviewing" ? "方案待验收" : data.next_status || "",
+      detail_url: `https://davis-design.cn/task-detail-designer.html?id=${encodeURIComponent(data.task_id || (task && task.id) || "")}`
+    };
+    try { sessionStorage.setItem("davis_quick_delivery_done", JSON.stringify(donePayload)); } catch(e) {}
+    const doneUrl = new URL(location.href);
+    doneUrl.search = "";
+    doneUrl.searchParams.set("done", "1");
+    if (donePayload.task_id) doneUrl.searchParams.set("task", donePayload.task_id);
+    location.href = doneUrl.toString();
   }catch(err){
     showMsg(err.message || String(err));
     btn.disabled = false;
