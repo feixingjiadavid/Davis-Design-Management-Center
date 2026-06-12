@@ -29,7 +29,7 @@
     .section-title{font-size:18px;font-weight:950;margin:26px 0 14px;color:#34d399}
     .preview-box{display:grid;grid-template-columns:360px minmax(0,1fr);gap:24px;align-items:start}
     .image-wrap{background:#09090b;border:1px solid rgba(255,255,255,.08);border-radius:18px;min-height:260px;display:flex;align-items:center;justify-content:center;overflow:hidden}
-    .image-wrap img{max-width:100%;max-height:420px;display:block}
+    .image-wrap img{max-width:100%;max-height:520px;display:block;object-fit:contain}.image-wrap img:hover{filter:brightness(1.08)}
     .empty{color:#71717a;font-size:13px}
     .meta{display:grid;gap:12px}
     .meta-row{background:#18181b;border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:14px}
@@ -161,8 +161,24 @@ async function init(){
     setText("task-assignee", task.assignee);
     setText("task-desc", task.full_desc || task.summary_desc || "--");
 
-    if(sub.img_url){
-      $("image-wrap").innerHTML = `<img src="${sub.img_url}" alt="最新方案图">`;
+    const imgUrl = sub.img_signed_url || sub.img_url || sub.img_raw_url || "";
+    if(imgUrl){
+      $("image-wrap").innerHTML = `
+        <img id="latest-img" src="${imgUrl}" alt="最新方案图" style="cursor:pointer" title="点击查看大图">
+        <div id="img-fallback" class="empty" style="display:none;padding:20px;line-height:1.8;text-align:left">
+          方案图加载失败。<br>
+          ${sub.img_file_path ? "已识别文件路径：" + sub.img_file_path + "<br>" : ""}
+          ${sub.img_raw_url ? `<a class="link" href="${sub.img_raw_url}" target="_blank" rel="noopener noreferrer">打开原始图片链接</a>` : ""}
+        </div>`;
+      const img = $("latest-img");
+      img.onclick = () => window.open(img.src, "_blank", "noopener,noreferrer");
+      img.onerror = () => {
+        img.style.display = "none";
+        const fb = $("img-fallback");
+        if(fb) fb.style.display = "block";
+      };
+    } else {
+      $("image-wrap").innerHTML = `<div class="empty">未读取到最新方案图，请先让设计师重新提交预览图。</div>`;
     }
     setText("sub-version", sub.version || "最新正式稿");
     setText("sub-desc", sub.desc || "--");
