@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>快捷审批｜戴维斯设计系统</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:#09090b;color:#f4f4f5}
+    .layout{min-height:100vh;display:flex}
+    .side{width:240px;background:#09090b;border-right:1px solid rgba(255,255,255,.06);padding:28px 20px;display:flex;flex-direction:column}
+    .brand{display:flex;align-items:center;gap:12px;font-weight:900;color:#fff}
+    .brand-icon{width:34px;height:34px;border-radius:10px;background:#f59e0b;display:flex;align-items:center;justify-content:center;box-shadow:0 0 18px rgba(245,158,11,.38)}
+    .profile{margin-top:auto;border-top:1px solid rgba(255,255,255,.06);padding-top:20px;display:flex;align-items:center;gap:12px}
+    .avatar{width:38px;height:38px;border-radius:999px;background:linear-gradient(135deg,#f59e0b,#ea580c);display:flex;align-items:center;justify-content:center;font-weight:900}
+    main{flex:1;background:#0c0c0e;min-width:0}
+    header{height:92px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between;padding:0 42px;background:rgba(9,9,11,.82)}
+    .head-left{display:flex;align-items:center;gap:16px;min-width:0}
+    .badge{background:#27272a;border:1px solid #3f3f46;border-radius:10px;padding:8px 13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:900;color:#d4d4d8}
+    h1{font-size:24px;line-height:1.2;margin:0;font-weight:950;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .status{font-size:12px;font-weight:900;padding:7px 12px;border-radius:9px;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.35);color:#fbbf24}
+    .role{font-size:13px;color:#fbbf24;background:rgba(245,158,11,.10);border:1px solid rgba(245,158,11,.28);border-radius:10px;padding:8px 12px;font-weight:900}
+    .wrap{padding:44px;display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:34px;max-width:1500px;margin:0 auto}
+    .card{background:#121217;border:1px solid rgba(255,255,255,.07);border-radius:24px;padding:28px;box-shadow:0 22px 55px rgba(0,0,0,.25)}
+    .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;border-bottom:1px solid rgba(255,255,255,.06);padding-bottom:22px;margin-bottom:22px}
+    .k{font-size:12px;color:#71717a;margin-bottom:7px}
+    .v{font-size:14px;font-weight:900;color:#e4e4e7}
+    .desc{background:#09090b;border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:16px;color:#d4d4d8;line-height:1.7;min-height:70px;white-space:pre-wrap}
+    .section-title{font-size:18px;font-weight:950;margin:26px 0 14px;color:#fbbf24}
+    .preview-box{display:grid;grid-template-columns:420px minmax(0,1fr);gap:24px;align-items:start}
+    .image-wrap{background:#09090b;border:1px solid rgba(255,255,255,.08);border-radius:18px;min-height:300px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+    .image-wrap img{max-width:100%;max-height:560px;display:block;object-fit:contain;cursor:pointer}
+    .image-wrap img:hover{filter:brightness(1.08)}
+    .empty{color:#71717a;font-size:13px}
+    .meta{display:grid;gap:12px}
+    .meta-row{background:#18181b;border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:14px}
+    .link{color:#60a5fa;word-break:break-all}
+    .right-panel{position:sticky;top:28px}
+    .panel{background:radial-gradient(circle at top right,rgba(245,158,11,.18),transparent 46%),#1c1304;border:1px solid rgba(245,158,11,.42);border-right:4px solid #f59e0b}
+    .panel h2{margin:0 0 16px;font-size:20px}
+    button{border:0;border-radius:16px;padding:16px 18px;font-size:15px;font-weight:950;cursor:pointer;width:100%;margin-top:14px}
+    .approve{background:#f59e0b;color:#111827}
+    .reject{background:#e11d48;color:#fff}
+    textarea{width:100%;background:#09090b;border:1px solid #3f3f46;border-radius:14px;padding:14px 15px;color:#fff;outline:none;font-size:14px;min-height:112px;resize:vertical;line-height:1.65}
+    textarea:focus{border-color:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.11)}
+    .tip{font-size:12px;color:#a1a1aa;line-height:1.7;margin-top:10px}
+    .ok,.err{margin-top:16px;border-radius:16px;padding:16px;line-height:1.7;white-space:pre-wrap}
+    .ok{background:#052e16;border:1px solid rgba(34,197,94,.35);color:#bbf7d0}
+    .err{background:#3f1d1d;border:1px solid rgba(248,113,113,.35);color:#fecaca}
+    @media(max-width:980px){.side{display:none}.wrap{grid-template-columns:1fr;padding:24px}.right-panel{position:static}.grid4{grid-template-columns:1fr 1fr}.preview-box{grid-template-columns:1fr}header{padding:0 20px}h1{font-size:18px}}
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="side">
+    <div class="brand"><div class="brand-icon">⚡</div><span>框架审批中心</span></div>
+    <div class="profile"><div class="avatar" id="avatar">?</div><div><div id="operator-name" style="font-weight:900;color:#fff">加载中...</div><div style="font-size:11px;color:#71717a">免登录快捷审批</div></div></div>
+  </aside>
+
+  <main>
+    <header>
+      <div class="head-left">
+        <div class="badge" id="task-id-head">TK-----</div>
+        <h1 id="task-title-head">正在读取需求...</h1>
+        <div class="status" id="task-status-head">状态读取中</div>
+      </div>
+      <div class="role">身份: 审批领导</div>
+    </header>
+
+    <div class="wrap">
+      <section>
+        <div class="card">
+          <div class="grid4">
+            <div><div class="k">需求编号</div><div class="v" id="task-id">--</div></div>
+            <div><div class="k">当前状态</div><div class="v" id="task-status">--</div></div>
+            <div><div class="k">发起人</div><div class="v" id="task-creator">--</div></div>
+            <div><div class="k">执行人</div><div class="v" id="task-assignee">--</div></div>
+          </div>
+          <div class="k">需求标题</div>
+          <div class="v" id="task-title" style="font-size:16px;margin-bottom:18px">--</div>
+          <div class="k">需求摘要</div>
+          <div class="desc" id="task-desc">--</div>
+        </div>
+
+        <div class="section-title">设计师提交的框架方案</div>
+        <div class="card preview-box">
+          <div class="image-wrap" id="image-wrap"><div class="empty">暂无预览图</div></div>
+          <div class="meta">
+            <div class="meta-row"><div class="k">提交版本</div><div class="v" id="sub-version">--</div></div>
+            <div class="meta-row"><div class="k">设计师说明</div><div class="desc" id="sub-desc">--</div></div>
+            <div class="meta-row"><div class="k">源文件 / 网盘链接</div><div class="v" id="sub-source">--</div></div>
+            <div class="meta-row"><div class="k">工时 / AI 工具</div><div class="v" id="sub-tools">--</div></div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="right-panel">
+        <div class="card panel">
+          <h2>领导审批操作</h2>
+          <p class="tip">通过后，需求将回到设计师继续制作正稿；如果方向不合适，请填写明确原因并打回。</p>
+          <label style="font-size:13px;font-weight:900;color:#fbbf24">审批意见（可选）</label>
+          <textarea id="approve-notes" placeholder="例如：大方向没问题，同意推进正稿。"></textarea>
+          <button class="approve" id="approve-btn">✅ 审批通过，推进正稿</button>
+
+          <div style="height:1px;background:rgba(255,255,255,.08);margin:24px 0"></div>
+          <label style="font-size:13px;font-weight:900;color:#fda4af">打回修改原因</label>
+          <textarea id="reject-reason" placeholder="请说明需要修改的地方，例如：方向不准、元素需删减、版式需要重做..."></textarea>
+          <button class="reject" id="reject-btn">↩️ 打回框架修改</button>
+          <div id="result"></div>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+
+<script>
+const GATEWAY_URL = "https://supffjeeouibhqdfqosk.supabase.co/functions/v1/davis-task-action-plugin";
+const ticket = new URLSearchParams(location.search).get("ticket") || "";
+let task = null;
+let creator = "";
+let displayName = "";
+
+function $(id){ return document.getElementById(id); }
+function setText(id,val){ const el=$(id); if(el) el.textContent = val || "--"; }
+function showMsg(text, ok=false){ $("result").className = ok ? "ok" : "err"; $("result").textContent = text; }
+async function postJson(payload){
+  const res = await fetch(GATEWAY_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok || data.ok === false) throw new Error(data.error || data.replyText || `HTTP ${res.status}`);
+  return data;
+}
+function renderDone(title, lines, ok=true){
+  document.body.innerHTML = `
+    <div style="min-height:100vh;background:#09090b;color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;display:flex;align-items:center;justify-content:center;padding:28px;">
+      <div style="width:min(620px,100%);background:#121217;border:1px solid ${ok ? 'rgba(34,197,94,.32)' : 'rgba(244,63,94,.32)'};border-radius:30px;padding:42px 36px;box-shadow:0 28px 88px rgba(0,0,0,.45);text-align:center;">
+        <div style="width:74px;height:74px;border-radius:999px;background:${ok ? 'rgba(34,197,94,.14)' : 'rgba(244,63,94,.14)'};border:1px solid ${ok ? 'rgba(34,197,94,.38)' : 'rgba(244,63,94,.38)'};display:flex;align-items:center;justify-content:center;margin:0 auto 22px;color:${ok ? '#34d399' : '#fb7185'};font-size:40px;font-weight:900;">${ok ? '✓' : '↩'}</div>
+        <h1 style="margin:0 0 12px;font-size:30px;font-weight:950;color:#fff;">${title}</h1>
+        <div style="margin:28px 0;padding:20px;border-radius:20px;background:${ok ? '#052e16' : '#3f1d1d'};border:1px solid ${ok ? 'rgba(34,197,94,.28)' : 'rgba(248,113,113,.28)'};text-align:left;color:${ok ? '#bbf7d0' : '#fecaca'};line-height:1.9;font-size:14px;">${lines.map(x=>`<div>${x}</div>`).join('')}</div>
+        <button onclick="try{window.close()}catch(e){}" style="background:${ok ? 'linear-gradient(135deg,#22c55e,#10b981)' : 'linear-gradient(135deg,#fb7185,#e11d48)'};color:#fff;border:0;border-radius:15px;padding:14px 18px;font-weight:950;cursor:pointer;">完成，关闭页面</button>
+        <p style="margin:18px 0 0;color:#71717a;font-size:12px;line-height:1.6;">如果页面无法自动关闭，请直接返回企业微信。</p>
+      </div>
+    </div>
+  `;
+}
+async function init(){
+  if(!ticket) return showMsg("链接缺少 ticket，请回企业微信重新生成。");
+  try{
+    const data = await postJson({action:"read_approval_ticket", ticket});
+    task = data.task || {};
+    const sub = data.latest_submission || {};
+    creator = data.creator || "";
+    displayName = data.display_name || creator || "";
+
+    setText("operator-name", `${displayName}（${creator}）`);
+    setText("avatar", (displayName || creator || "?").slice(0,1));
+    setText("task-id-head", task.id);
+    setText("task-title-head", task.title);
+    setText("task-status-head", task.status_label || task.status);
+    setText("task-id", task.id);
+    setText("task-status", task.status_label || task.status);
+    setText("task-title", task.title);
+    setText("task-creator", task.creator);
+    setText("task-assignee", task.assignee);
+    setText("task-desc", task.full_desc || task.summary_desc || "--");
+
+    const imgUrl = sub.img_signed_url || sub.img_url || sub.img_raw_url || "";
+    if(imgUrl){
+      $("image-wrap").innerHTML = `
+        <img id="latest-img" src="${imgUrl}" alt="框架方案图" title="点击查看大图">
+        <div id="img-fallback" class="empty" style="display:none;padding:20px;line-height:1.8;text-align:left">
+          框架图加载失败。<br>
+          ${sub.img_file_path ? "已识别文件路径：" + sub.img_file_path + "<br>" : ""}
+          ${sub.img_raw_url ? `<a class="link" href="${sub.img_raw_url}" target="_blank" rel="noopener noreferrer">打开原始图片链接</a>` : ""}
+        </div>`;
+      const img = $("latest-img");
+      img.onclick = () => window.open(img.src, "_blank", "noopener,noreferrer");
+      img.onerror = () => {
+        img.style.display = "none";
+        const fb = $("img-fallback");
+        if(fb) fb.style.display = "block";
+      };
+    } else {
+      $("image-wrap").innerHTML = `<div class="empty">未读取到框架方案图，请先让设计师重新提交框架预览图。</div>`;
+    }
+    setText("sub-version", sub.version || "最新框架方案");
+    setText("sub-desc", sub.desc || "--");
+    if(sub.source_link){
+      $("sub-source").innerHTML = `<a class="link" href="${sub.source_link}" target="_blank" rel="noopener noreferrer">${sub.source_link}</a>`;
+    }
+    const tools = Array.isArray(sub.ai_tools) ? sub.ai_tools.join("、") : "";
+    setText("sub-tools", `${sub.work_hours || "--"} 小时${tools ? "｜" + tools : ""}`);
+  }catch(err){ showMsg(err.message || String(err)); }
+}
+
+$("approve-btn").addEventListener("click", async () => {
+  if(!confirm("确认框架方向通过，并让设计师继续制作正稿吗？")) return;
+  const btn = $("approve-btn"); btn.disabled = true; btn.textContent = "正在审批...";
+  try{
+    const notes = $("approve-notes").value.trim();
+    const data = await postJson({action:"approve_framework_quick", ticket, notes});
+    renderDone("审批通过", [
+      `需求编号：${data.task_id || ""}`,
+      `下一状态：设计制作中`,
+      `设计师已收到继续正稿通知`
+    ], true);
+  }catch(err){ showMsg(err.message || String(err)); btn.disabled = false; btn.textContent = "✅ 审批通过，推进正稿"; }
+});
+
+$("reject-btn").addEventListener("click", async () => {
+  const reason = $("reject-reason").value.trim();
+  if(!reason) return showMsg("请填写打回修改原因。");
+  if(!confirm("确认打回框架方案吗？打回后需求会回到设计师修改状态。")) return;
+  const btn = $("reject-btn"); btn.disabled = true; btn.textContent = "正在打回...";
+  try{
+    const data = await postJson({action:"reject_framework_quick", ticket, reason});
+    renderDone("已打回框架", [
+      `需求编号：${data.task_id || ""}`,
+      `下一状态：需求被打回修改`,
+      `打回原因：${reason}`,
+      `设计师已收到修改通知`
+    ], false);
+  }catch(err){ showMsg(err.message || String(err)); btn.disabled = false; btn.textContent = "↩️ 打回框架修改"; }
+});
+
+init();
+</script>
+</body>
+</html>
