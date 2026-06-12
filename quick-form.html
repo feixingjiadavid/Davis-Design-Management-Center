@@ -37,6 +37,7 @@
       这个链接由小戴维斯校验企业微信身份后生成。提交时系统会再次校验一次性票据，并以 Bot 识别到的企业微信英文名作为提单人。
     </div>
     <div id="fatal-hint" class="hidden error-hint rounded-2xl p-4 mb-6 text-[12px] leading-6 text-rose-100"></div>
+    <div id="smart-prefill-hint" class="hidden hint rounded-2xl p-4 mb-6 text-[12px] leading-6 text-indigo-100"></div>
 
     <form id="quickForm" class="space-y-6" novalidate>
       <div>
@@ -182,6 +183,17 @@
       setVal('req-project', prefill.project || '');
       setVal('req-date', prefill.due_date || '');
       setVal('req-link', prefill.link || '');
+      setVal('req-extra', prefill.extra_notes || prefill.reference_note || '');
+
+      if (prefill.smart_prefill && prefill.smart_prefill.enabled) {
+        const hint = document.getElementById('smart-prefill-hint');
+        const sourceId = prefill.smart_prefill.source_task_id || '';
+        const sourceTitle = prefill.smart_prefill.source_task_title || '';
+        hint.classList.remove('hidden');
+        hint.innerText = sourceId
+          ? `已根据你的企业微信描述自动参考历史需求：${sourceId}｜${sourceTitle}。请重点核对标题、项目、渠道、交付日和参考链接。`
+          : '已根据你的企业微信描述自动预填部分字段。请重点核对标题、项目、渠道、交付日和参考链接。';
+      }
 
       if (prefill.assignee) {
         const a = String(prefill.assignee || '').trim();
@@ -190,6 +202,12 @@
 
       if (Array.isArray(prefill.channels)) {
         document.querySelectorAll('.req-channel').forEach(cb => { if (prefill.channels.includes(cb.value)) cb.checked = true; });
+        const otherChannel = prefill.channels.find(x => String(x || '').startsWith('其他:'));
+        if (otherChannel) {
+          document.getElementById('channel-other-cb').checked = true;
+          document.getElementById('req-channel-other').classList.remove('hidden');
+          document.getElementById('req-channel-other').value = String(otherChannel).replace(/^其他:\s*/, '');
+        }
       }
     }
 
