@@ -6,6 +6,21 @@
 const SysNotification = {
     currentUser: null,
 
+    getActiveProfile() {
+        try { return JSON.parse(localStorage.getItem('activeUserObj') || '{}'); }
+        catch (e) { return {}; }
+    },
+
+    getIdentityEmails() {
+        const set = new Set();
+        const profile = this.getActiveProfile();
+        if (this.currentUser && this.currentUser.email) set.add(String(this.currentUser.email).toLowerCase());
+        if (profile.email) set.add(String(profile.email).toLowerCase());
+        const en = String(profile.enName || profile.en_name || '').trim().toLowerCase();
+        if (en) set.add(`${en}@webank.com`);
+        return Array.from(set).filter(Boolean);
+    },
+
     escapeHtml(value) {
         return String(value || '')
             .replace(/&/g, '&amp;')
@@ -56,15 +71,33 @@ const SysNotification = {
     },
 
     startListening() {
-        window.supabase.channel('global-notif')
-            .on('postgres_changes', { 
-                event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${this.currentUser.id}` 
+        // 1) 原链路：按 auth user_id 实时收
+        window.supabase.channel('global-notif-user')
+            .on('postgres_changes', {
+                event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${this.currentUser.id}`
             }, payload => {
                 this.showPopup(payload.new);
-                // 【新增】收到新消息时，实时更新铃铛数字
                 this.updateBellCount();
             })
             .subscribe();
+
+        // 2) 新增兜底链路：按 target_email 实时收
+        // 解决 users 表没有 enName / 无法匹配 user_id 时，小铃铛收不到的问题。
+        const emails = this.getIdentityEmails();
+        emails.forEach((email, idx) => {
+            window.supabase.channel(`global-notif-email-${idx}`)
+                .on('postgres_changes', {
+                    event: 'INSERT', schema: 'public', table: 'notifications', filter: `target_email=eq.${email}`
+                }, payload => {
+                    // 如果同一条既命中 user_id 又命中 email，可能会重复弹，这里用 id 简单去重
+                    window.__seenNotifIds = window.__seenNotifIds || new Set();
+                    if (payload.new && window.__seenNotifIds.has(payload.new.id)) return;
+                    if (payload.new) window.__seenNotifIds.add(payload.new.id);
+                    this.showPopup(payload.new);
+                    this.updateBellCount();
+                })
+                .subscribe();
+        });
     },
 
     applyPermissions() {
@@ -133,17 +166,36 @@ const SysNotification = {
     // 1. 获取未读消息数量
     async getUnreadCount() {
         if (!this.currentUser) return 0;
-        const { count, error } = await window.supabase
+
+        let total = 0;
+        const seen = new Set();
+
+        // 按 user_id 取
+        const { data: userRows, error: userErr } = await window.supabase
             .from('notifications')
-            .select('*', { count: 'exact', head: true })
+            .select('id')
             .eq('user_id', this.currentUser.id)
             .eq('is_read', false);
 
-        if (error) {
-            console.error("获取未读消息数失败:", error);
-            return 0;
+        if (!userErr && Array.isArray(userRows)) {
+            userRows.forEach(r => { if (!seen.has(r.id)) { seen.add(r.id); total++; } });
         }
-        return count || 0;
+
+        // 按 target_email 兜底取
+        const emails = this.getIdentityEmails();
+        for (const email of emails) {
+            const { data: emailRows, error: emailErr } = await window.supabase
+                .from('notifications')
+                .select('id')
+                .eq('target_email', email)
+                .eq('is_read', false);
+
+            if (!emailErr && Array.isArray(emailRows)) {
+                emailRows.forEach(r => { if (!seen.has(r.id)) { seen.add(r.id); total++; } });
+            }
+        }
+
+        return total;
     },
 
     // 2. 更新页面上的铃铛UI红点/数字
@@ -165,18 +217,42 @@ const SysNotification = {
     // 3. 获取当前用户的通知列表数据（用于点击铃铛后渲染列表）
     async getNotifications(limit = 20) {
         if (!this.currentUser) return [];
-        const { data, error } = await window.supabase
+        const rows = [];
+        const seen = new Set();
+
+        const append = (arr) => {
+            if (!Array.isArray(arr)) return;
+            arr.forEach(item => {
+                if (item && !seen.has(item.id)) {
+                    seen.add(item.id);
+                    rows.push(item);
+                }
+            });
+        };
+
+        const { data: byUser, error: errUser } = await window.supabase
             .from('notifications')
-            .select('id, user_id, sender_name, content, category, link_url, is_read, created_at')
+            .select('*')
             .eq('user_id', this.currentUser.id)
             .order('created_at', { ascending: false })
             .limit(limit);
 
-        if (error) {
-            console.error("获取通知列表失败:", error);
-            return [];
+        if (!errUser) append(byUser);
+
+        for (const email of this.getIdentityEmails()) {
+            const { data: byEmail, error: errEmail } = await window.supabase
+                .from('notifications')
+                .select('*')
+                .eq('target_email', email)
+                .order('created_at', { ascending: false })
+                .limit(limit);
+
+            if (!errEmail) append(byEmail);
         }
-        return data;
+
+        return rows
+            .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
+            .slice(0, limit);
     },
 
     // 4. 将单条消息标记为已读
@@ -196,17 +272,22 @@ const SysNotification = {
     // 5. 将当前用户的所有消息标记为已读
     async markAllAsRead() {
         if (!this.currentUser) return;
-        const { error } = await window.supabase
+
+        await window.supabase
             .from('notifications')
             .update({ is_read: true })
             .eq('user_id', this.currentUser.id)
             .eq('is_read', false);
 
-        if (!error) {
-            this.updateBellCount(); // 刷新数字为 0
-        } else {
-            console.error("全部标记已读失败:", error);
+        for (const email of this.getIdentityEmails()) {
+            await window.supabase
+                .from('notifications')
+                .update({ is_read: true })
+                .eq('target_email', email)
+                .eq('is_read', false);
         }
+
+        this.updateBellCount();
     }
 };
 
