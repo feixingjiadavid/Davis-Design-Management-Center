@@ -37,7 +37,6 @@
       这个链接由小戴维斯校验企业微信身份后生成。提交时系统会再次校验一次性票据，并以 Bot 识别到的企业微信英文名作为提单人。
     </div>
     <div id="fatal-hint" class="hidden error-hint rounded-2xl p-4 mb-6 text-[12px] leading-6 text-rose-100"></div>
-    <div id="smart-prefill-hint" class="hidden hint rounded-2xl p-4 mb-6 text-[12px] leading-6 text-indigo-100"></div>
 
     <form id="quickForm" class="space-y-6" novalidate>
       <div>
@@ -140,6 +139,30 @@
 
     function setVal(id, v) { const el = document.getElementById(id); if (el && v) el.value = v; }
     function norm(v){ return String(v || '').trim(); }
+    function escapeHtml(v) {
+      return String(v || '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+    }
+    function renderSmartPrefillHint() {
+      const meta = prefill && prefill.prefill_meta ? prefill.prefill_meta : null;
+      const hint = document.getElementById('secure-hint');
+      if (!hint || !meta) return;
+      const refId = meta.reference_task_id || '';
+      const refTitle = meta.reference_task_title || '';
+      const reason = meta.reference_reason || '';
+      const fields = meta.inferred_fields || {};
+      const confirmItems = Array.isArray(meta.confirm_items) ? meta.confirm_items : [];
+      const refLine = refId
+        ? `已根据你的企业微信描述自动参考历史需求：<b>${escapeHtml(refId)}｜${escapeHtml(refTitle)}</b>。`
+        : `系统已根据你的企业微信描述做了智能预填，但${escapeHtml(reason || '未找到足够相似的历史需求')}。`;
+      const fieldLine = [
+        fields.title ? `标题：${fields.title}` : '',
+        fields.project ? `项目：${fields.project}` : '',
+        fields.due_date ? `交付日：${fields.due_date}` : '',
+        Array.isArray(fields.channels) && fields.channels.length ? `渠道：${fields.channels.join('、')}` : ''
+      ].filter(Boolean).join('；');
+      const confirmLine = confirmItems.length ? `<br><span class="text-amber-200">请重点核对：</span>${confirmItems.map(x => escapeHtml(x)).join('；')}` : '';
+      hint.innerHTML = `${refLine}<br>${escapeHtml(fieldLine)}${confirmLine}`;
+    }
 
     async function initPrefill() {
       if (!ticket) {
@@ -159,6 +182,7 @@
         if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
         prefill = (data.initial_payload && typeof data.initial_payload === 'object') ? data.initial_payload : {};
+        renderSmartPrefillHint();
         const displayName = data.display_name || '';
         const creator = data.creator || '';
         document.getElementById('display-creator').innerText = displayName && creator ? `${displayName}（${creator}）` : (creator || displayName || '已由 Bot 校验');
@@ -183,17 +207,6 @@
       setVal('req-project', prefill.project || '');
       setVal('req-date', prefill.due_date || '');
       setVal('req-link', prefill.link || '');
-      setVal('req-extra', prefill.extra_notes || prefill.reference_note || '');
-
-      if (prefill.smart_prefill && prefill.smart_prefill.enabled) {
-        const hint = document.getElementById('smart-prefill-hint');
-        const sourceId = prefill.smart_prefill.source_task_id || '';
-        const sourceTitle = prefill.smart_prefill.source_task_title || '';
-        hint.classList.remove('hidden');
-        hint.innerText = sourceId
-          ? `已根据你的企业微信描述自动参考历史需求：${sourceId}｜${sourceTitle}。请重点核对标题、项目、渠道、交付日和参考链接。`
-          : '已根据你的企业微信描述自动预填部分字段。请重点核对标题、项目、渠道、交付日和参考链接。';
-      }
 
       if (prefill.assignee) {
         const a = String(prefill.assignee || '').trim();
@@ -202,12 +215,6 @@
 
       if (Array.isArray(prefill.channels)) {
         document.querySelectorAll('.req-channel').forEach(cb => { if (prefill.channels.includes(cb.value)) cb.checked = true; });
-        const otherChannel = prefill.channels.find(x => String(x || '').startsWith('其他:'));
-        if (otherChannel) {
-          document.getElementById('channel-other-cb').checked = true;
-          document.getElementById('req-channel-other').classList.remove('hidden');
-          document.getElementById('req-channel-other').value = String(otherChannel).replace(/^其他:\s*/, '');
-        }
       }
     }
 
