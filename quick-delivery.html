@@ -6,92 +6,280 @@
   <title>快捷交方案｜戴维斯设计系统</title>
   <style>
     *{box-sizing:border-box}
-    body{margin:0;min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:#09090b;color:#f4f4f5;display:flex;align-items:center;justify-content:center;padding:24px}
-    .card{width:min(760px,100%);background:#121217;border:1px solid rgba(255,255,255,.09);border-radius:28px;padding:34px;box-shadow:0 30px 90px rgba(0,0,0,.45)}
-    .icon{width:56px;height:56px;border-radius:18px;background:linear-gradient(135deg,#fb923c,#f97316);display:flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:18px}
-    h1{margin:0 0 10px;font-size:28px;font-weight:900}
-    p{color:#a1a1aa;line-height:1.75;margin:0}
-    .info{margin:24px 0;padding:18px;border-radius:18px;background:#18181b;border:1px solid rgba(255,255,255,.08)}
-    .row{display:grid;grid-template-columns:110px 1fr;gap:14px;margin:10px 0;font-size:14px}
-    .k{color:#71717a;font-weight:800}
-    .v{color:#fff;font-weight:800}
-    .tip{background:#1c1917;border:1px solid rgba(251,146,60,.25);color:#fed7aa;padding:14px 16px;border-radius:16px;margin:20px 0;font-size:14px;line-height:1.7}
-    .actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}
-    a,button{border:0;text-decoration:none;border-radius:15px;padding:14px 18px;font-size:15px;font-weight:900;cursor:pointer}
-    .primary{background:linear-gradient(135deg,#fb923c,#f97316);color:#111;flex:1;text-align:center;min-width:240px}
-    .secondary{background:#27272a;color:#fff}
-    .err{background:#3f1d1d;border:1px solid rgba(248,113,113,.35);color:#fecaca;padding:16px;border-radius:16px;white-space:pre-wrap;line-height:1.7;margin-top:20px}
-    .muted{font-size:12px;color:#71717a;margin-top:12px}
+    body{margin:0;min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:#09090b;color:#f4f4f5}
+    .layout{min-height:100vh;display:flex}
+    .side{width:240px;background:#09090b;border-right:1px solid rgba(255,255,255,.06);padding:28px 20px;display:flex;flex-direction:column}
+    .brand{display:flex;align-items:center;gap:12px;font-weight:900;color:#fff}
+    .brand-icon{width:34px;height:34px;border-radius:10px;background:#ea580c;display:flex;align-items:center;justify-content:center;box-shadow:0 0 18px rgba(249,115,22,.38)}
+    .profile{margin-top:auto;border-top:1px solid rgba(255,255,255,.06);padding-top:20px;display:flex;align-items:center;gap:12px}
+    .avatar{width:38px;height:38px;border-radius:999px;background:linear-gradient(135deg,#4f46e5,#7c3aed);display:flex;align-items:center;justify-content:center;font-weight:900}
+    main{flex:1;background:#0c0c0e;min-width:0}
+    header{height:92px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between;padding:0 42px;background:rgba(9,9,11,.82)}
+    .head-left{display:flex;align-items:center;gap:16px;min-width:0}
+    .badge{background:#27272a;border:1px solid #3f3f46;border-radius:10px;padding:8px 13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:900;color:#d4d4d8}
+    h1{font-size:24px;line-height:1.2;margin:0;font-weight:950;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .status{font-size:12px;font-weight:900;padding:7px 12px;border-radius:9px;background:rgba(244,63,94,.18);border:1px solid rgba(244,63,94,.35);color:#fb7185}
+    .role{font-size:13px;color:#fb923c;background:rgba(249,115,22,.12);border:1px solid rgba(249,115,22,.28);border-radius:10px;padding:8px 12px;font-weight:900}
+    .wrap{padding:44px;display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:34px;max-width:1500px;margin:0 auto}
+    .card{background:#121217;border:1px solid rgba(255,255,255,.07);border-radius:24px;padding:28px;box-shadow:0 22px 55px rgba(0,0,0,.25)}
+    .muted{color:#a1a1aa}
+    .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;border-bottom:1px solid rgba(255,255,255,.06);padding-bottom:22px;margin-bottom:22px}
+    .k{font-size:12px;color:#71717a;margin-bottom:7px}
+    .v{font-size:14px;font-weight:900;color:#e4e4e7}
+    .desc{background:#09090b;border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:16px;color:#d4d4d8;line-height:1.7;min-height:70px}
+    .reject{background:rgba(244,63,94,.10);border:1px solid rgba(244,63,94,.35);border-left:4px solid #f43f5e;border-radius:18px;padding:20px;margin-top:24px}
+    .reject h3{margin:0 0 12px;color:#fb7185;font-size:15px}
+    .work-title{color:#fb923c;font-weight:950;margin:24px 0 14px;font-size:18px;display:flex;gap:8px;align-items:center}
+    .upload-card{border-color:rgba(249,115,22,.22)}
+    label{display:block;font-size:13px;font-weight:900;color:#d4d4d8;margin:0 0 10px}
+    .drop{height:154px;border:2px dashed #3f3f46;border-radius:18px;background:#09090b;display:flex;align-items:center;justify-content:center;text-align:center;color:#a1a1aa;position:relative;overflow:hidden;cursor:pointer}
+    .drop.drag{border-color:#fb923c;background:rgba(249,115,22,.06)}
+    .drop input{position:absolute;inset:0;opacity:0;cursor:pointer}
+    .plus{width:44px;height:44px;border-radius:999px;background:#27272a;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;color:#d4d4d8;font-size:28px}
+    .preview{max-width:100%;max-height:150px;border-radius:12px;display:none}
+    input,textarea{width:100%;background:#09090b;border:1px solid #3f3f46;border-radius:14px;padding:14px 15px;color:#fff;outline:none;font-size:14px}
+    textarea{min-height:96px;resize:vertical;line-height:1.65}
+    input:focus,textarea:focus{border-color:#fb923c;box-shadow:0 0 0 3px rgba(249,115,22,.11)}
+    .form-row{margin-top:24px}
+    .right-panel{position:sticky;top:28px}
+    .panel-hot{background:radial-gradient(circle at top right,rgba(249,115,22,.18),transparent 46%),#18110e;border:1px solid rgba(244,63,94,.42);border-right:4px solid #f43f5e}
+    .tool-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+    .tool{position:relative}
+    .tool input{position:absolute;opacity:0;pointer-events:none}
+    .tool span{display:flex;align-items:center;justify-content:center;min-height:34px;border:1px solid #3f3f46;border-radius:9px;background:#09090b;color:#a1a1aa;font-size:12px;font-weight:800;cursor:pointer;transition:.15s}
+    .tool input:checked+span{background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.5);color:#34d399}
+    .submit{margin-top:28px;width:100%;border:0;border-radius:16px;background:#e11d48;color:#fff;font-weight:950;font-size:16px;padding:17px 18px;cursor:pointer;box-shadow:0 14px 35px rgba(225,29,72,.25)}
+    .submit:disabled{opacity:.55;cursor:not-allowed}
+    .tip{font-size:12px;color:#71717a;margin-top:9px;line-height:1.6}
+    .ok,.err{margin-top:16px;border-radius:16px;padding:16px;line-height:1.7;white-space:pre-wrap}
+    .ok{background:#052e16;border:1px solid rgba(34,197,94,.35);color:#bbf7d0}
+    .err{background:#3f1d1d;border:1px solid rgba(248,113,113,.35);color:#fecaca}
+    .loading{padding:28px;color:#a1a1aa;text-align:center}
+    @media(max-width:980px){.side{display:none}.wrap{grid-template-columns:1fr;padding:24px}.right-panel{position:static}.grid4{grid-template-columns:1fr 1fr}header{padding:0 20px}h1{font-size:18px}}
   </style>
 </head>
 <body>
-  <div class="card">
-    <div class="icon">🚀</div>
-    <h1>快捷交方案入口</h1>
-    <p>这里不会直接改写需求字段，只负责校验企业微信一次性链接，然后带你进入系统原有的「设计师传图交方案」页面。</p>
+<div class="layout">
+  <aside class="side">
+    <div class="brand"><div class="brand-icon">▰</div><span>方案流转中心</span></div>
+    <div class="profile"><div class="avatar" id="avatar">?</div><div><div id="operator-name" style="font-weight:900;color:#fff">加载中...</div><div style="font-size:11px;color:#71717a">免登录快捷提交</div></div></div>
+  </aside>
 
-    <div id="state" class="tip">正在读取链接信息...</div>
-    <div id="info" class="info" style="display:none">
-      <div class="row"><div class="k">需求编号</div><div class="v" id="task-id">--</div></div>
-      <div class="row"><div class="k">需求标题</div><div class="v" id="task-title">--</div></div>
-      <div class="row"><div class="k">当前状态</div><div class="v" id="task-status">--</div></div>
-      <div class="row"><div class="k">执行人</div><div class="v" id="task-assignee">--</div></div>
+  <main>
+    <header>
+      <div class="head-left">
+        <div class="badge" id="task-id-head">TK-----</div>
+        <h1 id="task-title-head">正在读取需求...</h1>
+        <div class="status" id="task-status-head">状态读取中</div>
+      </div>
+      <div class="role" id="role-label">身份: 专属设计师</div>
+    </header>
+
+    <div class="wrap">
+      <section>
+        <div class="card">
+          <div class="grid4">
+            <div><div class="k">需求编号</div><div class="v" id="task-id">--</div></div>
+            <div><div class="k">当前状态</div><div class="v" id="task-status">--</div></div>
+            <div><div class="k">发起人</div><div class="v" id="task-creator">--</div></div>
+            <div><div class="k">执行人</div><div class="v" id="task-assignee">--</div></div>
+          </div>
+          <div class="k">需求标题</div>
+          <div class="v" id="task-title" style="font-size:16px;margin-bottom:18px">--</div>
+          <div class="k">提交说明</div>
+          <div class="desc" id="task-desc">免登录快捷页只展示核心信息，提交字段完全按系统交方案逻辑写入。</div>
+        </div>
+
+        <div id="reject-box" class="reject" style="display:none">
+          <h3>甲方打回 最新要求</h3>
+          <div id="reject-text">--</div>
+        </div>
+
+        <div class="work-title" id="work-title">工作台：上传新版本</div>
+        <div class="card upload-card">
+          <div class="form-row" style="margin-top:0">
+            <label id="upload-label">1. 预览图（JPG/PNG）<b style="color:#fb7185">*</b></label>
+            <div class="drop" id="dropzone">
+              <input type="file" id="image-file" accept="image/jpeg,image/png,image/webp"/>
+              <div id="placeholder">
+                <div class="plus">＋</div>
+                <div style="font-weight:900;color:#d4d4d8">拖拽文件或点击上传新版本图纸</div>
+              </div>
+              <img id="preview" class="preview"/>
+            </div>
+            <div class="tip" id="image-tip">框架方案必须上传预览图。正式稿至少上传预览图或填写源文件/网盘链接。</div>
+          </div>
+
+          <div class="form-row">
+            <label>2. 源文件网盘链接 <span class="muted" style="font-weight:500">（建议填写）</span></label>
+            <input id="source-link" type="url" placeholder="交正稿时请将源文件传至网盘后粘贴分享链接"/>
+          </div>
+
+          <div class="form-row">
+            <label>3. 交付/修改说明回复</label>
+            <textarea id="delivery-desc" placeholder="例如：已按要求调亮了主色调，并提交了最终版本..."></textarea>
+          </div>
+        </div>
+      </section>
+
+      <aside class="right-panel">
+        <div class="card panel-hot">
+          <h2 style="margin:0 0 22px;font-size:20px">效能填报记录</h2>
+          <div class="form-row" style="margin-top:0">
+            <label>本次工作消耗工时（h）<b style="color:#fb7185">*</b></label>
+            <input id="work-hours" type="number" min="0.5" step="0.5"/>
+          </div>
+
+          <div class="form-row">
+            <label>借助的 AI 生产力</label>
+            <div class="tool-grid" id="tool-grid"></div>
+            <input id="ai-tool-manual" style="margin-top:12px" placeholder="补充其他手填工具..."/>
+          </div>
+
+          <button class="submit" id="submit-btn">提交方案</button>
+          <div id="result"></div>
+        </div>
+      </aside>
     </div>
-
-    <div class="actions" id="actions" style="display:none">
-      <a id="designer-link" class="primary" href="#">进入设计师交方案页面</a>
-      <button class="secondary" onclick="location.reload()">重新读取</button>
-    </div>
-
-    <p class="muted">进入后请使用页面右侧/下方原有的上传区域提交预览图、工时、AI工具和说明；状态、历史、通知都由原页面逻辑处理。</p>
-    <div id="error" class="err" style="display:none"></div>
-  </div>
+  </main>
+</div>
 
 <script>
 const GATEWAY_URL = "https://supffjeeouibhqdfqosk.supabase.co/functions/v1/davis-task-action-plugin";
 const ticket = new URLSearchParams(location.search).get("ticket") || "";
+const TOOLS = ["Midjourney","Gemini","豆包","即梦","PS填充","纯手绘","GPT","创客贴","CDR","元宝","Claude","无"];
+let task = null;
+let creator = "";
+let displayName = "";
+let phase = "framework";
+let imageData = null;
 
-function setText(id, value){ const el = document.getElementById(id); if(el) el.textContent = value || "--"; }
-function showError(msg){
-  document.getElementById("state").textContent = "读取失败";
-  const el = document.getElementById("error");
-  el.style.display = "block";
-  el.textContent = msg || "链接无效，请回企业微信重新生成。";
-}
+function $(id){ return document.getElementById(id); }
+function setText(id,val){ const el=$(id); if(el) el.textContent = val || "--"; }
+function showMsg(text, ok=false){ $("result").className = ok ? "ok" : "err"; $("result").textContent = text; }
 async function postJson(payload){
-  const res = await fetch(GATEWAY_URL, {
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify(payload)
-  });
+  const res = await fetch(GATEWAY_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
   const data = await res.json().catch(()=>({}));
-  if(!res.ok || data.ok === false) throw new Error(data.error || `HTTP ${res.status}`);
+  if(!res.ok || data.ok === false) throw new Error(data.error || data.replyText || `HTTP ${res.status}`);
   return data;
 }
+function renderTools(){
+  const grid = $("tool-grid");
+  grid.innerHTML = TOOLS.map(t => `<label class="tool"><input class="ai-tool-cb" type="checkbox" value="${t}"><span>${t}</span></label>`).join("");
+}
+function inferRejectText(){
+  try {
+    const hist = task && Array.isArray(task.history) ? task.history : [];
+    const latest = [...hist].reverse().find(h => h && (h.is_rejected || String(h.action||"").includes("reject")));
+    return latest ? (latest.reply || latest.desc || latest.reason || "") : "";
+  } catch(e){ return ""; }
+}
+function applyPhaseUI(){
+  const isDraft = phase === "draft";
+  $("work-title").textContent = isDraft ? "工作台：上传最终正式稿" : "工作台：上传框架方案";
+  $("upload-label").innerHTML = isDraft ? '1. 正式稿在线预览图（JPG/PNG）<b style="color:#fb7185">*</b>' : '1. 框架方案在线预览图（JPG/PNG）<b style="color:#fb7185">*</b>';
+  $("submit-btn").textContent = isDraft ? "🚀 提交正稿给甲方验收" : "🚀 提交框架方案给领导审批";
+}
+async function compressToDataUrl(file, maxWidth=1600, quality=0.7){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if(w > maxWidth){ h = Math.round(h * maxWidth / w); w = maxWidth; }
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img,0,0,w,h);
+        resolve(canvas.toDataURL(file.type === "image/png" ? "image/png" : "image/jpeg", quality));
+      };
+      img.onerror = () => reject(new Error("图片读取失败"));
+      img.src = reader.result;
+    };
+    reader.onerror = () => reject(new Error("文件读取失败"));
+    reader.readAsDataURL(file);
+  });
+}
+async function handleFile(file){
+  if(!file) return;
+  try{
+    const dataUrl = await compressToDataUrl(file);
+    imageData = { file_name:file.name, mime_type:file.type || "image/jpeg", data_url:dataUrl };
+    $("placeholder").style.display = "none";
+    $("preview").src = dataUrl;
+    $("preview").style.display = "block";
+  }catch(err){ showMsg(err.message || String(err)); }
+}
+$("image-file").addEventListener("change", e => handleFile(e.target.files && e.target.files[0]));
+$("dropzone").addEventListener("dragover", e => { e.preventDefault(); $("dropzone").classList.add("drag"); });
+$("dropzone").addEventListener("dragleave", () => $("dropzone").classList.remove("drag"));
+$("dropzone").addEventListener("drop", e => { e.preventDefault(); $("dropzone").classList.remove("drag"); handleFile(e.dataTransfer.files && e.dataTransfer.files[0]); });
 
 async function init(){
-  if(!ticket) return showError("链接缺少 ticket，请回企业微信重新生成快捷交方案入口。");
+  renderTools();
+  if(!ticket) return showMsg("链接缺少 ticket，请回企业微信重新生成。");
   try{
     const data = await postJson({action:"read_delivery_ticket", ticket});
-    const t = data.task || {};
-    const url = data.designer_url || `https://davis-design.cn/task-detail-designer.html?id=${encodeURIComponent(t.id || "")}&quick=delivery`;
+    task = data.task || {};
+    creator = data.creator || "";
+    displayName = data.display_name || creator || "";
+    phase = task.phase || "framework";
 
-    setText("task-id", t.id);
-    setText("task-title", t.title);
-    setText("task-status", t.status_label || t.status);
-    setText("task-assignee", t.assignee);
+    setText("operator-name", `${displayName}（${creator}）`);
+    setText("avatar", (displayName || creator || "?").slice(0,1));
+    setText("task-id-head", task.id);
+    setText("task-title-head", task.title);
+    setText("task-status-head", task.status_label || task.status);
+    setText("task-id", task.id);
+    setText("task-status", task.status_label || task.status);
+    setText("task-title", task.title);
+    setText("task-creator", task.creator);
+    setText("task-assignee", task.assignee);
 
-    document.getElementById("designer-link").href = url;
-    document.getElementById("info").style.display = "block";
-    document.getElementById("actions").style.display = "flex";
-    document.getElementById("state").textContent = "已校验。点击下方按钮进入设计师原有交方案页面。";
-
-    // 轻量快捷：1 秒后自动跳转；如果用户想先看信息，可以点返回停留。
-    setTimeout(() => { location.href = url; }, 1000);
-  }catch(err){
-    showError(err.message || String(err));
-  }
+    const reject = task.reject_feedback || "";
+    if(reject){
+      $("reject-box").style.display = "block";
+      $("reject-text").textContent = reject;
+    }
+    applyPhaseUI();
+  }catch(err){ showMsg(err.message || String(err)); }
 }
+
+$("submit-btn").addEventListener("click", async () => {
+  const hours = $("work-hours").value;
+  const sourceLink = $("source-link").value.trim();
+  if(!hours || Number(hours) <= 0) return showMsg("请准确填报您消耗的工时！");
+  if(phase === "framework" && !imageData) return showMsg("交框架方案时，必须上传一张预览图供领导查看！");
+  if(phase === "draft" && !imageData && !sourceLink) return showMsg("请至少上传一张 JPG/PNG 的在线预览图，或者提供原件的网盘链接！");
+
+  const aiTools = Array.from(document.querySelectorAll(".ai-tool-cb:checked")).map(x => x.value);
+  const manual = $("ai-tool-manual").value.trim();
+  if(manual) aiTools.push(manual);
+
+  const btn = $("submit-btn");
+  const old = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "🚀 正在提交...";
+  try{
+    const data = await postJson({
+      action:"submit_delivery",
+      ticket,
+      phase,
+      image:imageData,
+      source_link:sourceLink,
+      work_hours:hours,
+      desc:$("delivery-desc").value.trim(),
+      ai_tools:aiTools
+    });
+    showMsg(data.replyText || "提交成功", true);
+    btn.textContent = "已提交";
+  }catch(err){
+    showMsg(err.message || String(err));
+    btn.disabled = false;
+    btn.textContent = old;
+  }
+});
+
 init();
 </script>
 </body>
