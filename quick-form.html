@@ -151,9 +151,14 @@
       const reason = meta.reference_reason || '';
       const fields = meta.inferred_fields || {};
       const confirmItems = Array.isArray(meta.confirm_items) ? meta.confirm_items : [];
-      const refLine = refId
-        ? `已根据你的企业微信描述自动参考历史需求：<b>${escapeHtml(refId)}｜${escapeHtml(refTitle)}</b>。`
-        : `系统已根据你的企业微信描述做了智能预填，但${escapeHtml(reason || '未找到足够相似的历史需求')}。`;
+      let refLine = '';
+      if (refId) {
+        refLine = `已根据你的企业微信描述自动参考历史需求：<b>${escapeHtml(refId)}｜${escapeHtml(refTitle)}</b>。`;
+      } else if (reason === '用户未要求沿用历史需求') {
+        refLine = '已根据你的企业微信描述自动识别需求字段。';
+      } else {
+        refLine = `系统已根据你的企业微信描述做了智能预填，但${escapeHtml(reason || '未找到足够相似的历史需求')}。`;
+      }
       const fieldLine = [
         fields.title ? `标题：${fields.title}` : '',
         fields.project ? `项目：${fields.project}` : '',
@@ -199,7 +204,6 @@
       const fullDesc = prefill.full_desc || prefill.desc || '';
       if (fullDesc) descParts.push(fullDesc);
       if (prefill.size) descParts.push(`尺寸：${prefill.size}`);
-      if (prefill.notes) descParts.push(`补充说明：${prefill.notes}`);
 
       setVal('req-short-title', prefill.title || '');
       setVal('req-title', descParts.join('\n\n'));
