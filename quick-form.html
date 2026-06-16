@@ -142,6 +142,7 @@
     function escapeHtml(v) {
       return String(v || '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
     }
+    let preSubmitQualityWarned = false;
     function renderSmartPrefillHint() {
       const meta = prefill && prefill.prefill_meta ? prefill.prefill_meta : null;
       const hint = document.getElementById('secure-hint');
@@ -151,13 +152,19 @@
       const reason = meta.reference_reason || '';
       const fields = meta.inferred_fields || {};
       const confirmItems = Array.isArray(meta.confirm_items) ? meta.confirm_items : [];
+      const mustItems = Array.isArray(meta.must_fill_items) ? meta.must_fill_items : [];
+      const shouldItems = Array.isArray(meta.should_fill_items) ? meta.should_fill_items : [];
+      const score = Number(meta.quality_score || 0);
+      const level = meta.quality_level || '';
+      const scene = meta.detected_scene || '';
+      const scoreClass = score >= 80 ? 'text-emerald-200' : score >= 60 ? 'text-amber-200' : 'text-rose-200';
       let refLine = '';
       if (refId) {
-        refLine = `已根据你的企业微信描述自动参考历史需求：<b>${escapeHtml(refId)}｜${escapeHtml(refTitle)}</b>。`;
+        refLine = `已参考历史需求：<b>${escapeHtml(refId)}｜${escapeHtml(refTitle)}</b>。`;
       } else if (reason === '用户未要求沿用历史需求') {
         refLine = '已根据你的企业微信描述自动识别需求字段。';
       } else {
-        refLine = `系统已根据你的企业微信描述做了智能预填，但${escapeHtml(reason || '未找到足够相似的历史需求')}。`;
+        refLine = `系统已做智能预填，但${escapeHtml(reason || '未找到足够相似的历史需求')}。`;
       }
       const fieldLine = [
         fields.title ? `标题：${fields.title}` : '',
@@ -165,8 +172,11 @@
         fields.due_date ? `交付日：${fields.due_date}` : '',
         Array.isArray(fields.channels) && fields.channels.length ? `渠道：${fields.channels.join('、')}` : ''
       ].filter(Boolean).join('；');
-      const confirmLine = confirmItems.length ? `<br><span class="text-amber-200">请重点核对：</span>${confirmItems.map(x => escapeHtml(x)).join('；')}` : '';
-      hint.innerHTML = `${refLine}<br>${escapeHtml(fieldLine)}${confirmLine}`;
+      const mustLine = mustItems.length ? `<div class="mt-2 text-rose-100"><b>必须补充：</b>${mustItems.map(x => escapeHtml(x)).join('；')}</div>` : '';
+      const shouldLine = shouldItems.length ? `<div class="mt-1 text-amber-100"><b>建议补充：</b>${shouldItems.map(x => escapeHtml(x)).join('；')}</div>` : '';
+      const confirmLine = confirmItems.length ? `<div class="mt-1 text-indigo-100"><b>重点核对：</b>${confirmItems.map(x => escapeHtml(x)).join('；')}</div>` : '';
+      const scoreLine = score ? `<div class="mt-2"><span class="${scoreClass} font-bold">提单完整度：${score}%｜${escapeHtml(level)}</span>${scene ? `｜识别场景：${escapeHtml(scene)}` : ''}</div>` : '';
+      hint.innerHTML = `${refLine}<br>${escapeHtml(fieldLine)}${scoreLine}${mustLine}${shouldLine}${confirmLine}`;
     }
 
     async function initPrefill() {
@@ -254,6 +264,14 @@
     document.getElementById('quickForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!validate()) return;
+      const meta = prefill && prefill.prefill_meta ? prefill.prefill_meta : {};
+      const mustItems = Array.isArray(meta.must_fill_items) ? meta.must_fill_items : [];
+      const score = Number(meta.quality_score || 0);
+      if (!preSubmitQualityWarned && (mustItems.length || (score && score < 60))) {
+        preSubmitQualityWarned = true;
+        const msg = `系统判断这张提单信息仍不够完整${score ? `（完整度 ${score}%）` : ''}。\n\n建议补充：\n${mustItems.length ? mustItems.map((x, i) => `${i + 1}. ${x}`).join('\n') : '请核对设计内容、尺寸、渠道和交付日期。'}\n\n仍要提交吗？`;
+        if (!confirm(msg)) return;
+      }
       const btn = document.getElementById('submitBtn');
       btn.innerText = '提交中...'; btn.disabled = true;
       const assigneeInput = norm(document.getElementById('req-assignee-input').value);
