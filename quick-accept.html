@@ -43,6 +43,12 @@
     .secondary{background:#27272a;color:#fff}
     textarea{width:100%;background:#09090b;border:1px solid #3f3f46;border-radius:14px;padding:14px 15px;color:#fff;outline:none;font-size:14px;min-height:120px;resize:vertical;line-height:1.65}
     textarea:focus{border-color:#f43f5e;box-shadow:0 0 0 3px rgba(244,63,94,.11)}
+
+    .reason-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0 14px}
+    .reason-chip{display:flex;align-items:center;gap:8px;background:#09090b;border:1px solid #3f3f46;border-radius:13px;padding:10px 11px;font-size:12px;color:#d4d4d8;font-weight:800;cursor:pointer;user-select:none}
+    .reason-chip input{accent-color:#e11d48;width:14px;height:14px;margin:0}
+    .reason-chip:has(input:checked){border-color:#fb7185;background:rgba(225,29,72,.12);color:#fff}
+    @media(max-width:980px){.reason-grid{grid-template-columns:1fr}}
     .tip{font-size:12px;color:#a1a1aa;line-height:1.7;margin-top:10px}
     .ok,.err{margin-top:16px;border-radius:16px;padding:16px;line-height:1.7;white-space:pre-wrap}
     .ok{background:#052e16;border:1px solid rgba(34,197,94,.35);color:#bbf7d0}
@@ -101,8 +107,19 @@
           <button class="accept" id="accept-btn">✅ 确认验收并完结</button>
 
           <div style="height:1px;background:rgba(255,255,255,.08);margin:24px 0"></div>
-          <label style="font-size:13px;font-weight:900;color:#fda4af">打回修改原因</label>
-          <textarea id="reject-reason" placeholder="请说明需要修改的地方，例如：主视觉偏暗、文字层级不清晰、Logo位置需调整..."></textarea>
+          <label style="font-size:13px;font-weight:900;color:#fda4af">打回原因类型（可多选）</label>
+          <div class="reason-grid" id="reason-grid">
+            <label class="reason-chip"><input type="checkbox" value="direction" data-label="方向不对">方向不对</label>
+            <label class="reason-chip"><input type="checkbox" value="copy" data-label="文案错误/需调整">文案错误/需调整</label>
+            <label class="reason-chip"><input type="checkbox" value="size" data-label="尺寸或规格不对">尺寸或规格不对</label>
+            <label class="reason-chip"><input type="checkbox" value="info_missing" data-label="信息缺失">信息缺失</label>
+            <label class="reason-chip"><input type="checkbox" value="style" data-label="风格不符合">风格不符合</label>
+            <label class="reason-chip"><input type="checkbox" value="source_missing" data-label="源文件/网盘链接缺失">源文件/网盘链接缺失</label>
+            <label class="reason-chip"><input type="checkbox" value="leader_feedback" data-label="领导意见未满足">领导意见未满足</label>
+            <label class="reason-chip"><input type="checkbox" value="other" data-label="其他原因">其他原因</label>
+          </div>
+          <label style="font-size:13px;font-weight:900;color:#fda4af">补充说明</label>
+          <textarea id="reject-reason" placeholder="请补充具体修改意见，例如：主视觉偏暗、文字层级不清晰、Logo位置需调整。选择原因类型后，也建议写清楚具体改哪里。"></textarea>
           <button class="reject" id="reject-btn">↩️ 打回修改</button>
           <div id="result"></div>
         </div>
@@ -205,15 +222,23 @@ $("accept-btn").addEventListener("click", async () => {
 
 $("reject-btn").addEventListener("click", async () => {
   const reason = $("reject-reason").value.trim();
-  if(!reason) return showMsg("请填写打回修改原因。");
-  if(!confirm("确认打回修改吗？打回后需求会回到设计师修改状态。")) return;
+  const checked = Array.from(document.querySelectorAll('#reason-grid input:checked'));
+  const reason_tags = checked.map(x => x.value);
+  const reason_labels = checked.map(x => x.dataset.label || x.value);
+  if(!reason && !reason_tags.length) return showMsg("请至少选择一个打回原因类型，或填写补充说明。");
+  const previewReason = [
+    reason_labels.length ? `原因类型：${reason_labels.join("、")}` : "",
+    reason ? `补充说明：${reason}` : ""
+  ].filter(Boolean).join("\n");
+  if(!confirm("确认打回修改吗？打回后需求会回到设计师修改状态。\n\n" + previewReason)) return;
   const btn = $("reject-btn"); btn.disabled = true; btn.textContent = "正在打回...";
   try{
-    const data = await postJson({action:"reject_task", ticket, reason});
+    const data = await postJson({action:"reject_task", ticket, reason, reason_tags, reason_labels});
     renderDone("已打回修改", [
       `需求编号：${data.task_id || ""}`,
       `下一状态：需求被打回修改`,
-      `打回原因：${reason}`,
+      ...(reason_labels.length ? [`原因类型：${reason_labels.join("、")}`] : []),
+      ...(reason ? [`补充说明：${reason}`] : []),
       `设计师已收到修改通知`
     ], false);
   }catch(err){ showMsg(err.message || String(err)); btn.disabled = false; btn.textContent = "↩️ 打回修改"; }
