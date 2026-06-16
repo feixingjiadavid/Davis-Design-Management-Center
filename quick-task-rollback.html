@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+  <title>需求修改撤销确认 - 戴维斯设计系统</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background:#09090b; color:#e4e4e7; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .card { background:#121217; border:1px solid rgba(255,255,255,.08); }
+    .hint { background:rgba(99,102,241,.10); border:1px solid rgba(99,102,241,.22); }
+    .danger { background:rgba(244,63,94,.12); border:1px solid rgba(244,63,94,.32); }
+    .row { border-bottom:1px solid rgba(255,255,255,.08); }
+    .row:last-child { border-bottom:0; }
+  </style>
+</head>
+<body class="p-4 md:p-10 flex justify-center items-start min-h-screen">
+  <div class="w-full max-w-2xl card rounded-[2rem] p-6 md:p-8 shadow-2xl">
+    <div class="flex items-center gap-4 mb-6">
+      <div class="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 shrink-0">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg>
+      </div>
+      <div>
+        <h1 class="text-xl font-bold text-white tracking-tight">需求修改撤销确认</h1>
+        <p class="text-zinc-500 text-[12px] mt-1">请核对无误后再撤销最近一次修改</p>
+      </div>
+    </div>
+
+    <div id="loading" class="hint rounded-2xl p-4 mb-6 text-sm leading-6 text-indigo-100">正在读取撤销确认信息...</div>
+    <div id="fatal" class="hidden danger rounded-2xl p-4 mb-6 text-sm leading-6 text-rose-100"></div>
+
+    <div id="content" class="hidden space-y-6">
+      <div class="hint rounded-2xl p-4 text-[13px] leading-6 text-indigo-100">
+        <div class="font-bold text-white mb-1">操作人</div>
+        <div id="operator"></div>
+      </div>
+
+      <div>
+        <div class="text-[12px] font-bold text-zinc-400 mb-2 uppercase">需求信息</div>
+        <div class="rounded-2xl bg-black/20 border border-white/5 overflow-hidden text-sm">
+          <div class="row p-3"><span class="text-zinc-500">编号：</span><span id="task-id" class="font-mono text-indigo-300"></span></div>
+          <div class="row p-3"><span class="text-zinc-500">标题：</span><span id="task-title"></span></div>
+          <div class="row p-3"><span class="text-zinc-500">状态：</span><span id="task-status"></span></div>
+          <div class="row p-3"><span class="text-zinc-500">需求方：</span><span id="task-creator"></span></div>
+          <div class="row p-3"><span class="text-zinc-500">执行人：</span><span id="task-assignee"></span></div>
+          <div class="row p-3"><span class="text-zinc-500">项目：</span><span id="task-project"></span></div>
+          <div class="row p-3"><span class="text-zinc-500">交付日：</span><span id="task-due"></span></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="text-[12px] font-bold text-zinc-400 mb-2 uppercase">即将撤销为</div>
+        <div id="changes" class="rounded-2xl bg-black/20 border border-white/5 overflow-hidden text-sm"></div>
+      </div>
+
+      <div class="danger rounded-2xl p-4 text-[13px] leading-6 text-rose-100">
+        这是写数据库操作。确认撤销后将按下列回滚值更新需求信息，并写入需求历史记录。请确认字段、当前值、回滚值都正确。
+      </div>
+
+      <button id="confirmBtn" class="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold shadow-xl transition-all active:scale-95">确认撤销</button>
+    </div>
+  </div>
+
+  <script>
+    const API = 'https://supffjeeouibhqdfqosk.supabase.co/functions/v1/davis-task-action-plugin';
+    const ticket = new URLSearchParams(location.search).get('ticket') || '';
+    const loading = document.getElementById('loading');
+    const fatal = document.getElementById('fatal');
+    const content = document.getElementById('content');
+    const confirmBtn = document.getElementById('confirmBtn');
+
+    function esc(v) { return String(v || '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
+    function fail(msg) { loading.classList.add('hidden'); fatal.classList.remove('hidden'); fatal.textContent = msg || '读取失败'; }
+    function setText(id, v) { const el = document.getElementById(id); if (el) el.textContent = v || '未填写'; }
+
+    async function post(action) {
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ action, ticket })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) throw new Error(data.error || data.replyText || `HTTP ${res.status}`);
+      return data;
+    }
+
+    async function init() {
+      if (!ticket) { fail('缺少撤销票据，请回企业微信重新生成链接。'); return; }
+      try {
+        const data = await post('read_task_rollback_ticket');
+        loading.classList.add('hidden');
+        content.classList.remove('hidden');
+        document.getElementById('operator').textContent = `${data.display_name || data.operator || '未知'}（${data.operator || ''}）`;
+        const t = data.task || {};
+        setText('task-id', t.id);
+        setText('task-title', t.title);
+        setText('task-status', t.status);
+        setText('task-creator', t.creator);
+        setText('task-assignee', t.assignee);
+        setText('task-project', t.project);
+        setText('task-due', t.due_date);
+        const changes = Array.isArray(data.changes) ? data.changes : [];
+        document.getElementById('changes').innerHTML = changes.length ? changes.map((c, i) => `
+          <div class="row p-3">
+            <div class="font-bold text-white mb-1">${i + 1}. ${esc(c.label)}</div>
+            <div class="text-zinc-400">当前值：${esc(c.old_value)}</div>
+            <div class="text-indigo-300">回滚为：${esc(c.new_value)}</div>
+          </div>
+        `).join('') : '<div class="p-3 text-zinc-500">没有可撤销项</div>';
+      } catch (e) { fail(e.message); }
+    }
+
+    confirmBtn.onclick = async () => {
+      if (!confirm('确认撤销最近一次需求信息修正吗？')) return;
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = '正在撤销...';
+      try {
+        const data = await post('confirm_task_rollback');
+        document.body.innerHTML = `<div class="flex flex-col items-center justify-center min-h-screen text-center p-6"><div class="w-20 h-20 bg-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center mb-6"><svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg></div><h2 class="text-2xl font-bold text-white">撤销已完成</h2><p class="text-zinc-500 mt-3 text-sm whitespace-pre-line">${esc(data.replyText || '')}</p></div>`;
+      } catch (e) {
+        alert('撤销失败：' + e.message);
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = '确认撤销';
+      }
+    };
+
+    init();
+  </script>
+</body>
+</html>
