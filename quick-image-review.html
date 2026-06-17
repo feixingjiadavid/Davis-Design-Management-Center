@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Davis 图片审稿</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #172033;
+      --muted: #667085;
+      --blue: #2563eb;
+      --blue2: #5b7cfa;
+      --border: #e6eaf2;
+      --danger: #dc2626;
+      --ok: #16a34a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: linear-gradient(180deg, #f7f9ff 0%, #eef3ff 100%);
+      color: var(--text);
+    }
+    .wrap {
+      width: min(920px, calc(100% - 28px));
+      margin: 26px auto;
+    }
+    .hero {
+      background: linear-gradient(135deg, #1d4ed8 0%, #7c3aed 100%);
+      border-radius: 22px;
+      padding: 24px;
+      color: white;
+      box-shadow: 0 16px 42px rgba(37, 99, 235, .22);
+    }
+    h1 { margin: 0 0 8px; font-size: 26px; }
+    .hero p { margin: 0; opacity: .9; line-height: 1.6; }
+    .card {
+      margin-top: 18px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, .06);
+    }
+    label {
+      display: block;
+      font-weight: 700;
+      margin: 14px 0 8px;
+    }
+    textarea, input[type="file"] {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font: inherit;
+      background: #fff;
+    }
+    textarea { min-height: 92px; resize: vertical; }
+    .upload {
+      border: 2px dashed #b9c7f8;
+      background: #f7f9ff;
+      border-radius: 16px;
+      padding: 18px;
+      text-align: center;
+    }
+    .preview {
+      max-width: 100%;
+      max-height: 360px;
+      margin-top: 14px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      display: none;
+      object-fit: contain;
+      background: #f4f6fb;
+    }
+    .row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+    button {
+      border: 0;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--blue), var(--blue2));
+      color: white;
+      padding: 13px 18px;
+      font-weight: 700;
+      font-size: 15px;
+      cursor: pointer;
+      box-shadow: 0 10px 24px rgba(37, 99, 235, .22);
+    }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    .note {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+    .status {
+      margin-top: 12px;
+      font-weight: 700;
+    }
+    .status.ok { color: var(--ok); }
+    .status.err { color: var(--danger); }
+    .result {
+      white-space: pre-wrap;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      line-height: 1.75;
+      margin-top: 12px;
+      min-height: 120px;
+    }
+    .small {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>Davis 图片审稿</h1>
+      <p>上传海报、长图或设计截图，系统会临时调用图像理解模型生成审稿建议。图片不保存、不入库、不占用 Supabase Storage。</p>
+    </section>
+
+    <section class="card">
+      <label>审稿要求</label>
+      <textarea id="query" placeholder="例如：请从设计总监角度审稿，指出最应该优化的问题"></textarea>
+
+      <label>上传图片</label>
+      <div class="upload">
+        <input id="file" type="file" accept="image/png,image/jpeg,image/webp" />
+        <img id="preview" class="preview" />
+        <p class="note">建议上传 5MB 以内图片。页面会在浏览器本地压缩后再临时提交，不会保存原图。</p>
+      </div>
+
+      <div class="row">
+        <button id="submit">开始审稿</button>
+        <span id="fileInfo" class="small"></span>
+      </div>
+      <div id="status" class="status"></div>
+    </section>
+
+    <section class="card">
+      <label>审稿结果</label>
+      <div id="result" class="result">上传图片后，这里会显示审稿建议。</div>
+    </section>
+  </div>
+
+  <script>
+    const API_URL = "https://supffjeeouibhqdfqosk.supabase.co/functions/v1/davis-image-understanding-plugin";
+    const params = new URLSearchParams(location.search);
+    const token = params.get("token") || "";
+    const q = params.get("q") || "请从设计总监角度审稿，指出最应该优化的问题";
+
+    const queryEl = document.getElementById("query");
+    const fileEl = document.getElementById("file");
+    const previewEl = document.getElementById("preview");
+    const submitEl = document.getElementById("submit");
+    const statusEl = document.getElementById("status");
+    const resultEl = document.getElementById("result");
+    const fileInfoEl = document.getElementById("fileInfo");
+
+    queryEl.value = q;
+
+    if (!token) {
+      setStatus("缺少审稿 token。请从 Davis 设计参谋重新生成图片审稿入口。", true);
+      submitEl.disabled = true;
+    }
+
+    let selectedFile = null;
+
+    fileEl.addEventListener("change", () => {
+      selectedFile = fileEl.files && fileEl.files[0];
+      if (!selectedFile) return;
+      fileInfoEl.textContent = `${selectedFile.name}｜${formatBytes(selectedFile.size)}`;
+      const url = URL.createObjectURL(selectedFile);
+      previewEl.src = url;
+      previewEl.style.display = "block";
+    });
+
+    submitEl.addEventListener("click", async () => {
+      if (!selectedFile) {
+        setStatus("请先选择一张图片。", true);
+        return;
+      }
+      submitEl.disabled = true;
+      resultEl.textContent = "正在压缩图片并生成审稿建议，请稍等...";
+      setStatus("处理中...", false);
+
+      try {
+        const compressed = await compressImage(selectedFile, 1600, 0.78, 1600 * 1024);
+        const payload = {
+          action: "analyze_image_base64",
+          token,
+          image_base64: compressed.base64,
+          mime_type: compressed.mimeType,
+          query: queryEl.value.trim() || "请从设计总监角度审稿，指出最应该优化的问题",
+          scene: "design_review"
+        };
+
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!data.ok) {
+          throw new Error(data.replyText || data.error || "审稿失败，请稍后重试。");
+        }
+
+        setStatus("审稿完成", false, true);
+        resultEl.textContent = data.replyText || data.Response?.replyText || "已完成，但没有返回文本。";
+      } catch (err) {
+        setStatus(err.message || String(err), true);
+        resultEl.textContent = err.message || String(err);
+      } finally {
+        submitEl.disabled = false;
+      }
+    });
+
+    function setStatus(text, isError = false, isOk = false) {
+      statusEl.textContent = text;
+      statusEl.className = "status" + (isError ? " err" : isOk ? " ok" : "");
+    }
+
+    function formatBytes(bytes) {
+      if (bytes < 1024) return bytes + " B";
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+      return (bytes / 1024 / 1024).toFixed(2) + " MB";
+    }
+
+    async function compressImage(file, maxSide, quality, maxBytes) {
+      const bitmap = await loadImage(file);
+      let { width, height } = bitmap;
+      const ratio = Math.min(1, maxSide / Math.max(width, height));
+      width = Math.round(width * ratio);
+      height = Math.round(height * ratio);
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(bitmap, 0, 0, width, height);
+
+      let q = quality;
+      let dataUrl = canvas.toDataURL("image/jpeg", q);
+      while (dataUrl.length > maxBytes * 1.37 && q > 0.45) {
+        q -= 0.08;
+        dataUrl = canvas.toDataURL("image/jpeg", q);
+      }
+
+      return {
+        mimeType: "image/jpeg",
+        base64: dataUrl.split(",")[1],
+        dataUrl
+      };
+    }
+
+    function loadImage(file) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = URL.createObjectURL(file);
+      });
+    }
+  </script>
+</body>
+</html>
