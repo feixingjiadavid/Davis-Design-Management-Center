@@ -23,10 +23,7 @@
       background: linear-gradient(180deg, #f7f9ff 0%, #eef3ff 100%);
       color: var(--text);
     }
-    .wrap {
-      width: min(920px, calc(100% - 28px));
-      margin: 26px auto;
-    }
+    .wrap { width: min(920px, calc(100% - 28px)); margin: 26px auto; }
     .hero {
       background: linear-gradient(135deg, #1d4ed8 0%, #7c3aed 100%);
       border-radius: 22px;
@@ -44,11 +41,7 @@
       padding: 20px;
       box-shadow: 0 10px 30px rgba(15, 23, 42, .06);
     }
-    label {
-      display: block;
-      font-weight: 700;
-      margin: 14px 0 8px;
-    }
+    label { display: block; font-weight: 700; margin: 14px 0 8px; }
     textarea, input[type="file"] {
       width: 100%;
       border: 1px solid var(--border);
@@ -75,13 +68,7 @@
       object-fit: contain;
       background: #f4f6fb;
     }
-    .row {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      flex-wrap: wrap;
-      margin-top: 14px;
-    }
+    .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 14px; }
     button {
       border: 0;
       border-radius: 12px;
@@ -94,15 +81,8 @@
       box-shadow: 0 10px 24px rgba(37, 99, 235, .22);
     }
     button:disabled { opacity: .55; cursor: not-allowed; }
-    .note {
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.7;
-    }
-    .status {
-      margin-top: 12px;
-      font-weight: 700;
-    }
+    .note { color: var(--muted); font-size: 13px; line-height: 1.7; }
+    .status { margin-top: 12px; font-weight: 700; }
     .status.ok { color: var(--ok); }
     .status.err { color: var(--danger); }
     .result {
@@ -115,11 +95,7 @@
       margin-top: 12px;
       min-height: 120px;
     }
-    .small {
-      font-size: 12px;
-      color: var(--muted);
-    }
-    .hidden { display: none; }
+    .small { font-size: 12px; color: var(--muted); }
   </style>
 </head>
 <body>
@@ -238,8 +214,9 @@
     }
 
     async function compressImage(file, maxSide, quality, maxBytes) {
-      const bitmap = await loadImage(file);
-      let { width, height } = bitmap;
+      const img = await loadImage(file);
+      let width = img.width;
+      let height = img.height;
       const ratio = Math.min(1, maxSide / Math.max(width, height));
       width = Math.round(width * ratio);
       height = Math.round(height * ratio);
@@ -250,7 +227,7 @@
       const ctx = canvas.getContext("2d");
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, width, height);
-      ctx.drawImage(bitmap, 0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
 
       let q = quality;
       let dataUrl = canvas.toDataURL("image/jpeg", q);
@@ -259,11 +236,7 @@
         dataUrl = canvas.toDataURL("image/jpeg", q);
       }
 
-      return {
-        mimeType: "image/jpeg",
-        base64: dataUrl.split(",")[1],
-        dataUrl
-      };
+      return { mimeType: "image/jpeg", base64: dataUrl.split(",")[1], dataUrl };
     }
 
     function loadImage(file) {
