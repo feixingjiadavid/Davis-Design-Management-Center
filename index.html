@@ -337,13 +337,11 @@
 
             .mobile-only { display: inline-flex !important; }
 
-            /* 背景层不参与移动端布局，避免横向撑开 */
             body > .absolute.inset-0,
             body > .absolute.top-0.right-1\/4 {
                 position: fixed !important;
             }
 
-            /* 侧栏改为抽屉，不影响 PC 原侧栏 */
             aside {
                 position: fixed !important;
                 left: 0;
@@ -385,7 +383,6 @@
                 border: 1px solid rgba(255,255,255,.08);
             }
 
-            /* 主体改为自然滚动，解决 h-screen + overflow-hidden 在手机端截断内容 */
             main {
                 width: 100% !important;
                 min-height: 100dvh !important;
@@ -394,18 +391,23 @@
             }
 
             header {
+                min-height: 0 !important;
                 height: auto !important;
-                min-height: 72px;
-                padding: 14px 16px !important;
-                display: flex !important;
-                align-items: flex-start !important;
-                gap: 12px;
+                padding: 12px 14px !important;
+                display: grid !important;
+                grid-template-columns: 42px minmax(0, 1fr);
+                grid-template-areas:
+                    "menu intro"
+                    "actions actions";
+                align-items: center !important;
+                gap: 10px 12px !important;
                 position: sticky !important;
                 top: 0;
                 z-index: 9999 !important;
             }
 
             #mobile-menu-btn {
+                grid-area: menu;
                 width: 42px;
                 height: 42px;
                 align-items: center;
@@ -418,69 +420,69 @@
             }
 
             header > div:first-of-type {
+                grid-area: intro;
                 min-width: 0;
-                flex: 1 1 auto;
+                width: 100%;
             }
             #header-greeting {
                 font-size: 18px !important;
                 line-height: 1.25 !important;
-                margin-bottom: 4px !important;
+                margin-bottom: 0 !important;
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
             }
             #header-greeting + p {
-                font-size: 11px !important;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
+                display: none !important;
             }
 
             header > .flex.items-center.gap-5.relative {
+                grid-area: actions;
                 width: 100%;
-                flex: 0 0 100%;
-                order: 2;
                 gap: 8px !important;
                 overflow-x: auto;
-                padding: 2px 0 4px;
+                padding: 2px 0 2px;
                 -webkit-overflow-scrolling: touch;
                 scrollbar-width: none;
+                flex-wrap: nowrap !important;
             }
             header > .flex.items-center.gap-5.relative::-webkit-scrollbar { display: none; }
-
             header > .flex.items-center.gap-5.relative > * { flex: 0 0 auto; }
+
             header button {
                 min-height: 40px;
                 white-space: nowrap;
             }
-            header button[onclick="openModal('create-modal', false)"] {
-                position: fixed;
-                right: 16px;
-                bottom: calc(18px + env(safe-area-inset-bottom));
-                z-index: 99999;
+
+            #identity-wrapper { display: none !important; }
+
+            #create-request-btn {
+                position: fixed !important;
+                right: 14px !important;
+                bottom: calc(16px + env(safe-area-inset-bottom)) !important;
+                z-index: 99999 !important;
                 border-radius: 999px !important;
-                padding: 12px 18px !important;
+                padding: 12px 16px !important;
                 box-shadow: 0 14px 32px rgba(79,70,229,.38) !important;
             }
 
-            #identityBtn {
-                max-width: 160px;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                padding-left: 14px !important;
-                padding-right: 14px !important;
+            #themeToggleBtn,
+            #notifBtn {
+                width: 40px !important;
+                height: 40px !important;
+                border-radius: 14px !important;
             }
-            #identityMenu,
-            #notifMenu {
+
+            #notifMenu,
+            #identityMenu {
                 position: fixed !important;
                 left: 12px !important;
                 right: 12px !important;
-                top: 82px !important;
+                top: 70px !important;
                 width: auto !important;
                 max-width: none !important;
             }
 
-            /* 内容区从左右双栏改为上下单栏 */
             main > .flex-1.p-8,
             main > .flex-1.p-8.md\:p-10 {
                 padding: 14px 14px 96px !important;
@@ -508,7 +510,6 @@
                 padding-bottom: 0 !important;
             }
 
-            /* 规则卡片压缩间距 */
             .bg-\[\#1a1306\] {
                 padding: 14px !important;
                 margin-bottom: 14px !important;
@@ -524,15 +525,14 @@
                 padding-right: 0 !important;
             }
             #tasks-scroll-area > .sticky {
-                position: sticky !important;
-                top: 128px !important;
-                margin-left: -2px;
-                margin-right: -2px;
-                padding: 8px 2px !important;
-                align-items: flex-start !important;
+                position: static !important;
+                margin: 0 0 10px !important;
+                padding: 0 !important;
+                align-items: stretch !important;
                 flex-direction: column !important;
                 gap: 8px !important;
-                z-index: 50 !important;
+                background: transparent !important;
+                backdrop-filter: none !important;
             }
             #tasks-scroll-area > .sticky > div {
                 width: 100%;
@@ -548,35 +548,23 @@
                 font-size: 11px !important;
             }
 
-            /* 动态卡片统一避免内容溢出 */
             .interactive-card {
                 border-radius: 18px !important;
                 overflow-wrap: anywhere;
             }
-            .interactive-card:hover {
-                transform: none !important;
-            }
-            #ongoing-tasks-container,
-            #completed-tasks-container,
-            #cancelled-tasks-container {
-                gap: 12px !important;
-            }
+            .interactive-card:hover { transform: none !important; }
 
-            /* 状态跟踪移到下方，固定高度，避免撑爆页面 */
             main > .flex-1.p-8 > .flex > div.w-\[310px\],
             main > .flex-1.p-8.md\:p-10 > .flex > div.w-\[310px\] {
                 padding: 16px !important;
                 border-radius: 22px !important;
-                max-height: 360px !important;
-                margin-top: 2px;
             }
             #all-timelines-container {
-                max-height: 260px !important;
+                max-height: 300px !important;
                 overflow-y: auto !important;
                 pointer-events: auto !important;
             }
 
-            /* 新建需求弹窗：手机端改为全屏表单 */
             #modal-overlay,
             #pwd-modal-overlay,
             #custom-dialog-overlay {
@@ -611,7 +599,7 @@
             #create-modal input,
             #create-modal textarea,
             #pwd-modal input {
-                font-size: 16px !important; /* 防止 iOS 输入聚焦自动放大 */
+                font-size: 16px !important;
             }
             #create-modal textarea { min-height: 118px; }
             #project-dropdown,
@@ -650,7 +638,6 @@
                 margin: auto 0;
             }
 
-            /* 附件预览弹窗适配 */
             #attachment-preview-overlay {
                 padding: 10px !important;
             }
@@ -671,7 +658,6 @@
             }
             #action-toast > div { width: 100% !important; }
         }
-
         @media (max-width: 420px) {
             #header-greeting { font-size: 16px !important; }
             header > .flex.items-center.gap-5.relative {
@@ -805,7 +791,7 @@
                     </div>
                 </div>
 
-                <button onclick="openModal('create-modal', false)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-[14px] text-[14px] font-bold shadow-[0_5px_15px_rgba(79,70,229,0.25)] transition-all flex items-center gap-2 btn-press">
+                <button id="create-request-btn" onclick="openModal('create-modal', false)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-[14px] text-[14px] font-bold shadow-[0_5px_15px_rgba(79,70,229,0.25)] transition-all flex items-center gap-2 btn-press">
                     + 发起新需求
                 </button>
             </div>
