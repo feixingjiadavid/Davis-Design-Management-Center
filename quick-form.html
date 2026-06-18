@@ -129,6 +129,27 @@
       } catch(e) { return {}; }
     }
 
+    
+    function normalizeUserId(v){ return String(v || '').trim().toLowerCase().replace(/@webank\.com$/i, ''); }
+    function getCurrentUser(){
+      try{
+        const user = JSON.parse(localStorage.getItem('activeUserObj') || '{}');
+        const en = normalizeUserId(user.enName || user.en_name || user.userid || user.userId || user.email || '');
+        const display = String(user.displayName || user.cnName || user.name || en || '').trim();
+        if(!en) return null;
+        return { enName: en, displayName: display, raw: user };
+      }catch(e){ return null; }
+    }
+    function currentUserPayload(){
+      const cu = getCurrentUser();
+      const en = cu ? cu.enName : '';
+      return { user: en, userid: en, user_id: en, current_user: en, current_userid: en, current_en_name: en, current_display_name: cu ? cu.displayName : '' };
+    }
+    function disableFormByPermission(msg){
+      failPage(msg || '当前无法确认打开人的企业微信身份，请先在戴维斯系统登录对应身份后重新打开链接。');
+      document.querySelectorAll('input,select,textarea,button').forEach(el => { el.disabled = true; el.classList.add('opacity-50'); });
+    }
+
     function failPage(msg) {
       const hint = document.getElementById('fatal-hint');
       hint.classList.remove('hidden');
@@ -191,7 +212,7 @@
         const res = await fetch(GATEWAY_URL, {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ action: 'read_quick_form_ticket', ticket })
+          body: JSON.stringify({ action: 'read_quick_form_ticket', ticket, ...currentUserPayload() })
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
@@ -200,7 +221,15 @@
         renderSmartPrefillHint();
         const displayName = data.display_name || '';
         const creator = data.creator || '';
-        document.getElementById('display-creator').innerText = displayName && creator ? `${displayName}（${creator}）` : (creator || displayName || '已由 Bot 校验');
+        const cu = getCurrentUser();
+        document.getElementById('display-creator').innerText = cu ? `${cu.displayName || cu.enName}（${cu.enName}）` : '未识别当前打开人';
+        const creatorNorm = normalizeUserId(creator);
+        const canSubmit = data.can_submit === true || (data.can_submit === undefined && cu && creatorNorm && cu.enName === creatorNorm);
+        if (!canSubmit) {
+          const ownerText = displayName && creator ? `${displayName}（${creator}）` : (creator || displayName || '该链接创建人');
+          disableFormByPermission(data.permission_message || `该提单链接仅限 ${ownerText} 本人提交。请使用对应企业微信身份登录后重新打开。`);
+          return;
+        }
       } catch (err) {
         // 兼容旧 payload 链接；但新工作流应走 ticket 读取。
         prefill = payloadStr ? b64JsonDecode(payloadStr) : {};
@@ -282,6 +311,7 @@
       const body = {
         action: 'submit_quick_form',
         ticket,
+        ...currentUserPayload(),
         payload: {
           title: norm(document.getElementById('req-short-title').value),
           full_desc: fullDesc,
