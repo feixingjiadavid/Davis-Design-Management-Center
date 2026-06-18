@@ -126,10 +126,30 @@ function $(id){ return document.getElementById(id); }
 function setText(id,val){ const el=$(id); if(el) el.textContent = val || "--"; }
 function showMsg(text, ok=false){ $("result").className = ok ? "ok" : "err"; $("result").textContent = text; }
 
+function normalizeUserId(v){
+  return String(v || "").trim().toLowerCase().replace(/@webank\.com$/i, "");
+}
+function readStoredUser(){
+  const keys = ["activeUserObj", "currentUser", "davisUser", "userInfo"];
+  const stores = [];
+  try { stores.push(localStorage); } catch(e) {}
+  try { stores.push(sessionStorage); } catch(e) {}
+  for (const store of stores) {
+    for (const key of keys) {
+      try {
+        const raw = store.getItem(key);
+        if (!raw) continue;
+        const user = JSON.parse(raw);
+        if (user && typeof user === "object") return user;
+      } catch(e) {}
+    }
+  }
+  return {};
+}
 function getCurrentUser(){
   try{
-    const user = JSON.parse(localStorage.getItem("activeUserObj") || "{}");
-    const en = String(user.enName || user.en_name || user.userid || user.userId || "").trim().toLowerCase();
+    const user = readStoredUser();
+    const en = normalizeUserId(user.enName || user.en_name || user.userid || user.userId || user.email || "");
     const display = String(user.displayName || user.cnName || user.name || en || "").trim();
     if(!en) return null;
     return { enName: en, displayName: display, raw: user };
@@ -137,12 +157,26 @@ function getCurrentUser(){
     return null;
   }
 }
+function loginUrl(){
+  return `${location.origin}/login.html?redirect=${encodeURIComponent(location.href)}`;
+}
+function showLoginPrompt(message){
+  const box = $("result");
+  if(!box) return;
+  box.className = "err";
+  box.innerHTML = `${message || "当前设备未识别到登录身份。"}<br><button type="button" onclick="location.href='${loginUrl()}'" style="margin-top:10px;background:#2563eb;color:#fff;border:0;border-radius:10px;padding:9px 12px;font-weight:900;cursor:pointer;">登录后继续</button>`;
+}
 
 function currentUserPayload(){
   currentUser = getCurrentUser();
+  const en = currentUser ? currentUser.enName : "";
   return {
-    current_userid: currentUser ? currentUser.enName : "",
-    current_en_name: currentUser ? currentUser.enName : "",
+    user: en,
+    userid: en,
+    user_id: en,
+    current_user: en,
+    current_userid: en,
+    current_en_name: en,
     current_display_name: currentUser ? currentUser.displayName : ""
   };
 }
@@ -166,7 +200,11 @@ function applyApprovalPermission(data){
     if(rejectBtn){ rejectBtn.disabled = true; rejectBtn.style.opacity = ".45"; rejectBtn.style.cursor = "not-allowed"; rejectBtn.textContent = "无打回权限"; }
     if(approveNotes) approveNotes.disabled = true;
     if(rejectReason) rejectReason.disabled = true;
-    showMsg(data.approval_message || "当前账号无审批权限。仅丹楠姐可审批该框架方案。");
+    if(!currentUser){
+      showLoginPrompt("手机端/当前浏览器未读取到登录身份。请先登录戴维斯系统，登录后会自动回到本审批页。未登录状态下按钮保持灰色。");
+    } else {
+      showMsg(data.approval_message || "当前账号无审批权限。仅丹楠姐可审批该框架方案。");
+    }
   } else {
     showMsg(data.approval_message || "当前账号可审批。", true);
   }
