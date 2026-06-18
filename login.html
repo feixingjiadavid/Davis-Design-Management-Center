@@ -42,7 +42,7 @@
                 进入控制台
             </button>
         </form>
-        <p class="text-center text-xs text-zinc-500 mt-8">还没有账号？ <a href="register.html" class="text-indigo-400 hover:text-indigo-300 font-bold transition-colors">去注册一个 ↗</a></p>
+        <p class="text-center text-xs text-zinc-500 mt-8">还没有账号？ <a id="register-link" href="register.html" class="text-indigo-400 hover:text-indigo-300 font-bold transition-colors">去注册一个 ↗</a></p>
     </div>
 
     <div id="forgot-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[100000] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center">
@@ -61,12 +61,56 @@
         window.supabase = supabase;
     </script>
     <script>
-        function showForgotModal() { document.getElementById('forgot-modal').classList.remove('hidden'); setTimeout(() => { document.getElementById('forgot-modal').classList.remove('opacity-0'); document.getElementById('forgot-content').classList.remove('scale-95'); }, 10); }
-        function hideForgotModal() { const modal = document.getElementById('forgot-modal'); modal.classList.add('opacity-0'); document.getElementById('forgot-content').classList.add('scale-95'); setTimeout(() => { modal.classList.add('hidden'); }, 300); }
+        function showForgotModal() {
+            document.getElementById('forgot-modal').classList.remove('hidden');
+            setTimeout(() => {
+                document.getElementById('forgot-modal').classList.remove('opacity-0');
+                document.getElementById('forgot-content').classList.remove('scale-95');
+            }, 10);
+        }
+
+        function hideForgotModal() {
+            const modal = document.getElementById('forgot-modal');
+            modal.classList.add('opacity-0');
+            document.getElementById('forgot-content').classList.add('scale-95');
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
+        }
+
+        // ✅ 快捷页登录后回跳：quick-accept / quick-delivery / quick-approval / quick-form
+        function getSafeRedirectUrl() {
+            const params = new URLSearchParams(window.location.search);
+            const redirect = params.get('redirect') || params.get('redirect_url') || '';
+
+            if (!redirect) return '';
+
+            try {
+                const url = new URL(redirect, window.location.origin);
+
+                // 只允许跳回当前同域，防止外部恶意跳转
+                if (url.origin !== window.location.origin) return '';
+
+                return url.href;
+            } catch (e) {
+                return '';
+            }
+        }
+
+        function withRedirectParam(url) {
+            const redirect = new URLSearchParams(window.location.search).get('redirect') || '';
+            if (!redirect) return url;
+            const separator = url.includes('?') ? '&' : '?';
+            return `${url}${separator}redirect=${encodeURIComponent(redirect)}`;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const link = document.getElementById('register-link');
+            if (link) link.href = withRedirectParam('register.html');
+        });
 
         async function handleLogin(e) {
             e.preventDefault();
             if(!window.supabase) return alert("云端服务未连接！");
+
             const enName = document.getElementById('log-en').value.trim().toLowerCase();
             const pwd = document.getElementById('log-pwd').value;
             const realEmail = enName + '@webank.com';
@@ -77,24 +121,41 @@
 
             const { data, error } = await window.supabase.auth.signInWithPassword({ email: realEmail, password: pwd });
 
-            if (error) { alert("账号或密码错误！"); btn.innerText = "进入控制台"; btn.disabled = false; return; }
+            if (error) {
+                alert("账号或密码错误！");
+                btn.innerText = "进入控制台";
+                btn.disabled = false;
+                return;
+            }
 
             // 💡 提取用户登录配置
             let userData = data.user.user_metadata || {};
-            
+
             // 💡 强行补全底层 enName（防范新注册账号由于解耦导致 metadata 丢失信息，影响后续页面的判断）
             if (!userData.enName) userData.enName = enName;
-            
+
+            // ✅ 统一补充常见字段，方便快捷页识别当前打开人
+            if (!userData.email) userData.email = realEmail;
+            if (!userData.en_name) userData.en_name = userData.enName || enName;
+            if (!userData.userid) userData.userid = userData.enName || enName;
+
             localStorage.setItem('activeUserObj', JSON.stringify(userData));
 
             btn.innerText = "跳转中...";
 
-            // 💡 核心路由拦截：如果登录者是部门领导 judyzzhang，直接重定向到全局大盘！
+            // ✅ 优先处理快捷页登录后的回跳
+            // 例如：login.html?redirect=https%3A%2F%2Fdavis-design.cn%2Fquick-accept.html%3Fticket%3Dxxx
+            const redirectUrl = getSafeRedirectUrl();
+            if (redirectUrl) {
+                window.location.href = redirectUrl;
+                return;
+            }
+
+            // 💡 没有 redirect 时，才走正常登录入口
             if (enName === 'judyzzhang') {
                 window.location.href = 'manager-workspace.html';
             } else {
-                // 其他所有人统一进入需求大厅
-                window.location.href = 'index.html'; 
+                window.location.href = 'index.html';
             }
         }
     </script>
