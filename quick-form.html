@@ -131,14 +131,44 @@
 
     
     function normalizeUserId(v){ return String(v || '').trim().toLowerCase().replace(/@webank\.com$/i, ''); }
+    function readStoredUser(){
+      const keys = ['activeUserObj', 'currentUser', 'davisUser', 'userInfo'];
+      const stores = [];
+      try { stores.push(localStorage); } catch(e) {}
+      try { stores.push(sessionStorage); } catch(e) {}
+      for (const store of stores) {
+        for (const key of keys) {
+          try {
+            const raw = store.getItem(key);
+            if (!raw) continue;
+            const user = JSON.parse(raw);
+            if (user && typeof user === 'object') return user;
+          } catch(e) {}
+        }
+      }
+      return {};
+    }
     function getCurrentUser(){
       try{
-        const user = JSON.parse(localStorage.getItem('activeUserObj') || '{}');
+        const user = readStoredUser();
         const en = normalizeUserId(user.enName || user.en_name || user.userid || user.userId || user.email || '');
         const display = String(user.displayName || user.cnName || user.name || en || '').trim();
         if(!en) return null;
         return { enName: en, displayName: display, raw: user };
       }catch(e){ return null; }
+    }
+    function loginUrl(){ return `${location.origin}/login.html?redirect=${encodeURIComponent(location.href)}`; }
+    function addLoginButtonToFatal(){
+      const hint = document.getElementById('fatal-hint');
+      if(!hint || document.getElementById('login-redirect-btn')) return;
+      const btn = document.createElement('button');
+      btn.id = 'login-redirect-btn';
+      btn.type = 'button';
+      btn.className = 'mt-3 px-4 py-2 bg-blue-600 text-white rounded-xl font-bold';
+      btn.innerText = '登录后继续';
+      btn.onclick = () => { location.href = loginUrl(); };
+      hint.appendChild(document.createElement('br'));
+      hint.appendChild(btn);
     }
     function currentUserPayload(){
       const cu = getCurrentUser();
@@ -146,8 +176,14 @@
       return { user: en, userid: en, user_id: en, current_user: en, current_userid: en, current_en_name: en, current_display_name: cu ? cu.displayName : '' };
     }
     function disableFormByPermission(msg){
+      const noUser = !getCurrentUser();
       failPage(msg || '当前无法确认打开人的企业微信身份，请先在戴维斯系统登录对应身份后重新打开链接。');
       document.querySelectorAll('input,select,textarea,button').forEach(el => { el.disabled = true; el.classList.add('opacity-50'); });
+      if(noUser){
+        addLoginButtonToFatal();
+        const btn = document.getElementById('login-redirect-btn');
+        if(btn){ btn.disabled = false; btn.classList.remove('opacity-50'); }
+      }
     }
 
     function failPage(msg) {
