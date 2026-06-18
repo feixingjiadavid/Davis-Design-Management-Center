@@ -1133,10 +1133,32 @@ async function fetchTaskData() {
                 if(h.action === 'submit_framework' || h.action === 'submit_draft') {
                     let fate = 'pending'; let fateReason = '';
                     for(let j = i + 1; j < globalHistoryArr.length; j++) {
-                        let nextH = globalHistoryArr[j];
-                        if (nextH.action.startsWith('reject_') || nextH.is_rejected) { fate = 'rejected'; fateReason = nextH.reply || nextH.desc; break; }
-                        if (nextH.action.startsWith('approve_') || nextH.action === 'complete' || (nextH.reply && !nextH.is_rejected)) { fate = 'approved'; fateReason = nextH.reply; break; }
-                        if (nextH.action.startsWith('submit_')) { break; }
+                        let nextH = globalHistoryArr[j] || {};
+                        const nextAction = String(nextH.action || '');
+
+                        // 关键修复：催办/提醒类记录有 reply，但不是审批意见，不能把它当成“过审”。
+                        const isUrgeAction =
+                            nextAction === 'urge_leader' ||
+                            nextAction === 'urge_req' ||
+                            nextAction === 'urge_requester' ||
+                            nextAction === 'bot_urge' ||
+                            nextAction === 'urgent' ||
+                            nextAction.includes('urge');
+
+                        if (nextAction.startsWith('submit_')) { break; }
+                        if (isUrgeAction) { continue; }
+
+                        if (nextAction.startsWith('reject_') || nextH.is_rejected) {
+                            fate = 'rejected';
+                            fateReason = nextH.reply || nextH.desc || '';
+                            break;
+                        }
+
+                        if (nextAction.startsWith('approve_') || nextAction === 'complete') {
+                            fate = 'approved';
+                            fateReason = nextH.reply || nextH.desc || '';
+                            break;
+                        }
                     }
                     submissions.push({ ...h, fate, fateReason });
                 }
@@ -1799,8 +1821,7 @@ async function fetchTaskData() {
             try {
                 const { data: tasks, error } = await window.supabase.from(window.DB_TABLE)
                     .select('id, title, assignee, history_json')
-                    .order('created_at', { ascending: false })
-                    .limit(120);
+                    .order('created_at', { ascending: false });
                 if (error) throw error;
 
                 let designNotifs = [];
@@ -1945,20 +1966,8 @@ async function fetchTaskData() {
 
             // 启动轮询
             setTimeout(() => { window.syncNotificationsFromCloud(true); }, 1500);
-            window.ioOptimizedInterval(() => { window.syncNotificationsFromCloud(true); }, window.IO_OPT_NOTIFY_POLL_MS);
+            setInterval(() => { window.syncNotificationsFromCloud(true); }, 8000);
         });
-
-        // ================= IO 优化：统一降低轮询频率，后台页不打库 =================
-        window.IO_OPT_NOTIFY_POLL_MS = window.IO_OPT_NOTIFY_POLL_MS || 60000;      // 通知：60秒
-        window.IO_OPT_TASK_POLL_MS = window.IO_OPT_TASK_POLL_MS || 60000;          // 普通任务列表：60秒
-        window.IO_OPT_DASHBOARD_POLL_MS = window.IO_OPT_DASHBOARD_POLL_MS || 120000; // 大盘/分析页：120秒
-        window.ioOptimizedInterval = window.ioOptimizedInterval || function(callback, ms) {
-            return setInterval(() => {
-                if (document.visibilityState !== 'visible') return;
-                if (typeof callback === 'function') callback();
-            }, ms);
-        };
-
     </script>
 </body>
 </html>
