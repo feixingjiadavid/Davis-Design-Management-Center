@@ -64,7 +64,7 @@
         <h1 id="task-title-head">正在读取需求...</h1>
         <div class="status" id="task-status-head">状态读取中</div>
       </div>
-      <div class="role">身份: 审批领导</div>
+      <div class="role" id="current-role">身份读取中</div>
     </header>
 
     <div class="wrap">
@@ -119,10 +119,58 @@ const ticket = new URLSearchParams(location.search).get("ticket") || "";
 let task = null;
 let creator = "";
 let displayName = "";
+let canApprove = false;
+let currentUser = null;
 
 function $(id){ return document.getElementById(id); }
 function setText(id,val){ const el=$(id); if(el) el.textContent = val || "--"; }
 function showMsg(text, ok=false){ $("result").className = ok ? "ok" : "err"; $("result").textContent = text; }
+
+function getCurrentUser(){
+  try{
+    const user = JSON.parse(localStorage.getItem("activeUserObj") || "{}");
+    const en = String(user.enName || user.en_name || user.userid || user.userId || "").trim().toLowerCase();
+    const display = String(user.displayName || user.cnName || user.name || en || "").trim();
+    if(!en) return null;
+    return { enName: en, displayName: display, raw: user };
+  }catch(e){
+    return null;
+  }
+}
+
+function currentUserPayload(){
+  currentUser = getCurrentUser();
+  return {
+    current_userid: currentUser ? currentUser.enName : "",
+    current_en_name: currentUser ? currentUser.enName : "",
+    current_display_name: currentUser ? currentUser.displayName : ""
+  };
+}
+
+function applyApprovalPermission(data){
+  currentUser = getCurrentUser();
+  canApprove = !!data.approval_allowed;
+
+  const roleText = currentUser
+    ? `当前身份：${currentUser.displayName || currentUser.enName}`
+    : "当前身份：未登录/未识别";
+  setText("current-role", roleText);
+
+  const approveBtn = $("approve-btn");
+  const rejectBtn = $("reject-btn");
+  const approveNotes = $("approve-notes");
+  const rejectReason = $("reject-reason");
+
+  if(!canApprove){
+    if(approveBtn){ approveBtn.disabled = true; approveBtn.style.opacity = ".45"; approveBtn.style.cursor = "not-allowed"; approveBtn.textContent = "无审批权限"; }
+    if(rejectBtn){ rejectBtn.disabled = true; rejectBtn.style.opacity = ".45"; rejectBtn.style.cursor = "not-allowed"; rejectBtn.textContent = "无打回权限"; }
+    if(approveNotes) approveNotes.disabled = true;
+    if(rejectReason) rejectReason.disabled = true;
+    showMsg(data.approval_message || "当前账号无审批权限。仅丹楠姐可审批该框架方案。");
+  } else {
+    showMsg(data.approval_message || "当前账号可审批。", true);
+  }
+}
 async function postJson(payload, timeoutMs = 15000){
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -201,14 +249,16 @@ function renderDone(title, lines, ok=true){
 async function init(){
   if(!ticket) return showMsg("链接缺少 ticket，请回企业微信重新生成。");
   try{
-    const data = await postJson({action:"read_approval_ticket", ticket});
+    const data = await postJson({action:"read_approval_ticket", ticket, ...currentUserPayload()});
     task = data.task || {};
     const sub = data.latest_submission || {};
     creator = data.creator || "";
     displayName = data.display_name || creator || "";
 
-    setText("operator-name", `${displayName}（${creator}）`);
-    setText("avatar", (displayName || creator || "?").slice(0,1));
+    const cu = getCurrentUser();
+    setText("operator-name", cu ? `${cu.displayName || cu.enName}（${cu.enName}）` : "未识别当前登录人");
+    setText("avatar", (cu ? (cu.displayName || cu.enName) : "?").slice(0,1));
+    applyApprovalPermission(data);
     setText("task-id-head", task.id);
     setText("task-title-head", task.title);
     setText("task-status-head", task.status_label || task.status);
@@ -232,11 +282,12 @@ async function init(){
 }
 
 $("approve-btn").addEventListener("click", async () => {
+  if(!canApprove) return showMsg("当前账号无审批权限。仅丹楠姐可审批该框架方案。");
   if(!confirm("确认框架方向通过，并让设计师继续制作正稿吗？")) return;
   const btn = $("approve-btn"); btn.disabled = true; btn.textContent = "正在审批...";
   try{
     const notes = $("approve-notes").value.trim();
-    const data = await postJson({action:"approve_framework_quick", ticket, notes});
+    const data = await postJson({action:"approve_framework_quick", ticket, notes, ...currentUserPayload()});
     renderDone("审批通过", [
       `需求编号：${data.task_id || ""}`,
       `下一状态：设计制作中`,
@@ -246,12 +297,13 @@ $("approve-btn").addEventListener("click", async () => {
 });
 
 $("reject-btn").addEventListener("click", async () => {
+  if(!canApprove) return showMsg("当前账号无审批权限。仅丹楠姐可打回该框架方案。");
   const reason = $("reject-reason").value.trim();
   if(!reason) return showMsg("请填写打回修改原因。");
   if(!confirm("确认打回框架方案吗？打回后需求会回到设计师修改状态。")) return;
   const btn = $("reject-btn"); btn.disabled = true; btn.textContent = "正在打回...";
   try{
-    const data = await postJson({action:"reject_framework_quick", ticket, reason});
+    const data = await postJson({action:"reject_framework_quick", ticket, reason, ...currentUserPayload()});
     renderDone("已打回框架", [
       `需求编号：${data.task_id || ""}`,
       `下一状态：需求被打回修改`,
