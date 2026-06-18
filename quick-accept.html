@@ -145,9 +145,26 @@ function showMsg(text, ok=false){ $("result").className = ok ? "ok" : "err"; $("
 function normalizeUserId(v){
   return String(v || "").trim().toLowerCase().replace(/@webank\.com$/i, "");
 }
+function readStoredUser(){
+  const keys = ["activeUserObj", "currentUser", "davisUser", "userInfo"];
+  const stores = [];
+  try { stores.push(localStorage); } catch(e) {}
+  try { stores.push(sessionStorage); } catch(e) {}
+  for (const store of stores) {
+    for (const key of keys) {
+      try {
+        const raw = store.getItem(key);
+        if (!raw) continue;
+        const user = JSON.parse(raw);
+        if (user && typeof user === "object") return user;
+      } catch(e) {}
+    }
+  }
+  return {};
+}
 function getCurrentUser(){
   try{
-    const user = JSON.parse(localStorage.getItem("activeUserObj") || "{}");
+    const user = readStoredUser();
     const en = normalizeUserId(user.enName || user.en_name || user.userid || user.userId || user.email || "");
     const display = String(user.displayName || user.cnName || user.name || en || "").trim();
     if(!en) return null;
@@ -155,6 +172,15 @@ function getCurrentUser(){
   }catch(e){
     return null;
   }
+}
+function loginUrl(){
+  return `${location.origin}/login.html?redirect=${encodeURIComponent(location.href)}`;
+}
+function showLoginPrompt(message){
+  const box = $("result");
+  if(!box) return;
+  box.className = "err";
+  box.innerHTML = `${message || "当前设备未识别到登录身份。"}<br><button type="button" onclick="location.href='${loginUrl()}'" style="margin-top:10px;background:#2563eb;color:#fff;border:0;border-radius:10px;padding:9px 12px;font-weight:900;cursor:pointer;">登录后继续</button>`;
 }
 function currentUserPayload(){
   currentUser = getCurrentUser();
@@ -190,7 +216,11 @@ function applyAcceptPermission(data){
     disableControl(acceptBtn, "无验收权限");
     disableControl(rejectBtn, "无打回权限");
     if(rejectReason) rejectReason.disabled = true;
-    showMsg(data.permission_message || "当前账号无验收权限。只有需求方本人或系统管理员可操作。\n请在戴维斯系统登录对应企业微信身份后重新打开链接。");
+    if(!currentUser){
+      showLoginPrompt("手机端/当前浏览器未读取到登录身份。请先登录戴维斯系统，登录后会自动回到本验收页。未登录状态下按钮保持灰色。");
+    } else {
+      showMsg(data.permission_message || "当前账号无验收权限。只有需求方本人或系统管理员可操作。");
+    }
   } else {
     showMsg("当前账号可验收/打回。", true);
   }
