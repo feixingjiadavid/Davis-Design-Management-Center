@@ -123,11 +123,67 @@ let displayName = "";
 function $(id){ return document.getElementById(id); }
 function setText(id,val){ const el=$(id); if(el) el.textContent = val || "--"; }
 function showMsg(text, ok=false){ $("result").className = ok ? "ok" : "err"; $("result").textContent = text; }
-async function postJson(payload){
-  const res = await fetch(GATEWAY_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
-  const data = await res.json().catch(()=>({}));
-  if(!res.ok || data.ok === false) throw new Error(data.error || data.replyText || `HTTP ${res.status}`);
-  return data;
+async function postJson(payload, timeoutMs = 15000){
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try{
+    const res = await fetch(GATEWAY_URL,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(payload),
+      signal: controller.signal
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok || data.ok === false) throw new Error(data.error || data.replyText || `HTTP ${res.status}`);
+    return data;
+  }catch(err){
+    if(err && err.name === "AbortError") throw new Error("页面读取超时，请刷新重试；如果仍然超时，请重新生成快捷审批链接。");
+    throw err;
+  }finally{
+    clearTimeout(timer);
+  }
+}
+
+function loadPreviewImage(imgUrl, sub){
+  if(!imgUrl){
+    $("image-wrap").innerHTML = `<div class="empty">未读取到框架方案图，请先让设计师重新提交框架预览图。</div>`;
+    return;
+  }
+
+  $("image-wrap").innerHTML = `
+    <div class="empty" id="img-loading">正在加载预览图，不影响审批信息读取...</div>
+    <img id="latest-img" src="${imgUrl}" alt="框架方案图" title="点击查看大图" style="display:none">
+    <div id="img-fallback" class="empty" style="display:none;padding:20px;line-height:1.8;text-align:left">
+      框架图加载失败，但你仍可继续审批。<br>
+      ${sub.img_file_path ? "已识别文件路径：" + sub.img_file_path + "<br>" : ""}
+      ${sub.img_raw_url ? `<a class="link" href="${sub.img_raw_url}" target="_blank" rel="noopener noreferrer">打开原始图片链接</a>` : ""}
+    </div>`;
+
+  const img = $("latest-img");
+  const loading = $("img-loading");
+  const fb = $("img-fallback");
+  let done = false;
+
+  const fail = () => {
+    if(done) return;
+    done = true;
+    if(loading) loading.style.display = "none";
+    if(img) img.style.display = "none";
+    if(fb) fb.style.display = "block";
+  };
+
+  const timer = setTimeout(fail, 8000);
+
+  img.onload = () => {
+    if(done) return;
+    done = true;
+    clearTimeout(timer);
+    if(loading) loading.style.display = "none";
+    img.style.display = "block";
+  };
+
+  img.onerror = fail;
+  img.onclick = () => window.open(img.src, "_blank", "noopener,noreferrer");
 }
 function renderDone(title, lines, ok=true){
   document.body.innerHTML = `
@@ -164,24 +220,7 @@ async function init(){
     setText("task-desc", task.full_desc || task.summary_desc || "--");
 
     const imgUrl = sub.img_signed_url || sub.img_url || sub.img_raw_url || "";
-    if(imgUrl){
-      $("image-wrap").innerHTML = `
-        <img id="latest-img" src="${imgUrl}" alt="框架方案图" title="点击查看大图">
-        <div id="img-fallback" class="empty" style="display:none;padding:20px;line-height:1.8;text-align:left">
-          框架图加载失败。<br>
-          ${sub.img_file_path ? "已识别文件路径：" + sub.img_file_path + "<br>" : ""}
-          ${sub.img_raw_url ? `<a class="link" href="${sub.img_raw_url}" target="_blank" rel="noopener noreferrer">打开原始图片链接</a>` : ""}
-        </div>`;
-      const img = $("latest-img");
-      img.onclick = () => window.open(img.src, "_blank", "noopener,noreferrer");
-      img.onerror = () => {
-        img.style.display = "none";
-        const fb = $("img-fallback");
-        if(fb) fb.style.display = "block";
-      };
-    } else {
-      $("image-wrap").innerHTML = `<div class="empty">未读取到框架方案图，请先让设计师重新提交框架预览图。</div>`;
-    }
+    loadPreviewImage(imgUrl, sub);
     setText("sub-version", sub.version || "最新框架方案");
     setText("sub-desc", sub.desc || "--");
     if(sub.source_link){
