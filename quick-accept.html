@@ -38,6 +38,7 @@
     .panel{background:radial-gradient(circle at top right,rgba(16,185,129,.18),transparent 46%),#071712;border:1px solid rgba(16,185,129,.42);border-right:4px solid #10b981}
     .panel h2{margin:0 0 16px;font-size:20px}
     button{border:0;border-radius:16px;padding:16px 18px;font-size:15px;font-weight:950;cursor:pointer;width:100%;margin-top:14px}
+    button:disabled, textarea:disabled, input:disabled{opacity:.45!important;cursor:not-allowed!important}
     .accept{background:#10b981;color:#052e16}
     .reject{background:#e11d48;color:#fff}
     .secondary{background:#27272a;color:#fff}
@@ -134,10 +135,66 @@ const ticket = new URLSearchParams(location.search).get("ticket") || "";
 let task = null;
 let creator = "";
 let displayName = "";
+let canAccept = false;
+let currentUser = null;
 
 function $(id){ return document.getElementById(id); }
 function setText(id,val){ const el=$(id); if(el) el.textContent = val || "--"; }
 function showMsg(text, ok=false){ $("result").className = ok ? "ok" : "err"; $("result").textContent = text; }
+
+function normalizeUserId(v){
+  return String(v || "").trim().toLowerCase().replace(/@webank\.com$/i, "");
+}
+function getCurrentUser(){
+  try{
+    const user = JSON.parse(localStorage.getItem("activeUserObj") || "{}");
+    const en = normalizeUserId(user.enName || user.en_name || user.userid || user.userId || user.email || "");
+    const display = String(user.displayName || user.cnName || user.name || en || "").trim();
+    if(!en) return null;
+    return { enName: en, displayName: display, raw: user };
+  }catch(e){
+    return null;
+  }
+}
+function currentUserPayload(){
+  currentUser = getCurrentUser();
+  const en = currentUser ? currentUser.enName : "";
+  return {
+    user: en,
+    userid: en,
+    user_id: en,
+    current_user: en,
+    current_userid: en,
+    current_en_name: en,
+    current_display_name: currentUser ? currentUser.displayName : ""
+  };
+}
+function disableControl(el, text){
+  if(!el) return;
+  el.disabled = true;
+  el.style.opacity = ".45";
+  el.style.cursor = "not-allowed";
+  if(text) el.textContent = text;
+}
+
+function applyAcceptPermission(data){
+  currentUser = getCurrentUser();
+  canAccept = data.can_accept === true;
+  const role = document.querySelector(".role");
+  if(role) role.textContent = currentUser ? `当前身份：${currentUser.displayName || currentUser.enName}` : "当前身份：未登录/未识别";
+  const acceptBtn = $("accept-btn");
+  const rejectBtn = $("reject-btn");
+  const rejectReason = $("reject-reason");
+  document.querySelectorAll('#reason-grid input').forEach(x => { x.disabled = !canAccept; });
+  if(!canAccept){
+    disableControl(acceptBtn, "无验收权限");
+    disableControl(rejectBtn, "无打回权限");
+    if(rejectReason) rejectReason.disabled = true;
+    showMsg(data.permission_message || "当前账号无验收权限。只有需求方本人或系统管理员可操作。\n请在戴维斯系统登录对应企业微信身份后重新打开链接。");
+  } else {
+    showMsg("当前账号可验收/打回。", true);
+  }
+}
 async function postJson(payload){
   const res = await fetch(GATEWAY_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
   const data = await res.json().catch(()=>({}));
@@ -160,14 +217,16 @@ function renderDone(title, lines, ok=true){
 async function init(){
   if(!ticket) return showMsg("链接缺少 ticket，请回企业微信重新生成。");
   try{
-    const data = await postJson({action:"read_accept_ticket", ticket});
+    const data = await postJson({action:"read_accept_ticket", ticket, ...currentUserPayload()});
     task = data.task || {};
     const sub = data.latest_submission || {};
     creator = data.creator || "";
     displayName = data.display_name || creator || "";
 
-    setText("operator-name", `${displayName}（${creator}）`);
-    setText("avatar", (displayName || creator || "?").slice(0,1));
+    const cu = getCurrentUser();
+    setText("operator-name", cu ? `${cu.displayName || cu.enName}（${cu.enName}）` : "未识别当前登录人");
+    applyAcceptPermission(data);
+    setText("avatar", (cu ? (cu.displayName || cu.enName) : "?").slice(0,1));
     setText("task-id-head", task.id);
     setText("task-title-head", task.title);
     setText("task-status-head", task.status_label || task.status);
@@ -208,10 +267,11 @@ async function init(){
 }
 
 $("accept-btn").addEventListener("click", async () => {
+  if(!canAccept) return showMsg("当前账号无验收权限。只有需求方本人或系统管理员可操作。");
   if(!confirm("确认对当前设计正稿满意，并验收完结这个需求吗？")) return;
   const btn = $("accept-btn"); btn.disabled = true; btn.textContent = "正在验收...";
   try{
-    const data = await postJson({action:"accept_task", ticket});
+    const data = await postJson({action:"accept_task", ticket, ...currentUserPayload()});
     renderDone("验收完成", [
       `需求编号：${data.task_id || ""}`,
       `下一状态：已完结归档`,
@@ -221,6 +281,7 @@ $("accept-btn").addEventListener("click", async () => {
 });
 
 $("reject-btn").addEventListener("click", async () => {
+  if(!canAccept) return showMsg("当前账号无打回权限。只有需求方本人或系统管理员可操作。");
   const reason = $("reject-reason").value.trim();
   const checked = Array.from(document.querySelectorAll('#reason-grid input:checked'));
   const reason_tags = checked.map(x => x.value);
@@ -233,7 +294,7 @@ $("reject-btn").addEventListener("click", async () => {
   if(!confirm("确认打回修改吗？打回后需求会回到设计师修改状态。\n\n" + previewReason)) return;
   const btn = $("reject-btn"); btn.disabled = true; btn.textContent = "正在打回...";
   try{
-    const data = await postJson({action:"reject_task", ticket, reason, reason_tags, reason_labels});
+    const data = await postJson({action:"reject_task", ticket, reason, reason_tags, reason_labels, ...currentUserPayload()});
     renderDone("已打回修改", [
       `需求编号：${data.task_id || ""}`,
       `下一状态：需求被打回修改`,
