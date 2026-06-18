@@ -50,6 +50,7 @@
     .tool input:checked+span{background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.5);color:#34d399}
     .submit{margin-top:28px;width:100%;border:0;border-radius:16px;background:#e11d48;color:#fff;font-weight:950;font-size:16px;padding:17px 18px;cursor:pointer;box-shadow:0 14px 35px rgba(225,29,72,.25)}
     .submit:disabled{opacity:.55;cursor:not-allowed}
+    button:disabled, input:disabled, textarea:disabled{opacity:.45!important;cursor:not-allowed!important}
     .tip{font-size:12px;color:#71717a;margin-top:9px;line-height:1.6}
     .ok,.err{margin-top:16px;border-radius:16px;padding:16px;line-height:1.7;white-space:pre-wrap}
     .ok{background:#052e16;border:1px solid rgba(34,197,94,.35);color:#bbf7d0}
@@ -153,6 +154,8 @@ let creator = "";
 let displayName = "";
 let phase = "framework";
 let imageData = null;
+let canSubmit = false;
+let currentUser = null;
 
 function renderDonePage(payload = {}) {
   const taskId = payload.task_id || new URLSearchParams(location.search).get("task") || "";
@@ -199,6 +202,56 @@ function checkDoneMode() {
 function $(id){ return document.getElementById(id); }
 function setText(id,val){ const el=$(id); if(el) el.textContent = val || "--"; }
 function showMsg(text, ok=false){ $("result").className = ok ? "ok" : "err"; $("result").textContent = text; }
+
+function normalizeUserId(v){
+  return String(v || "").trim().toLowerCase().replace(/@webank\.com$/i, "");
+}
+function getCurrentUser(){
+  try{
+    const user = JSON.parse(localStorage.getItem("activeUserObj") || "{}");
+    const en = normalizeUserId(user.enName || user.en_name || user.userid || user.userId || user.email || "");
+    const display = String(user.displayName || user.cnName || user.name || en || "").trim();
+    if(!en) return null;
+    return { enName: en, displayName: display, raw: user };
+  }catch(e){
+    return null;
+  }
+}
+function currentUserPayload(){
+  currentUser = getCurrentUser();
+  const en = currentUser ? currentUser.enName : "";
+  return {
+    user: en,
+    userid: en,
+    user_id: en,
+    current_user: en,
+    current_userid: en,
+    current_en_name: en,
+    current_display_name: currentUser ? currentUser.displayName : ""
+  };
+}
+function disableControl(el, text){
+  if(!el) return;
+  el.disabled = true;
+  el.style.opacity = ".45";
+  el.style.cursor = "not-allowed";
+  if(text) el.textContent = text;
+}
+
+function applyDeliveryPermission(data){
+  currentUser = getCurrentUser();
+  canSubmit = data.can_submit === true;
+  const role = $("role-label");
+  if(role) role.textContent = currentUser ? `当前身份：${currentUser.displayName || currentUser.enName}` : "当前身份：未登录/未识别";
+  if(!canSubmit){
+    disableControl($("submit-btn"), "无提交权限");
+    ["image-file","source-link","delivery-desc","work-hours","ai-tool-manual"].forEach(id => { const el=$(id); if(el) el.disabled=true; });
+    document.querySelectorAll('.ai-tool-cb').forEach(x => { x.disabled = true; });
+    showMsg(data.permission_message || "当前账号无交稿权限。只有该需求的执行人本人可以提交方案。\n请在戴维斯系统登录对应企业微信身份后重新打开链接。");
+  } else {
+    showMsg("当前账号可提交方案。", true);
+  }
+}
 async function postJson(payload){
   const res = await fetch(GATEWAY_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
   const data = await res.json().catch(()=>({}));
@@ -262,14 +315,16 @@ async function init(){
   renderTools();
   if(!ticket) return showMsg("链接缺少 ticket，请回企业微信重新生成。");
   try{
-    const data = await postJson({action:"read_delivery_ticket", ticket});
+    const data = await postJson({action:"read_delivery_ticket", ticket, ...currentUserPayload()});
     task = data.task || {};
     creator = data.creator || "";
     displayName = data.display_name || creator || "";
     phase = task.phase || "framework";
 
-    setText("operator-name", `${displayName}（${creator}）`);
-    setText("avatar", (displayName || creator || "?").slice(0,1));
+    const cu = getCurrentUser();
+    setText("operator-name", cu ? `${cu.displayName || cu.enName}（${cu.enName}）` : "未识别当前登录人");
+    applyDeliveryPermission(data);
+    setText("avatar", (cu ? (cu.displayName || cu.enName) : "?").slice(0,1));
     setText("task-id-head", task.id);
     setText("task-title-head", task.title);
     setText("task-status-head", task.status_label || task.status);
@@ -289,6 +344,7 @@ async function init(){
 }
 
 $("submit-btn").addEventListener("click", async () => {
+  if(!canSubmit) return showMsg("当前账号无交稿权限。只有该需求的执行人本人可以提交方案。");
   const hours = $("work-hours").value;
   const sourceLink = $("source-link").value.trim();
   if(!hours || Number(hours) <= 0) return showMsg("请准确填报您消耗的工时！");
@@ -307,6 +363,7 @@ $("submit-btn").addEventListener("click", async () => {
     const data = await postJson({
       action:"submit_delivery",
       ticket,
+      ...currentUserPayload(),
       phase,
       image:imageData,
       source_link:sourceLink,
