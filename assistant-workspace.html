@@ -462,7 +462,424 @@
             -webkit-text-fill-color: #e11d48 !important;
         }
 
-    </style>
+    
+
+        /* ================= 移动端适配：仅新增，不改 PC 布局 / 不碰设计看板业务逻辑 ================= */
+        .mobile-only { display: none !important; }
+
+        @media (max-width: 768px) {
+            html,
+            body {
+                width: 100%;
+                min-height: 100%;
+                overflow-x: hidden !important;
+                overflow-y: auto !important;
+            }
+
+            body {
+                display: block !important;
+                height: auto !important;
+                min-height: 100dvh !important;
+                padding-bottom: env(safe-area-inset-bottom);
+            }
+
+            .mobile-only { display: inline-flex !important; }
+
+            body > .absolute.inset-0,
+            .bg-glow-orange {
+                position: fixed !important;
+            }
+
+            body > aside {
+                position: fixed !important;
+                left: 0 !important;
+                top: 0 !important;
+                bottom: 0 !important;
+                width: min(82vw, 300px) !important;
+                height: 100dvh !important;
+                transform: translateX(-105%) !important;
+                transition: transform .25s cubic-bezier(.16, 1, .3, 1);
+                z-index: 100001 !important;
+                box-shadow: 18px 0 45px rgba(0,0,0,.36);
+            }
+
+            body.mobile-sidebar-open > aside {
+                transform: translateX(0) !important;
+            }
+
+            #mobile-sidebar-backdrop {
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,.55);
+                backdrop-filter: blur(8px);
+                z-index: 100000;
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity .2s ease;
+            }
+
+            body.mobile-sidebar-open #mobile-sidebar-backdrop {
+                opacity: 1;
+                pointer-events: auto;
+            }
+
+            #mobile-sidebar-close {
+                margin-left: auto;
+                width: 34px;
+                height: 34px;
+                align-items: center;
+                justify-content: center;
+                border-radius: 12px;
+                color: #a1a1aa;
+                background: rgba(255,255,255,.06);
+                border: 1px solid rgba(255,255,255,.08);
+            }
+
+            body > main {
+                width: 100% !important;
+                min-height: 100dvh !important;
+                height: auto !important;
+                overflow: visible !important;
+            }
+
+            main > header {
+                padding: 12px 14px !important;
+                display: grid !important;
+                grid-template-columns: 42px minmax(0, 1fr) auto;
+                grid-template-areas:
+                    "menu title actions"
+                    "metrics metrics metrics";
+                align-items: center !important;
+                gap: 10px 12px !important;
+                position: sticky !important;
+                top: 0;
+                z-index: 9999 !important;
+            }
+
+            #mobile-menu-btn {
+                grid-area: menu;
+                width: 42px;
+                height: 42px;
+                align-items: center;
+                justify-content: center;
+                border-radius: 15px;
+                color: #e4e4e7;
+                background: #141417;
+                border: 1px solid rgba(255,255,255,.1);
+            }
+
+            main > header > .flex.justify-between.items-start.w-full {
+                display: contents !important;
+            }
+
+            main > header > .flex.justify-between.items-start.w-full > div:first-child {
+                grid-area: title;
+                min-width: 0;
+                width: 100%;
+            }
+
+            #header-greeting {
+                font-size: 18px !important;
+                line-height: 1.25 !important;
+                margin-bottom: 0 !important;
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                gap: 6px !important;
+            }
+
+            #header-greeting > span {
+                flex: 0 0 auto;
+                margin-left: 4px !important;
+                padding: 2px 7px !important;
+                font-size: 10px !important;
+            }
+
+            #header-greeting + p {
+                display: none !important;
+            }
+
+            main > header > .flex.justify-between.items-start.w-full > div:last-child {
+                grid-area: actions;
+                gap: 8px !important;
+                padding-top: 0 !important;
+                align-items: center !important;
+                flex-wrap: nowrap !important;
+            }
+
+            #themeToggleBtn,
+            #notifBtn {
+                width: 40px !important;
+                height: 40px !important;
+                border-radius: 14px !important;
+            }
+
+            #identity-wrapper {
+                display: none !important;
+            }
+
+            #notifMenu,
+            #identityMenu {
+                position: fixed !important;
+                left: 12px !important;
+                right: 12px !important;
+                top: 70px !important;
+                width: auto !important;
+                max-width: none !important;
+                max-height: min(420px, calc(100dvh - 92px)) !important;
+                transform: none !important;
+                z-index: 100000 !important;
+            }
+
+            main > header .flex.items-center.gap-5.mt-2 {
+                grid-area: metrics;
+                width: 100%;
+                gap: 10px !important;
+                margin-top: 0 !important;
+                overflow-x: auto;
+                padding: 2px 0 4px;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+                flex-wrap: nowrap !important;
+            }
+
+            main > header .flex.items-center.gap-5.mt-2::-webkit-scrollbar {
+                display: none;
+            }
+
+            .metric-filter-card {
+                min-width: 170px !important;
+                padding: 12px !important;
+                border-radius: 18px !important;
+                gap: 10px !important;
+                flex: 0 0 170px;
+            }
+
+            .metric-filter-card .w-11.h-11 {
+                width: 40px !important;
+                height: 40px !important;
+            }
+
+            .metric-filter-card p:first-of-type {
+                font-size: 10px !important;
+                margin-bottom: 4px !important;
+            }
+
+            .metric-filter-card p[id^="metric-"] {
+                font-size: 18px !important;
+            }
+
+            /* Kanban 主区域：手机端由横向大看板改为上下单栏 */
+            main > .flex-1.p-6.px-10 {
+                padding: 14px 14px 88px !important;
+                height: auto !important;
+                overflow-x: hidden !important;
+                overflow-y: visible !important;
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 14px !important;
+            }
+
+            .kanban-column {
+                width: 100% !important;
+                min-width: 0 !important;
+                max-width: none !important;
+                height: auto !important;
+                min-height: 0 !important;
+                flex: none !important;
+            }
+
+            .kanban-column > .flex.items-center.justify-between {
+                margin: 0 0 8px !important;
+                padding: 0 2px !important;
+            }
+
+            .kanban-column h3 {
+                font-size: 13px !important;
+                line-height: 1.35 !important;
+            }
+
+            .kanban-column > div[id^="lane-"] {
+                min-height: 138px !important;
+                max-height: none !important;
+                height: auto !important;
+                overflow: visible !important;
+                border-radius: 20px !important;
+                padding: 12px !important;
+            }
+
+            .kanban-card {
+                border-radius: 18px !important;
+                padding: 14px !important;
+            }
+
+            .kanban-card:hover {
+                transform: none !important;
+            }
+
+            .kanban-card .flex,
+            .kanban-card .grid {
+                min-width: 0;
+            }
+
+            .kanban-card h4,
+            .kanban-card p,
+            .kanban-card span {
+                max-width: 100%;
+            }
+
+            .kanban-card button {
+                white-space: normal;
+            }
+
+            .custom-scrollbar {
+                padding-right: 0 !important;
+            }
+
+            /* 所有弹窗移动端全宽可滚动 */
+            #custom-dialog-overlay,
+            #self-todo-reminder-overlay,
+            #metric-insight-overlay,
+            #transfer-modal-overlay,
+            #pwd-modal-overlay {
+                padding: 12px !important;
+                align-items: center !important;
+                justify-content: center !important;
+            }
+
+            #custom-dialog,
+            #self-todo-reminder-modal,
+            #metric-insight-modal,
+            #transfer-modal,
+            #pwd-modal {
+                width: calc(100vw - 24px) !important;
+                max-width: none !important;
+                max-height: calc(100dvh - 24px) !important;
+                border-radius: 22px !important;
+                overflow-y: auto !important;
+            }
+
+            #self-todo-reminder-modal > .p-7,
+            #metric-insight-modal > .p-7,
+            #transfer-modal > .px-6.py-5 {
+                padding: 16px !important;
+                border-radius: 22px 22px 0 0 !important;
+            }
+
+            #self-todo-reminder-modal > .p-7 .flex.items-start.justify-between,
+            #metric-insight-modal > .p-7 .flex.items-start.justify-between {
+                gap: 12px !important;
+            }
+
+            #self-todo-reminder-modal h2,
+            #metric-insight-modal h2 {
+                font-size: 18px !important;
+                line-height: 1.3 !important;
+            }
+
+            #self-todo-reminder-modal p,
+            #metric-insight-modal p {
+                font-size: 12px !important;
+                line-height: 1.55 !important;
+            }
+
+            #self-todo-reminder-list,
+            #metric-insight-list {
+                max-height: none !important;
+                overflow: visible !important;
+                padding: 14px !important;
+            }
+
+            #self-todo-reminder-modal > .p-6.border-t,
+            #metric-insight-modal > .p-6.border-t,
+            #transfer-modal > .p-5.border-t {
+                padding: 12px 14px calc(12px + env(safe-area-inset-bottom)) !important;
+                display: grid !important;
+                grid-template-columns: 1fr;
+                gap: 10px !important;
+            }
+
+            #self-todo-reminder-modal > .p-6.border-t button,
+            #metric-insight-modal > .p-6.border-t button,
+            #transfer-modal > .p-5.border-t button {
+                width: 100%;
+                justify-content: center;
+                min-height: 44px;
+            }
+
+            #transfer-modal > .p-6.space-y-5 {
+                padding: 16px !important;
+                max-height: none !important;
+                overflow: visible !important;
+            }
+
+            #transfer-modal input,
+            #transfer-modal select,
+            #transfer-modal textarea,
+            #pwd-modal input {
+                font-size: 16px !important;
+                min-height: 46px !important;
+            }
+
+            #custom-dialog {
+                padding: 20px !important;
+            }
+
+            #dialog-buttons {
+                display: grid !important;
+                grid-template-columns: 1fr;
+                gap: 10px !important;
+            }
+
+            #dialog-buttons button {
+                width: 100%;
+                min-height: 44px;
+            }
+
+            #action-toast {
+                top: auto !important;
+                right: 12px !important;
+                left: 12px !important;
+                bottom: calc(18px + env(safe-area-inset-bottom));
+                z-index: 2147483600 !important;
+            }
+
+            #action-toast > div {
+                width: 100% !important;
+            }
+        }
+
+        @media (max-width: 420px) {
+            main > header {
+                grid-template-columns: 42px minmax(0, 1fr) 88px;
+                gap: 9px 10px !important;
+            }
+
+            #header-greeting {
+                font-size: 16px !important;
+            }
+
+            #header-greeting > span {
+                display: none !important;
+            }
+
+            .metric-filter-card {
+                min-width: 154px !important;
+                flex-basis: 154px !important;
+            }
+
+            .metric-filter-card p[id^="metric-"] {
+                font-size: 17px !important;
+            }
+
+            main > .flex-1.p-6.px-10 {
+                padding-left: 12px !important;
+                padding-right: 12px !important;
+            }
+        }
+
+</style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-orange-500/30 text-zinc-300">
     <script>
@@ -485,6 +902,9 @@
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
                 </div>
                 <h1 class="text-[15px] font-bold text-white tracking-wide">戴维斯需求大厅</h1>
+                <button id="mobile-sidebar-close" class="mobile-only" type="button" onclick="document.body.classList.remove('mobile-sidebar-open')" aria-label="关闭菜单">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
             </div>
         </div>
 
@@ -522,8 +942,13 @@
         </div>
     </aside>
 
+    <div id="mobile-sidebar-backdrop" class="mobile-only" onclick="document.body.classList.remove('mobile-sidebar-open')"></div>
+
     <main class="flex-1 flex flex-col h-full overflow-hidden relative z-10 bg-[#0c0c0e]">
         <header class="px-10 py-6 flex flex-col shrink-0 border-b border-white/5 bg-[#09090b]/80 backdrop-blur-xl relative z-[999]">
+            <button id="mobile-menu-btn" class="mobile-only btn-press" type="button" onclick="document.body.classList.add('mobile-sidebar-open')" aria-label="打开菜单">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="4" y1="7" x2="20" y2="7"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="17" x2="20" y2="17"></line></svg>
+            </button>
             <div class="flex justify-between items-start w-full">
                 <div>
                     <h2 id="header-greeting" class="text-[24px] font-bold text-white tracking-tight mb-2 flex items-center gap-3">
@@ -1735,5 +2160,24 @@
         };
 
     </script>
+
+    <script>
+        // ================= 移动端适配辅助：仅控制抽屉关闭，不碰设计看板业务逻辑 =================
+        (function() {
+            const mobileQuery = window.matchMedia('(max-width: 768px)');
+            function closeMobileSidebarWhenPc(e) {
+                if (!e.matches) document.body.classList.remove('mobile-sidebar-open');
+            }
+            if (mobileQuery.addEventListener) {
+                mobileQuery.addEventListener('change', closeMobileSidebarWhenPc);
+            } else if (mobileQuery.addListener) {
+                mobileQuery.addListener(closeMobileSidebarWhenPc);
+            }
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') document.body.classList.remove('mobile-sidebar-open');
+            });
+        })();
+    </script>
+
 </body>
 </html>
