@@ -1,1 +1,1036 @@
-111
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全局消息中心 - 戴维斯设计需求管理中心</title>
+    <script>
+        // 主题预加载：先于 Tailwind/页面主体渲染读取，避免开灯模式从其他页面跳转时闪黑
+        (function() {
+            try {
+                if (localStorage.getItem('requestHallTheme') === 'light') {
+                    document.documentElement.classList.add('theme-light-preload');
+                    document.write('<style id="theme-preload-style">html,body{background:#F4F5F7!important;color:#1D1D1F!important;} .theme-light-preload .bg-\\[\\#09090b\\],.theme-light-preload .bg-\\[\\#0c0c0e\\]{background-color:#F4F5F7!important;} .theme-light-preload aside,.theme-light-preload header{background:rgba(255,255,255,.78)!important;border-color:rgba(0,0,0,.06)!important;}<\/style>');
+                }
+            } catch(e) {}
+        })();
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
+        body { background-color: #09090b; color: #e4e4e7; font-family: 'Inter', system-ui, sans-serif; }
+        ::-webkit-scrollbar { width: 0px; } 
+        .custom-scrollbar { overflow-y: auto; padding-right: 8px; scroll-behavior: smooth; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 10px; }
+        .btn-press { transition: all 0.15s ease; cursor: pointer; }
+        .btn-press:active { transform: scale(0.95); }
+        .msg-card { transition: all 0.2s ease; border: 1px solid rgba(255,255,255,0.05); }
+        .msg-card:hover { border-color: rgba(255,255,255,0.15); background-color: rgba(255,255,255,0.02); }
+
+
+        /* ================= 开灯/关灯主题：与 index (1).html 同步 ================= */
+        html.theme-light-preload,
+        html.theme-light-preload body {
+            background: #F4F5F7 !important;
+            color: #1D1D1F !important;
+        }
+        body.theme-light {
+            background: #F4F5F7 !important;
+            color: #1D1D1F !important;
+            -webkit-font-smoothing: antialiased;
+        }
+        body.theme-light .absolute.inset-0 { background: #F4F5F7 !important; }
+        body.theme-light #bg-glow { opacity: 1 !important; filter: blur(130px) !important; }
+        body.theme-light #bg-glow.bg-fuchsia-900\/10,
+        body.theme-light #bg-glow.bg-fuchsia-900\/5 { background: rgba(217,70,239,0.04) !important; }
+        body.theme-light #bg-glow.bg-orange-900\/5,
+        body.theme-light #bg-glow.bg-orange-900\/10 { background: rgba(249,115,22,0.04) !important; }
+        body.theme-light #bg-glow.bg-indigo-900\/5,
+        body.theme-light #bg-glow.bg-indigo-900\/10 { background: rgba(99,102,241,0.05) !important; }
+
+        body.theme-light aside,
+        body.theme-light header {
+            background: rgba(255,255,255,0.78) !important;
+            backdrop-filter: blur(24px) saturate(180%);
+            border-color: rgba(0,0,0,0.06) !important;
+        }
+        body.theme-light main { background: transparent !important; }
+
+        body.theme-light [class*="bg-[#09090b]"],
+        body.theme-light [class*="bg-[#0c0c0e]"] { background-color: #FFFFFF !important; }
+        body.theme-light [class*="bg-[#121217]"],
+        body.theme-light [class*="bg-[#141417]"],
+        body.theme-light [class*="bg-[#16161d]"],
+        body.theme-light [class*="bg-[#18181b]"],
+        body.theme-light [class*="bg-[#1a1a1f]"],
+        body.theme-light [class*="bg-[#1a1a24]"],
+        body.theme-light [class*="bg-[#2a2a35]"] {
+            background-color: #FFFFFF !important;
+            border-color: rgba(0,0,0,0.06) !important;
+        }
+        body.theme-light [class*="bg-white/5"],
+        body.theme-light [class*="bg-white/10"],
+        body.theme-light [class*="bg-white/[0.01]"],
+        body.theme-light [class*="bg-white/[0.02]"] {
+            background-color: #F1F5F9 !important;
+            border-color: rgba(0,0,0,0.04) !important;
+        }
+        body.theme-light [class*="hover:bg-white/5"]:hover,
+        body.theme-light [class*="hover:bg-white/10"]:hover {
+            background-color: #E2E8F0 !important;
+            color: #0F172A !important;
+        }
+        body.theme-light [class*="border-white/5"],
+        body.theme-light [class*="border-white/10"],
+        body.theme-light [class*="border-zinc-700"],
+        body.theme-light [class*="border-zinc-800"] {
+            border-color: rgba(0,0,0,0.06) !important;
+        }
+
+        body.theme-light .shadow-2xl,
+        body.theme-light .shadow-xl,
+        body.theme-light .shadow-lg,
+        body.theme-light [class*="shadow-"] {
+            box-shadow: 0 20px 40px -16px rgba(15,23,42,0.14), 0 4px 12px rgba(15,23,42,0.04) !important;
+        }
+
+        body.theme-light h1,
+        body.theme-light h2,
+        body.theme-light h3,
+        body.theme-light h4,
+        body.theme-light .text-white,
+        body.theme-light .text-zinc-100,
+        body.theme-light .text-zinc-200,
+        body.theme-light .text-zinc-300 {
+            color: #1D1D1F !important;
+        }
+        body.theme-light .text-zinc-400 { color: #515154 !important; }
+        body.theme-light .text-zinc-500 { color: #86868B !important; }
+        body.theme-light .text-zinc-600 { color: #A1A1A6 !important; }
+
+        body.theme-light .text-fuchsia-400,
+        body.theme-light .text-fuchsia-500 { color: #A21CAF !important; }
+        body.theme-light .text-orange-400,
+        body.theme-light .text-orange-500 { color: #EA580C !important; }
+        body.theme-light .text-indigo-400,
+        body.theme-light .text-indigo-500 { color: #4338CA !important; }
+        body.theme-light .text-emerald-400,
+        body.theme-light .text-emerald-500 { color: #059669 !important; }
+        body.theme-light .text-amber-400,
+        body.theme-light .text-amber-500 { color: #D97706 !important; }
+        body.theme-light .text-rose-400,
+        body.theme-light .text-rose-500 { color: #E11D48 !important; }
+
+        body.theme-light .bg-fuchsia-500\/10,
+        body.theme-light .bg-fuchsia-500\/20 { background-color: #FDF4FF !important; border-color: #F5D0FE !important; }
+        body.theme-light .bg-orange-500\/10,
+        body.theme-light .bg-orange-500\/20 { background-color: #FFF7ED !important; border-color: #FFEDD5 !important; }
+        body.theme-light .bg-indigo-500\/10,
+        body.theme-light .bg-indigo-500\/20 { background-color: #EEF2FF !important; border-color: #C7D2FE !important; }
+        body.theme-light .bg-emerald-500\/10,
+        body.theme-light .bg-emerald-500\/20 { background-color: #ECFDF5 !important; border-color: #D1FAE5 !important; }
+        body.theme-light .bg-amber-500\/10,
+        body.theme-light .bg-amber-500\/20 { background-color: #FFFBEB !important; border-color: #FEF3C7 !important; }
+        body.theme-light .bg-rose-500\/10,
+        body.theme-light .bg-rose-500\/20 { background-color: #FFF1F2 !important; border-color: #FECDD3 !important; }
+
+        body.theme-light button.bg-fuchsia-600,
+        body.theme-light button.bg-indigo-600,
+        body.theme-light button.bg-orange-600,
+        body.theme-light button.bg-emerald-600,
+        body.theme-light button.bg-rose-600,
+        body.theme-light .bg-fuchsia-600,
+        body.theme-light .bg-indigo-600,
+        body.theme-light .bg-orange-600,
+        body.theme-light .bg-emerald-600,
+        body.theme-light .bg-rose-600,
+        body.theme-light #logo-box,
+        body.theme-light #sidebar-avatar {
+            color: #FFFFFF !important;
+        }
+
+        body.theme-light #sidebar-avatar {
+            border-color: rgba(255,255,255,0.5) !important;
+            text-shadow: 0 1px 1px rgba(15,23,42,0.24) !important;
+        }
+
+        #themeToggleBtn {
+            width: 44px !important;
+            height: 44px !important;
+            padding: 0 !important;
+            justify-content: center;
+            border-radius: 16px !important;
+        }
+        body.theme-light #themeToggleBtn {
+            background: #FFFFFF !important;
+            color: #F59E0B !important;
+            border-color: rgba(0,0,0,0.06) !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important;
+        }
+        body.theme-light #themeToggleBtn:hover {
+            background: #FFFBEB !important;
+            border-color: rgba(245,158,11,0.2) !important;
+        }
+
+        body.theme-light input,
+        body.theme-light textarea,
+        body.theme-light select {
+            background: #F8FAFC !important;
+            color: #1D1D1F !important;
+            border-color: rgba(0,0,0,0.08) !important;
+        }
+
+        body.theme-light .msg-card {
+            background: #FFFFFF !important;
+            border-color: rgba(0,0,0,0.06) !important;
+            box-shadow: 0 10px 24px -18px rgba(15,23,42,0.20), 0 2px 8px rgba(15,23,42,0.03) !important;
+        }
+        body.theme-light .msg-card:hover {
+            background: #FFFFFF !important;
+            border-color: rgba(99,102,241,0.24) !important;
+            box-shadow: 0 18px 36px -20px rgba(99,102,241,0.22), 0 6px 14px rgba(15,23,42,0.04) !important;
+        }
+        body.theme-light .msg-card.opacity-60 {
+            opacity: 1 !important;
+        }
+        body.theme-light .msg-card.opacity-60 h4,
+        body.theme-light .msg-card.opacity-60 p,
+        body.theme-light .msg-card.opacity-60 .text-zinc-400,
+        body.theme-light .msg-card.opacity-60 .text-zinc-300 {
+            color: #86868B !important;
+        }
+        body.theme-light .msg-card.opacity-60 button {
+            background: #EEF2FF !important;
+            color: #4338CA !important;
+            border-color: #C7D2FE !important;
+            opacity: 1 !important;
+        }
+        body.theme-light .msg-card button {
+            background: #EEF2FF !important;
+            color: #4338CA !important;
+            border-color: #C7D2FE !important;
+        }
+        body.theme-light .msg-card button:hover {
+            background: #E0E7FF !important;
+            color: #3730A3 !important;
+        }
+
+        body.theme-light #pwd-modal-overlay { background: rgba(15,23,42,0.32) !important; }
+        body.theme-light #pwd-modal {
+            background: #FFFFFF !important;
+            border-color: rgba(0,0,0,0.06) !important;
+        }
+        body.theme-light #pwd-modal button.bg-zinc-800 {
+            background: #EEF2FF !important;
+            color: #4338CA !important;
+            border-color: #C7D2FE !important;
+        }
+        body.theme-light #pwd-modal button.bg-zinc-800:hover {
+            background: #E0E7FF !important;
+            color: #3730A3 !important;
+        }
+
+        body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); }
+        body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.25); }
+
+    
+        #themeToggleBtn { z-index: 50; }
+        body.theme-light #themeToggleBtn { background:#FFFFFF!important; color:#F59E0B!important; border-color:rgba(0,0,0,.06)!important; }
+
+
+        /* ================= 移动端适配：仅新增，不改 PC 布局 / 不碰消息业务逻辑 ================= */
+        .mobile-only { display: none !important; }
+
+        @media (max-width: 768px) {
+            html,
+            body {
+                width: 100%;
+                min-height: 100%;
+                overflow-x: hidden !important;
+                overflow-y: auto !important;
+            }
+
+            body {
+                display: block !important;
+                height: auto !important;
+                min-height: 100dvh !important;
+                padding-bottom: env(safe-area-inset-bottom);
+            }
+
+            .mobile-only { display: inline-flex !important; }
+
+            body > .absolute.inset-0,
+            #bg-glow {
+                position: fixed !important;
+            }
+
+            body > aside {
+                position: fixed !important;
+                left: 0 !important;
+                top: 0 !important;
+                bottom: 0 !important;
+                width: min(82vw, 300px) !important;
+                height: 100dvh !important;
+                transform: translateX(-105%) !important;
+                transition: transform .25s cubic-bezier(.16, 1, .3, 1);
+                z-index: 100001 !important;
+                box-shadow: 18px 0 45px rgba(0,0,0,.36);
+            }
+
+            body.mobile-sidebar-open > aside {
+                transform: translateX(0) !important;
+            }
+
+            #mobile-sidebar-backdrop {
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,.55);
+                backdrop-filter: blur(8px);
+                z-index: 100000;
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity .2s ease;
+            }
+
+            body.mobile-sidebar-open #mobile-sidebar-backdrop {
+                opacity: 1;
+                pointer-events: auto;
+            }
+
+            #mobile-sidebar-close {
+                margin-left: auto;
+                width: 34px;
+                height: 34px;
+                align-items: center;
+                justify-content: center;
+                border-radius: 12px;
+                color: #a1a1aa;
+                background: rgba(255,255,255,.06);
+                border: 1px solid rgba(255,255,255,.08);
+            }
+
+            main {
+                width: 100% !important;
+                min-height: 100dvh !important;
+                height: auto !important;
+                overflow: visible !important;
+            }
+
+            main > header {
+                padding: 12px 14px !important;
+                min-height: 0 !important;
+                display: grid !important;
+                grid-template-columns: 42px minmax(0, 1fr) 42px;
+                grid-template-areas:
+                    "menu back theme"
+                    "title title title";
+                align-items: center !important;
+                gap: 10px 12px !important;
+                position: sticky !important;
+                top: 0;
+                z-index: 9999 !important;
+            }
+
+            #mobile-menu-btn {
+                grid-area: menu;
+                width: 42px;
+                height: 42px;
+                align-items: center;
+                justify-content: center;
+                border-radius: 15px;
+                color: #e4e4e7;
+                background: #141417;
+                border: 1px solid rgba(255,255,255,.1);
+            }
+
+            #themeToggleBtn {
+                position: static !important;
+                grid-area: theme;
+                width: 40px !important;
+                height: 40px !important;
+                border-radius: 14px !important;
+                justify-self: end;
+            }
+
+            main > header > button[onclick="goBack()"] {
+                grid-area: back;
+                margin: 0 !important;
+                width: 100%;
+                min-width: 0;
+                justify-content: center;
+                padding: 10px 8px !important;
+                border-radius: 14px;
+                background: rgba(255,255,255,.05);
+                border: 1px solid rgba(255,255,255,.08);
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            main > header > .flex.items-center.gap-3 {
+                grid-area: title;
+                min-width: 0;
+                width: 100%;
+                gap: 8px !important;
+            }
+
+            main > header h2 {
+                font-size: 20px !important;
+                line-height: 1.25 !important;
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            #unread-badge {
+                flex: 0 0 auto;
+                padding: 3px 8px !important;
+                font-size: 10px !important;
+            }
+
+            main > .flex-1.p-10 {
+                padding: 14px 14px 88px !important;
+                height: auto !important;
+                overflow: visible !important;
+                display: block !important;
+            }
+
+            main > .flex-1.p-10 > .w-full.max-w-\[900px\] {
+                max-width: none !important;
+                width: 100% !important;
+            }
+
+            main > .flex-1.p-10 .flex.items-center.justify-between.mb-6 {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 12px !important;
+                margin-bottom: 14px !important;
+                padding-bottom: 12px !important;
+            }
+
+            main > .flex-1.p-10 .flex.gap-6 {
+                gap: 0 !important;
+            }
+
+            main > .flex-1.p-10 .flex.gap-6 button {
+                top: 0 !important;
+                padding-bottom: 8px !important;
+                font-size: 13px !important;
+            }
+
+            main > .flex-1.p-10 button[onclick="markAllAsRead(this)"] {
+                width: 100%;
+                justify-content: center;
+                min-height: 40px;
+                border-radius: 14px;
+                background: rgba(255,255,255,.05);
+                border: 1px solid rgba(255,255,255,.08);
+            }
+
+            #msg-list-container {
+                gap: 12px !important;
+            }
+
+            .msg-card {
+                padding: 16px !important;
+                border-radius: 20px !important;
+                gap: 12px !important;
+                align-items: flex-start !important;
+            }
+
+            .msg-card > div:first-child {
+                width: 34px !important;
+                height: 34px !important;
+            }
+
+            .msg-card .flex.justify-between.items-start {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 8px !important;
+            }
+
+            .msg-card .flex.items-center.gap-2 {
+                min-width: 0;
+                width: 100%;
+                flex-wrap: wrap;
+            }
+
+            .msg-card h4 {
+                font-size: 14px !important;
+                line-height: 1.35 !important;
+            }
+
+            .msg-card p {
+                font-size: 12px !important;
+                line-height: 1.65 !important;
+                margin-bottom: 12px !important;
+            }
+
+            .msg-card span.font-mono {
+                max-width: 100%;
+                white-space: normal;
+                word-break: break-all;
+            }
+
+            .msg-card button {
+                width: 100% !important;
+                justify-content: center !important;
+                padding: 10px 12px !important;
+                border-radius: 14px !important;
+                white-space: normal;
+                text-align: center;
+            }
+
+            #pwd-modal-overlay {
+                padding: 12px !important;
+                align-items: center !important;
+                justify-content: center !important;
+            }
+
+            #pwd-modal {
+                width: 100% !important;
+                max-width: none !important;
+                border-radius: 22px !important;
+                padding: 20px !important;
+                max-height: calc(100dvh - 24px) !important;
+                overflow-y: auto !important;
+            }
+
+            #pwd-modal input {
+                font-size: 16px !important;
+                min-height: 46px !important;
+            }
+
+            #pwd-modal button {
+                min-height: 46px !important;
+            }
+        }
+
+        @media (max-width: 420px) {
+            main > header {
+                grid-template-columns: 42px minmax(0, 1fr) 42px;
+                gap: 9px 10px !important;
+            }
+
+            main > header h2 {
+                font-size: 18px !important;
+            }
+
+            main > header > button[onclick="goBack()"] {
+                font-size: 0 !important;
+            }
+
+            main > header > button[onclick="goBack()"] svg {
+                width: 18px;
+                height: 18px;
+            }
+
+            .msg-card {
+                padding: 14px !important;
+            }
+        }
+
+</style>
+</head>
+<body class="flex h-screen overflow-hidden relative text-zinc-300" id="body-container">
+
+    <script>
+        try {
+            if (localStorage.getItem('requestHallTheme') === 'light') {
+                document.body.classList.add('theme-light');
+            }
+        } catch(e) {}
+    </script>
+
+    <div class="absolute inset-0 bg-[#09090b] z-0 pointer-events-none"></div>
+    <div id="bg-glow" class="absolute top-0 right-1/4 w-[800px] h-[600px] rounded-full blur-[180px] pointer-events-none z-0 opacity-50"></div>
+
+    <aside class="w-[240px] border-r border-white/5 flex flex-col z-10 bg-[#09090b] shrink-0 h-full">
+        <div class="p-7 border-b border-white/5 shrink-0">
+            <div class="flex items-center gap-3">
+                <div id="logo-box" class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+                </div>
+                <h1 class="text-[15px] font-bold text-white tracking-wide">戴维斯需求大厅</h1>
+                <button id="mobile-sidebar-close" class="mobile-only" type="button" onclick="document.body.classList.remove('mobile-sidebar-open')" aria-label="关闭菜单">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-5 space-y-2" id="sidebar-menu">
+            </div>
+
+        <div class="px-5 py-6 mt-auto border-t border-white/5 bg-[#0c0c0e] shrink-0 flex items-center justify-between relative z-[9999]">
+            <div class="flex items-center gap-3 min-w-0">
+                <div id="sidebar-avatar" class="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-lg">?</div>
+                <div class="min-w-0 flex-1">
+                    <p id="sidebar-name" class="text-[13px] font-bold text-white mb-0.5 truncate">加载中...</p>
+                    <p id="sidebar-role" class="text-[10px] text-zinc-500 truncate">读取中</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-1 shrink-0 ml-2">
+                <button onclick="window.openPwdModal()" class="p-1.5 text-zinc-500 hover:text-white hover:bg-white/10 rounded-lg transition-colors btn-press cursor-pointer pointer-events-auto relative z-50" title="修改登录密码">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+                </button>
+                <button onclick="window.logout(event)" class="p-1.5 text-zinc-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors btn-press cursor-pointer pointer-events-auto relative z-50" title="退出登录">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <div id="mobile-sidebar-backdrop" class="mobile-only" onclick="document.body.classList.remove('mobile-sidebar-open')"></div>
+
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative z-10 bg-[#0c0c0e]">
+        <header class="px-10 py-8 border-b border-white/5 shrink-0 bg-[#09090b]/80 backdrop-blur-xl flex flex-col z-20 relative">
+
+            <button id="mobile-menu-btn" class="mobile-only btn-press" type="button" onclick="document.body.classList.add('mobile-sidebar-open')" aria-label="打开菜单">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="4" y1="7" x2="20" y2="7"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="17" x2="20" y2="17"></line></svg>
+            </button>
+
+            <button id="themeToggleBtn" onclick="window.togglePageTheme()" class="absolute right-10 top-8 bg-[#141417] border border-white/10 text-zinc-300 rounded-[14px] flex items-center justify-center hover:bg-[#1a1a1f] transition-colors btn-press" title="切换浅色/深色页面">
+                <span id="themeToggleIcon" class="flex items-center justify-center"></span>
+            </button>
+            <button onclick="goBack()" class="text-[12px] font-bold text-zinc-500 hover:text-white transition-colors flex items-center gap-1.5 w-max mb-4 btn-press">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg> 返回工作台
+            </button>
+            <div class="flex items-center gap-3">
+                <h2 class="text-[26px] font-bold text-white tracking-tight">全局消息中心</h2>
+                <span id="unread-badge" class="hidden px-2.5 py-0.5 rounded-full bg-rose-500/20 border border-rose-500/30 text-rose-400 text-[11px] font-bold animate-pulse">0 未读</span>
+            </div>
+        </header>
+
+        <div class="flex-1 p-10 overflow-y-auto custom-scrollbar flex flex-col items-center">
+            <div class="w-full max-w-[900px] flex flex-col">
+                <div class="flex items-center justify-between mb-6 border-b border-white/5 pb-3">
+                    <div class="flex gap-6 text-[14px] font-bold">
+                        <button class="text-white border-b-2 border-white pb-3 relative top-[13px]">系统通知与动态</button>
+                    </div>
+                    <button onclick="markAllAsRead(this)" class="text-[12px] text-zinc-500 hover:text-white transition-colors flex items-center gap-1.5 btn-press">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg> 全部标记为已读
+                    </button>
+                </div>
+
+                <div class="space-y-4" id="msg-list-container">
+                    <div class="text-center py-20 opacity-50 flex flex-col items-center">
+                        <svg class="animate-spin h-8 w-8 text-zinc-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        <p class="text-sm font-bold text-zinc-400">系统数据极速同步中...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="pwd-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center" onclick="if(event.target === this) closePwdModal()">
+        <div id="pwd-modal" class="hidden w-full max-w-sm bg-[#121217] border border-white/10 rounded-3xl shadow-2xl flex flex-col scale-95 transition-transform duration-300 p-6 relative">
+            <div id="pwd-color-bar" class="absolute top-0 left-0 right-0 h-1 rounded-t-3xl"></div>
+            <div class="flex justify-between items-center mb-6 mt-2">
+                <h2 class="text-[16px] font-bold text-white flex items-center gap-2"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg> 修改登录密码</h2>
+                <button onclick="closePwdModal()" class="text-zinc-500 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-full p-1 transition-colors btn-press"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            </div>
+            <div class="space-y-4">
+                <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">当前密码</label><input type="password" id="old-pwd" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none transition-colors" placeholder="输入原密码"></div>
+                <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">新密码</label><input type="password" id="new-pwd" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none transition-colors" placeholder="输入新密码"></div>
+                <div><label class="block text-[12px] font-bold text-zinc-400 mb-1.5">确认新密码</label><input type="password" id="new-pwd-confirm" class="w-full bg-[#09090b] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none transition-colors" placeholder="再次输入新密码"></div>
+            </div>
+            <button onclick="alert('系统演示环境暂不可修改密码'); closePwdModal();" class="w-full mt-6 py-3.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-bold transition-all btn-press">确认修改</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { supabase } from './supabase-config.js';
+        window.supabase = supabase;
+        if(window.initPage) window.initPage();
+    </script>
+
+    <script>
+        let currentRole = 'req'; 
+        let themeColor = 'indigo'; 
+
+
+        // ================= 开灯 / 关灯主题切换：同步 index (1).html =================
+        window.applyPageTheme = function(theme) {
+            const isLight = theme === 'light';
+            document.documentElement.classList.toggle('theme-light-preload', isLight);
+            document.body.classList.toggle('theme-light', isLight);
+            localStorage.setItem('requestHallTheme', isLight ? 'light' : 'dark');
+
+            const icon = document.getElementById('themeToggleIcon');
+            const btn = document.getElementById('themeToggleBtn');
+            if (icon) {
+                icon.innerHTML = isLight
+                    ? `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 21h6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M10 17h4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M8.5 14.5c-1.7-1.15-2.8-3.04-2.8-5.2A6.3 6.3 0 0 1 12 3a6.3 6.3 0 0 1 6.3 6.3c0 2.16-1.1 4.05-2.8 5.2-.86.58-1.22 1.07-1.35 1.5h-4.3c-.13-.43-.49-.92-1.35-1.5Z" fill="currentColor" fill-opacity="0.18" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/><path d="M12 6.5v2.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`
+                    : `<svg width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 21h6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M10 17h4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M8.5 14.5c-1.7-1.15-2.8-3.04-2.8-5.2A6.3 6.3 0 0 1 12 3a6.3 6.3 0 0 1 6.3 6.3c0 2.16-1.1 4.05-2.8 5.2-.86.58-1.22 1.07-1.35 1.5h-4.3c-.13-.43-.49-.92-1.35-1.5Z" stroke="currentColor" stroke-width="2.1" stroke-linejoin="round"/><path d="M12 6.5v2.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+            }
+            if (btn) btn.title = isLight ? '切换为深色页面' : '切换为浅色页面';
+        };
+        window.togglePageTheme = function() {
+            const current = localStorage.getItem('requestHallTheme') === 'light' ? 'light' : 'dark';
+            window.applyPageTheme(current === 'light' ? 'dark' : 'light');
+        };
+        document.addEventListener('DOMContentLoaded', function() {
+            window.applyPageTheme(localStorage.getItem('requestHallTheme') === 'light' ? 'light' : 'dark');
+        });
+
+
+        // 💡 增加全局 Hash 记录，防止轮询时打断用户滚动
+        let lastNotifHash = '';
+
+        window.initPage = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('role')) currentRole = urlParams.get('role');
+
+            const userStr = localStorage.getItem('activeUserObj');
+            if (!userStr) { window.location.href = 'login.html'; return; }
+            const user = JSON.parse(userStr);
+
+            // 根据不同身份动态渲染对应的颜色和菜单
+            if (currentRole === 'admin') {
+                themeColor = 'fuchsia';
+                document.getElementById('body-container').classList.add('selection:bg-fuchsia-500/30');
+                document.getElementById('bg-glow').classList.add('bg-fuchsia-900/10');
+                document.getElementById('logo-box').classList.add('bg-fuchsia-600', 'shadow-[0_0_15px_rgba(217,70,239,0.3)]');
+                document.getElementById('pwd-color-bar').classList.add('bg-gradient-to-r', 'from-fuchsia-500', 'to-indigo-500');
+                document.getElementById('sidebar-role').innerHTML = `<span class="text-fuchsia-400 font-bold">当前视角: 管理方</span>`;
+                
+                document.getElementById('sidebar-menu').innerHTML = `
+                    <button onclick="window.location.href='manager-workspace.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+                        <span class="font-medium text-[14px]">总监控制台</span>
+                    </button>
+                    <button onclick="window.location.href='manager-dashboard.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                        <span class="font-medium text-[14px]">团队效能大盘</span>
+                    </button>
+                    <button onclick="window.location.href='project-analysis.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                        <span class="font-medium text-[14px]">项目投入分析</span>
+                    </button>
+                    <button onclick="window.location.href='org-chart.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                        <span class="font-medium text-[14px]">组织架构与账号</span>
+                    </button>
+                    <button class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl bg-fuchsia-500/10 text-fuchsia-400 border border-fuchsia-500/20 transition-all cursor-default">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                        <span class="font-bold text-[14px]">全局消息中心</span>
+                    </button>
+                `;
+            } else if (currentRole === 'design') {
+                themeColor = 'orange';
+                document.getElementById('body-container').classList.add('selection:bg-orange-500/30');
+                document.getElementById('bg-glow').classList.add('bg-orange-900/5');
+                document.getElementById('logo-box').classList.add('bg-orange-600', 'shadow-[0_0_15px_rgba(249,115,22,0.3)]');
+                document.getElementById('pwd-color-bar').classList.add('bg-gradient-to-r', 'from-orange-500', 'to-amber-500');
+                document.getElementById('sidebar-role').innerHTML = `<span class="text-orange-400 font-bold">当前视角: 设计方</span>`;
+                
+                document.getElementById('sidebar-menu').innerHTML = `
+                    <button onclick="window.location.href='assistant-workspace.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+                        <span class="font-medium text-[14px]">执行看板 (Kanban)</span>
+                    </button>
+                    <button onclick="window.location.href='assistant-assets.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                        <span class="font-medium text-[14px]">我的过稿资产库</span>
+                    </button>
+                    <button onclick="window.location.href='assistant-calendar.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                        <span class="font-medium text-[14px]">工时与 AI 绩效</span>
+                    </button>
+                    <button class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl bg-orange-500/10 text-orange-400 border border-orange-500/20 transition-all cursor-default">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                        <span class="font-bold text-[14px]">全局消息中心</span>
+                    </button>
+                `;
+            } else {
+                // 默认 req 需求方
+                themeColor = 'indigo';
+                document.getElementById('body-container').classList.add('selection:bg-indigo-500/30');
+                document.getElementById('bg-glow').classList.add('bg-indigo-900/5');
+                document.getElementById('logo-box').classList.add('bg-indigo-600', 'shadow-[0_0_15px_rgba(79,70,229,0.3)]');
+                document.getElementById('pwd-color-bar').classList.add('bg-gradient-to-r', 'from-indigo-500', 'to-purple-500');
+                document.getElementById('sidebar-role').innerHTML = `<span class="text-indigo-400 font-bold">当前视角: 需求方</span>`;
+                
+                document.getElementById('sidebar-menu').innerHTML = `
+                    <button onclick="window.location.href='index.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+                        <span class="font-medium text-[14px]">需求排号大厅</span>
+                    </button>
+                    <button onclick="window.location.href='record-list.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                        <span class="font-medium text-[14px]">我的提单记录</span>
+                    </button>
+                    <button onclick="window.location.href='calendar.html'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-zinc-400 hover:bg-white/5 hover:text-white transition-all btn-press">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                        <span class="font-medium text-[14px]">我的需求日历</span>
+                    </button>
+                    <button class="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 transition-all cursor-default">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                        <span class="font-bold text-[14px]">全局消息中心</span>
+                    </button>
+                `;
+            }
+
+            const avatarEl = document.getElementById('sidebar-avatar');
+            if(avatarEl) { avatarEl.innerText = user.avatar || '?'; }
+            if(document.getElementById('sidebar-name')) document.getElementById('sidebar-name').innerText = user.displayName || user.name || user.cnName || user.enName;
+            
+            // 初始化拉取一次
+            window.loadMsgs(false);
+
+            // IO优化：消息中心不再 8 秒扫库；仅在页面可见时每 60 秒刷新
+            window.ioOptimizedInterval(() => { window.loadMsgs(true); }, window.IO_OPT_NOTIFY_POLL_MS);
+        }
+
+        // 💡 彻底修复版：上帝视角无盲区查库 + 精准三端隔离 + 防滚动条乱跳
+        window.loadMsgs = async function(isSilent = false) {
+            const container = document.getElementById('msg-list-container');
+            const badge = document.getElementById('unread-badge');
+
+            if(!window.supabase) {
+                if(!isSilent) container.innerHTML = '<div class="text-center py-20 text-zinc-500">云端数据库未连接，请刷新重试</div>';
+                return;
+            }
+
+            const userStr = localStorage.getItem('activeUserObj');
+            if (!userStr) return;
+            const currentUser = JSON.parse(userStr);
+            // 自动收集用户的各个马甲
+            const myIdentities = [
+                (currentUser.enName || '').toLowerCase(),
+                (currentUser.displayName || '').toLowerCase(),
+                (currentUser.cnName || '').toLowerCase()
+            ].filter(Boolean);
+
+            const isAdmin = (currentUser.perms || []).includes('admin');
+
+            try {
+                // 彻底抛弃 notifications 表，直连任务表读取轨迹！
+                const { data: tasks, error } = await window.supabase.from('test_tasks')
+                    .select('id, title, creator, assignee, history_json')
+                    .order('created_at', { ascending: false })
+                    .limit(120);
+                
+                if (error) throw error;
+
+                let myNotifs = [];
+
+                tasks.forEach(task => {
+                    const taskCreator = (task.creator || '').toLowerCase();
+                    const taskAssignee = (task.assignee || '').toLowerCase();
+                    
+                    const isMyCreation = myIdentities.some(id => taskCreator.includes(id) || id.includes(taskCreator));
+                    const isMyAssignment = myIdentities.some(id => taskAssignee.includes(id) || id.includes(taskAssignee));
+                    
+                    let hist = [];
+                    try { hist = JSON.parse(task.history_json || '[]'); } catch(e){}
+
+                    hist.forEach((h, index) => {
+                        const op = (h.operator || '').toLowerCase();
+                        const isDoneByMe = myIdentities.some(id => op.includes(id) || id.includes(op));
+                        
+                        // 自己操作产生的结果不通知自己
+                        if (isDoneByMe) return;
+
+                        let title = ''; let icon = 'bg-sky-500';
+                        
+                        // 1. 需求方视角过滤
+                        if (currentRole === 'req' && isMyCreation) {
+                            if (h.action === 'accept') { title = '✅ 设计已接单'; icon = 'bg-sky-500'; }
+                            else if (h.action === 'submit_framework') { title = '👀 框架方案已提'; icon = 'bg-amber-500'; }
+                            else if (h.action === 'submit_draft') { title = '🎁 正稿待验收'; icon = 'bg-emerald-500'; }
+                            else if (h.action === 'reject_framework') { title = '💥 框架被打回'; icon = 'bg-rose-500'; }
+                            else if (h.action && h.action.includes('urge') && op.includes('设计')) { title = '🚨 紧急提醒'; icon = 'bg-rose-500'; }
+                            else if (h.action === 'transfer') { title = '🔄 任务转移'; icon = 'bg-orange-500'; }
+                        }
+                        // 2. 设计师视角过滤
+                        else if (currentRole === 'design' && isMyAssignment) {
+                            if (h.action === 'create') { title = '🆕 新需求指派'; icon = 'bg-sky-500'; }
+                            else if (h.is_rejected || (h.action && h.action.includes('reject'))) { title = '💥 方案被打回'; icon = 'bg-rose-500'; }
+                            else if (h.action === 'complete') { title = '✅ 甲方验收通过'; icon = 'bg-emerald-500'; }
+                            else if (h.action && h.action.includes('urge')) { title = '🚨 紧急催办提醒'; icon = 'bg-rose-500'; }
+                        }
+                        // 3. 管理方(上帝)视角过滤
+                        else if (currentRole === 'admin' && isAdmin) {
+                            if (h.action === 'submit_framework') { title = '👀 框架待审批'; icon = 'bg-amber-500'; }
+                            else if (h.action === 'submit_draft') { title = '🎁 正稿待验收'; icon = 'bg-emerald-500'; }
+                            else if (h.action === 'reject_framework' || h.action === 'reject_draft' || h.is_rejected) { title = '💥 方案被打回'; icon = 'bg-rose-500'; }
+                            else if (h.action === 'complete') { title = '✅ 任务圆满结案'; icon = 'bg-emerald-500'; }
+                            else if (h.action === 'urge' || (h.reply && h.reply.includes('催办'))) { title = '🚨 紧急催办提醒'; icon = 'bg-rose-500'; }
+                            else if (h.action === 'transfer') { title = '🔄 任务转单/退回'; icon = 'bg-orange-500'; }
+                            else if (h.action === 'create') { title = '🆕 新需求发布'; icon = 'bg-indigo-500'; }
+                        }
+
+                        if (title) {
+                            myNotifs.push({
+                                id: `${task.id}_${index}`,
+                                taskId: task.id,
+                                title: title,
+                                content: `${h.operator || '系统'}: ${h.reply || h.desc || '更新了任务'}`,
+                                time: h.time || h.created_at || new Date().toISOString(),
+                                icon: icon
+                            });
+                        }
+                    });
+                });
+
+                // 按时间倒序
+                myNotifs.sort((a, b) => new Date(b.time) - new Date(a.time));
+
+                // 读写本地已读记录（角色隔离）
+                const storeKey = `read_notifs_${currentRole}_${myIdentities[0]||'unknown'}`;
+                let readReceipts = JSON.parse(localStorage.getItem(storeKey) || '[]');
+                
+                const unreadNotifs = myNotifs.filter(n => !readReceipts.includes(n.id));
+                const unreadCount = unreadNotifs.length;
+
+                // Hash防抖，没有变化不刷新DOM
+                const newHash = myNotifs.map(n => n.id + (readReceipts.includes(n.id) ? '_r' : '_u')).join(',');
+                if (isSilent && newHash === lastNotifHash) return;
+                lastNotifHash = newHash;
+
+                if(unreadCount > 0) {
+                    badge.innerText = `${unreadCount} 未读`;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+
+                if(myNotifs.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center py-24 opacity-50 flex flex-col items-center">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-zinc-500 mb-4"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                            <p class="text-[14px] font-medium text-zinc-400">消息列表空空如也</p>
+                            <p class="text-[11px] text-zinc-500 mt-2">没有任何属于您的通知或动态</p>
+                        </div>`;
+                    return;
+                }
+
+                let html = '';
+                myNotifs.forEach(n => {
+                    const isRead = readReceipts.includes(n.id);
+                    const dotHtml = isRead ? `<div class="w-8 h-8 rounded-full bg-zinc-800/50 flex items-center justify-center text-zinc-600 shrink-0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg></div>` : 
+                                           `<div class="w-8 h-8 rounded-full ${n.icon}/20 border border-${n.icon.split('-')[1]}-500/30 flex items-center justify-center text-${n.icon.split('-')[1]}-400 shrink-0 shadow-[0_0_15px_rgba(var(--tw-colors-${n.icon.split('-')[1]}-500),0.3)]"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></div>`;
+                    
+                    const bgClass = isRead ? 'bg-[#121217] opacity-60' : `bg-[#18181b] border-${n.icon.split('-')[1]}-500/30 shadow-[0_0_15px_rgba(var(--tw-colors-${n.icon.split('-')[1]}-500),0.05)]`;
+                    const titleClass = isRead ? 'text-zinc-400' : 'text-white';
+                    
+                    const dateStr = new Date(n.time).toLocaleString();
+
+                    html += `
+                    <div class="msg-card p-5 rounded-2xl flex items-start gap-4 ${bgClass}">
+                        ${dotHtml}
+                        <div class="flex-1 min-w-0">
+                            <div class="flex justify-between items-start mb-1.5">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[10px] font-mono font-bold bg-white/5 px-2 py-0.5 rounded text-zinc-400 border border-white/5">${n.taskId}</span>
+                                    <h4 class="text-[14px] font-bold ${titleClass}">${n.title}</h4>
+                                </div>
+                                <span class="text-[11px] text-zinc-500 font-mono flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full ${isRead?'bg-zinc-700':`${n.icon} animate-pulse`}"></span> ${dateStr}</span>
+                            </div>
+                            <p class="text-[13px] text-zinc-300 leading-relaxed mb-4">${n.content}</p>
+                            <button onclick="markSingleAndGo('${n.id}', '${n.taskId}')" class="text-[11px] font-bold text-zinc-300 bg-white/5 hover:bg-white/10 border border-white/5 px-3 py-1.5 rounded flex items-center gap-1.5 transition-colors w-max btn-press">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg> 点击穿梭至详情页处理
+                            </button>
+                        </div>
+                    </div>`;
+                });
+                container.innerHTML = html;
+                window.currentMyUnreadIds = unreadNotifs.map(n => n.id);
+
+            } catch(e) {
+                console.error("加载消息失败:", e);
+                if(!isSilent) container.innerHTML = '<div class="text-center py-20 text-zinc-500">拉取云端数据失败，请刷新重试</div>';
+            }
+        }
+
+        // 🚀 更新本地缓存消除红点
+        window.markAllAsRead = async function(btnNode) {
+            if (!window.currentMyUnreadIds || window.currentMyUnreadIds.length === 0) return;
+            
+            const originalText = btnNode.innerHTML;
+            btnNode.innerHTML = `<svg class="animate-spin h-3.5 w-3.5 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 处理中...`;
+            
+            const userStr = localStorage.getItem('activeUserObj');
+            const currentUser = JSON.parse(userStr);
+            const myEnName = (currentUser.enName || currentUser.displayName || '').toLowerCase() || 'unknown';
+            const storeKey = `read_notifs_${currentRole}_${myEnName}`;
+
+            let readReceipts = JSON.parse(localStorage.getItem(storeKey) || '[]');
+            readReceipts = [...new Set([...readReceipts, ...window.currentMyUnreadIds])];
+            localStorage.setItem(storeKey, JSON.stringify(readReceipts));
+            
+            lastNotifHash = ''; // 清空 Hash 强制重绘
+            await window.loadMsgs(false); // 重新拉取
+            
+            btnNode.innerHTML = originalText;
+        }
+
+        // 🚀 智能路由：根据当前角色强行矫正点击的链接目的地
+        window.markSingleAndGo = function(id, taskId) {
+            const userStr = localStorage.getItem('activeUserObj');
+            const currentUser = JSON.parse(userStr);
+            const myEnName = (currentUser.enName || currentUser.displayName || '').toLowerCase() || 'unknown';
+            const storeKey = `read_notifs_${currentRole}_${myEnName}`;
+
+            let readReceipts = JSON.parse(localStorage.getItem(storeKey) || '[]');
+            if (!readReceipts.includes(id)) {
+                readReceipts.push(id);
+                localStorage.setItem(storeKey, JSON.stringify(readReceipts));
+            }
+
+            if (currentRole === 'design') {
+                window.location.href = 'task-detail-designer.html?id=' + taskId;
+            } else {
+                // 需求方和超管/领导都统一去 requester 页面进行验收或审批
+                window.location.href = 'task-detail-requester.html?id=' + taskId;
+            }
+        }
+
+        window.logout = function(e) { e.stopPropagation(); localStorage.removeItem('activeUserObj'); window.location.href = 'login.html'; }
+        
+        window.openPwdModal = function() { document.getElementById('pwd-modal-overlay').classList.remove('hidden'); setTimeout(() => { document.getElementById('pwd-modal-overlay').classList.remove('opacity-0'); document.getElementById('pwd-modal').classList.remove('hidden', 'scale-95'); }, 10); }
+        window.closePwdModal = function() { document.getElementById('pwd-modal-overlay').classList.add('opacity-0'); document.getElementById('pwd-modal').classList.add('scale-95'); setTimeout(() => { document.getElementById('pwd-modal-overlay').classList.add('hidden'); document.getElementById('pwd-modal').classList.add('hidden'); }, 300); }
+
+        window.goBack = function() {
+            if (currentRole === 'req') window.location.href = 'index.html';
+            else if (currentRole === 'design') window.location.href = 'assistant-workspace.html';
+            else window.location.href = 'manager-workspace.html';
+        }
+
+        // ================= IO 优化：统一降低轮询频率，后台页不打库 =================
+        window.IO_OPT_NOTIFY_POLL_MS = window.IO_OPT_NOTIFY_POLL_MS || 60000;      // 通知：60秒
+        window.IO_OPT_TASK_POLL_MS = window.IO_OPT_TASK_POLL_MS || 60000;          // 普通任务列表：60秒
+        window.IO_OPT_DASHBOARD_POLL_MS = window.IO_OPT_DASHBOARD_POLL_MS || 120000; // 大盘/分析页：120秒
+        window.ioOptimizedInterval = window.ioOptimizedInterval || function(callback, ms) {
+            return setInterval(() => {
+                if (document.visibilityState !== 'visible') return;
+                if (typeof callback === 'function') callback();
+            }, ms);
+        };
+
+    </script>
+
+    <script>
+        // ================= 移动端适配辅助：仅控制抽屉关闭，不碰消息业务逻辑 =================
+        (function() {
+            const mobileQuery = window.matchMedia('(max-width: 768px)');
+            function closeMobileSidebarWhenPc(e) {
+                if (!e.matches) document.body.classList.remove('mobile-sidebar-open');
+            }
+            if (mobileQuery.addEventListener) {
+                mobileQuery.addEventListener('change', closeMobileSidebarWhenPc);
+            } else if (mobileQuery.addListener) {
+                mobileQuery.addListener(closeMobileSidebarWhenPc);
+            }
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') document.body.classList.remove('mobile-sidebar-open');
+            });
+        })();
+    </script>
+
+</body>
+</html>
