@@ -740,6 +740,460 @@
             -webkit-text-fill-color: #A21CAF !important;
             border-color: #F5D0FE !important;
         }
+
+        /* ================= 移动端适配：仅新增，不改 PC 布局 / 不碰分析统计逻辑 ================= */
+        .mobile-only { display: none !important; }
+
+        @media (max-width: 768px) {
+            html,
+            body {
+                width: 100%;
+                min-height: 100%;
+                overflow-x: hidden !important;
+                overflow-y: auto !important;
+            }
+
+            body {
+                display: block !important;
+                height: auto !important;
+                min-height: 100dvh !important;
+                padding-bottom: env(safe-area-inset-bottom);
+            }
+
+            .mobile-only { display: inline-flex !important; }
+
+            body > .absolute.inset-0,
+            body > .absolute.top-0.right-1\/4 {
+                position: fixed !important;
+            }
+
+            body > aside {
+                position: fixed !important;
+                left: 0 !important;
+                top: 0 !important;
+                bottom: 0 !important;
+                width: min(82vw, 300px) !important;
+                min-width: 0 !important;
+                height: 100dvh !important;
+                transform: translateX(-105%) !important;
+                transition: transform .25s cubic-bezier(.16, 1, .3, 1);
+                z-index: 100001 !important;
+                box-shadow: 18px 0 45px rgba(0,0,0,.36);
+            }
+
+            body.mobile-sidebar-open > aside {
+                transform: translateX(0) !important;
+            }
+
+            #mobile-sidebar-backdrop {
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,.55);
+                backdrop-filter: blur(8px);
+                z-index: 100000;
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity .2s ease;
+            }
+
+            body.mobile-sidebar-open #mobile-sidebar-backdrop {
+                opacity: 1;
+                pointer-events: auto;
+            }
+
+            #mobile-sidebar-close {
+                margin-left: auto;
+                width: 34px;
+                height: 34px;
+                align-items: center;
+                justify-content: center;
+                border-radius: 12px;
+                color: #a1a1aa;
+                background: rgba(255,255,255,.06);
+                border: 1px solid rgba(255,255,255,.08);
+            }
+
+            body > main,
+            #main-content-area {
+                width: 100% !important;
+                min-height: 100dvh !important;
+                height: auto !important;
+                overflow: visible !important;
+            }
+
+            header {
+                height: auto !important;
+                min-height: 0 !important;
+                padding: 12px 14px !important;
+                display: grid !important;
+                grid-template-columns: 42px minmax(0, 1fr);
+                grid-template-areas:
+                    "menu title"
+                    "actions actions";
+                align-items: center !important;
+                gap: 10px 12px !important;
+                position: sticky !important;
+                top: 0;
+                z-index: 9999 !important;
+            }
+
+            #mobile-menu-btn {
+                grid-area: menu;
+                width: 42px;
+                height: 42px;
+                align-items: center;
+                justify-content: center;
+                border-radius: 15px;
+                color: #e4e4e7;
+                background: #141417;
+                border: 1px solid rgba(255,255,255,.1);
+                flex: 0 0 auto;
+            }
+
+            header > div:first-of-type {
+                grid-area: title;
+                min-width: 0;
+                width: 100%;
+            }
+
+            header h2 {
+                font-size: 18px !important;
+                line-height: 1.25 !important;
+                margin-bottom: 0 !important;
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                display: flex !important;
+                gap: 6px !important;
+            }
+
+            header h2 > span {
+                flex: 0 0 auto;
+                margin-left: 4px !important;
+                padding: 2px 7px !important;
+                font-size: 10px !important;
+            }
+
+            header h2 + p {
+                display: none !important;
+            }
+
+            header > .flex.items-center.gap-5.relative {
+                grid-area: actions;
+                width: 100%;
+                gap: 8px !important;
+                overflow-x: auto;
+                padding: 2px 0 2px;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+                flex-wrap: nowrap !important;
+            }
+
+            header > .flex.items-center.gap-5.relative::-webkit-scrollbar { display: none; }
+            header > .flex.items-center.gap-5.relative > * { flex: 0 0 auto; }
+
+            header button {
+                min-height: 40px;
+                white-space: nowrap;
+            }
+
+            header button[onclick="window.openExportAnalysisModal()"] {
+                padding: 9px 12px !important;
+                font-size: 12px !important;
+            }
+
+            header .w-px.h-8,
+            #identity-wrapper {
+                display: none !important;
+            }
+
+            #themeToggleBtn,
+            #notifBtn {
+                width: 40px !important;
+                height: 40px !important;
+                border-radius: 14px !important;
+            }
+
+            header .flex.bg-\[\#121217\] {
+                padding: 4px !important;
+            }
+
+            #btn-view-week,
+            #btn-view-month,
+            #btn-view-year {
+                padding: 7px 12px !important;
+                font-size: 12px !important;
+            }
+
+            #date-selector-wrapper > button {
+                min-width: 128px !important;
+                padding: 9px 12px !important;
+                font-size: 12px !important;
+            }
+
+            #btn-jump-current {
+                padding: 9px 11px !important;
+                font-size: 12px !important;
+            }
+
+            #date-dropdown,
+            #project-dropdown,
+            #notifMenu {
+                position: fixed !important;
+                left: 12px !important;
+                right: 12px !important;
+                top: 70px !important;
+                width: auto !important;
+                max-width: none !important;
+                max-height: min(420px, calc(100dvh - 92px)) !important;
+                transform: none !important;
+                z-index: 100000 !important;
+            }
+
+            main > .flex-1.p-8,
+            main > .flex-1.p-8.md\:p-10 {
+                padding: 14px 14px 88px !important;
+                height: auto !important;
+                overflow: visible !important;
+                display: block !important;
+            }
+
+            #dashboard-loading {
+                position: fixed !important;
+                inset: 0 !important;
+                z-index: 10000 !important;
+            }
+
+            main > .flex-1.p-8 > .w-full,
+            main > .flex-1.p-8.md\:p-10 > .w-full {
+                max-width: none !important;
+                width: 100% !important;
+                gap: 14px !important;
+                min-height: 0 !important;
+            }
+
+            /* 顶部指标卡：手机两列，小屏单列 */
+            main .grid.grid-cols-4 {
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                gap: 12px !important;
+            }
+
+            .metric-drilldown-card {
+                border-radius: 20px !important;
+                padding: 16px !important;
+                min-height: 128px;
+            }
+
+            .metric-drilldown-card p:first-of-type {
+                font-size: 11px !important;
+                line-height: 1.35 !important;
+            }
+
+            .metric-drilldown-card p[id^="metric-cur"] {
+                font-size: 31px !important;
+                line-height: 1 !important;
+            }
+
+            .metric-drilldown-card p[id^="metric-trend"] {
+                font-size: 10px !important;
+                line-height: 1.4 !important;
+            }
+
+            #leader-issue-panel {
+                padding: 16px !important;
+                border-radius: 22px !important;
+            }
+
+            #leader-issue-panel > .flex.items-center.justify-between {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 12px !important;
+            }
+
+            #leader-issue-panel h3 {
+                font-size: 14px !important;
+                line-height: 1.35 !important;
+            }
+
+            #leader-issue-panel p {
+                font-size: 11px !important;
+                line-height: 1.5 !important;
+            }
+
+            #leader-issue-panel button {
+                width: 100%;
+                justify-content: center;
+            }
+
+            #leader-issue-stats {
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                gap: 10px !important;
+            }
+
+            .leader-issue-card {
+                min-height: 86px !important;
+                padding: 12px 14px !important;
+            }
+
+            .leader-issue-num {
+                font-size: 29px !important;
+            }
+
+            /* 核心分析区：左右双栏改上下单栏 */
+            #core-analysis-board,
+            #core-analysis-board > div {
+                height: auto !important;
+                min-height: 0 !important;
+            }
+
+            #core-analysis-board {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 14px !important;
+                align-items: stretch !important;
+            }
+
+            #core-analysis-board > div {
+                width: 100% !important;
+                max-width: none !important;
+                flex: none !important;
+                border-radius: 22px !important;
+                padding: 16px !important;
+            }
+
+            #core-analysis-board .h-\[560px\] {
+                height: auto !important;
+                min-height: 0 !important;
+            }
+
+            #core-analysis-board .flex.items-center.justify-between {
+                align-items: flex-start !important;
+                gap: 12px !important;
+                flex-wrap: wrap !important;
+            }
+
+            #core-analysis-board h3 {
+                font-size: 14px !important;
+                line-height: 1.35 !important;
+            }
+
+            #project-selector-wrapper {
+                width: 100%;
+            }
+
+            #project-selector-wrapper > button {
+                width: 100%;
+                min-width: 0 !important;
+            }
+
+            /* 各种动态榜单/图表容器取消固定高度，改为页面自然滚动 */
+            #project-ranking-container,
+            #person-analysis-container,
+            #creator-ranking-container,
+            #user-task-ranking-container,
+            #user-hour-ranking-container,
+            #ai-tool-ranking-container,
+            #analysis-detail-list,
+            #leader-issue-list {
+                max-height: none !important;
+                height: auto !important;
+                overflow: visible !important;
+                padding-right: 0 !important;
+            }
+
+            .custom-scrollbar {
+                padding-right: 0 !important;
+            }
+
+            .person-drilldown-card,
+            .analysis-detail-row,
+            .submission-status-card {
+                border-radius: 18px !important;
+            }
+
+            /* 表格和网格类内容允许横向滚动，避免压坏字段 */
+            table,
+            .submission-status-card table {
+                min-width: 720px;
+            }
+
+            .overflow-x-auto,
+            #leader-issue-panel .border {
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            /* 导出弹窗 / 明细弹窗 / 密码弹窗：移动端全宽 */
+            #export-modal,
+            #analysis-detail-modal,
+            #pwd-modal,
+            #custom-dialog,
+            #custom-modal-content {
+                width: calc(100vw - 24px) !important;
+                max-width: none !important;
+                max-height: calc(100dvh - 28px) !important;
+                overflow-y: auto !important;
+                border-radius: 22px !important;
+            }
+
+            [id$="-overlay"].fixed,
+            #custom-dialog-overlay,
+            #pwd-modal-overlay,
+            #export-modal-overlay,
+            #analysis-detail-modal-overlay {
+                padding: 12px !important;
+                align-items: center !important;
+                justify-content: center !important;
+            }
+
+            #export-capture-zone {
+                width: 100% !important;
+                max-width: none !important;
+                overflow-x: auto !important;
+            }
+
+            #action-toast {
+                top: auto !important;
+                right: 12px !important;
+                left: 12px !important;
+                bottom: calc(18px + env(safe-area-inset-bottom));
+                z-index: 2147483600 !important;
+            }
+
+            #action-toast > div {
+                width: 100% !important;
+            }
+        }
+
+        @media (max-width: 420px) {
+            header h2 {
+                font-size: 16px !important;
+            }
+
+            header h2 > span {
+                display: none !important;
+            }
+
+            main .grid.grid-cols-4,
+            #leader-issue-stats {
+                grid-template-columns: minmax(0, 1fr) !important;
+            }
+
+            .metric-drilldown-card {
+                min-height: 112px;
+            }
+
+            .metric-drilldown-card p[id^="metric-cur"] {
+                font-size: 30px !important;
+            }
+
+            #date-selector-wrapper > button {
+                min-width: 112px !important;
+            }
+        }
+
+
 </style>
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-fuchsia-500/30 text-zinc-300">
@@ -764,6 +1218,9 @@
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
                 </div>
                 <h1 class="text-[15px] font-bold text-white tracking-wide">戴维斯需求大厅</h1>
+                <button id="mobile-sidebar-close" class="mobile-only" type="button" onclick="document.body.classList.remove('mobile-sidebar-open')" aria-label="关闭菜单">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
             </div>
         </div>
 
@@ -809,8 +1266,13 @@
         </div>
     </aside>
 
+    <div id="mobile-sidebar-backdrop" class="mobile-only" onclick="document.body.classList.remove('mobile-sidebar-open')"></div>
+
     <main class="flex-1 flex flex-col h-full overflow-hidden relative z-10 bg-[#0c0c0e]" id="main-content-area">
         <header class="h-[88px] px-10 flex justify-between items-center shrink-0 border-b border-white/5 bg-[#09090b]/80 backdrop-blur-xl z-20">
+            <button id="mobile-menu-btn" class="mobile-only btn-press" type="button" onclick="document.body.classList.add('mobile-sidebar-open')" aria-label="打开菜单">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="4" y1="7" x2="20" y2="7"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="17" x2="20" y2="17"></line></svg>
+            </button>
             <div>
                 <h2 class="text-2xl font-bold text-white tracking-tight mb-1.5 flex items-center gap-2">
                     多维项目投入分析
@@ -2730,7 +3192,26 @@
                     html += '</tr>';
                 });
             });
-            html += '</tbody></table></body></html>';
+            html += '</tbody></table>
+    <script>
+        // ================= 移动端适配辅助：仅控制抽屉关闭，不碰统计业务逻辑 =================
+        (function() {
+            const mobileQuery = window.matchMedia('(max-width: 768px)');
+            function closeMobileSidebarWhenPc(e) {
+                if (!e.matches) document.body.classList.remove('mobile-sidebar-open');
+            }
+            if (mobileQuery.addEventListener) {
+                mobileQuery.addEventListener('change', closeMobileSidebarWhenPc);
+            } else if (mobileQuery.addListener) {
+                mobileQuery.addListener(closeMobileSidebarWhenPc);
+            }
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') document.body.classList.remove('mobile-sidebar-open');
+            });
+        })();
+    </script>
+
+</body></html>';
 
             const blob = new Blob(['\ufeff', html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
