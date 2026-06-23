@@ -2199,7 +2199,9 @@
 
             } catch (err) {
                 console.error(err);
-                if(!isSilent) window.showToast('数据拉取异常', err.message, 'error');
+                const loadingEl = document.getElementById('dashboard-loading');
+                if (loadingEl) loadingEl.classList.add('hidden');
+                if(!isSilent) window.showToast('数据拉取异常', err.message || String(err), 'error');
             } finally {
                 if(syncDot) setTimeout(() => syncDot.classList.add('hidden'), 500);
             }
@@ -3192,26 +3194,7 @@
                     html += '</tr>';
                 });
             });
-            html += '</tbody></table>
-    <script>
-        // ================= 移动端适配辅助：仅控制抽屉关闭，不碰统计业务逻辑 =================
-        (function() {
-            const mobileQuery = window.matchMedia('(max-width: 768px)');
-            function closeMobileSidebarWhenPc(e) {
-                if (!e.matches) document.body.classList.remove('mobile-sidebar-open');
-            }
-            if (mobileQuery.addEventListener) {
-                mobileQuery.addEventListener('change', closeMobileSidebarWhenPc);
-            } else if (mobileQuery.addListener) {
-                mobileQuery.addListener(closeMobileSidebarWhenPc);
-            }
-            document.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape') document.body.classList.remove('mobile-sidebar-open');
-            });
-        })();
-    </script>
-
-</body></html>';
+            html += '</tbody></table></body></html>';
 
             const blob = new Blob(['\ufeff', html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
@@ -3356,6 +3339,24 @@
     </script>
 
     <script>
+        // ================= 移动端适配辅助：仅控制抽屉关闭，不碰统计业务逻辑 =================
+        (function() {
+            const mobileQuery = window.matchMedia('(max-width: 768px)');
+            function closeMobileSidebarWhenPc(e) {
+                if (!e.matches) document.body.classList.remove('mobile-sidebar-open');
+            }
+            if (mobileQuery.addEventListener) {
+                mobileQuery.addEventListener('change', closeMobileSidebarWhenPc);
+            } else if (mobileQuery.addListener) {
+                mobileQuery.addListener(closeMobileSidebarWhenPc);
+            }
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') document.body.classList.remove('mobile-sidebar-open');
+            });
+        })();
+    </script>
+
+    <script>
         // ================= PNG 高清长图无损渲染引擎 =================
         (function(){
             const waitFrames = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -3449,5 +3450,19 @@
         };
 
     </script>
+
+    <script>
+        // ================= 黑屏兜底：外部依赖/网络卡住时也要释放页面 =================
+        setTimeout(function() {
+            const loadingEl = document.getElementById('dashboard-loading');
+            if (loadingEl && !loadingEl.classList.contains('hidden')) {
+                loadingEl.classList.add('hidden');
+                if (window.showToast) {
+                    window.showToast('加载超时', '已先释放页面，请检查 Supabase 或网络连接。', 'error');
+                }
+            }
+        }, 8000);
+    </script>
+
 </body>
 </html>
