@@ -1474,11 +1474,19 @@
             let historyArr = [];
             try { historyArr = JSON.parse(task.history_json || '[]'); } catch(e) {}
 
-            let timelineHTML = `<div id="timeline-${task.id}" class="hidden" data-col="${sColor}" data-title="${task.title}">`;
+            const timelineIcon = (dotColor, action) => {
+                if (action === 'approve_framework' || action === 'complete') return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"></path></svg>`;
+                if (action === 'transfer') return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="8" r="3.2"></circle><path d="M5.5 21a6.5 6.5 0 0 1 13 0"></path></svg>`;
+                if (action === 'submit_draft' || action === 'submit_framework') return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"></path></svg>`;
+                if (dotColor === 'rose') return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M18 6 6 18M6 6l12 12"></path></svg>`;
+                return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v5h5"></path><path d="M9 13h6M9 17h4"></path></svg>`;
+            };
+
+            let timelineHTML = `<div id="timeline-${task.id}" class="hidden glass-track-list" data-col="${sColor}" data-title="${task.title}">`;
 
             if (historyArr.length > 0) {
                 let revHistory = [...historyArr].reverse();
-                revHistory.forEach(h => {
+                revHistory.forEach((h, index) => {
                     let dotColor = 'zinc', actionTxt = h.action, subTxt = '';
                     if(h.is_rejected) { dotColor = 'rose'; actionTxt = '被打回修改'; subTxt = `原因: ${h.reply || h.desc || ''}`; }
                     else if(h.action === 'approve_framework') { dotColor = 'emerald'; actionTxt = '领导审批通过'; subTxt = h.reply || '同意'; }
@@ -1490,30 +1498,40 @@
                     else if(h.action === 'reopen_cancelled') { dotColor = 'sky'; actionTxt = '从撤销存档恢复提交'; subTxt = h.reply || ''; }
                     else if(h.action === 'transfer') { dotColor = 'orange'; actionTxt = '任务发生转单'; subTxt = h.reply || ''; }
                     else { actionTxt = h.action || '状态更新'; subTxt = h.reply || h.desc || ''; }
-                    
+
                     let timeStr = new Date(h.created_at || h.time).toLocaleString();
+                    let activeClass = index === 0 ? 'glass-track-active' : '';
+                    let iconHtml = timelineIcon(dotColor, h.action);
 
                     timelineHTML += `
-                    <div class="timeline-item relative flex gap-4 z-10 pb-6 group">
+                    <div class="timeline-item glass-track-item ${activeClass} tone-${dotColor} relative z-10 group">
                        <div class="timeline-line group-last:hidden"></div>
-                       <div class="w-5 h-5 rounded-full bg-[#121217] border-[2px] border-${dotColor}-500 flex items-center justify-center shrink-0 z-10 mt-0.5 shadow-[0_0_8px_rgba(var(--tw-colors-${dotColor}-500),0.3)]"><div class="w-1.5 h-1.5 bg-${dotColor}-500 rounded-full"></div></div>
-                       <div class="w-full pr-2 z-10">
-                           <p class="text-[12px] font-bold text-zinc-300 flex justify-between">${actionTxt} <span class="text-[9px] text-zinc-600 font-mono font-normal">${timeStr}</span></p>
-                           ${subTxt ? `<p class="text-[10px] text-zinc-500 mt-1 line-clamp-2">${subTxt}</p>` : ''}
+                       <div class="glass-track-dot w-5 h-5 rounded-full bg-[#121217] border-[2px] border-${dotColor}-500 flex items-center justify-center shrink-0 z-10 mt-0.5"><div class="w-1.5 h-1.5 bg-${dotColor}-500 rounded-full"></div></div>
+                       <div class="glass-track-card">
+                           <div class="glass-track-icon">${iconHtml}</div>
+                           <div class="glass-track-copy">
+                               <p class="text-[12px] font-bold text-zinc-300">${actionTxt}</p>
+                               ${subTxt ? `<p class="text-[10px] text-zinc-500 mt-1 line-clamp-2">${subTxt}</p>` : ''}
+                           </div>
+                           <span class="glass-track-time text-[9px] text-zinc-600 font-mono font-normal">${timeStr}</span>
                        </div>
                     </div>`;
                 });
             }
 
             timelineHTML += `
-                <div class="timeline-item relative flex gap-4 z-10 pb-2 opacity-40 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-300 group">
+                <div class="timeline-item glass-track-item glass-track-muted tone-zinc relative z-10 pb-2 opacity-40 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-300 group">
                     <div class="timeline-line hidden"></div>
-                    <div class="w-5 h-5 rounded-full bg-[#121217] border-[2px] border-zinc-500 flex items-center justify-center shrink-0 z-10">
+                    <div class="glass-track-dot w-5 h-5 rounded-full bg-[#121217] border-[2px] border-zinc-500 flex items-center justify-center shrink-0 z-10">
                         <div class="w-1.5 h-1.5 bg-zinc-500 rounded-full"></div>
                     </div>
-                    <div class="pt-0.5 w-full pr-2">
-                        <p class="text-[12px] font-bold text-zinc-300 mb-0.5 flex justify-between">需求建单发至大厅 <span class="text-[9px] text-zinc-500 font-mono font-normal">${new Date(task.created_at).toLocaleString()}</span></p>
-                        <p class="text-[10px] text-zinc-500">发起人: ${task.creator || '未知'}</p>
+                    <div class="glass-track-card">
+                        <div class="glass-track-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v5h5"></path><path d="M9 13h6M9 17h4"></path></svg></div>
+                        <div class="glass-track-copy">
+                            <p class="text-[12px] font-bold text-zinc-300 mb-0.5">需求建单发至大厅</p>
+                            <p class="text-[10px] text-zinc-500">发起人: ${task.creator || '未知'}</p>
+                        </div>
+                        <span class="glass-track-time text-[9px] text-zinc-500 font-mono font-normal">${new Date(task.created_at).toLocaleString()}</span>
                     </div>
                 </div>
             </div>`;
