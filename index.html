@@ -772,6 +772,7 @@
         }
 
     </style>
+    <link rel="stylesheet" href="./glass-ui.css">
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-indigo-500/30 text-zinc-300">
     <script>try{if(localStorage.getItem('requestHallTheme')==='light'){document.body.classList.add('theme-light');}}catch(e){}</script>
@@ -1434,23 +1435,35 @@
             const reopenBtn = isCancelled ? `<button onclick="event.stopPropagation(); window.openArchivedTaskForEdit('${task.id}')" class="text-[10px] text-violet-300 bg-violet-500/10 px-2.5 py-1 rounded ml-2 hover:bg-violet-500 hover:text-white transition-colors font-bold">重新编辑</button>` : '';
 
             const iconHtml = (task.status === 'reviewing' || task.status === 'rejected' || isCompleted || isCancelled) ? '' : `<svg class="animate-spin h-3.5 w-3.5 ${sColor}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+            const visualTone = isUrgent ? 'tone-rose' : (sColor.includes('emerald') ? 'tone-emerald' : (sColor.includes('amber') || sColor.includes('orange') ? 'tone-amber' : (sColor.includes('violet') ? 'tone-violet' : (sColor.includes('rose') ? 'tone-rose' : 'tone-blue'))));
+            const visualMark = (task.title || task.id || 'D').trim().slice(0, 1).toUpperCase();
 
             const cardHTML = `
-                <div class="rounded-2xl p-5 interactive-card flex flex-col relative overflow-hidden ${breatheClass} mb-4 ${(isCompleted || isCancelled) ? 'opacity-70' : ''}" style="border-color: ${borderColBase}" id="card-${task.id}" onmouseenter="window.previewTask('${task.id}', '${task.title}', '${sColor}')" onclick="${isCancelled ? `window.openArchivedTaskForEdit('${task.id}')` : `window.location.href='${targetUrl}'`}">
-                    ${isUrgent ? '<div class="absolute top-0 right-0 bg-rose-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl z-10 animate-pulse">临期预警</div>' : ''}
-                    <div class="flex items-center justify-between mb-3 mt-1 relative z-10">
-                        <div class="flex gap-2 items-center">
-                            <span class="font-mono text-[10px] font-bold ${sColor} bg-white/5 px-2 py-0.5 rounded border border-white/5">${task.id}</span>
-                            <span class="text-xs ${sColor} font-bold tracking-wide flex items-center gap-1.5">${iconHtml} ${sText}</span>
+                <div class="rounded-2xl p-5 interactive-card glass-task-card ${visualTone} ${breatheClass} mb-4 ${(isCompleted || isCancelled) ? 'opacity-70' : ''}" style="border-color: ${borderColBase}" id="card-${task.id}" onmouseenter="window.previewTask('${task.id}', '${task.title}', '${sColor}')" onclick="${isCancelled ? `window.openArchivedTaskForEdit('${task.id}')` : `window.location.href='${targetUrl}'`}">
+                    <div class="glass-task-rail"></div>
+                    <div class="glass-task-mark">${visualMark}</div>
+                    ${isUrgent ? '<div class="glass-urgent-pill animate-pulse">临期预警</div>' : ''}
+                    <div class="glass-task-content relative z-10">
+                        <div class="glass-task-heading">
+                            <div class="flex gap-2 items-center min-w-0">
+                                <span class="glass-task-id font-mono ${sColor}">${task.id}</span>
+                                <span class="glass-task-chip ${sColor}">${isUrgent ? '紧急' : sText}</span>
+                            </div>
+                            ${reopenBtn || cancelBtn || ''}
                         </div>
-                        ${reopenBtn || cancelBtn || `<span class="text-[11px] ${sColor} font-bold opacity-0 group-hover:opacity-100 transition-opacity">查看详情 ↗</span>`}
+                        <h4 class="glass-task-title">${task.title}</h4>
+                        ${(isCompleted || isCancelled) ? `<p class="glass-task-desc">${isCancelled ? '已撤销存档，可点击重新编辑恢复提单。' : (task.summary_desc || '')}</p>` : `<p class="glass-task-desc">${task.summary_desc || ''}</p>`}
+                        <div class="glass-task-meta">
+                            <span>归属: ${task.project}</span>
+                            <span>执行人: ${task.assignee === 'none' ? '待定' : task.assignee}</span>
+                            <span class="${isCompleted ? 'text-zinc-500' : (isUrgent ? 'text-rose-500 font-bold' : 'text-zinc-400')}">期望交付: ${task.due_date}</span>
+                        </div>
                     </div>
-                    <h4 class="text-[17px] font-bold text-zinc-100 mb-2 relative z-10">${task.title}</h4>
-                    ${(isCompleted || isCancelled) ? `<p class="text-xs text-zinc-500 mb-4 line-clamp-1 relative z-10">${isCancelled ? '已撤销存档，可点击重新编辑恢复提单。' : (task.summary_desc || '')}</p>` : `<p class="text-xs text-zinc-400 mb-4 line-clamp-1 relative z-10">${task.summary_desc || ''}</p>`}
-                    <div class="flex items-center justify-between text-[11px] text-zinc-400 border-t border-white/5 pt-3 relative z-10">
-                        <span>归属: ${task.project}</span>
-                        <span>执行人: ${task.assignee === 'none' ? '待定' : task.assignee}</span>
-                        <span class="${isCompleted ? 'text-zinc-500' : (isUrgent ? 'text-rose-500 font-bold' : 'text-zinc-400')}">期望交付: ${task.due_date}</span>
+                    <div class="glass-task-side relative z-10">
+                        <div class="glass-status-line ${sColor}"><span></span>${iconHtml}${sText}</div>
+                        <p>当前预览</p>
+                        <strong>${task.type || '视觉设计'}</strong>
+                        <span class="glass-task-arrow">›</span>
                     </div>
                 </div>
             `;
