@@ -2467,3 +2467,113 @@ body .interactive-card:not(.glass-task-card)::before {
     max-width: 340px !important;
   }
 }
+
+/* Work order tab selected-state bugfix: make active tab obvious after click. */
+#task-tab-ongoing,
+#task-tab-completed,
+#task-tab-cancelled {
+  position: relative !important;
+  min-height: 42px !important;
+  border-radius: 13px !important;
+  color: #66748f !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+  opacity: .78 !important;
+  transition: background .18s ease, border-color .18s ease, box-shadow .18s ease, color .18s ease, opacity .18s ease !important;
+}
+
+#task-tab-ongoing[data-active="true"],
+#task-tab-completed[data-active="true"],
+#task-tab-cancelled[data-active="true"],
+#task-tab-ongoing[aria-selected="true"],
+#task-tab-completed[aria-selected="true"],
+#task-tab-cancelled[aria-selected="true"] {
+  color: #245fff !important;
+  background: linear-gradient(145deg, rgba(255,255,255,0.86), rgba(235,244,255,0.72)) !important;
+  border-color: rgba(82,122,255,0.44) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.96), 0 10px 22px rgba(47,99,255,0.16) !important;
+  opacity: 1 !important;
+}
+
+#task-tab-completed[data-active="true"],
+#task-tab-completed[aria-selected="true"] {
+  color: #0f9f72 !important;
+  border-color: rgba(16,185,129,0.42) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.96), 0 10px 22px rgba(16,185,129,0.13) !important;
+}
+
+#task-tab-cancelled[data-active="true"],
+#task-tab-cancelled[aria-selected="true"] {
+  color: #7c3aed !important;
+  border-color: rgba(124,58,237,0.38) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.96), 0 10px 22px rgba(124,58,237,0.13) !important;
+}
+
+#task-tab-ongoing[data-active="true"]::after,
+#task-tab-completed[data-active="true"]::after,
+#task-tab-cancelled[data-active="true"]::after,
+#task-tab-ongoing[aria-selected="true"]::after,
+#task-tab-completed[aria-selected="true"]::after,
+#task-tab-cancelled[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  width: 26px;
+  height: 3px;
+  border-radius: 999px;
+  transform: translateX(-50%);
+  background: currentColor;
+  box-shadow: 0 4px 12px currentColor;
+}
+
+#task-tab-ongoing[data-active="true"] #count-ongoing,
+#task-tab-completed[data-active="true"] #count-completed,
+#task-tab-cancelled[data-active="true"] #count-cancelled,
+#task-tab-ongoing[aria-selected="true"] #count-ongoing,
+#task-tab-completed[aria-selected="true"] #count-completed,
+#task-tab-cancelled[aria-selected="true"] #count-cancelled {
+  color: #fff !important;
+  background: currentColor !important;
+  border-color: transparent !important;
+  box-shadow: 0 5px 12px rgba(47,99,255,0.18) !important;
+}
+
+/* Work order tab active-class fallback: no JS changes, read existing switchTaskListTab classes. */
+#task-tab-ongoing.text-indigo-400,
+#task-tab-completed.text-emerald-400,
+#task-tab-cancelled.text-violet-400 {
+  color: #245fff !important;
+  background: linear-gradient(145deg, rgba(255,255,255,0.86), rgba(235,244,255,0.72)) !important;
+  border: 1px solid rgba(82,122,255,0.44) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.96), 0 10px 22px rgba(47,99,255,0.16) !important;
+  opacity: 1 !important;
+}
+
+#task-tab-completed.text-emerald-400 {
+  color: #0f9f72 !important;
+  border-color: rgba(16,185,129,0.42) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.96), 0 10px 22px rgba(16,185,129,0.13) !important;
+}
+
+#task-tab-cancelled.text-violet-400 {
+  color: #7c3aed !important;
+  border-color: rgba(124,58,237,0.38) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.96), 0 10px 22px rgba(124,58,237,0.13) !important;
+}
+
+#task-tab-ongoing.text-indigo-400::after,
+#task-tab-completed.text-emerald-400::after,
+#task-tab-cancelled.text-violet-400::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  width: 26px;
+  height: 3px;
+  border-radius: 999px;
+  transform: translateX(-50%);
+  background: currentColor;
+  box-shadow: 0 4px 12px currentColor;
+}
