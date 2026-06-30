@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --ink: #14213d;
   --muted: #6f7f9b;
   --line: rgba(112, 144, 186, .22);
@@ -373,4 +373,51 @@ main .w-\[310px\].bg-\[\#121217\] h3 {
   main > .flex-1.p-8 > .flex,
   main > .flex-1.p-8.md\:p-10 > .flex { display: flex !important; flex-direction: column !important; }
   main .w-\[310px\].bg-\[\#121217\] { width: 100% !important; min-width: 0 !important; max-width: none !important; min-height: 360px !important; }
+}
+
+/* Scroll restoration: keep archived/completed task lists scrollable inside the left work column. */
+main .w-full.max-w-\[800px\] {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+main .w-full.max-w-\[800px\] > .flex-1.flex.flex-col,
+main .w-full.max-w-\[800px\] .flex-1.flex.flex-col.min-h-0 {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+#tasks-scroll-area {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain !important;
+}
+
+#ongoing-tasks-container,
+#completed-tasks-container,
+#cancelled-tasks-container {
+  min-height: min-content !important;
+  overflow: visible !important;
+  padding-bottom: 36px !important;
+}
+
+#completed-tasks-container:not(.hidden),
+#cancelled-tasks-container:not(.hidden),
+#ongoing-tasks-container:not(.hidden) {
+  display: block !important;
+}
+
+#tasks-scroll-area > .sticky {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 30 !important;
 }
