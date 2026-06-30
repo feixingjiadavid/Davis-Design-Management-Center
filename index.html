@@ -772,7 +772,6 @@
         }
 
     </style>
-    <link rel="stylesheet" href="./glass-ui.css">
 </head>
 <body class="flex h-screen overflow-hidden relative selection:bg-indigo-500/30 text-zinc-300">
     <script>try{if(localStorage.getItem('requestHallTheme')==='light'){document.body.classList.add('theme-light');}}catch(e){}</script>
@@ -1435,35 +1434,23 @@
             const reopenBtn = isCancelled ? `<button onclick="event.stopPropagation(); window.openArchivedTaskForEdit('${task.id}')" class="text-[10px] text-violet-300 bg-violet-500/10 px-2.5 py-1 rounded ml-2 hover:bg-violet-500 hover:text-white transition-colors font-bold">重新编辑</button>` : '';
 
             const iconHtml = (task.status === 'reviewing' || task.status === 'rejected' || isCompleted || isCancelled) ? '' : `<svg class="animate-spin h-3.5 w-3.5 ${sColor}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
-            const visualTone = isUrgent ? 'tone-rose' : (sColor.includes('emerald') ? 'tone-emerald' : (sColor.includes('amber') || sColor.includes('orange') ? 'tone-amber' : (sColor.includes('violet') ? 'tone-violet' : (sColor.includes('rose') ? 'tone-rose' : 'tone-blue'))));
-            const visualMark = (task.title || task.id || 'D').trim().slice(0, 1).toUpperCase();
 
             const cardHTML = `
-                <div class="rounded-2xl p-5 interactive-card glass-task-card ${visualTone} ${breatheClass} mb-4 ${(isCompleted || isCancelled) ? 'opacity-70' : ''}" style="border-color: ${borderColBase}" id="card-${task.id}" onmouseenter="window.previewTask('${task.id}', '${task.title}', '${sColor}')" onclick="${isCancelled ? `window.openArchivedTaskForEdit('${task.id}')` : `window.location.href='${targetUrl}'`}">
-                    <div class="glass-task-rail"></div>
-                    <div class="glass-task-mark">${visualMark}</div>
-                    ${isUrgent ? '<div class="glass-urgent-pill animate-pulse">临期预警</div>' : ''}
-                    <div class="glass-task-content relative z-10">
-                        <div class="glass-task-heading">
-                            <div class="flex gap-2 items-center min-w-0">
-                                <span class="glass-task-id font-mono ${sColor}">${task.id}</span>
-                                <span class="glass-task-chip ${sColor}">${isUrgent ? '紧急' : sText}</span>
-                            </div>
-                            ${reopenBtn || cancelBtn || ''}
+                <div class="rounded-2xl p-5 interactive-card flex flex-col relative overflow-hidden ${breatheClass} mb-4 ${(isCompleted || isCancelled) ? 'opacity-70' : ''}" style="border-color: ${borderColBase}" id="card-${task.id}" onmouseenter="window.previewTask('${task.id}', '${task.title}', '${sColor}')" onclick="${isCancelled ? `window.openArchivedTaskForEdit('${task.id}')` : `window.location.href='${targetUrl}'`}">
+                    ${isUrgent ? '<div class="absolute top-0 right-0 bg-rose-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl z-10 animate-pulse">临期预警</div>' : ''}
+                    <div class="flex items-center justify-between mb-3 mt-1 relative z-10">
+                        <div class="flex gap-2 items-center">
+                            <span class="font-mono text-[10px] font-bold ${sColor} bg-white/5 px-2 py-0.5 rounded border border-white/5">${task.id}</span>
+                            <span class="text-xs ${sColor} font-bold tracking-wide flex items-center gap-1.5">${iconHtml} ${sText}</span>
                         </div>
-                        <h4 class="glass-task-title">${task.title}</h4>
-                        ${(isCompleted || isCancelled) ? `<p class="glass-task-desc">${isCancelled ? '已撤销存档，可点击重新编辑恢复提单。' : (task.summary_desc || '')}</p>` : `<p class="glass-task-desc">${task.summary_desc || ''}</p>`}
-                        <div class="glass-task-meta">
-                            <span>归属: ${task.project}</span>
-                            <span>执行人: ${task.assignee === 'none' ? '待定' : task.assignee}</span>
-                            <span class="${isCompleted ? 'text-zinc-500' : (isUrgent ? 'text-rose-500 font-bold' : 'text-zinc-400')}">期望交付: ${task.due_date}</span>
-                        </div>
+                        ${reopenBtn || cancelBtn || `<span class="text-[11px] ${sColor} font-bold opacity-0 group-hover:opacity-100 transition-opacity">查看详情 ↗</span>`}
                     </div>
-                    <div class="glass-task-side relative z-10">
-                        <div class="glass-status-line ${sColor}"><span></span>${iconHtml}${sText}</div>
-                        <p>当前预览</p>
-                        <strong>${task.type || '视觉设计'}</strong>
-                        <span class="glass-task-arrow">›</span>
+                    <h4 class="text-[17px] font-bold text-zinc-100 mb-2 relative z-10">${task.title}</h4>
+                    ${(isCompleted || isCancelled) ? `<p class="text-xs text-zinc-500 mb-4 line-clamp-1 relative z-10">${isCancelled ? '已撤销存档，可点击重新编辑恢复提单。' : (task.summary_desc || '')}</p>` : `<p class="text-xs text-zinc-400 mb-4 line-clamp-1 relative z-10">${task.summary_desc || ''}</p>`}
+                    <div class="flex items-center justify-between text-[11px] text-zinc-400 border-t border-white/5 pt-3 relative z-10">
+                        <span>归属: ${task.project}</span>
+                        <span>执行人: ${task.assignee === 'none' ? '待定' : task.assignee}</span>
+                        <span class="${isCompleted ? 'text-zinc-500' : (isUrgent ? 'text-rose-500 font-bold' : 'text-zinc-400')}">期望交付: ${task.due_date}</span>
                     </div>
                 </div>
             `;
@@ -1474,19 +1461,11 @@
             let historyArr = [];
             try { historyArr = JSON.parse(task.history_json || '[]'); } catch(e) {}
 
-            const timelineIcon = (dotColor, action) => {
-                if (action === 'approve_framework' || action === 'complete') return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"></path></svg>`;
-                if (action === 'transfer') return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="8" r="3.2"></circle><path d="M5.5 21a6.5 6.5 0 0 1 13 0"></path></svg>`;
-                if (action === 'submit_draft' || action === 'submit_framework') return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"></path></svg>`;
-                if (dotColor === 'rose') return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M18 6 6 18M6 6l12 12"></path></svg>`;
-                return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v5h5"></path><path d="M9 13h6M9 17h4"></path></svg>`;
-            };
-
-            let timelineHTML = `<div id="timeline-${task.id}" class="hidden glass-track-list" data-col="${sColor}" data-title="${task.title}">`;
+            let timelineHTML = `<div id="timeline-${task.id}" class="hidden" data-col="${sColor}" data-title="${task.title}">`;
 
             if (historyArr.length > 0) {
                 let revHistory = [...historyArr].reverse();
-                revHistory.forEach((h, index) => {
+                revHistory.forEach(h => {
                     let dotColor = 'zinc', actionTxt = h.action, subTxt = '';
                     if(h.is_rejected) { dotColor = 'rose'; actionTxt = '被打回修改'; subTxt = `原因: ${h.reply || h.desc || ''}`; }
                     else if(h.action === 'approve_framework') { dotColor = 'emerald'; actionTxt = '领导审批通过'; subTxt = h.reply || '同意'; }
@@ -1498,40 +1477,30 @@
                     else if(h.action === 'reopen_cancelled') { dotColor = 'sky'; actionTxt = '从撤销存档恢复提交'; subTxt = h.reply || ''; }
                     else if(h.action === 'transfer') { dotColor = 'orange'; actionTxt = '任务发生转单'; subTxt = h.reply || ''; }
                     else { actionTxt = h.action || '状态更新'; subTxt = h.reply || h.desc || ''; }
-
+                    
                     let timeStr = new Date(h.created_at || h.time).toLocaleString();
-                    let activeClass = index === 0 ? 'glass-track-active' : '';
-                    let iconHtml = timelineIcon(dotColor, h.action);
 
                     timelineHTML += `
-                    <div class="timeline-item glass-track-item ${activeClass} tone-${dotColor} relative z-10 group">
+                    <div class="timeline-item relative flex gap-4 z-10 pb-6 group">
                        <div class="timeline-line group-last:hidden"></div>
-                       <div class="glass-track-dot w-5 h-5 rounded-full bg-[#121217] border-[2px] border-${dotColor}-500 flex items-center justify-center shrink-0 z-10 mt-0.5"><div class="w-1.5 h-1.5 bg-${dotColor}-500 rounded-full"></div></div>
-                       <div class="glass-track-card">
-                           <div class="glass-track-icon">${iconHtml}</div>
-                           <div class="glass-track-copy">
-                               <p class="text-[12px] font-bold text-zinc-300">${actionTxt}</p>
-                               ${subTxt ? `<p class="text-[10px] text-zinc-500 mt-1 line-clamp-2">${subTxt}</p>` : ''}
-                           </div>
-                           <span class="glass-track-time text-[9px] text-zinc-600 font-mono font-normal">${timeStr}</span>
+                       <div class="w-5 h-5 rounded-full bg-[#121217] border-[2px] border-${dotColor}-500 flex items-center justify-center shrink-0 z-10 mt-0.5 shadow-[0_0_8px_rgba(var(--tw-colors-${dotColor}-500),0.3)]"><div class="w-1.5 h-1.5 bg-${dotColor}-500 rounded-full"></div></div>
+                       <div class="w-full pr-2 z-10">
+                           <p class="text-[12px] font-bold text-zinc-300 flex justify-between">${actionTxt} <span class="text-[9px] text-zinc-600 font-mono font-normal">${timeStr}</span></p>
+                           ${subTxt ? `<p class="text-[10px] text-zinc-500 mt-1 line-clamp-2">${subTxt}</p>` : ''}
                        </div>
                     </div>`;
                 });
             }
 
             timelineHTML += `
-                <div class="timeline-item glass-track-item glass-track-muted tone-zinc relative z-10 pb-2 opacity-40 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-300 group">
+                <div class="timeline-item relative flex gap-4 z-10 pb-2 opacity-40 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-300 group">
                     <div class="timeline-line hidden"></div>
-                    <div class="glass-track-dot w-5 h-5 rounded-full bg-[#121217] border-[2px] border-zinc-500 flex items-center justify-center shrink-0 z-10">
+                    <div class="w-5 h-5 rounded-full bg-[#121217] border-[2px] border-zinc-500 flex items-center justify-center shrink-0 z-10">
                         <div class="w-1.5 h-1.5 bg-zinc-500 rounded-full"></div>
                     </div>
-                    <div class="glass-track-card">
-                        <div class="glass-track-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v5h5"></path><path d="M9 13h6M9 17h4"></path></svg></div>
-                        <div class="glass-track-copy">
-                            <p class="text-[12px] font-bold text-zinc-300 mb-0.5">需求建单发至大厅</p>
-                            <p class="text-[10px] text-zinc-500">发起人: ${task.creator || '未知'}</p>
-                        </div>
-                        <span class="glass-track-time text-[9px] text-zinc-500 font-mono font-normal">${new Date(task.created_at).toLocaleString()}</span>
+                    <div class="pt-0.5 w-full pr-2">
+                        <p class="text-[12px] font-bold text-zinc-300 mb-0.5 flex justify-between">需求建单发至大厅 <span class="text-[9px] text-zinc-500 font-mono font-normal">${new Date(task.created_at).toLocaleString()}</span></p>
+                        <p class="text-[10px] text-zinc-500">发起人: ${task.creator || '未知'}</p>
                     </div>
                 </div>
             </div>`;
