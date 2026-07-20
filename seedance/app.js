@@ -143,6 +143,49 @@ function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
 }
 
+
+async function invokeEdgeFunction(name, body) {
+  const { data, error } = await supabase.functions.invoke(name, { body });
+  if (!error) return data || {};
+
+  let message = error.message || `${name} 调用失败`;
+  try {
+    if (error.context && typeof error.context.clone === 'function') {
+      const payload = await error.context.clone().json();
+      message = payload?.error || payload?.message || message;
+    }
+  } catch {}
+  throw new Error(message);
+}
+
+function jobStageMarkup(segment) {
+  const status = String(segment.status || 'draft').toLowerCase();
+  const progress = Number(segment.progress || (
+    status === 'queued' ? 20 :
+    status === 'running' || status === 'processing' ? 60 :
+    status === 'succeeded' || status === 'completed' || status === 'success' ? 100 : 0
+  ));
+  const steps = [
+    ['素材上传', !['draft','uploading'].includes(status)],
+    ['任务提交', ['queued','running','processing','succeeded','completed','success'].includes(status)],
+    ['Seedance 生成', ['succeeded','completed','success'].includes(status)],
+  ];
+  return `
+    <div class="job-progress" style="margin:12px 0">
+      <div style="height:6px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden">
+        <div style="height:100%;width:${Math.max(0,Math.min(100,progress))}%;background:linear-gradient(90deg,#6d5dfc,#9a8cff);transition:.3s"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:7px;font-size:9px;color:#7c8291">
+        <span>${progress}%</span>
+        <span>${statusText(status)}</span>
+      </div>
+      <div style="display:grid;gap:5px;margin-top:10px;font-size:9px;color:#8c92a1">
+        ${steps.map(([label,done]) => `<span>${done ? '✓' : status==='failed' ? '×' : '○'} ${label}</span>`).join('')}
+      </div>
+      ${segment.providerTaskId ? `<div style="margin-top:9px;font-size:9px;color:#666d7c;word-break:break-all">Ark Task：${escapeHtml(segment.providerTaskId)}</div>` : ''}
+    </div>`;
+}
+
 function frameCard(frame, index, compact = false) {
   const url = getFrameUrl(frame);
   return `<article class="frame-card" data-frame="${frame.id}">
@@ -274,21 +317,22 @@ function renderJobs() {
         <span>${statusText(s.status)}</span>
       </div>
       <p>${escapeHtml(s.prompt || '未填写提示词')}</p>
+      ${jobStageMarkup(s)}
       ${s.error ? `<p style="color:#ff8090">${escapeHtml(s.error)}</p>` : ''}
       <div class="job-actions">
-        <button data-refresh-segment="${s.id}">查询状态</button>
+        <button data-refresh-segment="${s.id}">立即查询</button>
         <button data-retry-segment="${s.id}">重新生成</button>
       </div>
     </article>`).join('') : '<div class="empty-state">暂无生成任务</div>';
 
   $('outputs-list').innerHTML = state.outputs.length ? state.outputs.map(o => `
     <article class="output-card">
-      <video controls src="${o.url}"></video>
+      <video controls preload="metadata" src="${o.url}"></video>
       <div class="output-copy">
-        <strong>Segment ${String(o.index+1).padStart(2,'0')}</strong>
-        <a href="${o.url}" download target="_blank">下载片段</a>
+        <strong>Segment ${String(o.index+1).padStart(2,'0')} · 已完成</strong>
+        <a href="${o.url}" download target="_blank" rel="noopener">下载片段</a>
       </div>
-    </article>`).join('') : '<div class="empty-state">暂无视频输出</div>';
+    </article>`).join('') : '<div class="empty-state">暂无视频输出。提交后会自动显示真实任务状态和生成结果。</div>';
 
   qsa('[data-refresh-segment]').forEach(btn => btn.onclick = () => refreshSingleSegment(btn.dataset.refreshSegment));
   qsa('[data-retry-segment]').forEach(btn => btn.onclick = () => generateSegments([btn.dataset.retrySegment]));
@@ -425,6 +469,7 @@ function statusText(status) {
     running:'生成中',
     processing:'生成中',
     completed:'已完成',
+    succeeded:'已完成',
     success:'已完成',
     failed:'失败',
     error:'失败'
@@ -526,11 +571,12 @@ async function submitOne(segment) {
     final_height: Number(state.draft.finalHeight),
     mode: state.draft.mode,
   };
-  const invoke = await supabase.functions.invoke('seedance-submit', { body });
-  if (invoke.error) throw new Error(invoke.error.message || 'seedance-submit 调用失败');
-  segment.status = invoke.data?.status || 'submitted';
-  segment.remoteTaskId = invoke.data?.task_id || invoke.data?.id || null;
-  segment.providerTaskId = invoke.data?.provider_task_id || null;
+  const data = await invokeEdgeFunction('seedance-submit', body);
+  segment.status = data.status || 'queued';
+  segment.progress = Number(data.progress || 15);
+  segment.remoteTaskId = data.task_id || data.id || null;
+  segment.providerTaskId = data.provider_task_id || null;
+  segment.error = null;
   return segment;
 }
 
@@ -573,7 +619,17 @@ async function generateSegments(segmentIds) {
     toast('提交完成', '已提交的片段会在任务中心自动刷新。');
     startPolling();
   } catch (error) {
-    toast('提交失败', error.message || String(error));
+    const message = error.message || String(error);
+    segments.forEach(segment => {
+      if (['uploading','submitted','queued'].includes(segment.status)) {
+        segment.status = 'failed';
+        segment.progress = 0;
+        segment.error = message;
+      }
+    });
+    await persist();
+    renderAll();
+    toast('提交失败', message);
   }
 }
 
@@ -581,18 +637,16 @@ async function refreshSingleSegment(segmentId) {
   const segment = state.draft.segments.find(s => s.id === segmentId);
   if (!segment?.remoteTaskId && !segment?.providerTaskId && !segment?.remoteSegmentId) return;
   try {
-    const invoke = await supabase.functions.invoke('seedance-status', {
-      body: {
-        project_id: state.draft.remoteProjectId,
-        segment_id: segment.remoteSegmentId,
-        task_id: segment.remoteTaskId,
-        provider_task_id: segment.providerTaskId,
-      },
+    const data = await invokeEdgeFunction('seedance-status', {
+      project_id: state.draft.remoteProjectId,
+      segment_id: segment.remoteSegmentId,
+      task_id: segment.remoteTaskId,
+      provider_task_id: segment.providerTaskId,
     });
-    if (invoke.error) throw new Error(invoke.error.message);
-    const data = invoke.data || {};
     segment.status = data.status || segment.status;
+    segment.progress = Number(data.progress ?? segment.progress ?? 0);
     segment.outputPath = data.storage_path || data.output_path || segment.outputPath;
+    segment.providerTaskId = data.provider_task_id || segment.providerTaskId;
     segment.error = data.error_message || null;
     await persist();
     await loadOutputs();
@@ -633,11 +687,12 @@ async function loadOutputs() {
 
 function startPolling() {
   clearInterval(state.pollTimer);
+  refreshJobs();
   state.pollTimer = setInterval(() => {
     const active = state.draft.segments.some(s => ['submitted','queued','running','processing'].includes(s.status));
     if (!active) return clearInterval(state.pollTimer);
     refreshJobs();
-  }, 8000);
+  }, 5000);
 }
 
 async function mergeAll() {
