@@ -1,1 +1,153 @@
-1
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Seedance 视频生成中心 - 戴维斯设计需求管理中心</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+:root{color-scheme:dark;--bg:#09090b;--panel:#0c0c0e;--card:#121217;--line:rgba(255,255,255,.08);--muted:#71717a;--text:#e4e4e7;--accent:#4f46e5}
+*{box-sizing:border-box}html,body{width:100%;height:100%}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif}
+button,input,textarea,select{font:inherit}.btn{transition:.18s ease}.btn:active{transform:scale(.97)}button:disabled{opacity:.45;cursor:not-allowed}
+.scroll{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.15) transparent}.scroll::-webkit-scrollbar{width:6px}.scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:99px}
+.card{background:linear-gradient(180deg,rgba(24,24,27,.94),rgba(14,14,17,.94));border:1px solid var(--line);box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.field{width:100%;background:#09090b;border:1px solid rgba(255,255,255,.1);border-radius:12px;color:#fff;outline:none}.field:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.12)}
+.drop{border:1px dashed rgba(129,140,248,.45);background:radial-gradient(circle at 50% 0,rgba(79,70,229,.14),transparent 58%),rgba(9,9,11,.75)}.drop.drag{border-color:#818cf8;background:rgba(79,70,229,.12)}
+.frame{background:#0b0b0e;border:1px solid rgba(255,255,255,.08);border-radius:14px;overflow:hidden}.frame img{width:100%;aspect-ratio:16/10;object-fit:cover;background:#050506}
+.dot{width:7px;height:7px;border-radius:99px;display:inline-block}.draft{background:#71717a}.queued{background:#f59e0b}.running{background:#60a5fa;box-shadow:0 0 10px rgba(96,165,250,.6)}.done{background:#34d399}.failed{background:#fb7185}
+@media(max-width:1100px){#grid{grid-template-columns:1fr!important}#right{position:static!important}}@media(max-width:760px){aside{width:82px!important}.hide-sm,#project-list{display:none!important}main header,#content{padding-left:20px!important;padding-right:20px!important}}
+</style>
+</head>
+<body class="flex h-screen overflow-hidden relative selection:bg-indigo-500/30">
+<div class="absolute inset-0 bg-[#09090b] z-0 pointer-events-none"></div>
+<div class="absolute top-0 left-1/4 w-[800px] h-[600px] bg-indigo-900/5 rounded-full blur-[180px] pointer-events-none z-0"></div>
+
+<aside class="w-[240px] border-r border-white/5 flex flex-col z-10 bg-[#09090b] shrink-0 h-full">
+  <div class="p-7 border-b border-white/5 flex items-center gap-3">
+    <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shadow-[0_0_15px_rgba(79,70,229,.3)]">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="m10 8 6 4-6 4V8Z"/><rect x="3" y="4" width="18" height="16" rx="3"/></svg>
+    </div>
+    <div class="hide-sm min-w-0"><h1 class="text-[15px] font-bold text-white">Seedance Studio</h1><p class="text-[10px] text-zinc-600">Davis Design System</p></div>
+  </div>
+  <div class="p-4 border-b border-white/5 space-y-3">
+    <button onclick="location.href='index.html'" class="btn w-full flex items-center gap-3 px-4 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-zinc-400 hover:text-white">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+      <span class="hide-sm text-[12px] font-bold">返回排号大厅</span>
+    </button>
+    <button id="new-project" class="btn w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-bold">
+      <span class="text-lg leading-none">＋</span><span class="hide-sm text-[13px]">新建视频项目</span>
+    </button>
+  </div>
+  <div class="hide-sm px-5 pt-4 pb-2 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">视频项目</div>
+  <div id="project-list" class="flex-1 overflow-y-auto px-3 pb-3 space-y-1 scroll"><div class="px-3 py-3 text-[12px] text-zinc-600">正在加载...</div></div>
+  <div class="px-5 py-6 mt-auto border-t border-white/5 bg-[#0c0c0e] flex items-center justify-between">
+    <div class="flex items-center gap-3 min-w-0">
+      <div id="sidebar-avatar" class="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-white font-bold">?</div>
+      <div class="hide-sm min-w-0"><p id="sidebar-name" class="text-[13px] font-bold text-white truncate">加载中...</p><p id="sidebar-role" class="text-[10px] text-zinc-500">系统成员</p></div>
+    </div>
+    <button id="logout" class="btn p-1.5 text-zinc-500 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg" title="退出系统">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    </button>
+  </div>
+</aside>
+
+<main class="flex-1 flex flex-col h-full relative z-10 bg-[#0c0c0e] min-w-0">
+  <header class="px-10 py-6 border-b border-white/5 bg-[#09090b]/80 backdrop-blur-xl">
+    <div class="flex justify-between items-center gap-5">
+      <div><h2 class="text-[22px] font-bold text-white flex flex-wrap items-center gap-3">Seedance 视频生成中心
+        <span class="bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-[10px] px-2 py-0.5 rounded font-mono">API 密钥由 Supabase 服务端保护</span>
+      </h2><p class="text-[12px] text-zinc-500 mt-1">上传首尾帧或多帧素材，编写提示词并创建视频任务。浏览器不会接触 Ark API Key。</p></div>
+      <div class="flex gap-2"><button id="refresh" class="btn px-3 py-2 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-[12px] font-semibold">刷新状态</button><button id="delete-project" class="btn px-3 py-2 rounded-lg border border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10 text-[12px] font-semibold text-rose-400">删除项目</button></div>
+    </div>
+  </header>
+
+  <div id="content" class="flex-1 overflow-y-auto scroll p-6 md:p-10">
+    <div id="empty" class="max-w-3xl mx-auto mt-20 text-center">
+      <div class="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center mx-auto mb-5"><span class="text-3xl">▶</span></div>
+      <h3 class="text-xl font-bold text-white">创建你的第一个 Seedance 视频项目</h3>
+      <p class="text-sm text-zinc-500 mt-2">项目、素材、任务和操作记录统一保存到当前设计系统的 Supabase。</p>
+      <button id="empty-create" class="btn mt-6 px-5 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white text-sm font-bold">新建视频项目</button>
+    </div>
+
+    <div id="workspace" class="hidden">
+      <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
+        <div><div class="flex items-center gap-2"><input id="project-name" class="field px-3 py-2 text-lg font-bold max-w-[420px]"><button id="save-name" class="btn px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[12px] font-semibold">保存名称</button></div><p id="project-meta" class="text-[11px] text-zinc-600 mt-2"></p></div>
+        <div class="flex gap-2 text-[11px]"><span id="asset-badge" class="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-zinc-400">0 张素材</span><span id="task-badge" class="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-zinc-400">0 个任务</span></div>
+      </div>
+
+      <div id="grid" class="grid grid-cols-[minmax(0,1fr)_340px] gap-6 items-start">
+        <section class="space-y-6 min-w-0">
+          <div class="card rounded-2xl p-5">
+            <div class="flex items-center justify-between gap-4 mb-4"><div><h3 class="text-[15px] font-bold text-white">1. 上传关键帧</h3><p class="text-[11px] text-zinc-500 mt-1">支持 JPG、PNG、WEBP，单张不超过 20MB。首张为首帧，最后一张为尾帧。</p></div><label class="btn px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[12px] font-bold rounded-lg cursor-pointer">选择图片<input id="file-input" type="file" accept="image/png,image/jpeg,image/webp" multiple class="hidden"></label></div>
+            <label id="drop" class="drop rounded-2xl min-h-[145px] flex flex-col items-center justify-center text-center cursor-pointer p-6"><div class="text-3xl text-indigo-400">⇧</div><p class="text-sm font-semibold text-zinc-300 mt-2">拖拽图片到此处，或点击上传</p><p class="text-[11px] text-zinc-600 mt-1">多帧模式会按上传顺序创建连续分镜</p><input id="drop-input" type="file" accept="image/png,image/jpeg,image/webp" multiple class="hidden"></label>
+            <div id="frames" class="grid sm:grid-cols-2 xl:grid-cols-3 gap-3 mt-4"></div>
+          </div>
+
+          <div class="card rounded-2xl p-5">
+            <h3 class="text-[15px] font-bold text-white">2. 设置提示词与参数</h3><p class="text-[11px] text-zinc-500 mt-1 mb-4">描述镜头运动、主体动作与首尾帧之间的变化。</p>
+            <textarea id="prompt" rows="5" class="field px-4 py-3 text-[13px] leading-relaxed resize-y" placeholder="例如：镜头缓慢向前推进，人物保持身份与服装一致，自然转身看向远方，动作流畅，不改变五官与画面构图。"></textarea>
+            <div class="grid sm:grid-cols-2 xl:grid-cols-5 gap-3 mt-4">
+              <label class="text-[10px] font-bold text-zinc-500">模式<select id="mode" class="field px-3 py-2.5 mt-1.5 text-[12px]"><option value="first_last">首尾帧</option><option value="multi_frame">多帧 Storyboard</option></select></label>
+              <label class="text-[10px] font-bold text-zinc-500">模型<select id="model" class="field px-3 py-2.5 mt-1.5 text-[12px]"><option value="mini">Seedance Mini</option><option value="fast">Seedance Fast</option></select></label>
+              <label class="text-[10px] font-bold text-zinc-500">比例<select id="ratio" class="field px-3 py-2.5 mt-1.5 text-[12px]"><option>16:9</option><option>9:16</option><option>1:1</option><option>4:3</option><option>3:4</option></select></label>
+              <label class="text-[10px] font-bold text-zinc-500">分辨率<select id="resolution" class="field px-3 py-2.5 mt-1.5 text-[12px]"><option>720p</option><option>480p</option></select></label>
+              <label class="text-[10px] font-bold text-zinc-500">时长<select id="duration" class="field px-3 py-2.5 mt-1.5 text-[12px]"><option value="4">4 秒</option><option value="5">5 秒</option><option value="6">6 秒</option><option value="8">8 秒</option><option value="10">10 秒</option></select></label>
+            </div>
+            <div class="grid sm:grid-cols-2 gap-3 mt-3"><label class="text-[10px] font-bold text-zinc-500">图片适配<select id="fit" class="field px-3 py-2.5 mt-1.5 text-[12px]"><option value="contain">完整显示</option><option value="cover">铺满裁切</option><option value="expand">智能扩图</option></select></label><div class="flex items-end"><div class="w-full rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 text-[11px] text-amber-300">提交会调用付费 API，请确认素材和参数无误。</div></div></div>
+            <div class="flex justify-end mt-5"><button id="generate" class="btn px-5 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white text-sm font-bold">创建 Seedance 生成任务</button></div>
+          </div>
+
+          <div class="card rounded-2xl p-5"><h3 class="text-[15px] font-bold text-white">3. 视频输出</h3><p class="text-[11px] text-zinc-500 mt-1 mb-4">生成完成后使用私有 Storage 临时签名链接播放和下载。</p><div id="outputs" class="space-y-3"><div class="py-10 text-center text-[12px] text-zinc-600">暂无视频输出</div></div></div>
+        </section>
+
+        <aside id="right" class="space-y-6 sticky top-0">
+          <div class="card rounded-2xl p-5"><div class="flex justify-between mb-4"><div><h3 class="text-[15px] font-bold text-white">生成任务</h3><p class="text-[11px] text-zinc-500 mt-1">自动刷新排队与生成状态</p></div><button id="poll" class="btn text-[11px] text-indigo-400 font-semibold">立即查询</button></div><div id="tasks" class="space-y-2 max-h-[420px] overflow-y-auto scroll"><div class="py-8 text-center text-[12px] text-zinc-600">暂无生成任务</div></div></div>
+          <div class="card rounded-2xl p-5"><h3 class="text-[15px] font-bold text-white">操作记录</h3><p class="text-[11px] text-zinc-500 mt-1 mb-4">上传、改名、提交和下载都会留痕</p><div id="logs" class="space-y-3 max-h-[350px] overflow-y-auto scroll"><div class="py-8 text-center text-[12px] text-zinc-600">暂无操作记录</div></div></div>
+        </aside>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div id="toast" class="fixed top-6 right-6 z-[100000] hidden"><div class="bg-[#18181b] border border-white/10 shadow-2xl rounded-2xl px-4 py-3 w-[320px]"><p id="toast-title" class="text-sm font-bold text-white"></p><p id="toast-msg" class="text-[11px] text-zinc-400 mt-1"></p></div></div>
+<div id="modal" class="fixed inset-0 z-[99999] hidden items-center justify-center bg-black/75 backdrop-blur-sm p-5"><div class="w-full max-w-md rounded-2xl bg-[#121217] border border-white/10 p-6"><h3 id="modal-title" class="text-lg font-bold text-white"></h3><p id="modal-msg" class="text-sm text-zinc-400 mt-2"></p><div class="flex justify-end gap-3 mt-6"><button id="modal-cancel" class="btn px-4 py-2.5 rounded-xl border border-white/10 text-zinc-400">取消</button><button id="modal-ok" class="btn px-4 py-2.5 rounded-xl bg-indigo-600 text-white font-bold">确认</button></div></div></div>
+
+<script type="module">
+import { supabase } from './supabase-config.js';
+
+const S={session:null,user:null,meta:{},projects:[],project:null,assets:[],tasks:[],outputs:[],logs:[],timer:null,urls:new Map()};
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+const time=v=>v?new Date(v).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
+function toast(t,m){$('toast-title').textContent=t;$('toast-msg').textContent=m;$('toast').classList.remove('hidden');clearTimeout(toast.t);toast.t=setTimeout(()=>$('toast').classList.add('hidden'),3500)}
+function confirmBox(t,m){return new Promise(r=>{const x=$('modal');$('modal-title').textContent=t;$('modal-msg').textContent=m;x.classList.remove('hidden');x.classList.add('flex');const done=v=>{x.classList.add('hidden');x.classList.remove('flex');r(v)};$('modal-ok').onclick=()=>done(true);$('modal-cancel').onclick=()=>done(false)})}
+function statusText(s){return({draft:'草稿',pending:'等待中',queued:'排队中',submitted:'已提交',running:'生成中',processing:'生成中',completed:'已完成',success:'已完成',failed:'失败',error:'失败',blocked:'已阻止'})[String(s).toLowerCase()]||s}
+function statusClass(s){s=String(s).toLowerCase();if(['pending','queued','submitted'].includes(s))return'queued';if(['running','processing'].includes(s))return'running';if(['completed','success'].includes(s))return'done';if(['failed','error','blocked'].includes(s))return'failed';return'draft'}
+async function session(){const {data,error}=await supabase.auth.getSession();if(error||!data.session){localStorage.removeItem('activeUserObj');location.href='login.html?redirect='+encodeURIComponent(location.href);return false}S.session=data.session;S.user=data.session.user;try{S.meta=JSON.parse(localStorage.getItem('activeUserObj')||'{}')}catch{}S.meta={...(S.user.user_metadata||{}),...S.meta};const n=S.meta.displayName||S.meta.cnName||S.meta.name||S.meta.enName||S.user.email.split('@')[0];$('sidebar-name').textContent=n;$('sidebar-avatar').textContent=S.meta.avatar||n[0].toUpperCase();$('sidebar-role').textContent=S.meta.role||'系统成员';return true}
+async function log(action,target_type=null,target_id=null,detail={}){const {error}=await supabase.from('video_operation_logs').insert({owner_id:S.user.id,action,target_type,target_id,detail});if(error)console.warn(error.message)}
+async function projects(selectId){const {data,error}=await supabase.from('video_projects').select('*').eq('owner_id',S.user.id).order('updated_at',{ascending:false});if(error)return toast('项目加载失败',error.message);S.projects=data||[];renderProjects();if(!S.projects.length){S.project=null;workspace();return}await choose(selectId||S.project?.id||S.projects[0].id)}
+function renderProjects(){$('project-list').innerHTML=S.projects.length?S.projects.map(p=>`<button data-id="${p.id}" class="w-full text-left p-3 rounded-xl border ${S.project?.id===p.id?'bg-indigo-500/15 border-indigo-500/25 text-indigo-200':'hover:bg-white/5 border-transparent text-zinc-400'}"><p class="text-[12px] font-bold truncate">${esc(p.name)}</p><p class="text-[10px] opacity-50 mt-1">${esc(p.ratio||'16:9')} · ${time(p.updated_at)}</p></button>`).join(''):'<div class="px-3 py-3 text-[12px] text-zinc-600">还没有项目</div>';$('project-list').querySelectorAll('[data-id]').forEach(b=>b.onclick=()=>choose(b.dataset.id))}
+async function createProject(){const name='Seedance 项目 '+new Date().toLocaleDateString('zh-CN');const {data,error}=await supabase.from('video_projects').insert({owner_id:S.user.id,name,mode:'first_last',resolution:'720p',ratio:'16:9',frame_fit_mode:'contain',status:'draft'}).select().single();if(error)return toast('创建失败',error.message);await log('create_project','video_project',data.id,{name});await projects(data.id)}
+async function choose(id){S.project=S.projects.find(p=>p.id===id);renderProjects();workspace();await Promise.all([loadAssets(),loadTasks(),loadLogs()])}
+function workspace(){const yes=!!S.project;$('empty').classList.toggle('hidden',yes);$('workspace').classList.toggle('hidden',!yes);$('delete-project').disabled=!yes;$('refresh').disabled=!yes;if(!yes)return;$('project-name').value=S.project.name;$('project-meta').textContent=`创建于 ${time(S.project.created_at)} · 最近更新 ${time(S.project.updated_at)}`;$('mode').value=S.project.mode||'first_last';$('ratio').value=S.project.ratio||'16:9';$('resolution').value=S.project.resolution||'720p';$('fit').value=S.project.frame_fit_mode||'contain'}
+async function saveName(){const name=$('project-name').value.trim();if(!name)return toast('名称不能为空','请输入项目名称');const {error}=await supabase.from('video_projects').update({name}).eq('id',S.project.id).eq('owner_id',S.user.id);if(error)return toast('保存失败',error.message);await log('rename_project','video_project',S.project.id,{name});await projects(S.project.id)}
+async function signed(bucket,path,ttl=3600){const k=bucket+':'+path,c=S.urls.get(k);if(c&&c.exp>Date.now())return c.url;const {data,error}=await supabase.storage.from(bucket).createSignedUrl(path,ttl);if(error)return'';S.urls.set(k,{url:data.signedUrl,exp:Date.now()+(ttl-30)*1000});return data.signedUrl}
+async function loadAssets(){const {data,error}=await supabase.from('video_assets').select('*').eq('owner_id',S.user.id).eq('project_id',S.project.id).order('sort_order').order('created_at');if(error)return toast('素材加载失败',error.message);S.assets=data||[];await renderAssets();$('asset-badge').textContent=S.assets.length+' 张素材'}
+async function renderAssets(){const box=$('frames');if(!S.assets.length){box.innerHTML='';return}box.innerHTML=(await Promise.all(S.assets.map(async(a,i)=>{const u=await signed(a.bucket_id||'seedance-inputs',a.object_path);const role=i===0?'首帧':i===S.assets.length-1?'尾帧':`第 ${i+1} 帧`;return`<article class="frame">${u?`<img src="${u}" alt="${esc(a.original_name)}">`:'<div class="aspect-[16/10] flex items-center justify-center text-rose-400 text-xs">预览失败</div>'}<div class="p-3"><div class="flex justify-between"><span class="text-[10px] px-2 py-.5 rounded bg-indigo-500/10 text-indigo-300">${role}</span><span class="text-[10px] text-zinc-600">${a.width||'—'}×${a.height||'—'}</span></div><p class="text-[11px] text-zinc-300 mt-2 truncate">${esc(a.original_name)}</p><div class="flex justify-end mt-3"><button data-del="${a.id}" class="btn px-2 py-1 rounded bg-rose-500/5 text-[10px] text-rose-400">删除</button></div></div></article>`}))).join('');box.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>deleteAsset(b.dataset.del))}
+async function upload(files){if(!S.project)return toast('请先创建项目','需要先创建项目再上传');for(const f of [...files]){if(!['image/png','image/jpeg','image/webp'].includes(f.type)){toast('格式不支持',f.name);continue}if(f.size>20*1024*1024){toast('文件过大',f.name);continue}const path=`${S.user.id}/${S.project.id}/${Date.now()}-${crypto.randomUUID()}-${f.name.replace(/[^\w.\-]+/g,'_').slice(-100)}`;const dim=await new Promise(r=>{const u=URL.createObjectURL(f),im=new Image;im.onload=()=>{r([im.naturalWidth,im.naturalHeight]);URL.revokeObjectURL(u)};im.onerror=()=>r([null,null]);im.src=u});const up=await supabase.storage.from('seedance-inputs').upload(path,f,{contentType:f.type,upsert:false});if(up.error){toast('上传失败',up.error.message);continue}const ins=await supabase.from('video_assets').insert({owner_id:S.user.id,project_id:S.project.id,bucket_id:'seedance-inputs',object_path:path,original_name:f.name,mime_type:f.type,file_size:f.size,width:dim[0],height:dim[1],kind:'frame',sort_order:S.assets.length}).select().single();if(ins.error){await supabase.storage.from('seedance-inputs').remove([path]);toast('记录失败',ins.error.message);continue}await log('upload_asset','video_asset',ins.data.id,{project_id:S.project.id,original_name:f.name});toast('上传成功',f.name);S.assets.push(ins.data)}await loadAssets()}
+async function deleteAsset(id){const a=S.assets.find(x=>x.id===id);if(!a||!await confirmBox('删除关键帧',`确定删除“${a.original_name}”吗？`))return;await supabase.storage.from(a.bucket_id||'seedance-inputs').remove([a.object_path]);const {error}=await supabase.from('video_assets').delete().eq('id',id).eq('owner_id',S.user.id);if(error)return toast('删除失败',error.message);await log('delete_asset','video_asset',id,{project_id:S.project.id,original_name:a.original_name});await loadAssets()}
+async function deleteProject(){if(!S.project||!await confirmBox('删除视频项目',`确定删除“${S.project.name}”吗？`))return;const paths=S.assets.map(a=>a.object_path);if(paths.length)await supabase.storage.from('seedance-inputs').remove(paths);const {error}=await supabase.from('video_projects').delete().eq('id',S.project.id).eq('owner_id',S.user.id);if(error)return toast('删除失败',error.message);S.project=null;await projects()}
+async function generate(){const prompt=$('prompt').value.trim();if(S.assets.length<2)return toast('素材不足','至少上传首帧和尾帧');if(!prompt)return toast('缺少提示词','请填写视频提示词');if(!await confirmBox('确认提交付费任务',`使用 ${$('model').value==='fast'?'Seedance Fast':'Seedance Mini'} 生成 ${$('duration').value} 秒视频，提交后可能产生费用。`))return;$('generate').disabled=true;$('generate').textContent='正在提交...';try{const settings={mode:$('mode').value,ratio:$('ratio').value,resolution:$('resolution').value,frame_fit_mode:$('fit').value};let q=await supabase.from('video_projects').update(settings).eq('id',S.project.id).eq('owner_id',S.user.id);if(q.error)throw q.error;const seg=await supabase.from('video_segments').insert({owner_id:S.user.id,project_id:S.project.id,position:0,from_asset_id:S.assets[0].id,to_asset_id:S.assets.at(-1).id,prompt,model_alias:$('model').value,duration:Number($('duration').value),resolution:$('resolution').value,ratio:$('ratio').value,status:'ready'}).select().single();if(seg.error)throw seg.error;const payload={project_id:S.project.id,segment_id:seg.data.id,asset_ids:S.assets.map(a=>a.id),prompt,model_alias:$('model').value,duration:Number($('duration').value),resolution:$('resolution').value,ratio:$('ratio').value,frame_fit_mode:$('fit').value,mode:$('mode').value};const out=await supabase.functions.invoke('seedance-submit',{body:payload});if(out.error)throw new Error(out.error.message||'seedance-submit 未部署或未配置 ARK_API_KEY');await log('submit_generation','video_segment',seg.data.id,{project_id:S.project.id,model_alias:payload.model_alias,duration:payload.duration});toast('任务已提交',out.data?.message||'已进入生成队列');await Promise.all([loadTasks(),loadLogs()])}catch(e){toast('提交失败',e.message||String(e))}finally{$('generate').disabled=false;$('generate').textContent='创建 Seedance 生成任务'}}
+async function loadTasks(){const {data,error}=await supabase.from('video_tasks').select('*').eq('owner_id',S.user.id).eq('project_id',S.project.id).order('created_at',{ascending:false});if(error)return toast('任务加载失败',error.message);S.tasks=data||[];$('task-badge').textContent=S.tasks.length+' 个任务';$('tasks').innerHTML=S.tasks.length?S.tasks.map(t=>`<article class="rounded-xl bg-[#0b0b0e] border border-white/5 p-3"><div class="flex justify-between"><span class="flex items-center gap-2 text-[12px] font-bold"><i class="dot ${statusClass(t.status)}"></i>${statusText(t.status)}</span><span class="text-[10px] text-zinc-600">${time(t.created_at)}</span></div><p class="text-[10px] font-mono text-zinc-600 mt-2 truncate">${esc(t.provider_task_id||t.id)}</p>${t.error_message?`<p class="text-[10px] text-rose-400 mt-2">${esc(t.error_message)}</p>`:''}</article>`).join(''):'<div class="py-8 text-center text-[12px] text-zinc-600">暂无生成任务</div>';await loadOutputs()}
+async function poll(){for(const t of S.tasks.filter(x=>['pending','queued','submitted','running','processing'].includes(String(x.status).toLowerCase()))){try{await supabase.functions.invoke('seedance-status',{body:{task_id:t.id}})}catch{}}await Promise.all([loadTasks(),loadLogs()])}
+async function loadOutputs(){if(!S.tasks.length){S.outputs=[];return renderOutputs()}const {data,error}=await supabase.from('video_outputs').select('*').eq('owner_id',S.user.id).in('task_id',S.tasks.map(t=>t.id)).order('created_at',{ascending:false});if(error)return console.warn(error.message);S.outputs=data||[];await renderOutputs()}
+async function renderOutputs(){const box=$('outputs');if(!S.outputs.length){box.innerHTML='<div class="py-10 text-center text-[12px] text-zinc-600">暂无视频输出</div>';return}box.innerHTML=(await Promise.all(S.outputs.map(async o=>{const path=o.storage_path||o.object_path,u=path?await signed('seedance-outputs',path,1800):'';return`<article class="grid md:grid-cols-[260px_1fr] gap-4 rounded-2xl bg-[#0b0b0e] border border-white/5 p-3"><div class="rounded-xl overflow-hidden bg-black aspect-video">${u?`<video src="${u}" controls class="w-full h-full object-contain"></video>`:'<div class="h-full flex items-center justify-center text-rose-400 text-xs">播放链接生成失败</div>'}</div><div class="flex flex-col justify-between"><div><p class="text-sm font-bold text-white">Seedance 生成视频</p><p class="text-[11px] text-zinc-600 mt-2">${time(o.created_at)}</p></div>${u?`<a href="${u}" download data-output="${o.id}" class="btn self-end px-3 py-2 rounded-lg bg-indigo-600 text-white text-[11px] font-bold">下载视频</a>`:''}</div></article>`}))).join('');box.querySelectorAll('[data-output]').forEach(a=>a.onclick=()=>log('download_output','video_output',a.dataset.output,{project_id:S.project.id}))}
+async function loadLogs(){const {data,error}=await supabase.from('video_operation_logs').select('*').eq('owner_id',S.user.id).order('created_at',{ascending:false}).limit(50);if(error)return console.warn(error.message);const ids=new Set(S.assets.map(a=>a.id));S.logs=(data||[]).filter(x=>(x.target_type==='video_project'&&x.target_id===S.project.id)||(x.target_type==='video_asset'&&ids.has(x.target_id))||x.detail?.project_id===S.project.id);const names={create_project:'创建视频项目',rename_project:'修改项目名称',upload_asset:'上传关键帧',delete_asset:'删除关键帧',submit_generation:'提交生成任务',download_output:'下载生成视频'};$('logs').innerHTML=S.logs.length?S.logs.map(x=>`<div class="flex gap-3"><i class="mt-1.5 w-1.5 h-1.5 rounded-full bg-indigo-400"></i><div><p class="text-[11px] font-semibold text-zinc-300">${esc(names[x.action]||x.action)}</p><p class="text-[10px] text-zinc-600 mt-1">${time(x.created_at)}</p></div></div>`).join(''):'<div class="py-8 text-center text-[12px] text-zinc-600">暂无操作记录</div>'}
+async function refresh(){if(!S.project)return projects();await Promise.all([loadAssets(),loadTasks(),loadLogs()]);toast('已刷新','项目和任务状态已更新')}
+function bind(){[$('new-project'),$('empty-create')].forEach(b=>b.onclick=createProject);$('save-name').onclick=saveName;$('delete-project').onclick=deleteProject;$('generate').onclick=generate;$('refresh').onclick=refresh;$('poll').onclick=poll;$('logout').onclick=async()=>{await supabase.auth.signOut();localStorage.removeItem('activeUserObj');location.href='login.html'};$('file-input').onchange=e=>{upload(e.target.files);e.target.value=''};$('drop-input').onchange=e=>{upload(e.target.files);e.target.value=''};const d=$('drop');d.onclick=()=>$('drop-input').click();['dragenter','dragover'].forEach(n=>d.addEventListener(n,e=>{e.preventDefault();d.classList.add('drag')}));['dragleave','drop'].forEach(n=>d.addEventListener(n,e=>{e.preventDefault();d.classList.remove('drag')}));d.addEventListener('drop',e=>upload(e.dataTransfer.files))}
+async function init(){bind();if(!await session())return;await projects();S.timer=setInterval(()=>S.project&&poll(),12000)}
+window.addEventListener('beforeunload',()=>clearInterval(S.timer));init();
+</script>
+</body>
+</html>
