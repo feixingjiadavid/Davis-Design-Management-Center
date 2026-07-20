@@ -71,3 +71,88 @@ textarea{resize:vertical;line-height:1.6}
 @media(max-width:760px){.sidebar{width:78px}.brand>div:last-child,.sidebar-section-title,.project-list,.sidebar-actions button:not(.primary-btn),.user-copy{display:none}.brand{padding:20px}.sidebar-actions{padding:10px}.main{margin-left:78px;width:calc(100% - 78px)}.topbar{height:auto;padding:18px;align-items:flex-start}.topbar p{max-width:400px}.topbar-actions{display:none}.view-tabs{top:82px;padding:0 18px}.view{padding:18px}.panel-heading{align-items:flex-start;flex-direction:column}.settings-grid{grid-template-columns:1fr}.segment-row{grid-template-columns:1fr}.quick-timeline,.editor-timeline{padding-left:15px;padding-right:15px}}
 
 .modal[hidden]{display:none!important}
+
+
+/* =========================================================
+   Multi-frame layout containment fix
+   Prevent the timeline from pushing the right summary panel
+   outside the viewport.
+   ========================================================= */
+
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.main,
+.view,
+.quick-layout,
+.quick-main,
+.hero-panel {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.quick-layout {
+  align-items: start;
+  overflow: visible;
+}
+
+.quick-main {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.hero-panel {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.quick-timeline {
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-gutter: stable;
+  padding-bottom: 16px;
+}
+
+.quick-timeline > * {
+  flex: 0 0 auto;
+}
+
+.quick-side {
+  position: relative;
+  z-index: 3;
+  width: 330px;
+  min-width: 330px;
+  max-width: 330px;
+}
+
+.sticky-panel {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 1180px) {
+  .quick-side {
+    width: auto;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .quick-main {
+    overflow: visible;
+  }
+
+  .hero-panel {
+    overflow: hidden;
+  }
+}
