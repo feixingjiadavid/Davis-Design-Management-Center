@@ -1,1 +1,289 @@
-1
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Seedance 视频生成中心 - Davis Design System</title>
+  <link rel="stylesheet" href="./seedance/style.css?v=20260720-3" />
+  <style>[hidden]{display:none!important}</style>
+</head>
+<body>
+  <div id="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">▶</div>
+        <div>
+          <strong>Seedance Studio</strong>
+          <span>Davis Design System</span>
+        </div>
+      </div>
+
+      <div class="sidebar-actions">
+        <button class="ghost-btn full" id="back-home">← 返回排号大厅</button>
+        <button class="primary-btn full" id="new-project">＋ 新建视频项目</button>
+      </div>
+
+      <div class="sidebar-section-title">本地项目草稿</div>
+      <div id="project-list" class="project-list"></div>
+
+      <div class="sidebar-footer">
+        <div class="user">
+          <div id="sidebar-avatar" class="avatar">?</div>
+          <div class="user-copy">
+            <strong id="sidebar-name">加载中...</strong>
+            <span id="sidebar-role">系统成员</span>
+          </div>
+        </div>
+        <button id="logout" class="icon-btn" title="退出登录">↗</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h1>Seedance 视频生成中心</h1>
+          <p>图片先保存在浏览器本地。只有点击生成后才上传到 Supabase 并提交真实任务。</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="ghost-btn" id="open-jobs">任务与输出</button>
+          <button class="danger-btn" id="delete-project">删除项目</button>
+        </div>
+      </header>
+
+      <nav class="view-tabs">
+        <button class="view-tab active" data-view="quick">快速生成</button>
+        <button class="view-tab" data-view="editor">高级 Storyboard</button>
+        <button class="view-tab" data-view="jobs">任务与输出</button>
+      </nav>
+
+      <section id="view-quick" class="view active">
+        <div class="quick-layout">
+          <div class="quick-main">
+            <section class="panel hero-panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>创建视频</h2>
+                  <p>像即梦一样直接上传图片、编辑镜头段落，再一次性生成。</p>
+                </div>
+                <div class="mode-switch" id="mode-switch">
+                  <button data-mode="first_last">首尾帧</button>
+                  <button data-mode="multi_frame" class="active">多帧 Storyboard</button>
+                </div>
+              </div>
+
+              <div id="upload-zone" class="upload-zone">
+                <input id="file-input" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden />
+                <div class="upload-icon">＋</div>
+                <strong>点击或拖拽上传图片</strong>
+                <span>立即显示本地预览，不会提前上传 Supabase</span>
+              </div>
+
+              <div id="quick-timeline" class="quick-timeline"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading compact">
+                <div>
+                  <h2>项目输出规格</h2>
+                  <p>项目只统一视频比例与最终尺寸；每段模型、时长和清晰度可不同。</p>
+                </div>
+              </div>
+              <div class="settings-grid">
+                <label>
+                  <span>项目比例</span>
+                  <select id="project-ratio">
+                    <option value="follow">跟随首帧</option>
+                    <option value="16:9">16:9</option>
+                    <option value="9:16">9:16</option>
+                    <option value="1:1">1:1</option>
+                    <option value="4:3">4:3</option>
+                    <option value="3:4">3:4</option>
+                    <option value="3:1">3:1 超宽</option>
+                    <option value="custom">自定义比例</option>
+                  </select>
+                </label>
+                <label>
+                  <span>最终宽度</span>
+                  <input id="final-width" type="number" min="256" step="2" value="1920" />
+                </label>
+                <label>
+                  <span>最终高度</span>
+                  <input id="final-height" type="number" min="256" step="2" value="1080" />
+                </label>
+                <label>
+                  <span>适配方式</span>
+                  <select id="fit-mode">
+                    <option value="contain">完整显示 contain</option>
+                    <option value="cover">铺满裁切 cover</option>
+                    <option value="expand">智能扩展 expand</option>
+                  </select>
+                </label>
+              </div>
+              <div id="ratio-tip" class="ratio-tip"></div>
+            </section>
+          </div>
+
+          <aside class="quick-side">
+            <section class="panel sticky-panel">
+              <div class="project-name-row">
+                <input id="project-name" value="未命名 Seedance 项目" />
+                <span id="draft-status">本地草稿</span>
+              </div>
+
+              <div class="summary">
+                <div><span>图片</span><strong id="summary-frames">0</strong></div>
+                <div><span>片段</span><strong id="summary-segments">0</strong></div>
+                <div><span>总时长</span><strong id="summary-duration">0 秒</strong></div>
+              </div>
+
+              <button class="ghost-btn full" id="go-editor">进入高级 Storyboard</button>
+              <button class="primary-btn full large" id="generate-all">全部生成</button>
+              <p class="cost-note">提交后可能产生 Ark API 费用。默认最多同时生成 2 段。</p>
+            </section>
+          </aside>
+        </div>
+      </section>
+
+      <section id="view-editor" class="view">
+        <div class="editor-layout">
+          <div class="editor-main">
+            <section class="panel">
+              <div class="panel-heading compact">
+                <div>
+                  <h2>Storyboard Timeline</h2>
+                  <p>图片可替换、删除和调整顺序。点击片段在当前位置展开，同时同步右侧参数。</p>
+                </div>
+                <button class="ghost-btn" id="editor-add-image">＋ 添加图片</button>
+              </div>
+              <div id="editor-timeline" class="editor-timeline"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading compact">
+                <div>
+                  <h2>片段列表</h2>
+                  <p>每两帧之间是一段独立视频。</p>
+                </div>
+              </div>
+              <div id="segment-list" class="segment-list"></div>
+            </section>
+          </div>
+
+          <aside class="inspector panel">
+            <div id="inspector-empty" class="empty-inspector">
+              <div>↗</div>
+              <strong>请选择一个片段</strong>
+              <span>点击时间轴中的 Segment 卡片开始编辑。</span>
+            </div>
+
+            <div id="inspector-form" hidden>
+              <div class="inspector-title">
+                <div>
+                  <span id="inspector-index">SEGMENT 01</span>
+                  <h3 id="inspector-name">图 1 → 图 2</h3>
+                </div>
+                <span id="inspector-status" class="status-pill">草稿</span>
+              </div>
+
+              <label>
+                <span>片段提示词</span>
+                <textarea id="segment-prompt" rows="7" placeholder="描述这两帧之间的动作、镜头、节奏和画面变化。"></textarea>
+              </label>
+
+              <div class="prompt-tools">
+                <button data-prompt="镜头缓慢向前推进">镜头推进</button>
+                <button data-prompt="保持人物身份、五官、服装和构图一致">锁定人物</button>
+                <button data-prompt="动作自然流畅，避免画面抖动和变形">动作稳定</button>
+              </div>
+
+              <div class="settings-grid two">
+                <label>
+                  <span>时长</span>
+                  <select id="segment-duration">
+                    <option value="2">2 秒</option>
+                    <option value="3">3 秒</option>
+                    <option value="4">4 秒</option>
+                    <option value="5">5 秒</option>
+                    <option value="6">6 秒</option>
+                    <option value="7">7 秒</option>
+                    <option value="8">8 秒</option>
+                    <option value="9">9 秒</option>
+                    <option value="10">10 秒</option>
+                  </select>
+                </label>
+                <label>
+                  <span>模型</span>
+                  <select id="segment-model">
+                    <option value="mini">Seedance Mini</option>
+                    <option value="fast">Seedance Fast</option>
+                  </select>
+                </label>
+                <label>
+                  <span>清晰度</span>
+                  <select id="segment-resolution">
+                    <option value="720p">720p</option>
+                    <option value="480p">480p</option>
+                  </select>
+                </label>
+                <label>
+                  <span>项目比例</span>
+                  <input id="segment-ratio" disabled />
+                </label>
+              </div>
+
+              <div class="inspector-actions">
+                <button class="ghost-btn full" id="preview-segment">预检当前段</button>
+                <button class="primary-btn full" id="generate-segment">真实生成当前段</button>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="view-jobs" class="view">
+        <div class="jobs-layout">
+          <section class="panel">
+            <div class="panel-heading compact">
+              <div>
+                <h2>生成任务</h2>
+                <p>最多并发 2 段；失败片段可以单独重试。</p>
+              </div>
+              <button class="ghost-btn" id="refresh-jobs">刷新状态</button>
+            </div>
+            <div id="jobs-list" class="jobs-list"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-heading compact">
+              <div>
+                <h2>视频输出</h2>
+                <p>所有片段完成后，可以在浏览器内统一尺寸并自动拼接。</p>
+              </div>
+              <button class="primary-btn" id="merge-all">合并长视频</button>
+            </div>
+            <div id="outputs-list" class="outputs-list"></div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" hidden>
+    <strong id="toast-title"></strong>
+    <span id="toast-message"></span>
+  </div>
+
+  <div id="confirm-modal" class="modal" hidden>
+    <div class="modal-card">
+      <h3 id="confirm-title"></h3>
+      <p id="confirm-message"></p>
+      <div class="modal-actions">
+        <button class="ghost-btn" id="confirm-cancel">取消</button>
+        <button class="primary-btn" id="confirm-ok">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./seedance/app.js?v=20260720-3"></script>
+</body>
+</html>
