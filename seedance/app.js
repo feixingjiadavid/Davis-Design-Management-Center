@@ -2,7 +2,7 @@ import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
 const APP_BUILD = '20260721-multiframe-stable-local-output-v3';
-const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v3';
+const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v4-force-reupload-2p40';
 console.log('[Seedance Studio]', APP_BUILD);
 
 const state = {
@@ -26,7 +26,7 @@ const uid = () => crypto.randomUUID();
 const TIMEOUTS = {
   database: 25000,
   upload: 90000,
-  edgeFunction: 90000,
+  edgeFunction: 180000,
 };
 
 function withTimeout(promise, timeoutMs, label) {
@@ -76,10 +76,11 @@ async function makeArkSafeFrameBlob(frame) {
   const srcH = img.naturalHeight || frame.height;
   if (!srcW || !srcH) return { blob: frame.blob, width: frame.width, height: frame.height, type: frame.type || frame.blob.type };
 
-  const minRatio = 0.40;
+  const minRatio = 0.42;
   // Seedance 当前要求输入图比例必须在 0.40 到 2.50 之间。
-  // 3:1 项目会自动把输入图加上下安全留边到 21:9，避免 Ark 直接拒绝。
-  const maxRatio = state.draft?.ratio === '3:1' ? (21 / 9) : 2.45;
+  // 为避免 3:1、超宽图被 Ark 拒绝，这里统一把输入图补边到 2.40 以内。
+  // 项目最终仍可在浏览器合成阶段输出 3:1。
+  const maxRatio = 2.40;
   const ratio = srcW / srcH;
   let dstW = srcW;
   let dstH = srcH;
@@ -284,7 +285,7 @@ function setView(view) {
 
 function renderProjects() {
   $('project-list').innerHTML = state.drafts.length
-    ? [...state.drafts].sort((a,b) => b.updatedAt-a.updatedAt).map(d => `
+    ? state.drafts.map(d => `
       <button class="project-item ${state.draft?.id===d.id?'active':''}" data-project="${d.id}">
         <strong>${escapeHtml(d.name)}</strong>
         <span>${d.frames?.length || 0} 张图 · ${new Date(d.updatedAt).toLocaleString('zh-CN')}</span>
@@ -870,6 +871,17 @@ async function generateSegments(segmentIds) {
 
   try {
     segments.forEach(s => { s.status = 'preparing'; s.progress = 1; s.error = null; s.remoteTaskId = null; s.providerTaskId = null; s.remoteSegmentId = null; s.outputPath = null; });
+    // 强制当前要生成的帧重新上传。旧版本曾把 3:1 原图直接传给 Ark，导致 image_url 比例 3.00 报错。
+    // 重新上传会走 makeArkSafeFrameBlob，把超宽图自动补边到 Seedance 可接受比例。
+    const forceFrameIds = new Set(segments.flatMap(s => [s.fromFrameId, s.toFrameId]));
+    state.draft.frames.forEach(frame => {
+      if (forceFrameIds.has(frame.id)) {
+        frame.remoteAssetId = null;
+        frame.remotePath = null;
+        frame.arkSafeVersion = null;
+        frame.wasAspectPadded = false;
+      }
+    });
     renderAll();
     await persist();
     await uploadNeededFrames(segmentIds);
@@ -1071,8 +1083,11 @@ async function loadOutputs() {
     return;
   }
 
-  const taskIds = (state.draft?.segments || []).map(s => s.remoteTaskId).filter(Boolean);
-  const segmentIds = (state.draft?.segments || []).map(s => s.remoteSegmentId).filter(Boolean);
+  const segments = state.draft?.segments || [];
+  const taskIds = segments.map(s => s.remoteTaskId).filter(Boolean);
+  const segmentIds = segments.map(s => s.remoteSegmentId).filter(Boolean);
+  const providerIds = new Set(segments.map(s => s.providerTaskId).filter(Boolean));
+  const currentProjectId = state.draft?.remoteProjectId || null;
   const rowsById = new Map();
 
   async function collect(query) {
@@ -1104,28 +1119,20 @@ async function loadOutputs() {
     );
   }
 
-  if (state.draft?.remoteProjectId) {
+  // 只查当前远程项目的输出，不再全局兜底最近 50 条，避免不同项目显示/下载同一个视频。
+  if (currentProjectId) {
     await collect(
       supabase.from('video_outputs')
         .select('*')
         .eq('owner_id', state.user.id)
-        .eq('project_id', state.draft.remoteProjectId)
+        .eq('project_id', currentProjectId)
         .order('created_at', { ascending: false })
         .limit(50)
     );
   }
 
-  // 兜底：为了找回已扣费但前端项目 ID 错绑的历史结果，读取最近 50 条输出。
-  await collect(
-    supabase.from('video_outputs')
-      .select('*')
-      .eq('owner_id', state.user.id)
-      .order('created_at', { ascending: false })
-      .limit(50)
-  );
-
   const rows = [...rowsById.values()];
-  const outputs = [];
+  const bySegment = new Map();
 
   for (const row of rows) {
     const meta = row.metadata || {};
@@ -1149,28 +1156,37 @@ async function loadOutputs() {
     if (!url) continue;
 
     const providerTaskId = meta.provider_task_id || meta.ark_response?.id || String(row.storage_path || '').replace(/^ark:\/\//, '').replace(/\.mp4$/, '');
-    const segmentIndex = (state.draft?.segments || []).findIndex(
+    const segmentIndex = segments.findIndex(
       s =>
-        s.remoteSegmentId === row.segment_id ||
-        s.remoteTaskId === row.task_id ||
-        s.providerTaskId === providerTaskId
+        (row.segment_id && s.remoteSegmentId === row.segment_id) ||
+        (row.task_id && s.remoteTaskId === row.task_id) ||
+        (providerTaskId && s.providerTaskId === providerTaskId)
     );
 
-    outputs.push({
+    // 关键：不是当前项目当前片段的输出，不展示、不下载。
+    if (segmentIndex < 0) continue;
+    if (row.project_id && currentProjectId && row.project_id !== currentProjectId) continue;
+
+    const output = {
       row,
       url,
       storageMode,
       providerTaskId,
-      index: segmentIndex < 0 ? outputs.length : segmentIndex,
-    });
+      index: segmentIndex,
+    };
+
+    const key = String(segmentIndex);
+    const old = bySegment.get(key);
+    if (!old || new Date(row.created_at || 0) > new Date(old.row.created_at || 0)) {
+      bySegment.set(key, output);
+    }
   }
 
-  state.outputs = outputs.sort((a,b)=>a.index-b.index || new Date(b.row.created_at || 0) - new Date(a.row.created_at || 0));
+  state.outputs = [...bySegment.values()].sort((a,b)=>a.index-b.index);
 
-  // 默认本地优先：新生成/新回收的视频出现后，自动触发一次浏览器下载。
+  // 默认本地优先：只对当前项目当前片段的视频触发一次本地下载。
   for (const output of state.outputs) maybeAutoDownloadOutput(output);
 }
-
 function startPolling() {
   clearInterval(state.pollTimer);
   refreshJobs();
