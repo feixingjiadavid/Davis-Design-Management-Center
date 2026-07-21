@@ -1,6 +1,9 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
+const APP_BUILD = '20260721-local-output-no-supabase-storage-v1';
+console.log('[Seedance Studio]', APP_BUILD);
+
 const state = {
   session: null,
   user: null,
@@ -37,6 +40,50 @@ function errorMessage(error, fallback = '操作失败') {
   if (!error) return fallback;
   if (typeof error === 'string') return error;
   return error.message || error.error_description || error.details || String(error);
+}
+
+const AUTO_DOWNLOAD_KEY = 'seedance_auto_downloaded_provider_tasks_v1';
+
+function downloadedSet() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(AUTO_DOWNLOAD_KEY) || '[]'));
+  } catch {
+    return new Set();
+  }
+}
+
+function saveDownloadedSet(set) {
+  localStorage.setItem(AUTO_DOWNLOAD_KEY, JSON.stringify([...set].slice(-300)));
+}
+
+function safeFilename(name) {
+  return String(name || 'seedance-output')
+    .replace(/[\\/:*?"<>|]+/g, '_')
+    .replace(/\s+/g, '_')
+    .slice(0, 120);
+}
+
+function triggerLocalDownload(url, filename) {
+  if (!url) return;
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename || `seedance-${Date.now()}.mp4`;
+  a.target = '_blank';
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+function maybeAutoDownloadOutput(output) {
+  if (!output?.url) return;
+  const key = output.providerTaskId || output.row?.task_id || output.url;
+  const set = downloadedSet();
+  if (set.has(key)) return;
+  set.add(key);
+  saveDownloadedSet(set);
+  triggerLocalDownload(output.url, `${safeFilename(state.draft?.name)}-${output.providerTaskId || Date.now()}.mp4`);
+  toast('视频已生成', '已触发本地下载；如果浏览器拦截，请点右侧“下载到本地”。');
 }
 
 async function getAccessToken() {
@@ -372,6 +419,7 @@ function renderJobs() {
       </div>
       <p>${escapeHtml(s.prompt || '未填写提示词')}</p>
       ${jobStageMarkup(s)}
+      ${s.providerTaskId ? `<p class="task-id">Ark Task：${escapeHtml(s.providerTaskId)}</p>` : ''}
       ${s.error ? `<p style="color:#ff8090;white-space:pre-wrap">${escapeHtml(s.error)}</p>` : ''}
       <div class="job-actions">
         <button data-refresh-segment="${s.id}">立即查询</button>
@@ -384,12 +432,19 @@ function renderJobs() {
       <video controls preload="metadata" src="${o.url}"></video>
       <div class="output-copy">
         <strong>Segment ${String(o.index+1).padStart(2,'0')} · 已完成</strong>
-        <a href="${o.url}" download target="_blank" rel="noopener">下载片段</a>
+        <span>${o.storageMode === 'ark-temp' ? '未占用 Supabase Storage · Ark 临时链接，请及时下载到本地' : 'Supabase Storage 已保存'}</span>
+        ${o.providerTaskId ? `<small>Ark Task：${escapeHtml(o.providerTaskId)}</small>` : ''}
+        <a href="${o.url}" download target="_blank" rel="noopener" data-download-output="${o.providerTaskId || o.index}">下载到本地</a>
       </div>
     </article>`).join('') : '<div class="empty-state">暂无视频输出。提交后会自动显示真实任务状态和生成结果。</div>';
 
-  qsa('[data-refresh-segment]').forEach(btn => btn.onclick = () => refreshSingleSegment(btn.dataset.refreshSegment));
+  qsa('[data-refresh-segment]').forEach(btn => btn.onclick = async () => { await refreshJobs(); });
   qsa('[data-retry-segment]').forEach(btn => btn.onclick = () => generateSegments([btn.dataset.retrySegment]));
+  qsa('[data-download-output]').forEach(link => link.onclick = () => {
+    const set = downloadedSet();
+    set.add(link.dataset.downloadOutput);
+    saveDownloadedSet(set);
+  });
 }
 
 function renderAll() {
@@ -711,7 +766,7 @@ async function generateSegments(segmentIds) {
   setView('jobs');
 
   try {
-    segments.forEach(s => { s.status = 'preparing'; s.progress = 1; s.error = null; });
+    segments.forEach(s => { s.status = 'preparing'; s.progress = 1; s.error = null; s.remoteTaskId = null; s.providerTaskId = null; s.remoteSegmentId = null; s.outputPath = null; });
     renderAll();
     await persist();
     await uploadNeededFrames(segmentIds);
@@ -768,20 +823,28 @@ async function generateSegments(segmentIds) {
 
 async function refreshSingleSegment(segmentId) {
   const segment = state.draft.segments.find(s => s.id === segmentId);
-  if (!segment?.remoteTaskId && !segment?.providerTaskId && !segment?.remoteSegmentId) return;
+  if (!segment?.remoteTaskId && !segment?.providerTaskId && !segment?.remoteSegmentId && !state.draft?.remoteProjectId) return;
   try {
     const data = await invokeEdgeFunction('seedance-status', {
       project_id: state.draft.remoteProjectId,
       segment_id: segment.remoteSegmentId,
       task_id: segment.remoteTaskId,
       provider_task_id: segment.providerTaskId,
+      recover_all: true,
     });
-    segment.status = data.status || segment.status;
-    segment.progress = Number(data.progress ?? segment.progress ?? 0);
-    segment.outputPath = data.storage_path || data.output_path || segment.outputPath;
-    segment.providerTaskId = data.provider_task_id || segment.providerTaskId;
-    segment.remoteTaskId = data.task_id || segment.remoteTaskId;
-    segment.error = data.error_message || null;
+
+    const result = (data.results || []).find(item =>
+      item.task_id === segment.remoteTaskId ||
+      item.provider_task_id === segment.providerTaskId
+    ) || (data.results || [])[0] || data;
+
+    segment.status = result.status || data.status || segment.status;
+    segment.progress = Number(result.progress ?? data.progress ?? segment.progress ?? 0);
+    segment.outputPath = result.storage_path || result.output_path || result.output?.storage_path || segment.outputPath;
+    segment.providerTaskId = result.provider_task_id || data.provider_task_id || segment.providerTaskId;
+    segment.remoteTaskId = result.task_id || data.task_id || segment.remoteTaskId;
+    segment.error = result.error || data.error_message || null;
+
     await persist();
     await loadOutputs();
     renderAll();
@@ -820,7 +883,12 @@ async function syncRemoteTasks() {
   if (segmentResult.error) throw new Error(`同步片段失败：${errorMessage(segmentResult.error)}`);
 
   const remoteSegments = segmentResult.data || [];
-  const tasks = taskResult.data || [];
+  const tasks = (taskResult.data || []).map(task => ({
+    ...task,
+    createdMs: new Date(task.created_at || 0).getTime() || 0,
+    statusLower: String(task.status || '').toLowerCase(),
+  }));
+
   const segmentsByPosition = new Map();
   for (const remote of remoteSegments) {
     const key = Number(remote.position || 0);
@@ -828,22 +896,48 @@ async function syncRemoteTasks() {
     segmentsByPosition.get(key).push(remote);
   }
 
+  const activeStatuses = new Set(['submitting', 'submitted', 'queued', 'running', 'processing', 'succeeded', 'completed', 'success']);
+  const doneStatuses = new Set(['succeeded', 'completed', 'success']);
+  const failedStatuses = new Set(['failed', 'error']);
+
+  function scoreTask(task) {
+    let score = task.createdMs;
+    if (activeStatuses.has(task.statusLower)) score += 10_000_000_000_000;
+    if (doneStatuses.has(task.statusLower)) score += 20_000_000_000_000;
+    if (failedStatuses.has(task.statusLower)) score -= 10_000_000_000_000;
+    if (task.provider_task_id) score += 1_000_000;
+    return score;
+  }
+
   for (const local of state.draft.segments) {
-    const candidates = segmentsByPosition.get(Number(local.index || 0)) || [];
+    const position = Number(local.index || 0);
+    const candidates = segmentsByPosition.get(position) || [];
     const candidateIds = new Set(candidates.map(s => s.id));
+
+    /*
+      重点：不要优先使用 local.remoteSegmentId。
+      之前就是因为这里优先命中旧失败 segment，导致页面一直显示旧的 cgt。
+      现在按同一 position 找“最新且非失败优先”的 video_tasks。
+    */
     if (local.remoteSegmentId) candidateIds.add(local.remoteSegmentId);
 
-    const task = tasks.find(t => local.remoteSegmentId && t.segment_id === local.remoteSegmentId)
-      || tasks.find(t => candidateIds.has(t.segment_id));
+    const candidateTasks = tasks.filter(task => candidateIds.has(task.segment_id));
+    if (!candidateTasks.length) continue;
 
-    if (!task) continue;
+    candidateTasks.sort((a, b) => scoreTask(b) - scoreTask(a));
+    const latestTask = candidateTasks[0];
 
-    local.remoteSegmentId = task.segment_id || local.remoteSegmentId;
-    local.remoteTaskId = task.id || local.remoteTaskId;
-    local.providerTaskId = task.provider_task_id || local.providerTaskId;
-    local.status = task.status || local.status;
-    local.progress = Number(task.progress ?? local.progress ?? 0);
-    local.error = task.error_message || null;
+    const previousProviderTaskId = local.providerTaskId;
+    local.remoteSegmentId = latestTask.segment_id || local.remoteSegmentId;
+    local.remoteTaskId = latestTask.id || local.remoteTaskId;
+    local.providerTaskId = latestTask.provider_task_id || local.providerTaskId;
+    local.status = latestTask.status || local.status;
+    local.progress = Number(latestTask.progress ?? local.progress ?? 0);
+    local.error = latestTask.error_message || null;
+
+    if (previousProviderTaskId && latestTask.provider_task_id && previousProviderTaskId !== latestTask.provider_task_id) {
+      console.log('[Seedance Studio] task switched from old cgt to latest cgt', previousProviderTaskId, '=>', latestTask.provider_task_id);
+    }
   }
 
   await persist();
@@ -869,31 +963,118 @@ async function refreshJobs() {
 }
 
 async function loadOutputs() {
-  if (!state.draft.remoteProjectId) { state.outputs = []; return; }
-  const { data, error } = await supabase.from('video_outputs')
-    .select('*')
-    .eq('owner_id', state.user.id)
-    .eq('project_id', state.draft.remoteProjectId)
-    .order('created_at');
-  if (error) return;
-  const outputs = [];
-  for (const row of data || []) {
-    const path = row.storage_path || row.object_path;
-    if (!path) continue;
-    const signed = await supabase.storage.from(row.bucket_id || 'seedance-outputs').createSignedUrl(path, 3600);
-    if (signed.error) continue;
-    const segmentIndex = state.draft.segments.findIndex(s => s.remoteSegmentId === row.segment_id);
-    outputs.push({ row, url: signed.data.signedUrl, index: segmentIndex < 0 ? outputs.length : segmentIndex });
+  if (!state.user?.id) {
+    state.outputs = [];
+    return;
   }
-  state.outputs = outputs.sort((a,b)=>a.index-b.index);
+
+  const taskIds = (state.draft?.segments || []).map(s => s.remoteTaskId).filter(Boolean);
+  const segmentIds = (state.draft?.segments || []).map(s => s.remoteSegmentId).filter(Boolean);
+  const rowsById = new Map();
+
+  async function collect(query) {
+    const { data, error } = await query;
+    if (error) {
+      console.warn('loadOutputs query failed', error);
+      return;
+    }
+    for (const row of data || []) rowsById.set(row.id, row);
+  }
+
+  if (taskIds.length) {
+    await collect(
+      supabase.from('video_outputs')
+        .select('*')
+        .eq('owner_id', state.user.id)
+        .in('task_id', taskIds)
+        .order('created_at', { ascending: false })
+    );
+  }
+
+  if (segmentIds.length) {
+    await collect(
+      supabase.from('video_outputs')
+        .select('*')
+        .eq('owner_id', state.user.id)
+        .in('segment_id', segmentIds)
+        .order('created_at', { ascending: false })
+    );
+  }
+
+  if (state.draft?.remoteProjectId) {
+    await collect(
+      supabase.from('video_outputs')
+        .select('*')
+        .eq('owner_id', state.user.id)
+        .eq('project_id', state.draft.remoteProjectId)
+        .order('created_at', { ascending: false })
+        .limit(50)
+    );
+  }
+
+  // 兜底：为了找回已扣费但前端项目 ID 错绑的历史结果，读取最近 50 条输出。
+  await collect(
+    supabase.from('video_outputs')
+      .select('*')
+      .eq('owner_id', state.user.id)
+      .order('created_at', { ascending: false })
+      .limit(50)
+  );
+
+  const rows = [...rowsById.values()];
+  const outputs = [];
+
+  for (const row of rows) {
+    const meta = row.metadata || {};
+    const providerUrl =
+      meta.provider_video_url ||
+      meta.ark_response?.content?.video_url ||
+      meta.ark_response?.content?.file_url ||
+      meta.video_url;
+
+    let url = providerUrl;
+    let storageMode = providerUrl ? 'ark-temp' : 'supabase';
+
+    if (!url && row.storage_path && row.bucket_id !== 'ark-url') {
+      const signed = await supabase.storage
+        .from(row.bucket_id || 'seedance-outputs')
+        .createSignedUrl(row.storage_path, 3600);
+      if (signed.error) continue;
+      url = signed.data.signedUrl;
+    }
+
+    if (!url) continue;
+
+    const providerTaskId = meta.provider_task_id || meta.ark_response?.id || String(row.storage_path || '').replace(/^ark:\/\//, '').replace(/\.mp4$/, '');
+    const segmentIndex = (state.draft?.segments || []).findIndex(
+      s =>
+        s.remoteSegmentId === row.segment_id ||
+        s.remoteTaskId === row.task_id ||
+        s.providerTaskId === providerTaskId
+    );
+
+    outputs.push({
+      row,
+      url,
+      storageMode,
+      providerTaskId,
+      index: segmentIndex < 0 ? outputs.length : segmentIndex,
+    });
+  }
+
+  state.outputs = outputs.sort((a,b)=>a.index-b.index || new Date(b.row.created_at || 0) - new Date(a.row.created_at || 0));
+
+  // 默认本地优先：新生成/新回收的视频出现后，自动触发一次浏览器下载。
+  for (const output of state.outputs) maybeAutoDownloadOutput(output);
 }
 
 function startPolling() {
   clearInterval(state.pollTimer);
   refreshJobs();
   state.pollTimer = setInterval(() => {
+    if (!state.draft) return clearInterval(state.pollTimer);
     const active = state.draft.segments.some(s =>
-      ['submitted','queued','running','processing'].includes(String(s.status || '').toLowerCase())
+      ['submitting','submitted','queued','running','processing'].includes(String(s.status || '').toLowerCase())
     );
     if (!active) return clearInterval(state.pollTimer);
     refreshJobs();
