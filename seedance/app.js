@@ -1,7 +1,7 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260721-jobs-panel-scroll-v7';
+const APP_BUILD = '20260721-strict-frame-lock-v8';
 const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v5-blackbar-2p49-force-reupload';
 console.log('[Seedance Studio]', APP_BUILD);
 
@@ -505,6 +505,29 @@ function renderSettings() {
   updateRatioTip();
 }
 
+
+function buildStrictFrameLockPrompt(segment) {
+  const rawPrompt = String(segment?.prompt || '').trim();
+  const fromIndex = state.draft.frames.findIndex(f => f.id === segment.fromFrameId);
+  const toIndex = state.draft.frames.findIndex(f => f.id === segment.toFrameId);
+  const modeLabel = state.draft.mode === 'first_last' ? '首尾帧模式' : '多帧 Storyboard 模式';
+  const ratioLabel = state.draft.ratio === 'follow' ? '跟随素材比例' : state.draft.ratio;
+  const frameA = fromIndex >= 0 ? `图 ${fromIndex + 1}` : '首图';
+  const frameB = toIndex >= 0 ? `图 ${toIndex + 1}` : '尾图';
+  const rules = [
+    `【系统锁定要求｜必须严格遵守】`,
+    `当前任务为${modeLabel}。已提供两张关键控制图，按顺序分别是起始控制图（${frameA}）和结束控制图（${frameB}）。`,
+    `1. 视频第1帧必须与起始控制图高度一致：主体形象、IP造型、五官/表情（如有人物）、数字样式、道具、背景布局、配色、材质、光线、镜头角度、景别、构图、文字内容都不能被改写。`,
+    `2. 视频最后1帧必须与结束控制图高度一致：主体形象、IP造型、数字样式、道具、背景布局、配色、材质、光线、镜头角度、景别、构图、文字内容都不能被改写。`,
+    `3. 中间过程只允许做自然过渡、缓动和位移动画，不允许重新设计角色，不允许把元素换样式，不允许新增或删除主要元素，不允许改变数字、物体、背景、装饰、文字、世界观。`,
+    `4. 若用户描述与两张控制图冲突，以两张控制图为最高优先级；动画要服务于从${frameA}过渡到${frameB}，而不是重新创作一套新画面。`,
+    `5. 保持同一资产、同一世界观、同一镜头语言、同一透视、同一光照逻辑；最终输出比例为 ${ratioLabel}，应尽量避免裁切关键主体。`,
+    `【用户动画要求】`,
+    rawPrompt || '请基于两张控制图做自然、稳定、轻微的镜头和主体过渡动画。',
+  ];
+  return rules.join('\n');
+}
+
 function updateRatioTip() {
   const ratio = state.draft.ratio;
   const size = `${state.draft.finalWidth} × ${state.draft.finalHeight}`;
@@ -865,6 +888,8 @@ async function submitOne(segment) {
     segment_id: segment.remoteSegmentId,
     asset_ids: [from.remoteAssetId, to.remoteAssetId],
     prompt: segment.prompt,
+    effective_prompt: buildStrictFrameLockPrompt(segment),
+    prompt_mode: 'strict_frame_lock_v8',
     model_alias: segment.model,
     duration: Number(segment.duration),
     resolution: segment.resolution,
