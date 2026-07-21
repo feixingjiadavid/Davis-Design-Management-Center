@@ -1,7 +1,7 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260721-dropdown-recover-output-v16';
+const APP_BUILD = '20260721-referencepool-inspector-layout-v19';
 const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v5-blackbar-2p49-force-reupload';
 console.log('[Seedance Studio]', APP_BUILD);
 
@@ -433,7 +433,8 @@ function referenceAssetMarkup(asset, index) {
   return `<article class="reference-pool-item">
     <div class="reference-pool-media">${media}</div>
     <div class="reference-video-meta">
-      <strong>${title} · ${escapeHtml(asset.name || '参考内容')}</strong>
+      <strong>${title}</strong>
+      <em title="${escapeHtml(asset.name || '参考内容')}">${escapeHtml(asset.name || '参考内容')}</em>
       <span>${formatBytes(asset.size || 0)} · ${escapeHtml(asset.type || 'file')}</span>
       <small>${asset.remoteAssetId ? '已上传 Supabase，生成时会传给 Ark' : '本地参考内容，生成时才上传'}</small>
       <label class="reference-direction-label">
@@ -1072,6 +1073,7 @@ function renderJobs() {
       <div class="job-actions">
         <button data-refresh-segment="${s.id}">立即查询</button>
         <button data-recover-output="${s.id}">找回视频</button>
+        <button data-bind-provider-task="${s.id}">输入Task找回</button>
         <button data-edit-from-job="${s.id}">重新编辑</button>
         <button data-retry-segment="${s.id}" class="danger-lite">重新提交</button>
       </div>
@@ -1089,6 +1091,7 @@ function renderJobs() {
 
   qsa('[data-refresh-segment]').forEach(btn => btn.onclick = async () => { await refreshJobs(); });
   qsa('[data-recover-output]').forEach(btn => btn.onclick = async () => { await recoverSegmentOutput(btn.dataset.recoverOutput); });
+  qsa('[data-bind-provider-task]').forEach(btn => btn.onclick = async () => { await bindProviderTaskAndRecover(btn.dataset.bindProviderTask); });
   qsa('[data-edit-from-job]').forEach(btn => btn.onclick = () => reEditSegment(btn.dataset.editFromJob));
   qsa('[data-edit-output-segment]').forEach(btn => btn.onclick = () => reEditSegment(btn.dataset.editOutputSegment || findSegmentIdByOutputIndex(btn.dataset.outputIndex)));
   qsa('[data-retry-segment]').forEach(btn => btn.onclick = () => resubmitSegment(btn.dataset.retrySegment));
@@ -1430,7 +1433,9 @@ function statusText(status) {
     succeeded:'已完成',
     success:'已完成',
     failed:'失败',
-    error:'失败'
+    error:'失败',
+    recovering:'找回中',
+    charged_unknown:'疑似已扣费待确认'
   })[String(status || '').toLowerCase()] || status || '草稿';
 }
 
@@ -1688,6 +1693,13 @@ async function submitOne(segment) {
       return segment;
     } catch (error) {
       lastError = error;
+      if (attempt === 3 && isRetryableSubmitError(error)) {
+        segment.status = 'charged_unknown';
+        segment.progress = Math.max(Number(segment.progress || 0), 12);
+        segment.error = '提交请求中断：Ark 可能已经创建任务并扣费，但本地没有拿到 cgt Task ID。请去火山控制台查找该时间点的 cgt-...，然后点“输入Task找回”。';
+        renderJobs();
+        await persist();
+      }
       if (!isRetryableSubmitError(error) || attempt === 3) break;
       await sleep(3500 * attempt);
     }
@@ -1987,6 +1999,34 @@ async function syncRemoteTasks() {
 }
 
 
+
+async function bindProviderTaskAndRecover(segmentId) {
+  const segment = state.draft?.segments?.find(s => s.id === segmentId);
+  if (!segment) {
+    toast('无法绑定', '当前工作区没有找到这个片段。');
+    return;
+  }
+
+  const raw = window.prompt('粘贴 Ark Task ID（通常是 cgt- 开头）。这个功能用于 Ark 已扣费但本地没保存 task id 的情况。');
+  const providerTaskId = String(raw || '').trim();
+  if (!providerTaskId) return;
+  if (!/^cgt[-_]/i.test(providerTaskId) && !providerTaskId.startsWith('task')) {
+    const ok = await confirmBox('Task ID 格式可能不对', `你输入的是：${providerTaskId}\n通常 Ark Task 是 cgt- 开头。仍然继续查询吗？`);
+    if (!ok) return;
+  }
+
+  segment.providerTaskId = providerTaskId;
+  segment.status = 'recovering';
+  segment.progress = Math.max(Number(segment.progress || 0), 18);
+  segment.error = null;
+  saveCurrentWorkspaceSelection();
+  renderAll();
+  await persist();
+
+  await recoverSegmentOutput(segmentId);
+}
+
+
 async function recoverSegmentOutput(segmentId) {
   const segment = state.draft?.segments?.find(s => s.id === segmentId);
   if (!segment) {
@@ -1994,7 +2034,7 @@ async function recoverSegmentOutput(segmentId) {
     return;
   }
   if (!segment.remoteTaskId && !segment.providerTaskId) {
-    toast('无法找回', '这个片段还没有 Ark Task ID，不能查询结果。');
+    toast('缺少 Ark Task ID', '本地没有保存 cgt-...，请点“输入Task找回”，把火山 Ark 任务记录里的 Task ID 粘贴进来。');
     return;
   }
 
@@ -2021,7 +2061,44 @@ async function recoverSegmentOutput(segmentId) {
     if (result.task_id) segment.remoteTaskId = result.task_id;
     if (result.error) segment.error = result.error;
 
+    const recoveredVideoUrl = result.video_url || result.provider_video_url || result.output_url || result.download_url || null;
+
+    if (recoveredVideoUrl) {
+      state.outputs = state.outputs || [];
+      const exists = state.outputs.some(output => output.url === recoveredVideoUrl || output.providerTaskId === segment.providerTaskId);
+      if (!exists) {
+        state.outputs.unshift({
+          url: recoveredVideoUrl,
+          storageMode: 'ark-temp-recovered',
+          providerTaskId: segment.providerTaskId || result.provider_task_id,
+          taskId: segment.remoteTaskId || result.task_id || null,
+          segmentId: segment.id,
+          index: segment.index,
+          row: { created_at: new Date().toISOString(), task_id: segment.remoteTaskId || null },
+        });
+      }
+      segment.status = 'completed';
+      segment.progress = 100;
+    }
+
     await loadOutputs();
+
+    if (recoveredVideoUrl) {
+      state.outputs = state.outputs || [];
+      const existsAfterLoad = state.outputs.some(output => output.url === recoveredVideoUrl || output.providerTaskId === (segment.providerTaskId || result.provider_task_id));
+      if (!existsAfterLoad) {
+        state.outputs.unshift({
+          url: recoveredVideoUrl,
+          storageMode: 'ark-temp-recovered',
+          providerTaskId: segment.providerTaskId || result.provider_task_id,
+          taskId: segment.remoteTaskId || result.task_id || null,
+          segmentId: segment.id,
+          index: segment.index,
+          row: { created_at: new Date().toISOString(), task_id: segment.remoteTaskId || null },
+        });
+      }
+    }
+
     saveCurrentWorkspaceSelection();
     renderAll();
 
