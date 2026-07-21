@@ -1,7 +1,8 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260721-local-output-no-supabase-storage-v1';
+const APP_BUILD = '20260721-multiframe-stable-local-output-v3';
+const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v3';
 console.log('[Seedance Studio]', APP_BUILD);
 
 const state = {
@@ -34,6 +35,80 @@ function withTimeout(promise, timeoutMs, label) {
     timer = setTimeout(() => reject(new Error(`${label}超时，请检查网络后重试`)), timeoutMs);
   });
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function isRetryableSubmitError(error) {
+  const message = errorMessage(error).toLowerCase();
+  return message.includes('connection timed out') ||
+    message.includes('tcp connect') ||
+    message.includes('network') ||
+    message.includes('fetch') ||
+    message.includes('请求超时') ||
+    message.includes('超时') ||
+    message.includes('temporarily') ||
+    message.includes('无法连接 ark api');
+}
+
+function blobToImage(blob) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('图片读取失败，请重新上传')); };
+    img.src = url;
+  });
+}
+
+function canvasToBlob(canvas, type = 'image/png', quality = 0.95) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('图片预处理失败')), type, quality);
+  });
+}
+
+async function makeArkSafeFrameBlob(frame) {
+  if (!(frame.blob instanceof Blob)) throw new Error(`图片“${frame.name}”的本地文件已丢失，请重新上传`);
+  const img = await blobToImage(frame.blob);
+  const srcW = img.naturalWidth || frame.width;
+  const srcH = img.naturalHeight || frame.height;
+  if (!srcW || !srcH) return { blob: frame.blob, width: frame.width, height: frame.height, type: frame.type || frame.blob.type };
+
+  const minRatio = 0.40;
+  // Seedance 当前要求输入图比例必须在 0.40 到 2.50 之间。
+  // 3:1 项目会自动把输入图加上下安全留边到 21:9，避免 Ark 直接拒绝。
+  const maxRatio = state.draft?.ratio === '3:1' ? (21 / 9) : 2.45;
+  const ratio = srcW / srcH;
+  let dstW = srcW;
+  let dstH = srcH;
+
+  if (ratio > maxRatio) {
+    dstH = Math.ceil(srcW / maxRatio);
+  } else if (ratio < minRatio) {
+    dstW = Math.ceil(srcH * minRatio);
+  } else {
+    return { blob: frame.blob, width: srcW, height: srcH, type: frame.type || frame.blob.type || 'image/png', normalized: false };
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = dstW;
+  canvas.height = dstH;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#0b0d12';
+  ctx.fillRect(0, 0, dstW, dstH);
+  // 先铺一层放大虚化底图，减少黑边突兀感。
+  ctx.save();
+  ctx.filter = 'blur(18px) brightness(0.82)';
+  const bgScale = Math.max(dstW / srcW, dstH / srcH);
+  const bgW = srcW * bgScale;
+  const bgH = srcH * bgScale;
+  ctx.drawImage(img, (dstW - bgW) / 2, (dstH - bgH) / 2, bgW, bgH);
+  ctx.restore();
+  ctx.drawImage(img, (dstW - srcW) / 2, (dstH - srcH) / 2, srcW, srcH);
+  const blob = await canvasToBlob(canvas, 'image/png', 0.95);
+  return { blob, width: dstW, height: dstH, type: 'image/png', normalized: true };
 }
 
 function errorMessage(error, fallback = '操作失败') {
@@ -578,6 +653,7 @@ function statusText(status) {
     preparing:'准备中',
     uploading:'上传素材',
     submitting:'正在提交',
+    retrying:'重试连接',
     queued:'排队中',
     submitted:'已提交',
     running:'生成中',
@@ -613,13 +689,17 @@ async function ensureRemoteProject() {
 }
 
 async function uploadFrame(frame, projectId, order) {
-  if (frame.remoteAssetId && frame.remotePath) return frame;
+  if (frame.remoteAssetId && frame.remotePath && frame.arkSafeVersion === IMAGE_SAFE_VERSION) return frame;
   if (!(frame.blob instanceof Blob)) throw new Error(`图片“${frame.name}”的本地文件已丢失，请重新上传`);
-  const safeName = String(frame.name || 'frame.png').replace(/[^\w.\-]+/g,'_').slice(-100);
-  const path = `${state.user.id}/${projectId}/${String(order).padStart(3,'0')}-${frame.id}-${Date.now()}-${safeName}`;
+
+  const safeFrame = await makeArkSafeFrameBlob(frame);
+  const safeNameBase = String(frame.name || 'frame.png').replace(/\.[^.]+$/, '').replace(/[^\w.\-]+/g,'_').slice(-90) || 'frame';
+  const ext = safeFrame.type === 'image/png' ? 'png' : 'jpg';
+  const path = `${state.user.id}/${projectId}/${String(order).padStart(3,'0')}-${frame.id}-${Date.now()}-${safeNameBase}.${ext}`;
+
   const upload = await withTimeout(
-    supabase.storage.from('seedance-inputs').upload(path, frame.blob, {
-      contentType: frame.type || frame.blob.type || 'application/octet-stream',
+    supabase.storage.from('seedance-inputs').upload(path, safeFrame.blob, {
+      contentType: safeFrame.type || 'image/png',
       upsert: false,
       cacheControl: '3600',
     }),
@@ -634,11 +714,11 @@ async function uploadFrame(frame, projectId, order) {
       project_id: projectId,
       bucket_id: 'seedance-inputs',
       object_path: path,
-      original_name: frame.name,
-      mime_type: frame.type || frame.blob.type || 'application/octet-stream',
-      file_size: frame.size || frame.blob.size,
-      width: frame.width,
-      height: frame.height,
+      original_name: safeFrame.normalized ? `${frame.name}（已自动补边适配 Seedance）` : frame.name,
+      mime_type: safeFrame.type || 'image/png',
+      file_size: safeFrame.blob.size,
+      width: safeFrame.width,
+      height: safeFrame.height,
       kind: 'frame',
       sort_order: order,
     }).select().single(),
@@ -651,6 +731,10 @@ async function uploadFrame(frame, projectId, order) {
   }
   frame.remoteAssetId = insert.data.id;
   frame.remotePath = path;
+  frame.arkSafeVersion = IMAGE_SAFE_VERSION;
+  frame.uploadWidth = safeFrame.width;
+  frame.uploadHeight = safeFrame.height;
+  frame.wasAspectPadded = Boolean(safeFrame.normalized);
   return frame;
 }
 
@@ -697,29 +781,31 @@ async function submitOne(segment) {
   if (!projectId) throw new Error('远程项目尚未创建');
   if (!from?.remoteAssetId || !to?.remoteAssetId) throw new Error(`Segment ${segment.index + 1} 的首尾帧尚未上传完成`);
 
-  const insert = await withTimeout(
-    supabase.from('video_segments').insert({
-      owner_id: state.user.id,
-      project_id: projectId,
-      position: segment.index,
-      from_asset_id: from.remoteAssetId,
-      to_asset_id: to.remoteAssetId,
-      prompt: segment.prompt,
-      model_alias: segment.model,
-      duration: Number(segment.duration),
-      resolution: segment.resolution,
-      ratio: state.draft.ratio === 'follow' ? 'adaptive' : state.draft.ratio,
-      status: 'ready',
-    }).select().single(),
-    TIMEOUTS.database,
-    `创建 Segment ${segment.index + 1}`,
-  );
-  if (insert.error) throw new Error(`创建 Segment ${segment.index + 1} 失败：${errorMessage(insert.error)}`);
-  segment.remoteSegmentId = insert.data.id;
+  if (!segment.remoteSegmentId) {
+    const insert = await withTimeout(
+      supabase.from('video_segments').insert({
+        owner_id: state.user.id,
+        project_id: projectId,
+        position: segment.index,
+        from_asset_id: from.remoteAssetId,
+        to_asset_id: to.remoteAssetId,
+        prompt: segment.prompt,
+        model_alias: segment.model,
+        duration: Number(segment.duration),
+        resolution: segment.resolution,
+        ratio: state.draft.ratio === 'follow' ? 'adaptive' : state.draft.ratio,
+        status: 'ready',
+      }).select().single(),
+      TIMEOUTS.database,
+      `创建 Segment ${segment.index + 1}`,
+    );
+    if (insert.error) throw new Error(`创建 Segment ${segment.index + 1} 失败：${errorMessage(insert.error)}`);
+    segment.remoteSegmentId = insert.data.id;
+  }
 
   const body = {
     project_id: projectId,
-    segment_id: insert.data.id,
+    segment_id: segment.remoteSegmentId,
     asset_ids: [from.remoteAssetId, to.remoteAssetId],
     prompt: segment.prompt,
     model_alias: segment.model,
@@ -732,16 +818,33 @@ async function submitOne(segment) {
     mode: state.draft.mode,
   };
 
-  const data = await invokeEdgeFunction('seedance-submit', body);
-  if (!data.task_id || !data.provider_task_id) throw new Error(data.error || 'Seedance 提交接口没有返回 task_id / provider_task_id');
+  let lastError = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      segment.status = attempt === 1 ? 'submitting' : 'retrying';
+      segment.progress = attempt === 1 ? 14 : 10;
+      segment.error = attempt === 1 ? null : `第 ${attempt} 次重新连接 Ark...`;
+      renderJobs();
+      await persist();
 
-  segment.status = data.status || 'queued';
-  segment.progress = Number(data.progress || 20);
-  segment.remoteTaskId = data.task_id;
-  segment.providerTaskId = data.provider_task_id;
-  segment.error = null;
-  await persist();
-  return segment;
+      const data = await invokeEdgeFunction('seedance-submit', body);
+      if (!data.task_id || !data.provider_task_id) throw new Error(data.error || 'Seedance 提交接口没有返回 task_id / provider_task_id');
+
+      segment.status = data.status || 'queued';
+      segment.progress = Number(data.progress || 20);
+      segment.remoteTaskId = data.task_id;
+      segment.providerTaskId = data.provider_task_id;
+      segment.error = null;
+      await persist();
+      return segment;
+    } catch (error) {
+      lastError = error;
+      if (!isRetryableSubmitError(error) || attempt === 3) break;
+      await sleep(3500 * attempt);
+    }
+  }
+
+  throw lastError || new Error('提交 Seedance 失败');
 }
 
 async function generateSegments(segmentIds) {
@@ -755,7 +858,7 @@ async function generateSegments(segmentIds) {
     renderEditor();
     return toast('提示词未填写', `请先填写 Segment ${invalid.index+1} 的提示词。`);
   }
-  if (!await confirmBox('确认提交真实任务', `将提交 ${segments.length} 个视频片段，最多同时生成 2 段，可能产生 Ark API 费用。`)) return;
+  if (!await confirmBox('确认提交真实任务', `将提交 ${segments.length} 个视频片段。为避免 Ark 连接超时，多帧会逐段提交，可能产生 Ark API 费用。`)) return;
 
   state.isGenerating = true;
   const generateAllButton = $('generate-all');
@@ -772,7 +875,7 @@ async function generateSegments(segmentIds) {
     await uploadNeededFrames(segmentIds);
 
     const queue = [...segments];
-    const workers = Array.from({ length: Math.min(2, queue.length) }, async () => {
+    const workers = Array.from({ length: Math.min(1, queue.length) }, async () => {
       while (queue.length) {
         const segment = queue.shift();
         try {
