@@ -1,7 +1,7 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260721-native-text-reference-mode-v14';
+const APP_BUILD = '20260721-multi-reference-pool-v15';
 const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v5-blackbar-2p49-force-reupload';
 console.log('[Seedance Studio]', APP_BUILD);
 
@@ -17,6 +17,7 @@ const state = {
   outputs: [],
   outputHistory: [],
   referenceVideo: null,
+  referenceAssets: [],
   pollTimer: null,
   isGenerating: false,
 };
@@ -250,6 +251,7 @@ function createWorkspaceState() {
     outputs: [],
     outputHistory: [],
     referenceVideo: null,
+    referenceAssets: [],
     jobs: [],
     selectedSegmentId: null,
     remoteProjectId: null,
@@ -278,6 +280,9 @@ function migrateDraftWorkspaces(draft) {
   if (!Array.isArray(draft.workspaces.multi_frame.outputHistory)) draft.workspaces.multi_frame.outputHistory = [];
   if (!Array.isArray(draft.workspaces.text_only.outputHistory)) draft.workspaces.text_only.outputHistory = [];
   if (!('referenceVideo' in draft.workspaces.text_only)) draft.workspaces.text_only.referenceVideo = null;
+  if (!Array.isArray(draft.workspaces.text_only.referenceAssets)) {
+    draft.workspaces.text_only.referenceAssets = draft.workspaces.text_only.referenceVideo ? [draft.workspaces.text_only.referenceVideo] : [];
+  }
 
   // 兼容旧代码：当前模式的 frames / segments 始终映射到当前工作区。
   const workspace = getWorkspace(draft);
@@ -305,7 +310,10 @@ function bindCurrentWorkspace() {
   state.draft.remoteProjectId = workspace.remoteProjectId || null;
   state.outputs = Array.isArray(workspace.outputs) ? workspace.outputs : [];
   state.outputHistory = Array.isArray(workspace.outputHistory) ? workspace.outputHistory : [];
-  state.referenceVideo = workspace.referenceVideo || null;
+  state.referenceAssets = Array.isArray(workspace.referenceAssets)
+    ? workspace.referenceAssets
+    : (workspace.referenceVideo ? [workspace.referenceVideo] : []);
+  state.referenceVideo = state.referenceAssets[0] || null;
   state.selectedSegmentId = workspace.selectedSegmentId || workspace.segments[0]?.id || null;
 }
 
@@ -316,7 +324,8 @@ function saveCurrentWorkspaceSelection() {
   workspace.segments = state.draft.segments || [];
   workspace.outputs = state.outputs || [];
   workspace.outputHistory = state.outputHistory || workspace.outputHistory || [];
-  workspace.referenceVideo = state.draft.mode === 'text_only' ? (state.referenceVideo || workspace.referenceVideo || null) : workspace.referenceVideo || null;
+  workspace.referenceAssets = state.draft.mode === 'text_only' ? (state.referenceAssets || workspace.referenceAssets || []) : (workspace.referenceAssets || []);
+  workspace.referenceVideo = workspace.referenceAssets?.[0] || null;
   workspace.remoteProjectId = state.draft.remoteProjectId || workspace.remoteProjectId || null;
   workspace.selectedSegmentId = state.selectedSegmentId || null;
 }
@@ -364,8 +373,9 @@ function renderTextModePanel() {
   const preview = $('reference-video-preview');
   const card = $('reference-video-card');
   if (!preview || !card) return;
-  const ref = state.referenceVideo || getWorkspace().referenceVideo || null;
-  if (!ref) {
+
+  const assets = state.referenceAssets || getWorkspace().referenceAssets || [];
+  if (!assets.length) {
     preview.hidden = true;
     preview.innerHTML = '';
     card.classList.remove('has-reference');
@@ -374,24 +384,85 @@ function renderTextModePanel() {
 
   card.classList.add('has-reference');
   preview.hidden = false;
-  const url = getBlobUrl(ref);
-  preview.innerHTML = `
-    <video src="${url}" controls preload="metadata"></video>
+  preview.innerHTML = assets.map((asset, index) => referenceAssetMarkup(asset, index)).join('');
+
+  preview.querySelectorAll('[data-remove-reference]').forEach(btn => {
+    btn.onclick = async () => {
+      const id = btn.dataset.removeReference;
+      const target = (state.referenceAssets || []).find(item => item.id === id);
+      if (target?.id) releaseFrameUrl(target.id);
+      state.referenceAssets = (state.referenceAssets || []).filter(item => item.id !== id);
+      state.referenceVideo = state.referenceAssets[0] || null;
+      getWorkspace().referenceAssets = state.referenceAssets;
+      getWorkspace().referenceVideo = state.referenceVideo;
+      renderTextModePanel();
+      await persist();
+    };
+  });
+
+  preview.querySelectorAll('[data-reference-direction]').forEach(select => {
+    select.onchange = async () => {
+      const asset = (state.referenceAssets || []).find(item => item.id === select.dataset.referenceDirection);
+      if (!asset) return;
+      asset.referenceDirection = select.value;
+      getWorkspace().referenceAssets = state.referenceAssets;
+      await persist();
+    };
+  });
+
+  syncCustomSelects();
+}
+
+function referenceAssetMarkup(asset, index) {
+  const url = getBlobUrl(asset);
+  const type = String(asset.type || '');
+  const label = assetKindLabel(asset);
+  const title = `${label}${index + 1}`;
+  const direction = asset.referenceDirection || defaultReferenceDirection(asset);
+  let media = '';
+  if (type.startsWith('video/')) {
+    media = `<video src="${url}" controls preload="metadata"></video>`;
+  } else if (type.startsWith('audio/')) {
+    media = `<div class="audio-ref-card"><b>♪</b><audio src="${url}" controls preload="metadata"></audio></div>`;
+  } else if (type.startsWith('image/')) {
+    media = `<img src="${url}" alt="${escapeHtml(asset.name || title)}" />`;
+  } else {
+    media = `<div class="file-ref-card">REF</div>`;
+  }
+
+  return `<article class="reference-pool-item">
+    <div class="reference-pool-media">${media}</div>
     <div class="reference-video-meta">
-      <strong>${escapeHtml(ref.name || '参考视频')}</strong>
-      <span>${formatBytes(ref.size || 0)} · ${escapeHtml(ref.type || 'video')}</span>
-      <small>${ref.remoteAssetId ? '已上传 Supabase，生成时会作为参考视频传给 Ark' : '本地参考视频，生成时才上传'}</small>
+      <strong>${title} · ${escapeHtml(asset.name || '参考内容')}</strong>
+      <span>${formatBytes(asset.size || 0)} · ${escapeHtml(asset.type || 'file')}</span>
+      <small>${asset.remoteAssetId ? '已上传 Supabase，生成时会传给 Ark' : '本地参考内容，生成时才上传'}</small>
+      <label class="reference-direction-label">
+        <span>参考方向</span>
+        <select data-reference-direction="${asset.id}">
+          <option value="visual_motion" ${direction === 'visual_motion' ? 'selected' : ''}>视频动作 / 镜头</option>
+          <option value="visual_style" ${direction === 'visual_style' ? 'selected' : ''}>画面风格 / 构图</option>
+          <option value="audio_rhythm" ${direction === 'audio_rhythm' ? 'selected' : ''}>声音 / 节奏</option>
+          <option value="overall" ${direction === 'overall' ? 'selected' : ''}>综合参考</option>
+        </select>
+      </label>
     </div>
-    <button class="icon-mini danger" id="remove-reference-video" type="button">删除</button>
-  `;
-  const remove = $('remove-reference-video');
-  if (remove) remove.onclick = async () => {
-    if (state.referenceVideo?.id) releaseFrameUrl(state.referenceVideo.id);
-    state.referenceVideo = null;
-    getWorkspace().referenceVideo = null;
-    renderTextModePanel();
-    await persist();
-  };
+    <button class="icon-mini danger" data-remove-reference="${asset.id}" type="button">删除</button>
+  </article>`;
+}
+
+function assetKindLabel(asset) {
+  const type = String(asset.type || '');
+  if (type.startsWith('video/')) return '视频参考';
+  if (type.startsWith('audio/')) return '音频参考';
+  if (type.startsWith('image/')) return '图片参考';
+  return '参考内容';
+}
+
+function defaultReferenceDirection(asset) {
+  const type = String(asset.type || '');
+  if (type.startsWith('audio/')) return 'audio_rhythm';
+  if (type.startsWith('image/')) return 'visual_style';
+  return 'visual_motion';
 }
 
 function formatBytes(size) {
@@ -493,6 +564,7 @@ function normalizeSegments(draft) {
       mode: 'text_only',
       generateAudio: Boolean(existing?.generateAudio),
       referenceAssetId: existing?.referenceAssetId || null,
+      referenceAssetIds: existing?.referenceAssetIds || [],
     }];
   } else {
     const old = new Map((draft.segments || []).map(s => [`${s.fromFrameId}:${s.toFrameId}`, s]));
@@ -702,7 +774,7 @@ function renderEditor() {
     timeline.innerHTML = `<article class="text-only-editor-card">
       <strong>纯文字生成</strong>
       <p>${escapeHtml(segment?.prompt || '尚未填写视频描述')}</p>
-      <span>${ref ? `参考视频：${escapeHtml(ref.name || '已上传参考视频')}` : '无参考视频 · 纯文字生成'}</span>
+      <span>${(state.referenceAssets || []).length ? `已添加 ${(state.referenceAssets || []).length} 个参考内容` : '无参考内容 · 纯文字生成'}</span>
     </article>`;
   } else {
     const parts = [];
@@ -1046,81 +1118,137 @@ async function moveFrame(id, direction) {
 
 
 async function addReferenceVideo(fileList) {
-  const file = [...fileList][0];
-  if (!file) return;
-  const allowed = ['video/mp4', 'video/quicktime', 'video/webm'];
-  if (!allowed.includes(file.type)) {
-    toast('格式不支持', '参考视频请使用 MP4 / MOV / WEBM。');
-    return;
+  return addReferenceAssets(fileList);
+}
+
+async function addReferenceAssets(fileList) {
+  const files = [...fileList];
+  const allowed = new Set([
+    'video/mp4', 'video/quicktime', 'video/webm',
+    'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/aac', 'audio/mp4', 'audio/ogg',
+    'image/png', 'image/jpeg', 'image/webp',
+  ]);
+
+  let added = 0;
+  for (const file of files) {
+    if (!allowed.has(file.type)) {
+      toast('格式不支持', `${file.name} 不是支持的参考格式`);
+      continue;
+    }
+    const isVideo = file.type.startsWith('video/');
+    const isAudio = file.type.startsWith('audio/');
+    const maxSize = isVideo ? 300 * 1024 * 1024 : isAudio ? 80 * 1024 * 1024 : 20 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast('文件过大', `${file.name} 超过当前类型限制`);
+      continue;
+    }
+
+    state.referenceAssets = state.referenceAssets || [];
+    state.referenceAssets.push({
+      id: uid(),
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      blob: file,
+      createdAt: Date.now(),
+      referenceDirection: defaultReferenceDirection({ type: file.type }),
+      remoteAssetId: null,
+      remotePath: null,
+    });
+    added += 1;
   }
-  if (file.size > 300 * 1024 * 1024) {
-    toast('文件过大', '参考视频建议不超过 300MB。');
-    return;
-  }
-  if (state.referenceVideo?.id) releaseFrameUrl(state.referenceVideo.id);
-  state.referenceVideo = {
-    id: uid(),
-    name: file.name,
-    type: file.type,
-    size: file.size,
-    blob: file,
-    createdAt: Date.now(),
-    remoteAssetId: null,
-    remotePath: null,
-  };
+
+  state.referenceVideo = state.referenceAssets[0] || null;
+  getWorkspace().referenceAssets = state.referenceAssets;
   getWorkspace().referenceVideo = state.referenceVideo;
   renderTextModePanel();
   await persist();
-  toast('参考视频已加入', '只保存在当前纯文字工作区，点击生成时才上传。');
+  if (added) toast('参考内容已加入', `已添加 ${added} 个参考内容，可在文字中指定参考方向。`);
 }
 
 async function uploadReferenceVideo(projectId) {
-  const ref = state.referenceVideo || getWorkspace().referenceVideo;
-  if (!ref) return null;
-  if (ref.remoteAssetId && ref.remotePath) return ref.remoteAssetId;
-  if (!(ref.blob instanceof Blob)) throw new Error(`参考视频“${ref.name}”的本地文件已丢失，请重新上传`);
+  const ids = await uploadReferenceAssets(projectId);
+  return ids[0] || null;
+}
 
-  const ext = ref.type === 'video/quicktime' ? 'mov' : ref.type === 'video/webm' ? 'webm' : 'mp4';
-  const safeNameBase = String(ref.name || 'reference-video').replace(/\.[^.]+$/, '').replace(/[^\w.\-]+/g,'_').slice(-90) || 'reference-video';
-  const path = `${state.user.id}/${projectId}/reference-videos/${ref.id}-${Date.now()}-${safeNameBase}.${ext}`;
+async function uploadReferenceAssets(projectId) {
+  const assets = state.referenceAssets || getWorkspace().referenceAssets || [];
+  const resultIds = [];
 
-  const upload = await withTimeout(
-    supabase.storage.from('seedance-inputs').upload(path, ref.blob, {
-      contentType: ref.type || 'video/mp4',
-      upsert: false,
-      cacheControl: '3600',
-    }),
-    TIMEOUTS.upload,
-    '上传参考视频',
-  );
-  if (upload.error) throw new Error(`参考视频上传失败：${errorMessage(upload.error)}`);
+  for (const ref of assets) {
+    if (ref.remoteAssetId && ref.remotePath) {
+      resultIds.push(ref.remoteAssetId);
+      continue;
+    }
+    if (!(ref.blob instanceof Blob)) throw new Error(`参考内容“${ref.name}”的本地文件已丢失，请重新上传`);
 
-  const insert = await withTimeout(
-    supabase.from('video_assets').insert({
-      owner_id: state.user.id,
-      project_id: projectId,
-      bucket_id: 'seedance-inputs',
-      object_path: path,
-      original_name: ref.name,
-      mime_type: ref.type || 'video/mp4',
-      file_size: ref.blob.size,
-      width: null,
-      height: null,
-      kind: 'reference_video',
-      sort_order: 0,
-    }).select().single(),
-    TIMEOUTS.database,
-    '登记参考视频',
-  );
-  if (insert.error) {
-    try { await supabase.storage.from('seedance-inputs').remove([path]); } catch {}
-    throw new Error(`参考视频登记失败：${errorMessage(insert.error)}`);
+    const ext = extensionFromMime(ref.type);
+    const kindFolder = ref.type.startsWith('audio/') ? 'reference-audios' : ref.type.startsWith('image/') ? 'reference-images' : 'reference-videos';
+    const safeNameBase = String(ref.name || 'reference').replace(/\.[^.]+$/, '').replace(/[^\w.\-]+/g,'_').slice(-90) || 'reference';
+    const path = `${state.user.id}/${projectId}/${kindFolder}/${ref.id}-${Date.now()}-${safeNameBase}.${ext}`;
+
+    const upload = await withTimeout(
+      supabase.storage.from('seedance-inputs').upload(path, ref.blob, {
+        contentType: ref.type || 'application/octet-stream',
+        upsert: false,
+        cacheControl: '3600',
+      }),
+      TIMEOUTS.upload,
+      `上传参考内容 ${ref.name}`,
+    );
+    if (upload.error) throw new Error(`参考内容上传失败：${errorMessage(upload.error)}`);
+
+    const insert = await withTimeout(
+      supabase.from('video_assets').insert({
+        owner_id: state.user.id,
+        project_id: projectId,
+        bucket_id: 'seedance-inputs',
+        object_path: path,
+        original_name: ref.name,
+        mime_type: ref.type || 'application/octet-stream',
+        file_size: ref.blob.size,
+        width: null,
+        height: null,
+        kind: ref.type.startsWith('audio/') ? 'reference_audio' : ref.type.startsWith('image/') ? 'reference_image' : 'reference_video',
+        sort_order: resultIds.length,
+      }).select().single(),
+      TIMEOUTS.database,
+      `登记参考内容 ${ref.name}`,
+    );
+    if (insert.error) {
+      try { await supabase.storage.from('seedance-inputs').remove([path]); } catch {}
+      throw new Error(`参考内容登记失败：${errorMessage(insert.error)}`);
+    }
+
+    ref.remoteAssetId = insert.data.id;
+    ref.remotePath = path;
+    resultIds.push(ref.remoteAssetId);
   }
-  ref.remoteAssetId = insert.data.id;
-  ref.remotePath = path;
-  state.referenceVideo = ref;
-  getWorkspace().referenceVideo = ref;
-  return ref.remoteAssetId;
+
+  state.referenceAssets = assets;
+  state.referenceVideo = assets[0] || null;
+  getWorkspace().referenceAssets = assets;
+  getWorkspace().referenceVideo = state.referenceVideo;
+  return resultIds;
+}
+
+function extensionFromMime(type) {
+  const map = {
+    'video/mp4': 'mp4',
+    'video/quicktime': 'mov',
+    'video/webm': 'webm',
+    'audio/mpeg': 'mp3',
+    'audio/mp3': 'mp3',
+    'audio/wav': 'wav',
+    'audio/x-wav': 'wav',
+    'audio/aac': 'aac',
+    'audio/mp4': 'm4a',
+    'audio/ogg': 'ogg',
+    'image/png': 'png',
+    'image/jpeg': 'jpg',
+    'image/webp': 'webp',
+  };
+  return map[type] || 'bin';
 }
 
 async function addFiles(fileList) {
@@ -1222,6 +1350,7 @@ async function removeProject() {
   Object.values(state.draft.workspaces || {}).forEach(ws => {
     (ws.frames || []).forEach(f => releaseFrameUrl(f.id));
     if (ws.referenceVideo?.id) releaseFrameUrl(ws.referenceVideo.id);
+    (ws.referenceAssets || []).forEach(asset => asset?.id && releaseFrameUrl(asset.id));
   });
   await deleteDraft(id);
   state.drafts = state.drafts.filter(d => d.id !== id);
@@ -1334,9 +1463,10 @@ async function uploadNeededFrames(segmentIds) {
   const projectId = await ensureRemoteProject();
   const segments = state.draft.segments.filter(s => segmentIds.includes(s.id));
   if (state.draft.mode === 'text_only') {
-    const referenceAssetId = await uploadReferenceVideo(projectId);
+    const referenceAssetIds = await uploadReferenceAssets(projectId);
     segments.forEach(segment => {
-      segment.referenceAssetId = referenceAssetId || null;
+      segment.referenceAssetId = referenceAssetIds[0] || null;
+      segment.referenceAssetIds = referenceAssetIds;
       segment.status = 'submitting';
       segment.progress = 13;
       segment.error = null;
@@ -1399,7 +1529,14 @@ async function submitOne(segment) {
     ratio: state.draft.ratio === 'follow' ? 'adaptive' : state.draft.ratio,
     status: 'ready',
     mode: isTextOnly ? 'text_only' : state.draft.mode,
-    reference_asset_id: isTextOnly ? (segment.referenceAssetId || state.referenceVideo?.remoteAssetId || null) : null,
+    reference_asset_id: isTextOnly ? (segment.referenceAssetId || state.referenceAssets?.[0]?.remoteAssetId || null) : null,
+    reference_asset_ids: isTextOnly ? (segment.referenceAssetIds || (state.referenceAssets || []).map(item => item.remoteAssetId).filter(Boolean)) : [],
+    reference_directions: isTextOnly ? (state.referenceAssets || []).map(item => ({
+      asset_id: item.remoteAssetId || null,
+      name: item.name,
+      mime_type: item.type,
+      direction: item.referenceDirection || defaultReferenceDirection(item),
+    })) : [],
     generate_audio: Boolean(segment.generateAudio),
   };
 
@@ -1425,6 +1562,8 @@ async function submitOne(segment) {
           status: 'ready',
           mode: segmentPayload.mode,
           reference_asset_id: segmentPayload.reference_asset_id,
+          reference_asset_ids: segmentPayload.reference_asset_ids,
+          reference_directions: segmentPayload.reference_directions,
           generate_audio: segmentPayload.generate_audio,
         })
         .eq('id', segment.remoteSegmentId)
@@ -1449,7 +1588,14 @@ async function submitOne(segment) {
     effective_prompt: buildStrictFrameLockPrompt(segment),
     prompt_mode: isTextOnly ? 'text_reference_video_v14' : 'strict_frame_lock_v14',
     client_submit_nonce: submitNonce,
-    reference_asset_id: isTextOnly ? (segment.referenceAssetId || state.referenceVideo?.remoteAssetId || null) : null,
+    reference_asset_id: isTextOnly ? (segment.referenceAssetId || state.referenceAssets?.[0]?.remoteAssetId || null) : null,
+    reference_asset_ids: isTextOnly ? (segment.referenceAssetIds || (state.referenceAssets || []).map(item => item.remoteAssetId).filter(Boolean)) : [],
+    reference_directions: isTextOnly ? (state.referenceAssets || []).map(item => ({
+      asset_id: item.remoteAssetId || null,
+      name: item.name,
+      mime_type: item.type,
+      direction: item.referenceDirection || defaultReferenceDirection(item),
+    })) : [],
     generate_audio: Boolean(segment.generateAudio),
     model_alias: segment.model,
     duration: Number(segment.duration),
@@ -2089,7 +2235,7 @@ function wireEvents() {
     const s = state.draft.segments.find(x=>x.id===state.selectedSegmentId);
     if (!s) return;
     if (state.draft.mode === 'text_only') {
-      toast('预检通过', `纯文字${state.referenceVideo ? ' + 参考视频' : ''}；${s.duration}s；${s.model}；${s.resolution}；比例 ${state.draft.ratio}；声音${s.generateAudio ? '开' : '关'}`);
+      toast('预检通过', `纯文字${(state.referenceAssets || []).length ? ` + ${state.referenceAssets.length} 个参考内容` : ''}；${s.duration}s；${s.model}；${s.resolution}；比例 ${state.draft.ratio}；声音${s.generateAudio ? '开' : '关'}`);
     } else {
       const from = state.draft.frames.find(f=>f.id===s.fromFrameId);
       const to = state.draft.frames.find(f=>f.id===s.toFrameId);
