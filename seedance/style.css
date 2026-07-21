@@ -900,3 +900,139 @@ button[data-generate-current],
 .job-actions button[data-recover-output]:hover {
   background: rgba(34,211,238,.12);
 }
+
+
+/* v17 charged task recovery */
+.job-actions button[data-bind-provider-task] {
+  border-color: rgba(250, 204, 21, .24);
+  color: #fde68a;
+}
+.job-actions button[data-bind-provider-task]:hover {
+  background: rgba(250, 204, 21, .12);
+}
+
+
+/* v20 SAFE minimal UI fix: do not touch JS/page structure */
+
+/* 1) Multi reference pool: keep every uploaded reference as an independent vertical card */
+.reference-pool-card .reference-pool-list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 14px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: visible !important;
+}
+
+.reference-pool-card .reference-pool-item {
+  display: grid !important;
+  grid-template-columns: 220px minmax(0, 1fr) auto !important;
+  gap: 16px !important;
+  align-items: center !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  padding: 14px !important;
+  overflow: hidden !important;
+}
+
+.reference-pool-card .reference-pool-media,
+.reference-pool-card .reference-pool-media video,
+.reference-pool-card .reference-pool-media img,
+.reference-pool-card .audio-ref-card,
+.reference-pool-card .file-ref-card {
+  width: 220px !important;
+  max-width: 220px !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.reference-pool-card .reference-pool-media video,
+.reference-pool-card .reference-pool-media img {
+  aspect-ratio: 16 / 9 !important;
+  object-fit: cover !important;
+  border-radius: 12px !important;
+}
+
+.reference-pool-card .reference-video-meta {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+}
+
+.reference-pool-card .reference-video-meta strong,
+.reference-pool-card .reference-video-meta span,
+.reference-pool-card .reference-video-meta small {
+  display: block !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+}
+
+.reference-pool-card .reference-direction-label {
+  max-width: 340px !important;
+  min-width: 0 !important;
+}
+
+/* 2) Right inspector bottom: add breathing room without blocking clicks */
+.inspector-panel,
+.segment-inspector,
+.right-panel,
+.editor-side,
+#inspector-panel,
+#segment-inspector {
+  padding-bottom: 72px !important;
+  box-sizing: border-box !important;
+}
+
+#inspector-form,
+.inspector-form,
+.segment-form {
+  padding-bottom: 84px !important;
+  margin-bottom: 36px !important;
+}
+
+/* Do not use sticky overlays. Just keep action buttons away from the page bottom. */
+#generate-current,
+button[data-generate-current],
+#submit-current,
+button[data-submit-current],
+button.primary.full,
+button.primary.wide {
+  margin-bottom: 48px !important;
+}
+
+/* Keep textarea clean but don't break interaction */
+textarea {
+  resize: none !important;
+}
+
+@media (max-width: 1100px) {
+  .reference-pool-card .reference-pool-item {
+    grid-template-columns: 180px minmax(0, 1fr) auto !important;
+  }
+  .reference-pool-card .reference-pool-media,
+  .reference-pool-card .reference-pool-media video,
+  .reference-pool-card .reference-pool-media img,
+  .reference-pool-card .audio-ref-card,
+  .reference-pool-card .file-ref-card {
+    width: 180px !important;
+    max-width: 180px !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .reference-pool-card .reference-pool-item {
+    grid-template-columns: 1fr !important;
+  }
+  .reference-pool-card .reference-pool-media,
+  .reference-pool-card .reference-pool-media video,
+  .reference-pool-card .reference-pool-media img,
+  .reference-pool-card .audio-ref-card,
+  .reference-pool-card .file-ref-card {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
