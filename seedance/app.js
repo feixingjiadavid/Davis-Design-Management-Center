@@ -178,21 +178,19 @@ function escapeHtml(value) {
 
 async function invokeEdgeFunction(name, body) {
   const accessToken = await getAccessToken();
-  const invocation = supabase.functions.invoke(name, {
+  const request = supabase.functions.invoke(name, {
     body,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
+    headers: { Authorization: `Bearer ${accessToken}` },
   });
 
   const { data, error } = await withTimeout(
-    invocation,
+    request,
     TIMEOUTS.edgeFunction,
     `${name} 请求`,
   );
 
   if (!error) {
-    if (data?.error) throw new Error(data.error);
+    if (data?.error && !data?.success) throw new Error(data.error);
     return data || {};
   }
 
@@ -216,6 +214,7 @@ async function invokeEdgeFunction(name, body) {
 function jobStageMarkup(segment) {
   const status = String(segment.status || 'draft').toLowerCase();
   const progress = Number(segment.progress || (
+    status === 'submitting' ? 12 :
     status === 'queued' ? 20 :
     status === 'running' || status === 'processing' ? 60 :
     status === 'succeeded' || status === 'completed' || status === 'success' ? 100 : 0
@@ -223,21 +222,21 @@ function jobStageMarkup(segment) {
   const steps = [
     ['素材上传', ['submitting','submitted','queued','running','processing','succeeded','completed','success'].includes(status)],
     ['任务提交', ['queued','running','processing','succeeded','completed','success'].includes(status)],
-    ['Seedance 生成', ['succeeded','completed','success'].includes(status)],
+    ['Seedance 生成', ['running','processing','succeeded','completed','success'].includes(status)],
   ];
   return `
     <div class="job-progress" style="margin:12px 0">
       <div style="height:6px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden">
         <div style="height:100%;width:${Math.max(0,Math.min(100,progress))}%;background:linear-gradient(90deg,#6d5dfc,#9a8cff);transition:.3s"></div>
       </div>
-      <div style="display:flex;justify-content:space-between;margin-top:7px;font-size:9px;color:#7c8291">
+      <div style="display:flex;justify-content:space-between;margin-top:7px;font-size:10px;color:#8b91a3">
         <span>${progress}%</span>
         <span>${statusText(status)}</span>
       </div>
-      <div style="display:grid;gap:5px;margin-top:10px;font-size:9px;color:#8c92a1">
+      <div style="display:grid;gap:5px;margin-top:10px;font-size:10px;color:#8c92a1">
         ${steps.map(([label,done]) => `<span>${done ? '✓' : status==='failed' ? '×' : '○'} ${label}</span>`).join('')}
       </div>
-      ${segment.providerTaskId ? `<div style="margin-top:9px;font-size:9px;color:#666d7c;word-break:break-all">Ark Task：${escapeHtml(segment.providerTaskId)}</div>` : ''}
+      ${segment.providerTaskId ? `<div style="margin-top:9px;font-size:10px;color:#8b91a3;word-break:break-all">Ark Task：${escapeHtml(segment.providerTaskId)}</div>` : ''}
     </div>`;
 }
 
@@ -373,7 +372,7 @@ function renderJobs() {
       </div>
       <p>${escapeHtml(s.prompt || '未填写提示词')}</p>
       ${jobStageMarkup(s)}
-      ${s.error ? `<p style="color:#ff8090">${escapeHtml(s.error)}</p>` : ''}
+      ${s.error ? `<p style="color:#ff8090;white-space:pre-wrap">${escapeHtml(s.error)}</p>` : ''}
       <div class="job-actions">
         <button data-refresh-segment="${s.id}">立即查询</button>
         <button data-retry-segment="${s.id}">重新生成</button>
@@ -494,14 +493,10 @@ async function selectDraft(id) {
   state.draft = draft;
   normalizeSegments(state.draft);
   state.selectedSegmentId = state.draft.segments[0]?.id || null;
-  await recoverStaleLocalStates();
   try { await syncRemoteTasks(); } catch (error) { console.warn(error); }
   renderAll();
-
-  const hasActiveTasks = state.draft.segments.some(segment =>
-    ['queued', 'running', 'processing', 'submitted'].includes(segment.status)
-  );
-  if (hasActiveTasks) startPolling();
+  const hasActive = state.draft.segments.some(s => ['submitted','queued','running','processing'].includes(String(s.status || '').toLowerCase()));
+  if (hasActive) startPolling();
 }
 
 async function createProject() {
@@ -542,23 +537,20 @@ function statusText(status) {
 
 async function ensureRemoteProject() {
   if (state.draft.remoteProjectId) return state.draft.remoteProjectId;
-
   const payload = {
     owner_id: state.user.id,
     name: state.draft.name,
     mode: state.draft.mode,
-    ratio: state.draft.ratio === 'follow' ? '16:9' : state.draft.ratio,
+    ratio: state.draft.ratio === 'follow' ? 'adaptive' : state.draft.ratio,
     resolution: '720p',
     frame_fit_mode: state.draft.fitMode,
     status: 'draft',
   };
-
   const result = await withTimeout(
     supabase.from('video_projects').insert(payload).select().single(),
     TIMEOUTS.database,
     '创建远程项目',
   );
-
   if (result.error) throw new Error(`创建项目失败：${errorMessage(result.error)}`);
   state.draft.remoteProjectId = result.data.id;
   await persist();
@@ -567,20 +559,10 @@ async function ensureRemoteProject() {
 
 async function uploadFrame(frame, projectId, order) {
   if (frame.remoteAssetId && frame.remotePath) return frame;
-
-  if (!(frame.blob instanceof Blob)) {
-    throw new Error(`图片“${frame.name}”的本地文件已丢失，请删除后重新上传`);
-  }
-  if (!frame.blob.size) {
-    throw new Error(`图片“${frame.name}”为空文件，请重新上传`);
-  }
-
-  const safeName = String(frame.name || 'frame.png')
-    .replace(/[^\w.\-]+/g, '_')
-    .slice(-100);
+  if (!(frame.blob instanceof Blob)) throw new Error(`图片“${frame.name}”的本地文件已丢失，请重新上传`);
+  const safeName = String(frame.name || 'frame.png').replace(/[^\w.\-]+/g,'_').slice(-100);
   const path = `${state.user.id}/${projectId}/${String(order).padStart(3,'0')}-${frame.id}-${Date.now()}-${safeName}`;
-
-  const uploadResult = await withTimeout(
+  const upload = await withTimeout(
     supabase.storage.from('seedance-inputs').upload(path, frame.blob, {
       contentType: frame.type || frame.blob.type || 'application/octet-stream',
       upsert: false,
@@ -589,12 +571,9 @@ async function uploadFrame(frame, projectId, order) {
     TIMEOUTS.upload,
     `上传图片 ${order + 1}`,
   );
+  if (upload.error) throw new Error(`图片 ${order + 1} 上传失败：${errorMessage(upload.error)}`);
 
-  if (uploadResult.error) {
-    throw new Error(`图片 ${order + 1} 上传失败：${errorMessage(uploadResult.error)}`);
-  }
-
-  const assetResult = await withTimeout(
+  const insert = await withTimeout(
     supabase.from('video_assets').insert({
       owner_id: state.user.id,
       project_id: projectId,
@@ -611,15 +590,11 @@ async function uploadFrame(frame, projectId, order) {
     TIMEOUTS.database,
     `登记图片 ${order + 1}`,
   );
-
-  if (assetResult.error) {
-    try {
-      await supabase.storage.from('seedance-inputs').remove([path]);
-    } catch {}
-    throw new Error(`图片 ${order + 1} 登记失败：${errorMessage(assetResult.error)}`);
+  if (insert.error) {
+    try { await supabase.storage.from('seedance-inputs').remove([path]); } catch {}
+    throw new Error(`图片 ${order + 1} 登记失败：${errorMessage(insert.error)}`);
   }
-
-  frame.remoteAssetId = assetResult.data.id;
+  frame.remoteAssetId = insert.data.id;
   frame.remotePath = path;
   return frame;
 }
@@ -634,7 +609,6 @@ async function uploadNeededFrames(segmentIds) {
     const frame = frames[index];
     const originalIndex = state.draft.frames.findIndex(item => item.id === frame.id);
     const progress = Math.max(3, Math.round(((index + 0.2) / Math.max(frames.length, 1)) * 12));
-
     segments.forEach(segment => {
       if ([segment.fromFrameId, segment.toFrameId].includes(frame.id)) {
         segment.status = 'uploading';
@@ -644,83 +618,59 @@ async function uploadNeededFrames(segmentIds) {
     });
     renderAll();
     await persist();
-
     await uploadFrame(frame, projectId, originalIndex);
-
-    segments.forEach(segment => {
-      const from = state.draft.frames.find(item => item.id === segment.fromFrameId);
-      const to = state.draft.frames.find(item => item.id === segment.toFrameId);
-      if (from?.remoteAssetId && to?.remoteAssetId) {
-        segment.status = 'submitting';
-        segment.progress = 13;
-      }
-    });
-    renderAll();
-    await persist();
   }
 
+  segments.forEach(segment => {
+    const from = state.draft.frames.find(item => item.id === segment.fromFrameId);
+    const to = state.draft.frames.find(item => item.id === segment.toFrameId);
+    if (from?.remoteAssetId && to?.remoteAssetId) {
+      segment.status = 'submitting';
+      segment.progress = 13;
+    }
+  });
+  renderAll();
+  await persist();
   return projectId;
 }
 
 async function submitOne(segment) {
-  if (!segment.prompt.trim()) {
-    throw new Error(`Segment ${segment.index + 1} 尚未填写提示词`);
-  }
-
+  if (!segment.prompt.trim()) throw new Error(`Segment ${segment.index+1} 尚未填写提示词`);
   const projectId = state.draft.remoteProjectId;
   const from = state.draft.frames.find(f => f.id === segment.fromFrameId);
   const to = state.draft.frames.find(f => f.id === segment.toFrameId);
-
   if (!projectId) throw new Error('远程项目尚未创建');
-  if (!from?.remoteAssetId || !to?.remoteAssetId) {
-    throw new Error(`Segment ${segment.index + 1} 的首尾帧尚未上传完成`);
-  }
+  if (!from?.remoteAssetId || !to?.remoteAssetId) throw new Error(`Segment ${segment.index + 1} 的首尾帧尚未上传完成`);
 
-  segment.status = 'submitting';
-  segment.progress = 14;
-  segment.error = null;
-  renderJobs();
-  await persist();
-
-  let remoteSegmentId = segment.remoteSegmentId;
-
-  if (!remoteSegmentId) {
-    const insertResult = await withTimeout(
-      supabase.from('video_segments').insert({
-        owner_id: state.user.id,
-        project_id: projectId,
-        position: segment.index,
-        from_asset_id: from.remoteAssetId,
-        to_asset_id: to.remoteAssetId,
-        prompt: segment.prompt,
-        model_alias: segment.model,
-        duration: Number(segment.duration),
-        resolution: segment.resolution,
-        ratio: state.draft.ratio === 'follow' ? '16:9' : state.draft.ratio,
-        status: 'ready',
-      }).select().single(),
-      TIMEOUTS.database,
-      `创建 Segment ${segment.index + 1}`,
-    );
-
-    if (insertResult.error) {
-      throw new Error(`创建 Segment ${segment.index + 1} 失败：${errorMessage(insertResult.error)}`);
-    }
-
-    remoteSegmentId = insertResult.data.id;
-    segment.remoteSegmentId = remoteSegmentId;
-    await persist();
-  }
+  const insert = await withTimeout(
+    supabase.from('video_segments').insert({
+      owner_id: state.user.id,
+      project_id: projectId,
+      position: segment.index,
+      from_asset_id: from.remoteAssetId,
+      to_asset_id: to.remoteAssetId,
+      prompt: segment.prompt,
+      model_alias: segment.model,
+      duration: Number(segment.duration),
+      resolution: segment.resolution,
+      ratio: state.draft.ratio === 'follow' ? 'adaptive' : state.draft.ratio,
+      status: 'ready',
+    }).select().single(),
+    TIMEOUTS.database,
+    `创建 Segment ${segment.index + 1}`,
+  );
+  if (insert.error) throw new Error(`创建 Segment ${segment.index + 1} 失败：${errorMessage(insert.error)}`);
+  segment.remoteSegmentId = insert.data.id;
 
   const body = {
     project_id: projectId,
-    segment_id: remoteSegmentId,
+    segment_id: insert.data.id,
     asset_ids: [from.remoteAssetId, to.remoteAssetId],
     prompt: segment.prompt,
     model_alias: segment.model,
     duration: Number(segment.duration),
     resolution: segment.resolution,
-    ratio: state.draft.ratio === 'follow' ? '16:9' : state.draft.ratio,
+    ratio: state.draft.ratio === 'follow' ? 'adaptive' : state.draft.ratio,
     frame_fit_mode: state.draft.fitMode,
     final_width: Number(state.draft.finalWidth),
     final_height: Number(state.draft.finalHeight),
@@ -728,13 +678,10 @@ async function submitOne(segment) {
   };
 
   const data = await invokeEdgeFunction('seedance-submit', body);
-
-  if (!data.task_id || !data.provider_task_id) {
-    throw new Error(data.error || 'Seedance 提交接口没有返回 task_id / provider_task_id');
-  }
+  if (!data.task_id || !data.provider_task_id) throw new Error(data.error || 'Seedance 提交接口没有返回 task_id / provider_task_id');
 
   segment.status = data.status || 'queued';
-  segment.progress = Number(data.progress || 15);
+  segment.progress = Number(data.progress || 20);
   segment.remoteTaskId = data.task_id;
   segment.providerTaskId = data.provider_task_id;
   segment.error = null;
@@ -743,27 +690,17 @@ async function submitOne(segment) {
 }
 
 async function generateSegments(segmentIds) {
-  if (state.isGenerating) {
-    return toast('任务正在提交', '请等待当前提交完成后再操作。');
-  }
-
+  if (state.isGenerating) return toast('任务正在提交', '请等待当前提交完成后再操作。');
   const segments = state.draft.segments.filter(s => segmentIds.includes(s.id));
-  if (!segments.length) {
-    return toast('没有可生成片段', '请先上传至少两张图片。');
-  }
-
+  if (!segments.length) return toast('没有可生成片段', '请先上传至少两张图片。');
   const invalid = segments.find(s => !s.prompt.trim());
   if (invalid) {
     state.selectedSegmentId = invalid.id;
     setView('editor');
     renderEditor();
-    return toast('提示词未填写', `请先填写 Segment ${invalid.index + 1} 的提示词。`);
+    return toast('提示词未填写', `请先填写 Segment ${invalid.index+1} 的提示词。`);
   }
-
-  if (!await confirmBox(
-    '确认提交真实任务',
-    `将提交 ${segments.length} 个视频片段，最多同时生成 2 段，可能产生 Ark API 费用。`,
-  )) return;
+  if (!await confirmBox('确认提交真实任务', `将提交 ${segments.length} 个视频片段，最多同时生成 2 段，可能产生 Ark API 费用。`)) return;
 
   state.isGenerating = true;
   const generateAllButton = $('generate-all');
@@ -771,54 +708,39 @@ async function generateSegments(segmentIds) {
     generateAllButton.disabled = true;
     generateAllButton.textContent = '正在提交...';
   }
-
   setView('jobs');
 
   try {
-    segments.forEach(segment => {
-      segment.status = 'preparing';
-      segment.progress = 1;
-      segment.error = null;
-    });
+    segments.forEach(s => { s.status = 'preparing'; s.progress = 1; s.error = null; });
     renderAll();
     await persist();
-
     await uploadNeededFrames(segmentIds);
 
     const queue = [...segments];
-    const workers = Array.from(
-      { length: Math.min(2, queue.length) },
-      async () => {
-        while (queue.length) {
-          const segment = queue.shift();
-          if (!segment) continue;
-
-          try {
-            await submitOne(segment);
-          } catch (error) {
-            segment.status = 'failed';
-            segment.progress = 0;
-            segment.error = errorMessage(error, '提交失败');
-          }
-
-          await persist();
-          renderAll();
+    const workers = Array.from({ length: Math.min(2, queue.length) }, async () => {
+      while (queue.length) {
+        const segment = queue.shift();
+        try {
+          segment.status = 'submitting';
+          segment.progress = 14;
+          renderJobs();
+          await submitOne(segment);
+        } catch (error) {
+          segment.status = 'failed';
+          segment.progress = 0;
+          segment.error = errorMessage(error, '提交失败');
         }
-      },
-    );
-
+        await persist();
+        renderAll();
+      }
+    });
     await Promise.all(workers);
 
-    const successCount = segments.filter(segment =>
-      ['queued', 'running', 'succeeded', 'completed', 'success'].includes(segment.status)
-    ).length;
-    const failedCount = segments.filter(segment => segment.status === 'failed').length;
-
+    await refreshJobs();
+    const successCount = segments.filter(s => ['queued','running','processing','succeeded','completed','success'].includes(s.status)).length;
+    const failedCount = segments.filter(s => s.status === 'failed').length;
     if (successCount) {
-      toast(
-        '真实任务已提交',
-        `${successCount} 段已进入 Seedance；${failedCount ? `${failedCount} 段失败。` : '正在自动查询状态。'}`,
-      );
+      toast('真实任务已提交', `${successCount} 段已进入 Seedance；${failedCount ? `${failedCount} 段失败。` : '正在自动查询状态。'}`);
       startPolling();
     } else {
       toast('提交失败', segments[0]?.error || '所有片段均未提交成功');
@@ -826,7 +748,7 @@ async function generateSegments(segmentIds) {
   } catch (error) {
     const message = errorMessage(error, '提交失败');
     segments.forEach(segment => {
-      if (['preparing', 'uploading', 'submitting', 'submitted', 'queued'].includes(segment.status)) {
+      if (['preparing','uploading','submitting','submitted','queued'].includes(segment.status)) {
         segment.status = 'failed';
         segment.progress = 0;
         segment.error = message;
@@ -847,7 +769,6 @@ async function generateSegments(segmentIds) {
 async function refreshSingleSegment(segmentId) {
   const segment = state.draft.segments.find(s => s.id === segmentId);
   if (!segment?.remoteTaskId && !segment?.providerTaskId && !segment?.remoteSegmentId) return;
-
   try {
     const data = await invokeEdgeFunction('seedance-status', {
       project_id: state.draft.remoteProjectId,
@@ -855,14 +776,12 @@ async function refreshSingleSegment(segmentId) {
       task_id: segment.remoteTaskId,
       provider_task_id: segment.providerTaskId,
     });
-
     segment.status = data.status || segment.status;
     segment.progress = Number(data.progress ?? segment.progress ?? 0);
     segment.outputPath = data.storage_path || data.output_path || segment.outputPath;
     segment.providerTaskId = data.provider_task_id || segment.providerTaskId;
     segment.remoteTaskId = data.task_id || segment.remoteTaskId;
     segment.error = data.error_message || null;
-
     await persist();
     await loadOutputs();
     renderAll();
@@ -873,58 +792,61 @@ async function refreshSingleSegment(segmentId) {
   }
 }
 
-
 async function syncRemoteTasks() {
   if (!state.draft?.remoteProjectId || !state.user?.id) return;
 
-  const result = await withTimeout(
-    supabase.from('video_tasks')
-      .select('id,segment_id,provider_task_id,status,progress,error_message,created_at,updated_at')
-      .eq('owner_id', state.user.id)
-      .eq('project_id', state.draft.remoteProjectId)
-      .order('created_at', { ascending: false }),
-    TIMEOUTS.database,
-    '同步远程任务',
-  );
+  const [taskResult, segmentResult] = await Promise.all([
+    withTimeout(
+      supabase.from('video_tasks')
+        .select('id,segment_id,provider_task_id,status,progress,error_message,created_at,updated_at')
+        .eq('owner_id', state.user.id)
+        .eq('project_id', state.draft.remoteProjectId)
+        .order('created_at', { ascending: false }),
+      TIMEOUTS.database,
+      '同步远程任务',
+    ),
+    withTimeout(
+      supabase.from('video_segments')
+        .select('id,position,status,created_at,updated_at')
+        .eq('owner_id', state.user.id)
+        .eq('project_id', state.draft.remoteProjectId)
+        .order('created_at', { ascending: false }),
+      TIMEOUTS.database,
+      '同步远程片段',
+    ),
+  ]);
 
-  if (result.error) throw new Error(`同步任务失败：${errorMessage(result.error)}`);
+  if (taskResult.error) throw new Error(`同步任务失败：${errorMessage(taskResult.error)}`);
+  if (segmentResult.error) throw new Error(`同步片段失败：${errorMessage(segmentResult.error)}`);
 
-  const latestBySegment = new Map();
-  for (const task of result.data || []) {
-    if (task.segment_id && !latestBySegment.has(task.segment_id)) {
-      latestBySegment.set(task.segment_id, task);
-    }
+  const remoteSegments = segmentResult.data || [];
+  const tasks = taskResult.data || [];
+  const segmentsByPosition = new Map();
+  for (const remote of remoteSegments) {
+    const key = Number(remote.position || 0);
+    if (!segmentsByPosition.has(key)) segmentsByPosition.set(key, []);
+    segmentsByPosition.get(key).push(remote);
   }
 
-  for (const segment of state.draft.segments) {
-    if (!segment.remoteSegmentId) continue;
-    const task = latestBySegment.get(segment.remoteSegmentId);
+  for (const local of state.draft.segments) {
+    const candidates = segmentsByPosition.get(Number(local.index || 0)) || [];
+    const candidateIds = new Set(candidates.map(s => s.id));
+    if (local.remoteSegmentId) candidateIds.add(local.remoteSegmentId);
+
+    const task = tasks.find(t => local.remoteSegmentId && t.segment_id === local.remoteSegmentId)
+      || tasks.find(t => candidateIds.has(t.segment_id));
+
     if (!task) continue;
 
-    segment.remoteTaskId = task.id;
-    segment.providerTaskId = task.provider_task_id || segment.providerTaskId;
-    segment.status = task.status || segment.status;
-    segment.progress = Number(task.progress ?? segment.progress ?? 0);
-    segment.error = task.error_message || null;
+    local.remoteSegmentId = task.segment_id || local.remoteSegmentId;
+    local.remoteTaskId = task.id || local.remoteTaskId;
+    local.providerTaskId = task.provider_task_id || local.providerTaskId;
+    local.status = task.status || local.status;
+    local.progress = Number(task.progress ?? local.progress ?? 0);
+    local.error = task.error_message || null;
   }
 
   await persist();
-}
-
-async function recoverStaleLocalStates() {
-  let changed = false;
-
-  for (const segment of state.draft?.segments || []) {
-    const transitional = ['preparing', 'uploading', 'submitting', 'submitted'].includes(segment.status);
-    if (transitional && !segment.remoteTaskId && !segment.providerTaskId) {
-      segment.status = 'failed';
-      segment.progress = 0;
-      segment.error = '上次提交未完成，已停止假状态。请点击“重新生成”。';
-      changed = true;
-    }
-  }
-
-  if (changed) await persist();
 }
 
 async function refreshJobs() {
@@ -934,15 +856,14 @@ async function refreshJobs() {
     console.warn(error);
   }
 
-  const activeSegments = state.draft.segments.filter(segment =>
-    ['submitted', 'queued', 'running', 'processing'].includes(segment.status)
-    && (segment.remoteTaskId || segment.providerTaskId || segment.remoteSegmentId)
+  const active = state.draft.segments.filter(s =>
+    ['submitted','queued','running','processing'].includes(String(s.status || '').toLowerCase())
+    && (s.remoteTaskId || s.providerTaskId || s.remoteSegmentId)
   );
 
-  for (const segment of activeSegments) {
+  for (const segment of active) {
     await refreshSingleSegment(segment.id);
   }
-
   await loadOutputs();
   renderJobs();
 }
@@ -971,7 +892,9 @@ function startPolling() {
   clearInterval(state.pollTimer);
   refreshJobs();
   state.pollTimer = setInterval(() => {
-    const active = state.draft.segments.some(s => ['submitted','queued','running','processing'].includes(s.status));
+    const active = state.draft.segments.some(s =>
+      ['submitted','queued','running','processing'].includes(String(s.status || '').toLowerCase())
+    );
     if (!active) return clearInterval(state.pollTimer);
     refreshJobs();
   }, 5000);
