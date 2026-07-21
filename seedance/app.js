@@ -1,7 +1,7 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260721-edit-submit-new-task-v11';
+const APP_BUILD = '20260721-task-state-history-v12';
 const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v5-blackbar-2p49-force-reupload';
 console.log('[Seedance Studio]', APP_BUILD);
 
@@ -245,6 +245,7 @@ function createWorkspaceState() {
     frames: [],
     segments: [],
     outputs: [],
+    outputHistory: [],
     jobs: [],
     selectedSegmentId: null,
     remoteProjectId: null,
@@ -268,6 +269,8 @@ function migrateDraftWorkspaces(draft) {
   }
   if (!draft.workspaces.first_last) draft.workspaces.first_last = createWorkspaceState();
   if (!draft.workspaces.multi_frame) draft.workspaces.multi_frame = createWorkspaceState();
+  if (!Array.isArray(draft.workspaces.first_last.outputHistory)) draft.workspaces.first_last.outputHistory = [];
+  if (!Array.isArray(draft.workspaces.multi_frame.outputHistory)) draft.workspaces.multi_frame.outputHistory = [];
 
   // 兼容旧代码：当前模式的 frames / segments 始终映射到当前工作区。
   const workspace = getWorkspace(draft);
@@ -293,6 +296,8 @@ function bindCurrentWorkspace() {
   state.draft.frames = workspace.frames;
   state.draft.segments = workspace.segments;
   state.draft.remoteProjectId = workspace.remoteProjectId || null;
+  state.outputs = Array.isArray(workspace.outputs) ? workspace.outputs : [];
+  state.outputHistory = Array.isArray(workspace.outputHistory) ? workspace.outputHistory : [];
   state.selectedSegmentId = workspace.selectedSegmentId || workspace.segments[0]?.id || null;
 }
 
@@ -301,6 +306,8 @@ function saveCurrentWorkspaceSelection() {
   const workspace = getWorkspace();
   workspace.frames = state.draft.frames || [];
   workspace.segments = state.draft.segments || [];
+  workspace.outputs = state.outputs || [];
+  workspace.outputHistory = state.outputHistory || workspace.outputHistory || [];
   workspace.remoteProjectId = state.draft.remoteProjectId || workspace.remoteProjectId || null;
   workspace.selectedSegmentId = state.selectedSegmentId || null;
 }
@@ -616,6 +623,97 @@ function updateRatioTip() {
 }
 
 
+
+function activeTaskStatuses() {
+  return new Set(['preparing','uploading','submitting','retrying','submitted','queued','running','processing']);
+}
+
+function doneTaskStatuses() {
+  return new Set(['completed','succeeded','success']);
+}
+
+function outputBelongsToSegment(output, segment, oldProviderTaskId = null, oldRemoteTaskId = null) {
+  if (!output || !segment) return false;
+  if (output.segmentId && output.segmentId === segment.id) return true;
+  if (oldProviderTaskId && output.providerTaskId === oldProviderTaskId) return true;
+  if (oldRemoteTaskId && output.taskId === oldRemoteTaskId) return true;
+  if (segment.providerTaskId && output.providerTaskId === segment.providerTaskId) return true;
+  if (segment.remoteTaskId && output.taskId === segment.remoteTaskId) return true;
+  return false;
+}
+
+function rememberHistoricalOutput(output, segment, reason = '重新提交前旧版本') {
+  if (!output?.url || !segment) return;
+  const workspace = getWorkspace();
+  workspace.outputHistory = Array.isArray(workspace.outputHistory) ? workspace.outputHistory : [];
+  state.outputHistory = Array.isArray(state.outputHistory) ? state.outputHistory : workspace.outputHistory;
+
+  const item = {
+    ...output,
+    historyId: `${output.providerTaskId || output.taskId || output.url}-${Date.now()}`,
+    segmentId: segment.id,
+    index: segment.index,
+    promptSnapshot: segment.prompt || '',
+    savedAt: Date.now(),
+    reason,
+    historical: true,
+  };
+
+  const key = output.providerTaskId || output.taskId || output.url;
+  const exists = state.outputHistory.some(old => (old.providerTaskId || old.taskId || old.url) === key);
+  if (!exists) state.outputHistory.unshift(item);
+  state.outputHistory = state.outputHistory.slice(0, 30);
+  workspace.outputHistory = state.outputHistory;
+}
+
+function currentOutputRows() {
+  return (state.outputs || []).filter(isOutputCurrentForSegment);
+}
+
+function historicalOutputRows() {
+  const currentKeys = new Set(currentOutputRows().map(o => o.providerTaskId || o.taskId || o.url));
+  return (state.outputHistory || []).filter(o => !currentKeys.has(o.providerTaskId || o.taskId || o.url));
+}
+
+function activeGenerationRows() {
+  return (state.draft?.segments || []).filter(s => activeTaskStatuses().has(String(s.status || '').toLowerCase()));
+}
+
+function renderActiveGenerationCards() {
+  const active = activeGenerationRows();
+  if (!active.length) return '';
+  return active.map(s => `
+    <article class="output-card output-card-generating">
+      <div class="generation-live">
+        <strong>Segment ${String(s.index + 1).padStart(2, '0')} · ${statusText(s.status)}</strong>
+        <span>${escapeHtml(s.prompt || '未填写提示词')}</span>
+        <div class="mini-progress"><i style="width:${Math.max(2, Number(s.progress || 0))}%"></i></div>
+        <small>${s.providerTaskId ? `Ark Task：${escapeHtml(s.providerTaskId)}` : '正在创建新的 Ark Task，本次完成后才会替换为新视频。'}</small>
+      </div>
+    </article>
+  `).join('');
+}
+
+function outputCardMarkup(o, historical = false) {
+  const title = historical
+    ? `Segment ${String(Number(o.index || 0) + 1).padStart(2,'0')} · 历史版本`
+    : `Segment ${String(Number(o.index || 0) + 1).padStart(2,'0')} · 已完成`;
+  return `
+    <article class="output-card ${historical ? 'output-card-history' : ''}">
+      <video controls preload="metadata" src="${o.url}"></video>
+      <div class="output-copy">
+        <strong>${title}</strong>
+        <span>${historical ? '旧版本已保留，不会被新提交覆盖' : (o.storageMode === 'ark-temp' ? '未占用 Supabase Storage · Ark 临时链接，请及时下载到本地' : 'Supabase Storage 已保存')}</span>
+        ${o.providerTaskId ? `<small>Ark Task：${escapeHtml(o.providerTaskId)}</small>` : ''}
+        ${historical && o.promptSnapshot ? `<small>旧提示词：${escapeHtml(o.promptSnapshot).slice(0, 120)}...</small>` : ''}
+        <div class="output-actions">
+          <button data-edit-output-segment="${o.segmentId || ''}" data-output-index="${o.index}">重新编辑</button>
+          <a href="${o.url}" download="seedance-${escapeHtml(o.providerTaskId || `segment-${Number(o.index || 0)+1}`)}.mp4" target="_blank" rel="noopener" data-download-output="${o.providerTaskId || o.index}">下载到本地</a>
+        </div>
+      </div>
+    </article>`;
+}
+
 function isOutputCurrentForSegment(output) {
   const segment = state.draft?.segments?.find(s => {
     if (output.segmentId && s.id === output.segmentId) return true;
@@ -648,20 +746,15 @@ function renderJobs() {
       </div>
     </article>`).join('') : '<div class="empty-state">暂无生成任务</div>';
 
-  const visibleOutputs = (state.outputs || []).filter(isOutputCurrentForSegment);
-  $('outputs-list').innerHTML = visibleOutputs.length ? visibleOutputs.map(o => `
-    <article class="output-card">
-      <video controls preload="metadata" src="${o.url}"></video>
-      <div class="output-copy">
-        <strong>Segment ${String(o.index+1).padStart(2,'0')} · 已完成</strong>
-        <span>${o.storageMode === 'ark-temp' ? '未占用 Supabase Storage · Ark 临时链接，请及时下载到本地' : 'Supabase Storage 已保存'}</span>
-        ${o.providerTaskId ? `<small>Ark Task：${escapeHtml(o.providerTaskId)}</small>` : ''}
-        <div class="output-actions">
-          <button data-edit-output-segment="${o.segmentId || ''}" data-output-index="${o.index}">重新编辑</button>
-          <a href="${o.url}" download="seedance-${escapeHtml(o.providerTaskId || `segment-${o.index+1}`)}.mp4" target="_blank" rel="noopener" data-download-output="${o.providerTaskId || o.index}">下载到本地</a>
-        </div>
-      </div>
-    </article>`).join('') : '<div class="empty-state">暂无视频输出。提交后会自动显示真实任务状态和生成结果。</div>';
+  const activeMarkup = renderActiveGenerationCards();
+  const visibleOutputs = currentOutputRows();
+  const historyOutputs = historicalOutputRows();
+  const outputMarkup = [
+    activeMarkup,
+    visibleOutputs.map(o => outputCardMarkup(o, false)).join(''),
+    historyOutputs.length ? `<div class="history-title">历史输出</div>${historyOutputs.map(o => outputCardMarkup(o, true)).join('')}` : '',
+  ].filter(Boolean).join('');
+  $('outputs-list').innerHTML = outputMarkup || '<div class="empty-state">暂无视频输出。提交后会自动显示真实任务状态和生成结果。</div>';
 
   qsa('[data-refresh-segment]').forEach(btn => btn.onclick = async () => { await refreshJobs(); });
   qsa('[data-edit-from-job]').forEach(btn => btn.onclick = () => reEditSegment(btn.dataset.editFromJob));
@@ -1038,14 +1131,18 @@ async function submitOne(segment) {
     if (update.error) throw new Error(`更新 Segment ${segment.index + 1} 失败：${errorMessage(update.error)}`);
   }
 
+  const submitNonce = `${segment.id}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  segment.currentSubmitNonce = submitNonce;
+  segment.currentSubmitStartedAt = Date.now();
+
   const body = {
     project_id: projectId,
     segment_id: segment.remoteSegmentId,
     asset_ids: [from.remoteAssetId, to.remoteAssetId],
     prompt: segment.prompt,
     effective_prompt: buildStrictFrameLockPrompt(segment),
-    prompt_mode: 'strict_frame_lock_v11',
-    client_submit_nonce: `${segment.id}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    prompt_mode: 'strict_frame_lock_v12',
+    client_submit_nonce: submitNonce,
     model_alias: segment.model,
     duration: Number(segment.duration),
     resolution: segment.resolution,
@@ -1072,6 +1169,7 @@ async function submitOne(segment) {
       segment.progress = Number(data.progress || 20);
       segment.remoteTaskId = data.task_id;
       segment.providerTaskId = data.provider_task_id;
+      segment.currentSubmitNonce = submitNonce;
       segment.outputPath = null;
       segment.outputUrl = null;
       segment.error = null;
@@ -1093,6 +1191,13 @@ function resetSegmentForNewSubmit(segment) {
   const oldProviderTaskId = segment.providerTaskId || null;
   const oldRemoteTaskId = segment.remoteTaskId || null;
 
+  // 旧视频不能丢：先收进历史输出，再把它从“当前输出”移开。
+  (state.outputs || []).forEach(output => {
+    if (outputBelongsToSegment(output, segment, oldProviderTaskId, oldRemoteTaskId)) {
+      rememberHistoricalOutput(output, segment, '重新提交前旧版本');
+    }
+  });
+
   segment.status = 'draft';
   segment.progress = 0;
   segment.error = null;
@@ -1104,13 +1209,10 @@ function resetSegmentForNewSubmit(segment) {
   segment.lastResubmitAt = Date.now();
   segment.previousTaskIds = [...(segment.previousTaskIds || []), oldProviderTaskId, oldRemoteTaskId].filter(Boolean);
 
-  // 当前片段要重新提交时，不能继续把旧视频当成新结果展示。
-  state.outputs = (state.outputs || []).filter(output => {
-    if (output.segmentId && output.segmentId === segment.id) return false;
-    if (oldProviderTaskId && output.providerTaskId === oldProviderTaskId) return false;
-    if (oldRemoteTaskId && output.taskId === oldRemoteTaskId) return false;
-    return true;
-  });
+  state.outputs = (state.outputs || []).filter(output => !outputBelongsToSegment(output, segment, oldProviderTaskId, oldRemoteTaskId));
+  const workspace = getWorkspace();
+  workspace.outputs = state.outputs;
+  workspace.outputHistory = state.outputHistory || workspace.outputHistory || [];
 }
 
 
@@ -1133,7 +1235,7 @@ async function resubmitSegment(segmentId) {
 
   const ok = await confirmBox(
     '重新提交新任务',
-    '这会创建一个新的 Ark 生成任务，并可能再次产生费用。旧视频不会被当成新结果展示。确定继续吗？'
+    '这会创建一个新的 Ark 生成任务，并可能再次产生费用。旧视频会保留在历史输出里，新任务会显示在上方生成中。确定继续吗？'
   );
   if (!ok) return;
 
@@ -1257,9 +1359,14 @@ async function refreshSingleSegment(segmentId) {
     });
 
     const result = (data.results || []).find(item =>
-      item.task_id === segment.remoteTaskId ||
-      item.provider_task_id === segment.providerTaskId
-    ) || (data.results || [])[0] || data;
+      (segment.remoteTaskId && item.task_id === segment.remoteTaskId) ||
+      (segment.providerTaskId && item.provider_task_id === segment.providerTaskId)
+    ) || data;
+
+    if (result.provider_task_id && segment.providerTaskId && result.provider_task_id !== segment.providerTaskId) {
+      console.warn('[Seedance Studio] ignored stale status result', result.provider_task_id, 'current=', segment.providerTaskId);
+      return;
+    }
 
     segment.status = result.status || data.status || segment.status;
     segment.progress = Number(result.progress ?? data.progress ?? segment.progress ?? 0);
@@ -1319,37 +1426,18 @@ async function syncRemoteTasks() {
     segmentsByPosition.get(key).push(remote);
   }
 
-  const activeStatuses = new Set(['submitting', 'submitted', 'queued', 'running', 'processing', 'succeeded', 'completed', 'success']);
-  const doneStatuses = new Set(['succeeded', 'completed', 'success']);
+  const activeStatuses = new Set(['submitting', 'submitted', 'queued', 'running', 'processing']);
   const failedStatuses = new Set(['failed', 'error']);
 
   function scoreTask(task) {
     let score = task.createdMs;
-    if (activeStatuses.has(task.statusLower)) score += 10_000_000_000_000;
-    if (doneStatuses.has(task.statusLower)) score += 20_000_000_000_000;
-    if (failedStatuses.has(task.statusLower)) score -= 10_000_000_000_000;
-    if (task.provider_task_id) score += 1_000_000;
+    if (activeStatuses.has(task.statusLower)) score += 1_000_000_000;
+    if (failedStatuses.has(task.statusLower)) score -= 1_000_000_000;
+    if (task.provider_task_id) score += 1000;
     return score;
   }
 
-  for (const local of state.draft.segments) {
-    const position = Number(local.index || 0);
-    const candidates = segmentsByPosition.get(position) || [];
-    const candidateIds = new Set(candidates.map(s => s.id));
-
-    /*
-      重点：不要优先使用 local.remoteSegmentId。
-      之前就是因为这里优先命中旧失败 segment，导致页面一直显示旧的 cgt。
-      现在按同一 position 找“最新且非失败优先”的 video_tasks。
-    */
-    if (local.remoteSegmentId) candidateIds.add(local.remoteSegmentId);
-
-    const candidateTasks = tasks.filter(task => candidateIds.has(task.segment_id));
-    if (!candidateTasks.length) continue;
-
-    candidateTasks.sort((a, b) => scoreTask(b) - scoreTask(a));
-    const latestTask = candidateTasks[0];
-
+  function applyRemoteTask(local, latestTask) {
     const previousProviderTaskId = local.providerTaskId;
     local.remoteSegmentId = latestTask.segment_id || local.remoteSegmentId;
     local.remoteTaskId = latestTask.id || local.remoteTaskId;
@@ -1359,8 +1447,29 @@ async function syncRemoteTasks() {
     local.error = latestTask.error_message || null;
 
     if (previousProviderTaskId && latestTask.provider_task_id && previousProviderTaskId !== latestTask.provider_task_id) {
-      console.log('[Seedance Studio] task switched from old cgt to latest cgt', previousProviderTaskId, '=>', latestTask.provider_task_id);
+      console.log('[Seedance Studio] task switched', previousProviderTaskId, '=>', latestTask.provider_task_id);
     }
+  }
+
+  for (const local of state.draft.segments) {
+    let candidateTasks = [];
+
+    // 最高优先级：本地当前正在跟踪的 task。只要有它，就绝不再按 position 捞旧 completed task。
+    if (local.remoteTaskId) candidateTasks = tasks.filter(task => task.id === local.remoteTaskId);
+    if (!candidateTasks.length && local.providerTaskId) candidateTasks = tasks.filter(task => task.provider_task_id === local.providerTaskId);
+    if (!candidateTasks.length && local.remoteSegmentId) candidateTasks = tasks.filter(task => task.segment_id === local.remoteSegmentId);
+
+    // 只有完全没有当前 task/segment 时，才允许按 position 恢复历史远程任务。
+    if (!candidateTasks.length && !local.remoteTaskId && !local.providerTaskId && !local.remoteSegmentId) {
+      const position = Number(local.index || 0);
+      const candidates = segmentsByPosition.get(position) || [];
+      const candidateIds = new Set(candidates.map(s => s.id));
+      candidateTasks = tasks.filter(task => candidateIds.has(task.segment_id));
+    }
+
+    if (!candidateTasks.length) continue;
+    candidateTasks.sort((a, b) => scoreTask(b) - scoreTask(a));
+    applyRemoteTask(local, candidateTasks[0]);
   }
 
   await persist();
@@ -1480,22 +1589,36 @@ async function loadOutputs() {
     if (segmentIndex < 0) continue;
     if (row.project_id && currentProjectId && row.project_id !== currentProjectId) continue;
 
+    const segment = segments[segmentIndex];
     const output = {
       row,
       url,
       storageMode,
       providerTaskId,
+      taskId: row.task_id || null,
+      segmentId: segment?.id || null,
+      remoteSegmentId: row.segment_id || null,
       index: segmentIndex,
     };
 
     const key = String(segmentIndex);
     const old = bySegment.get(key);
-    if (!old || new Date(row.created_at || 0) > new Date(old.row.created_at || 0)) {
+
+    // 当前输出只接受当前正在绑定的 task/provider；历史输出不抢占当前输出。
+    const isCurrent =
+      (segment?.providerTaskId && providerTaskId && providerTaskId === segment.providerTaskId) ||
+      (segment?.remoteTaskId && row.task_id && row.task_id === segment.remoteTaskId) ||
+      (!segment?.providerTaskId && !segment?.remoteTaskId);
+
+    if (isCurrent && (!old || new Date(row.created_at || 0) > new Date(old.row.created_at || 0))) {
       bySegment.set(key, output);
+    } else if (!isCurrent) {
+      rememberHistoricalOutput(output, segment, '历史生成版本');
     }
   }
 
   state.outputs = [...bySegment.values()].sort((a,b)=>a.index-b.index);
+  saveCurrentWorkspaceSelection();
 
   // 默认本地优先：只对当前项目当前片段的视频触发一次本地下载。
   for (const output of state.outputs) maybeAutoDownloadOutput(output);
