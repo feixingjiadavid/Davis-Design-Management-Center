@@ -367,3 +367,212 @@ body::after{
   max-width:100%;
   box-sizing:border-box;
 }
+
+
+/* ==== 20260721 jobs-scroll-layout-v6：任务列表独立滚动，底部任务不再被截断 ==== */
+#view-jobs.view.active{
+  display:block;
+  height:calc(100vh - 144px);
+  min-height:0;
+  overflow:hidden;
+  padding:24px 30px 24px;
+}
+
+#view-jobs .jobs-layout{
+  height:100%;
+  min-height:0;
+  overflow:hidden;
+  align-items:stretch;
+  grid-template-columns:minmax(520px,.95fr) minmax(420px,1fr);
+}
+
+#view-jobs .jobs-layout > .panel{
+  min-height:0;
+  max-height:100%;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+
+#view-jobs .panel-heading{
+  flex:0 0 auto;
+}
+
+#view-jobs .jobs-list,
+#view-jobs .outputs-list{
+  flex:1 1 auto;
+  min-height:0;
+  max-height:none!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  padding:0 22px 28px;
+  scrollbar-gutter:stable;
+}
+
+#view-jobs .job-card,
+#view-jobs .output-card{
+  flex:0 0 auto;
+}
+
+#view-jobs .job-card:last-child,
+#view-jobs .output-card:last-child{
+  margin-bottom:22px;
+}
+
+#view-jobs .job-card p{
+  max-height:none;
+}
+
+#view-jobs .output-card video{
+  max-height:46vh;
+  object-fit:contain;
+}
+
+@media(max-width:1360px){
+  #view-jobs.view.active{
+    height:auto;
+    min-height:calc(100vh - 144px);
+    overflow:visible;
+  }
+  #view-jobs .jobs-layout{
+    height:auto;
+    grid-template-columns:1fr;
+    overflow:visible;
+  }
+  #view-jobs .jobs-layout > .panel{
+    max-height:none;
+    overflow:visible;
+  }
+  #view-jobs .jobs-list,
+  #view-jobs .outputs-list{
+    max-height:none!important;
+    overflow:visible!important;
+  }
+}
+
+
+/* ==== 20260721 jobs-panel-scroll-v7：任务与输出两栏固定面板 + 内部明显滚动条 ==== */
+/* 目的：Segment 03/04、下方视频输出不再被浏览器底部截断；用户能在各自面板里滚动完整查看。 */
+#view-jobs.view.active{
+  display:block!important;
+  height:auto!important;
+  min-height:calc(100vh - 144px)!important;
+  overflow:visible!important;
+  padding:24px 30px 96px!important;
+}
+
+#view-jobs .jobs-layout{
+  width:100%!important;
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  overflow:visible!important;
+  align-items:start!important;
+  grid-template-columns:minmax(520px,.95fr) minmax(420px,1fr)!important;
+  gap:18px!important;
+}
+
+#view-jobs .jobs-layout > .panel{
+  height:calc(100vh - 196px)!important;
+  min-height:560px!important;
+  max-height:calc(100vh - 196px)!important;
+  display:flex!important;
+  flex-direction:column!important;
+  overflow:hidden!important;
+}
+
+#view-jobs .panel-heading{
+  flex:0 0 auto!important;
+  position:relative;
+  z-index:1;
+  background:linear-gradient(180deg,#14161d,#111319);
+}
+
+#view-jobs .jobs-list,
+#view-jobs .outputs-list{
+  flex:1 1 auto!important;
+  min-height:0!important;
+  height:auto!important;
+  max-height:none!important;
+  display:flex!important;
+  flex-direction:column!important;
+  gap:10px!important;
+  overflow-y:scroll!important;
+  overflow-x:hidden!important;
+  padding:0 22px 64px!important;
+  scrollbar-gutter:stable both-edges!important;
+  scroll-padding-bottom:64px!important;
+  overscroll-behavior:contain!important;
+}
+
+/* 让滚动条明显一点，避免用户以为下面被切没了 */
+#view-jobs .jobs-list::-webkit-scrollbar,
+#view-jobs .outputs-list::-webkit-scrollbar{
+  width:10px;
+}
+#view-jobs .jobs-list::-webkit-scrollbar-track,
+#view-jobs .outputs-list::-webkit-scrollbar-track{
+  background:rgba(255,255,255,.035);
+  border-radius:999px;
+}
+#view-jobs .jobs-list::-webkit-scrollbar-thumb,
+#view-jobs .outputs-list::-webkit-scrollbar-thumb{
+  background:linear-gradient(180deg,#6d5dfc,#8b5cf6);
+  border-radius:999px;
+  border:2px solid rgba(8,9,12,.9);
+}
+#view-jobs .jobs-list,
+#view-jobs .outputs-list{
+  scrollbar-width:thin;
+  scrollbar-color:#7a67ff rgba(255,255,255,.04);
+}
+
+#view-jobs .job-card,
+#view-jobs .output-card{
+  flex:0 0 auto!important;
+  min-height:auto!important;
+  overflow:visible!important;
+}
+
+#view-jobs .job-card:last-child,
+#view-jobs .output-card:last-child{
+  margin-bottom:36px!important;
+}
+
+#view-jobs .job-card p{
+  max-height:none!important;
+  overflow:visible!important;
+}
+
+#view-jobs .output-card video{
+  width:100%!important;
+  max-height:42vh!important;
+  object-fit:contain!important;
+}
+
+/* 小屏时改为页面自然下拉，不强制左右栏 */
+@media(max-width:1360px){
+  #view-jobs.view.active{
+    height:auto!important;
+    overflow:visible!important;
+    padding-bottom:90px!important;
+  }
+
+  #view-jobs .jobs-layout{
+    grid-template-columns:1fr!important;
+    height:auto!important;
+    overflow:visible!important;
+  }
+
+  #view-jobs .jobs-layout > .panel{
+    height:70vh!important;
+    min-height:520px!important;
+    max-height:70vh!important;
+    overflow:hidden!important;
+  }
+
+  #view-jobs .jobs-list,
+  #view-jobs .outputs-list{
+    overflow-y:scroll!important;
+  }
+}
