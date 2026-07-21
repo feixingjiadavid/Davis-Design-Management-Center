@@ -1,7 +1,7 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260721-text-to-video-mode-v13';
+const APP_BUILD = '20260721-native-text-reference-mode-v14';
 const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v5-blackbar-2p49-force-reupload';
 console.log('[Seedance Studio]', APP_BUILD);
 
@@ -15,6 +15,8 @@ const state = {
   objectUrls: new Map(),
   jobs: [],
   outputs: [],
+  outputHistory: [],
+  referenceVideo: null,
   pollTimer: null,
   isGenerating: false,
 };
@@ -247,6 +249,7 @@ function createWorkspaceState() {
     segments: [],
     outputs: [],
     outputHistory: [],
+    referenceVideo: null,
     jobs: [],
     selectedSegmentId: null,
     remoteProjectId: null,
@@ -274,6 +277,7 @@ function migrateDraftWorkspaces(draft) {
   if (!Array.isArray(draft.workspaces.first_last.outputHistory)) draft.workspaces.first_last.outputHistory = [];
   if (!Array.isArray(draft.workspaces.multi_frame.outputHistory)) draft.workspaces.multi_frame.outputHistory = [];
   if (!Array.isArray(draft.workspaces.text_only.outputHistory)) draft.workspaces.text_only.outputHistory = [];
+  if (!('referenceVideo' in draft.workspaces.text_only)) draft.workspaces.text_only.referenceVideo = null;
 
   // 兼容旧代码：当前模式的 frames / segments 始终映射到当前工作区。
   const workspace = getWorkspace(draft);
@@ -286,7 +290,7 @@ function migrateDraftWorkspaces(draft) {
 
 function getWorkspace(draft = state.draft, mode = draft?.mode) {
   if (!draft) return createWorkspaceState();
-  if (!draft.workspaces) draft.workspaces = { first_last: createWorkspaceState(), multi_frame: createWorkspaceState() };
+  if (!draft.workspaces) draft.workspaces = { first_last: createWorkspaceState(), multi_frame: createWorkspaceState(), text_only: createWorkspaceState() };
   const key = mode === 'first_last' ? 'first_last' : (mode === 'text_only' ? 'text_only' : 'multi_frame');
   if (!draft.workspaces[key]) draft.workspaces[key] = createWorkspaceState();
   return draft.workspaces[key];
@@ -301,6 +305,7 @@ function bindCurrentWorkspace() {
   state.draft.remoteProjectId = workspace.remoteProjectId || null;
   state.outputs = Array.isArray(workspace.outputs) ? workspace.outputs : [];
   state.outputHistory = Array.isArray(workspace.outputHistory) ? workspace.outputHistory : [];
+  state.referenceVideo = workspace.referenceVideo || null;
   state.selectedSegmentId = workspace.selectedSegmentId || workspace.segments[0]?.id || null;
 }
 
@@ -311,6 +316,7 @@ function saveCurrentWorkspaceSelection() {
   workspace.segments = state.draft.segments || [];
   workspace.outputs = state.outputs || [];
   workspace.outputHistory = state.outputHistory || workspace.outputHistory || [];
+  workspace.referenceVideo = state.draft.mode === 'text_only' ? (state.referenceVideo || workspace.referenceVideo || null) : workspace.referenceVideo || null;
   workspace.remoteProjectId = state.draft.remoteProjectId || workspace.remoteProjectId || null;
   workspace.selectedSegmentId = state.selectedSegmentId || null;
 }
@@ -333,6 +339,138 @@ function releaseFrameUrl(frameId) {
   state.objectUrls.delete(frameId);
 }
 
+
+function getBlobUrl(fileLike) {
+  if (!fileLike?.blob) return '';
+  if (!state.objectUrls.has(fileLike.id)) state.objectUrls.set(fileLike.id, URL.createObjectURL(fileLike.blob));
+  return state.objectUrls.get(fileLike.id);
+}
+
+function renderTextModePanel() {
+  const panel = $('text-mode-panel');
+  if (!panel) return;
+  const isText = state.draft?.mode === 'text_only';
+  panel.hidden = !isText;
+  if ($('upload-zone')) $('upload-zone').hidden = isText;
+  if ($('quick-timeline')) $('quick-timeline').hidden = isText;
+  if (!isText) return;
+
+  normalizeSegments(state.draft);
+  const segment = state.draft.segments[0];
+  if ($('text-mode-prompt') && document.activeElement !== $('text-mode-prompt')) {
+    $('text-mode-prompt').value = segment?.prompt || '';
+  }
+
+  const preview = $('reference-video-preview');
+  const card = $('reference-video-card');
+  if (!preview || !card) return;
+  const ref = state.referenceVideo || getWorkspace().referenceVideo || null;
+  if (!ref) {
+    preview.hidden = true;
+    preview.innerHTML = '';
+    card.classList.remove('has-reference');
+    return;
+  }
+
+  card.classList.add('has-reference');
+  preview.hidden = false;
+  const url = getBlobUrl(ref);
+  preview.innerHTML = `
+    <video src="${url}" controls preload="metadata"></video>
+    <div class="reference-video-meta">
+      <strong>${escapeHtml(ref.name || '参考视频')}</strong>
+      <span>${formatBytes(ref.size || 0)} · ${escapeHtml(ref.type || 'video')}</span>
+      <small>${ref.remoteAssetId ? '已上传 Supabase，生成时会作为参考视频传给 Ark' : '本地参考视频，生成时才上传'}</small>
+    </div>
+    <button class="icon-mini danger" id="remove-reference-video" type="button">删除</button>
+  `;
+  const remove = $('remove-reference-video');
+  if (remove) remove.onclick = async () => {
+    if (state.referenceVideo?.id) releaseFrameUrl(state.referenceVideo.id);
+    state.referenceVideo = null;
+    getWorkspace().referenceVideo = null;
+    renderTextModePanel();
+    await persist();
+  };
+}
+
+function formatBytes(size) {
+  const n = Number(size || 0);
+  if (!n) return '0 B';
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function enhanceCustomSelects() {
+  document.querySelectorAll('select').forEach(select => {
+    if (select.dataset.customReady === '1') return;
+    select.dataset.customReady = '1';
+    select.classList.add('native-select-hidden');
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'custom-select';
+    wrapper.dataset.for = select.id || '';
+    wrapper.innerHTML = `
+      <button type="button" class="custom-select-trigger">
+        <span></span>
+        <i>⌄</i>
+      </button>
+      <div class="custom-select-menu"></div>
+    `;
+    select.insertAdjacentElement('afterend', wrapper);
+
+    wrapper.querySelector('.custom-select-trigger').addEventListener('click', event => {
+      event.stopPropagation();
+      document.querySelectorAll('.custom-select.open').forEach(item => {
+        if (item !== wrapper) item.classList.remove('open');
+      });
+      wrapper.classList.toggle('open');
+    });
+
+    select.addEventListener('change', () => syncCustomSelect(select));
+    syncCustomSelect(select);
+  });
+
+  if (!document.body.dataset.customSelectGlobal) {
+    document.body.dataset.customSelectGlobal = '1';
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.custom-select.open').forEach(item => item.classList.remove('open'));
+    });
+  }
+}
+
+function syncCustomSelect(select) {
+  if (!select?.dataset?.customReady) return;
+  const wrapper = select.nextElementSibling?.classList?.contains('custom-select') ? select.nextElementSibling : null;
+  if (!wrapper) return;
+  const triggerText = wrapper.querySelector('.custom-select-trigger span');
+  const menu = wrapper.querySelector('.custom-select-menu');
+  const current = select.selectedOptions[0];
+  if (triggerText) triggerText.textContent = current?.textContent || select.value || '请选择';
+
+  menu.innerHTML = [...select.options].map(option => `
+    <button type="button" class="${option.value === select.value ? 'active' : ''}" data-value="${escapeHtml(option.value)}">
+      <span>${escapeHtml(option.textContent)}</span>
+      ${option.value === select.value ? '<b>✓</b>' : ''}
+    </button>
+  `).join('');
+
+  menu.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', event => {
+      event.stopPropagation();
+      select.value = btn.dataset.value;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      wrapper.classList.remove('open');
+      syncCustomSelect(select);
+    });
+  });
+}
+
+function syncCustomSelects() {
+  enhanceCustomSelects();
+  document.querySelectorAll('select').forEach(syncCustomSelect);
+}
+
 function normalizeSegments(draft) {
   if (draft.mode === 'text_only') {
     const existing = (draft.segments || [])[0];
@@ -353,6 +491,8 @@ function normalizeSegments(draft) {
       error: existing?.error || null,
       index: 0,
       mode: 'text_only',
+      generateAudio: Boolean(existing?.generateAudio),
+      referenceAssetId: existing?.referenceAssetId || null,
     }];
   } else {
     const old = new Map((draft.segments || []).map(s => [`${s.fromFrameId}:${s.toFrameId}`, s]));
@@ -381,6 +521,8 @@ function normalizeSegments(draft) {
         outputPath: null,
         error: null,
         index,
+        generateAudio: false,
+        referenceAssetId: null,
       };
     }).map((segment, index) => ({ ...segment, index }));
   }
@@ -532,6 +674,10 @@ function segmentMini(segment, index) {
 
 function renderQuickTimeline() {
   const container = $('quick-timeline');
+  if (state.draft.mode === 'text_only') {
+    container.innerHTML = '';
+    return;
+  }
   const parts = [];
   state.draft.frames.forEach((frame, index) => {
     parts.push(frameCard(frame, index, true));
@@ -550,8 +696,17 @@ function renderQuickTimeline() {
 
 function renderEditor() {
   const timeline = $('editor-timeline');
-  const parts = [];
-  state.draft.frames.forEach((frame, index) => {
+  if (state.draft.mode === 'text_only') {
+    const segment = state.draft.segments[0];
+    const ref = state.referenceVideo || getWorkspace().referenceVideo || null;
+    timeline.innerHTML = `<article class="text-only-editor-card">
+      <strong>纯文字生成</strong>
+      <p>${escapeHtml(segment?.prompt || '尚未填写视频描述')}</p>
+      <span>${ref ? `参考视频：${escapeHtml(ref.name || '已上传参考视频')}` : '无参考视频 · 纯文字生成'}</span>
+    </article>`;
+  } else {
+    const parts = [];
+    state.draft.frames.forEach((frame, index) => {
     parts.push(frameCard(frame, index));
     const segment = state.draft.segments.find(s => s.fromFrameId === frame.id);
     if (segment && index < state.draft.frames.length - 1) {
@@ -562,12 +717,13 @@ function renderEditor() {
       </article>`);
     }
   });
-  timeline.innerHTML = parts.join('');
-  wireFrameActions(timeline);
-  qsa('[data-select-segment]').forEach(el => el.onclick = () => {
-    state.selectedSegmentId = el.dataset.selectSegment;
-    renderEditor();
-  });
+    timeline.innerHTML = parts.join('');
+    wireFrameActions(timeline);
+    qsa('[data-select-segment]').forEach(el => el.onclick = () => {
+      state.selectedSegmentId = el.dataset.selectSegment;
+      renderEditor();
+    });
+  }
 
   $('segment-list').innerHTML = state.draft.segments.length ? state.draft.segments.map(s => `
     <button class="segment-row ${state.selectedSegmentId===s.id?'active':''}" data-segment-row="${s.id}">
@@ -597,7 +753,12 @@ function renderInspector() {
   $('segment-duration').value = String(segment.duration);
   $('segment-model').value = segment.model;
   $('segment-resolution').value = segment.resolution;
-  $('segment-ratio').value = state.draft.ratio;
+  $('segment-ratio').value = state.draft.ratio === 'adaptive' ? '智能比例' : state.draft.ratio;
+  if ($('segment-audio')) $('segment-audio').value = String(Boolean(segment.generateAudio));
+  if ($('segment-prompt')) $('segment-prompt').placeholder = state.draft.mode === 'text_only'
+    ? '描述你想直接生成的视频。可以只写文字，也可以先上传一个参考视频，让模型学习动作、镜头节奏和风格。'
+    : '描述这两帧之间的动作、镜头、节奏和画面变化。';
+  syncCustomSelects();
 }
 
 function renderSummary() {
@@ -614,6 +775,8 @@ function renderSettings() {
   $('fit-mode').value = state.draft.fitMode;
   qsa('#mode-switch button').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === state.draft.mode));
   updateRatioTip();
+  renderTextModePanel();
+  syncCustomSelects();
 }
 
 
@@ -653,11 +816,13 @@ function buildStrictFrameLockPrompt(segment) {
 function updateRatioTip() {
   const ratio = state.draft.ratio;
   const size = `${state.draft.finalWidth} × ${state.draft.finalHeight}`;
-  $('ratio-tip').textContent = ratio === '3:1'
-    ? `当前为 3:1 超宽项目，建议 1920×640 或 3840×1280。当前最终尺寸：${size}。`
-    : ratio === 'follow'
-      ? `比例将跟随首帧，最终输出尺寸仍以 ${size} 为准。`
-      : `项目内全部片段统一使用 ${ratio}，最终输出尺寸：${size}。`;
+  $('ratio-tip').textContent = ratio === 'adaptive'
+    ? `当前为 Seedance 原生智能比例，最终尺寸仍按 ${size} 控制本地预览与合成长视频。`
+    : ratio === '3:1'
+      ? `当前为 3:1 超宽项目，提交 Ark 时会映射到 21:9，最终尺寸：${size}。`
+      : ratio === 'follow'
+        ? `比例将跟随首帧，最终输出尺寸仍以 ${size} 为准。`
+        : `项目内全部片段统一使用 ${ratio}，最终尺寸：${size}。`;
 }
 
 
@@ -839,6 +1004,8 @@ function renderAll() {
   renderEditor();
   renderSummary();
   renderJobs();
+  renderTextModePanel();
+  syncCustomSelects();
 }
 
 function wireFrameActions(container) {
@@ -875,6 +1042,85 @@ async function moveFrame(id, direction) {
   normalizeSegments(state.draft);
   renderAll();
   await persist();
+}
+
+
+async function addReferenceVideo(fileList) {
+  const file = [...fileList][0];
+  if (!file) return;
+  const allowed = ['video/mp4', 'video/quicktime', 'video/webm'];
+  if (!allowed.includes(file.type)) {
+    toast('格式不支持', '参考视频请使用 MP4 / MOV / WEBM。');
+    return;
+  }
+  if (file.size > 300 * 1024 * 1024) {
+    toast('文件过大', '参考视频建议不超过 300MB。');
+    return;
+  }
+  if (state.referenceVideo?.id) releaseFrameUrl(state.referenceVideo.id);
+  state.referenceVideo = {
+    id: uid(),
+    name: file.name,
+    type: file.type,
+    size: file.size,
+    blob: file,
+    createdAt: Date.now(),
+    remoteAssetId: null,
+    remotePath: null,
+  };
+  getWorkspace().referenceVideo = state.referenceVideo;
+  renderTextModePanel();
+  await persist();
+  toast('参考视频已加入', '只保存在当前纯文字工作区，点击生成时才上传。');
+}
+
+async function uploadReferenceVideo(projectId) {
+  const ref = state.referenceVideo || getWorkspace().referenceVideo;
+  if (!ref) return null;
+  if (ref.remoteAssetId && ref.remotePath) return ref.remoteAssetId;
+  if (!(ref.blob instanceof Blob)) throw new Error(`参考视频“${ref.name}”的本地文件已丢失，请重新上传`);
+
+  const ext = ref.type === 'video/quicktime' ? 'mov' : ref.type === 'video/webm' ? 'webm' : 'mp4';
+  const safeNameBase = String(ref.name || 'reference-video').replace(/\.[^.]+$/, '').replace(/[^\w.\-]+/g,'_').slice(-90) || 'reference-video';
+  const path = `${state.user.id}/${projectId}/reference-videos/${ref.id}-${Date.now()}-${safeNameBase}.${ext}`;
+
+  const upload = await withTimeout(
+    supabase.storage.from('seedance-inputs').upload(path, ref.blob, {
+      contentType: ref.type || 'video/mp4',
+      upsert: false,
+      cacheControl: '3600',
+    }),
+    TIMEOUTS.upload,
+    '上传参考视频',
+  );
+  if (upload.error) throw new Error(`参考视频上传失败：${errorMessage(upload.error)}`);
+
+  const insert = await withTimeout(
+    supabase.from('video_assets').insert({
+      owner_id: state.user.id,
+      project_id: projectId,
+      bucket_id: 'seedance-inputs',
+      object_path: path,
+      original_name: ref.name,
+      mime_type: ref.type || 'video/mp4',
+      file_size: ref.blob.size,
+      width: null,
+      height: null,
+      kind: 'reference_video',
+      sort_order: 0,
+    }).select().single(),
+    TIMEOUTS.database,
+    '登记参考视频',
+  );
+  if (insert.error) {
+    try { await supabase.storage.from('seedance-inputs').remove([path]); } catch {}
+    throw new Error(`参考视频登记失败：${errorMessage(insert.error)}`);
+  }
+  ref.remoteAssetId = insert.data.id;
+  ref.remotePath = path;
+  state.referenceVideo = ref;
+  getWorkspace().referenceVideo = ref;
+  return ref.remoteAssetId;
 }
 
 async function addFiles(fileList) {
@@ -973,7 +1219,10 @@ async function createProject() {
 async function removeProject() {
   if (!state.draft || !await confirmBox('删除项目', `确定删除“${state.draft.name}”及其本地图片草稿吗？`)) return;
   const id = state.draft.id;
-  Object.values(state.draft.workspaces || {}).forEach(ws => (ws.frames || []).forEach(f => releaseFrameUrl(f.id)));
+  Object.values(state.draft.workspaces || {}).forEach(ws => {
+    (ws.frames || []).forEach(f => releaseFrameUrl(f.id));
+    if (ws.referenceVideo?.id) releaseFrameUrl(ws.referenceVideo.id);
+  });
   await deleteDraft(id);
   state.drafts = state.drafts.filter(d => d.id !== id);
   if (!state.drafts.length) await createProject();
@@ -1085,7 +1334,9 @@ async function uploadNeededFrames(segmentIds) {
   const projectId = await ensureRemoteProject();
   const segments = state.draft.segments.filter(s => segmentIds.includes(s.id));
   if (state.draft.mode === 'text_only') {
+    const referenceAssetId = await uploadReferenceVideo(projectId);
     segments.forEach(segment => {
+      segment.referenceAssetId = referenceAssetId || null;
       segment.status = 'submitting';
       segment.progress = 13;
       segment.error = null;
@@ -1148,6 +1399,8 @@ async function submitOne(segment) {
     ratio: state.draft.ratio === 'follow' ? 'adaptive' : state.draft.ratio,
     status: 'ready',
     mode: isTextOnly ? 'text_only' : state.draft.mode,
+    reference_asset_id: isTextOnly ? (segment.referenceAssetId || state.referenceVideo?.remoteAssetId || null) : null,
+    generate_audio: Boolean(segment.generateAudio),
   };
 
   if (!segment.remoteSegmentId) {
@@ -1171,6 +1424,8 @@ async function submitOne(segment) {
           ratio: segmentPayload.ratio,
           status: 'ready',
           mode: segmentPayload.mode,
+          reference_asset_id: segmentPayload.reference_asset_id,
+          generate_audio: segmentPayload.generate_audio,
         })
         .eq('id', segment.remoteSegmentId)
         .eq('owner_id', state.user.id)
@@ -1192,8 +1447,10 @@ async function submitOne(segment) {
     asset_ids: isTextOnly ? [] : [from.remoteAssetId, to.remoteAssetId],
     prompt: segment.prompt,
     effective_prompt: buildStrictFrameLockPrompt(segment),
-    prompt_mode: 'strict_frame_lock_v12',
+    prompt_mode: isTextOnly ? 'text_reference_video_v14' : 'strict_frame_lock_v14',
     client_submit_nonce: submitNonce,
+    reference_asset_id: isTextOnly ? (segment.referenceAssetId || state.referenceVideo?.remoteAssetId || null) : null,
+    generate_audio: Boolean(segment.generateAudio),
     model_alias: segment.model,
     duration: Number(segment.duration),
     resolution: segment.resolution,
@@ -1766,6 +2023,18 @@ function wireEvents() {
   $('editor-add-image').onclick = () => $('file-input').click();
   $('upload-zone').onclick = () => $('file-input').click();
   $('file-input').onchange = event => { addFiles(event.target.files); event.target.value=''; };
+  if ($('reference-video-trigger')) $('reference-video-trigger').onclick = () => $('reference-video-input').click();
+  if ($('reference-video-input')) $('reference-video-input').onchange = event => { addReferenceVideo(event.target.files); event.target.value=''; };
+  if ($('text-mode-prompt')) $('text-mode-prompt').oninput = async event => {
+    normalizeSegments(state.draft);
+    const segment = state.draft.segments[0];
+    if (!segment) return;
+    segment.prompt = event.target.value;
+    state.selectedSegmentId = segment.id;
+    saveCurrentWorkspaceSelection();
+    renderSummary();
+    await persist();
+  };
 
   const zone = $('upload-zone');
   ['dragenter','dragover'].forEach(type => zone.addEventListener(type, event => { event.preventDefault(); zone.classList.add('drag'); }));
@@ -1788,7 +2057,7 @@ function wireEvents() {
   $('project-ratio').onchange = async event => {
     state.draft.ratio = event.target.value;
     const presets = {
-      '16:9':[1920,1080], '9:16':[1080,1920], '1:1':[1080,1080],
+      '21:9':[1920,822], '16:9':[1920,1080], '9:16':[1080,1920], '1:1':[1080,1080],
       '4:3':[1440,1080], '3:4':[1080,1440], '3:1':[1920,640],
     };
     if (presets[state.draft.ratio]) [state.draft.finalWidth,state.draft.finalHeight] = presets[state.draft.ratio];
@@ -1809,6 +2078,7 @@ function wireEvents() {
   $('segment-duration').onchange = async event => { const s=state.draft.segments.find(x=>x.id===state.selectedSegmentId); if(s){s.duration=Number(event.target.value);renderAll();await persist();} };
   $('segment-model').onchange = async event => { const s=state.draft.segments.find(x=>x.id===state.selectedSegmentId); if(s){s.model=event.target.value;renderAll();await persist();} };
   $('segment-resolution').onchange = async event => { const s=state.draft.segments.find(x=>x.id===state.selectedSegmentId); if(s){s.resolution=event.target.value;renderAll();await persist();} };
+  if ($('segment-audio')) $('segment-audio').onchange = async event => { const s=state.draft.segments.find(x=>x.id===state.selectedSegmentId); if(s){s.generateAudio=event.target.value === 'true';renderAll();await persist();} };
   qsa('[data-prompt]').forEach(btn => btn.onclick = async () => {
     const s=state.draft.segments.find(x=>x.id===state.selectedSegmentId); if(!s)return;
     s.prompt = [s.prompt, btn.dataset.prompt].filter(Boolean).join('，');
@@ -1818,9 +2088,13 @@ function wireEvents() {
   $('preview-segment').onclick = () => {
     const s = state.draft.segments.find(x=>x.id===state.selectedSegmentId);
     if (!s) return;
-    const from = state.draft.frames.find(f=>f.id===s.fromFrameId);
-    const to = state.draft.frames.find(f=>f.id===s.toFrameId);
-    toast('预检通过', `${from?.name} → ${to?.name}；${s.duration}s；${s.model}；${s.resolution}；比例 ${state.draft.ratio}`);
+    if (state.draft.mode === 'text_only') {
+      toast('预检通过', `纯文字${state.referenceVideo ? ' + 参考视频' : ''}；${s.duration}s；${s.model}；${s.resolution}；比例 ${state.draft.ratio}；声音${s.generateAudio ? '开' : '关'}`);
+    } else {
+      const from = state.draft.frames.find(f=>f.id===s.fromFrameId);
+      const to = state.draft.frames.find(f=>f.id===s.toFrameId);
+      toast('预检通过', `${from?.name} → ${to?.name}；${s.duration}s；${s.model}；${s.resolution}；比例 ${state.draft.ratio}；声音${s.generateAudio ? '开' : '关'}`);
+    }
   };
   $('generate-segment').onclick = () => state.selectedSegmentId && generateSegments([state.selectedSegmentId]);
   $('generate-all').onclick = () => generateSegments(state.draft.segments.map(s=>s.id));
@@ -1831,6 +2105,7 @@ function wireEvents() {
 async function init() {
   if (!await initSession()) return;
   wireEvents();
+  enhanceCustomSelects();
   document.body.dataset.seedanceBuild = APP_BUILD;
   state.drafts = await listDrafts();
   if (!state.drafts.length) {
