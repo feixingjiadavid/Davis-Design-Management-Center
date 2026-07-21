@@ -1,7 +1,7 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260721-strict-frame-lock-v8';
+const APP_BUILD = '20260721-mode-isolation-reedit-v9';
 const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v5-blackbar-2p49-force-reupload';
 console.log('[Seedance Studio]', APP_BUILD);
 
@@ -230,12 +230,83 @@ function newDraft() {
     finalWidth: 1920,
     finalHeight: 1080,
     fitMode: 'contain',
-    frames: [],
-    segments: [],
     createdAt: Date.now(),
     updatedAt: Date.now(),
     remoteProjectId: null,
+    workspaces: {
+      first_last: createWorkspaceState(),
+      multi_frame: createWorkspaceState(),
+    },
   };
+}
+
+function createWorkspaceState() {
+  return {
+    frames: [],
+    segments: [],
+    outputs: [],
+    jobs: [],
+    selectedSegmentId: null,
+    remoteProjectId: null,
+  };
+}
+
+function migrateDraftWorkspaces(draft) {
+  if (!draft) return draft;
+  if (!draft.workspaces) {
+    const oldFrames = Array.isArray(draft.frames) ? draft.frames : [];
+    const oldSegments = Array.isArray(draft.segments) ? draft.segments : [];
+    const oldMode = draft.mode === 'first_last' ? 'first_last' : 'multi_frame';
+    draft.workspaces = {
+      first_last: createWorkspaceState(),
+      multi_frame: createWorkspaceState(),
+    };
+    draft.workspaces[oldMode].frames = oldFrames;
+    draft.workspaces[oldMode].segments = oldSegments;
+    draft.workspaces[oldMode].selectedSegmentId = draft.selectedSegmentId || null;
+    draft.workspaces[oldMode].remoteProjectId = draft.remoteProjectId || null;
+  }
+  if (!draft.workspaces.first_last) draft.workspaces.first_last = createWorkspaceState();
+  if (!draft.workspaces.multi_frame) draft.workspaces.multi_frame = createWorkspaceState();
+
+  // 兼容旧代码：当前模式的 frames / segments 始终映射到当前工作区。
+  const workspace = getWorkspace(draft);
+  draft.frames = workspace.frames;
+  draft.segments = workspace.segments;
+  draft.remoteProjectId = workspace.remoteProjectId || draft.remoteProjectId || null;
+  if (workspace.selectedSegmentId) draft.selectedSegmentId = workspace.selectedSegmentId;
+  return draft;
+}
+
+function getWorkspace(draft = state.draft, mode = draft?.mode) {
+  if (!draft) return createWorkspaceState();
+  if (!draft.workspaces) draft.workspaces = { first_last: createWorkspaceState(), multi_frame: createWorkspaceState() };
+  const key = mode === 'first_last' ? 'first_last' : 'multi_frame';
+  if (!draft.workspaces[key]) draft.workspaces[key] = createWorkspaceState();
+  return draft.workspaces[key];
+}
+
+function bindCurrentWorkspace() {
+  if (!state.draft) return;
+  migrateDraftWorkspaces(state.draft);
+  const workspace = getWorkspace();
+  state.draft.frames = workspace.frames;
+  state.draft.segments = workspace.segments;
+  state.draft.remoteProjectId = workspace.remoteProjectId || null;
+  state.selectedSegmentId = workspace.selectedSegmentId || workspace.segments[0]?.id || null;
+}
+
+function saveCurrentWorkspaceSelection() {
+  if (!state.draft) return;
+  const workspace = getWorkspace();
+  workspace.frames = state.draft.frames || [];
+  workspace.segments = state.draft.segments || [];
+  workspace.remoteProjectId = state.draft.remoteProjectId || workspace.remoteProjectId || null;
+  workspace.selectedSegmentId = state.selectedSegmentId || null;
+}
+
+function workspaceLabel(mode = state.draft?.mode) {
+  return mode === 'first_last' ? '首尾帧' : '多帧 Storyboard';
 }
 
 function getFrameUrl(frame) {
@@ -282,11 +353,17 @@ function normalizeSegments(draft) {
   if (!draft.segments.some(s => s.id === state.selectedSegmentId)) {
     state.selectedSegmentId = draft.segments[0]?.id || null;
   }
+  const workspace = getWorkspace(draft);
+  workspace.frames = draft.frames;
+  workspace.segments = draft.segments;
+  workspace.selectedSegmentId = state.selectedSegmentId;
 }
 
 async function persist(render = false) {
   if (!state.draft) return;
+  bindCurrentWorkspace();
   normalizeSegments(state.draft);
+  saveCurrentWorkspaceSelection();
   await saveDraft(state.draft);
   const idx = state.drafts.findIndex(d => d.id === state.draft.id);
   const snapshot = { ...state.draft, frames: state.draft.frames.map(f => ({ ...f })) };
@@ -295,7 +372,7 @@ async function persist(render = false) {
   else {
     renderProjects();
     renderSummary();
-    $('draft-status').textContent = '已保存到浏览器';
+    $('draft-status').textContent = `${workspaceLabel()} 已保存到浏览器`;
   }
 }
 
@@ -552,7 +629,8 @@ function renderJobs() {
       ${s.error ? `<p style="color:#ff8090;white-space:pre-wrap">${escapeHtml(s.error)}</p>` : ''}
       <div class="job-actions">
         <button data-refresh-segment="${s.id}">立即查询</button>
-        <button data-retry-segment="${s.id}">重新生成</button>
+        <button data-edit-from-job="${s.id}">重新编辑</button>
+        <button data-retry-segment="${s.id}" class="danger-lite">重新生成</button>
       </div>
     </article>`).join('') : '<div class="empty-state">暂无生成任务</div>';
 
@@ -563,17 +641,52 @@ function renderJobs() {
         <strong>Segment ${String(o.index+1).padStart(2,'0')} · 已完成</strong>
         <span>${o.storageMode === 'ark-temp' ? '未占用 Supabase Storage · Ark 临时链接，请及时下载到本地' : 'Supabase Storage 已保存'}</span>
         ${o.providerTaskId ? `<small>Ark Task：${escapeHtml(o.providerTaskId)}</small>` : ''}
-        <a href="${o.url}" download="seedance-${escapeHtml(o.providerTaskId || `segment-${o.index+1}`)}.mp4" target="_blank" rel="noopener" data-download-output="${o.providerTaskId || o.index}">下载到本地</a>
+        <div class="output-actions">
+          <button data-edit-output-segment="${o.segmentId || ''}" data-output-index="${o.index}">重新编辑</button>
+          <a href="${o.url}" download="seedance-${escapeHtml(o.providerTaskId || `segment-${o.index+1}`)}.mp4" target="_blank" rel="noopener" data-download-output="${o.providerTaskId || o.index}">下载到本地</a>
+        </div>
       </div>
     </article>`).join('') : '<div class="empty-state">暂无视频输出。提交后会自动显示真实任务状态和生成结果。</div>';
 
   qsa('[data-refresh-segment]').forEach(btn => btn.onclick = async () => { await refreshJobs(); });
-  qsa('[data-retry-segment]').forEach(btn => btn.onclick = () => generateSegments([btn.dataset.retrySegment]));
+  qsa('[data-edit-from-job]').forEach(btn => btn.onclick = () => reEditSegment(btn.dataset.editFromJob));
+  qsa('[data-edit-output-segment]').forEach(btn => btn.onclick = () => reEditSegment(btn.dataset.editOutputSegment || findSegmentIdByOutputIndex(btn.dataset.outputIndex)));
+  qsa('[data-retry-segment]').forEach(btn => btn.onclick = async () => {
+    if (await confirmBox('确认重新生成', '重新生成会再次提交 Ark 并可能产生费用。更推荐先点“重新编辑”检查首尾帧和提示词。确定继续吗？')) {
+      generateSegments([btn.dataset.retrySegment]);
+    }
+  });
   qsa('[data-download-output]').forEach(link => link.onclick = () => {
     const set = downloadedSet();
     set.add(link.dataset.downloadOutput);
     saveDownloadedSet(set);
   });
+}
+
+
+function findSegmentIdByOutputIndex(indexValue) {
+  const index = Number(indexValue);
+  const segment = state.draft?.segments?.find(s => Number(s.index) === index);
+  return segment?.id || null;
+}
+
+function reEditSegment(segmentId) {
+  if (!segmentId) {
+    toast('无法定位片段', '这个输出没有找到对应片段，请在高级 Storyboard 中手动选择。');
+    setView('editor');
+    return;
+  }
+  const segment = state.draft.segments.find(s => s.id === segmentId || s.remoteTaskId === segmentId);
+  if (!segment) {
+    toast('无法定位片段', '当前工作区没有找到对应片段，请确认是否切换到了正确模式。');
+    setView('editor');
+    return;
+  }
+  state.selectedSegmentId = segment.id;
+  saveCurrentWorkspaceSelection();
+  setView('editor');
+  renderEditor();
+  toast('已回到编辑页', `现在可以调整 ${workspaceLabel()} 的首尾帧和提示词，再决定是否重新提交。`);
 }
 
 function renderAll() {
@@ -604,7 +717,7 @@ function wireFrameActions(container) {
 async function removeFrame(id) {
   const frame = state.draft.frames.find(f => f.id === id);
   if (!frame) return;
-  if (!await confirmBox('删除图片', `确定删除“${frame.name}”吗？本地界面会立即更新。`)) return;
+  if (!await confirmBox('删除图片', `确定从${workspaceLabel()}删除“${frame.name}”吗？另一种模式里的图片和输出不会受影响。`)) return;
   releaseFrameUrl(id);
   state.draft.frames = state.draft.frames.filter(f => f.id !== id);
   normalizeSegments(state.draft);
@@ -650,7 +763,7 @@ async function addFiles(fileList) {
   normalizeSegments(state.draft);
   renderAll();
   await persist();
-  toast('已加入本地草稿', `${files.length} 张图片已立即显示，尚未上传 Supabase。`);
+  toast('已加入当前工作区', `${workspaceLabel()} 已加入 ${files.length} 张图片，另一种模式不会受影响。`);
 }
 
 function readDimensions(file) {
@@ -670,7 +783,7 @@ function readDimensions(file) {
 }
 
 async function selectDraft(id) {
-  const draft = await getDraft(id);
+  const draft = migrateDraftWorkspaces(await getDraft(id));
   if (!draft) return;
 
   clearInterval(state.pollTimer);
@@ -684,8 +797,9 @@ async function selectDraft(id) {
   state.jobs = [];
 
   state.draft = draft;
+  bindCurrentWorkspace();
   normalizeSegments(state.draft);
-  state.selectedSegmentId = state.draft.segments[0]?.id || null;
+  saveCurrentWorkspaceSelection();
   localStorage.setItem(LAST_SELECTED_DRAFT_KEY, id);
 
   // 先渲染一次空状态，让用户看到确实切换到了当前项目。
@@ -707,7 +821,7 @@ async function selectDraft(id) {
 }
 
 async function createProject() {
-  const draft = newDraft();
+  const draft = migrateDraftWorkspaces(newDraft());
   await saveDraft(draft);
   state.drafts.unshift(draft);
   await selectDraft(draft.id);
@@ -717,7 +831,7 @@ async function createProject() {
 async function removeProject() {
   if (!state.draft || !await confirmBox('删除项目', `确定删除“${state.draft.name}”及其本地图片草稿吗？`)) return;
   const id = state.draft.id;
-  state.draft.frames.forEach(f => releaseFrameUrl(f.id));
+  Object.values(state.draft.workspaces || {}).forEach(ws => (ws.frames || []).forEach(f => releaseFrameUrl(f.id)));
   await deleteDraft(id);
   state.drafts = state.drafts.filter(d => d.id !== id);
   if (!state.drafts.length) await createProject();
@@ -744,7 +858,12 @@ function statusText(status) {
 }
 
 async function ensureRemoteProject() {
-  if (state.draft.remoteProjectId) return state.draft.remoteProjectId;
+  bindCurrentWorkspace();
+  const workspace = getWorkspace();
+  if (workspace.remoteProjectId) {
+    state.draft.remoteProjectId = workspace.remoteProjectId;
+    return workspace.remoteProjectId;
+  }
   const payload = {
     owner_id: state.user.id,
     name: state.draft.name,
@@ -761,6 +880,8 @@ async function ensureRemoteProject() {
   );
   if (result.error) throw new Error(`创建项目失败：${errorMessage(result.error)}`);
   state.draft.remoteProjectId = result.data.id;
+  workspace.remoteProjectId = result.data.id;
+  saveCurrentWorkspaceSelection();
   await persist();
   return result.data.id;
 }
@@ -1373,10 +1494,14 @@ function wireEvents() {
 
   qsa('.view-tab').forEach(btn => btn.onclick = () => setView(btn.dataset.view));
   qsa('#mode-switch button').forEach(btn => btn.onclick = async () => {
-    state.draft.mode = btn.dataset.mode;
+    saveCurrentWorkspaceSelection();
+    state.draft.mode = btn.dataset.mode === 'first_last' ? 'first_last' : 'multi_frame';
+    bindCurrentWorkspace();
     normalizeSegments(state.draft);
+    saveCurrentWorkspaceSelection();
     renderAll();
     await persist();
+    toast('已切换工作区', `${workspaceLabel()} 的图片、提示词、任务和输出独立保存。`);
   });
 
   $('project-name').oninput = async event => { state.draft.name = event.target.value; await persist(); };
