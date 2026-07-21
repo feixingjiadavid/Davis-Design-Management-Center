@@ -1,8 +1,8 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260721-multiframe-stable-local-output-v3';
-const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v4-force-reupload-2p40';
+const APP_BUILD = '20260721-project-sync-blackbar-v5';
+const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v5-blackbar-2p49-force-reupload';
 console.log('[Seedance Studio]', APP_BUILD);
 
 const state = {
@@ -76,40 +76,62 @@ async function makeArkSafeFrameBlob(frame) {
   const srcH = img.naturalHeight || frame.height;
   if (!srcW || !srcH) return { blob: frame.blob, width: frame.width, height: frame.height, type: frame.type || frame.blob.type };
 
-  const minRatio = 0.42;
-  // Seedance 当前要求输入图比例必须在 0.40 到 2.50 之间。
-  // 为避免 3:1、超宽图被 Ark 拒绝，这里统一把输入图补边到 2.40 以内。
-  // 项目最终仍可在浏览器合成阶段输出 3:1。
-  const maxRatio = 2.40;
+  /*
+    Seedance 输入图比例必须在 0.40 到 2.50 之间。
+    这里采用“最接近原图比例”的安全补边策略：
+    - 超宽图，例如 3:1：不裁切，补上下黑边到 2.49:1。
+    - 超高图，例如 1:3：不裁切，补左右黑边到 0.41:1。
+    - 合规图：完全不处理。
+    用 2.49 / 0.41 是为了避开 Ark 边界浮点误差。
+  */
+  const minRatio = 0.41;
+  const maxRatio = 2.49;
   const ratio = srcW / srcH;
   let dstW = srcW;
   let dstH = srcH;
+  let padMode = 'none';
 
   if (ratio > maxRatio) {
     dstH = Math.ceil(srcW / maxRatio);
+    padMode = 'letterbox_vertical_black_bars';
   } else if (ratio < minRatio) {
     dstW = Math.ceil(srcH * minRatio);
+    padMode = 'pillarbox_horizontal_black_bars';
   } else {
-    return { blob: frame.blob, width: srcW, height: srcH, type: frame.type || frame.blob.type || 'image/png', normalized: false };
+    return {
+      blob: frame.blob,
+      width: srcW,
+      height: srcH,
+      type: frame.type || frame.blob.type || 'image/png',
+      normalized: false,
+      padMode,
+      ratio,
+    };
   }
 
   const canvas = document.createElement('canvas');
   canvas.width = dstW;
   canvas.height = dstH;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#0b0d12';
+
+  // 按用户要求：不裁切、不虚化填充，直接使用黑边，最大限度保护原图内容。
+  ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, dstW, dstH);
-  // 先铺一层放大虚化底图，减少黑边突兀感。
-  ctx.save();
-  ctx.filter = 'blur(18px) brightness(0.82)';
-  const bgScale = Math.max(dstW / srcW, dstH / srcH);
-  const bgW = srcW * bgScale;
-  const bgH = srcH * bgScale;
-  ctx.drawImage(img, (dstW - bgW) / 2, (dstH - bgH) / 2, bgW, bgH);
-  ctx.restore();
-  ctx.drawImage(img, (dstW - srcW) / 2, (dstH - srcH) / 2, srcW, srcH);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, Math.round((dstW - srcW) / 2), Math.round((dstH - srcH) / 2), srcW, srcH);
+
   const blob = await canvasToBlob(canvas, 'image/png', 0.95);
-  return { blob, width: dstW, height: dstH, type: 'image/png', normalized: true };
+  return {
+    blob,
+    width: dstW,
+    height: dstH,
+    type: 'image/png',
+    normalized: true,
+    padMode,
+    originalRatio: ratio,
+    safeRatio: dstW / dstH,
+  };
 }
 
 function errorMessage(error, fallback = '操作失败') {
@@ -119,6 +141,7 @@ function errorMessage(error, fallback = '操作失败') {
 }
 
 const AUTO_DOWNLOAD_KEY = 'seedance_auto_downloaded_provider_tasks_v1';
+const LAST_SELECTED_DRAFT_KEY = 'seedance_last_selected_draft_id_v1';
 
 function downloadedSet() {
   try {
@@ -283,12 +306,19 @@ function setView(view) {
   if (view === 'jobs') refreshJobs();
 }
 
+
+function orderedDrafts() {
+  // 项目列表只按创建时间排序。点击/同步/查询不会把项目自动置顶，避免用户迷路。
+  return [...state.drafts].sort((a, b) => Number(b.createdAt || b.updatedAt || 0) - Number(a.createdAt || a.updatedAt || 0));
+}
+
 function renderProjects() {
-  $('project-list').innerHTML = state.drafts.length
-    ? state.drafts.map(d => `
+  const list = orderedDrafts();
+  $('project-list').innerHTML = list.length
+    ? list.map(d => `
       <button class="project-item ${state.draft?.id===d.id?'active':''}" data-project="${d.id}">
         <strong>${escapeHtml(d.name)}</strong>
-        <span>${d.frames?.length || 0} 张图 · ${new Date(d.updatedAt).toLocaleString('zh-CN')}</span>
+        <span>${d.frames?.length || 0} 张图 · ${new Date(d.createdAt || d.updatedAt || Date.now()).toLocaleString('zh-CN')}</span>
       </button>`).join('')
     : '<div class="empty-state">还没有本地项目</div>';
   qsa('[data-project]').forEach(btn => btn.onclick = () => selectDraft(btn.dataset.project));
@@ -510,7 +540,7 @@ function renderJobs() {
         <strong>Segment ${String(o.index+1).padStart(2,'0')} · 已完成</strong>
         <span>${o.storageMode === 'ark-temp' ? '未占用 Supabase Storage · Ark 临时链接，请及时下载到本地' : 'Supabase Storage 已保存'}</span>
         ${o.providerTaskId ? `<small>Ark Task：${escapeHtml(o.providerTaskId)}</small>` : ''}
-        <a href="${o.url}" download target="_blank" rel="noopener" data-download-output="${o.providerTaskId || o.index}">下载到本地</a>
+        <a href="${o.url}" download="seedance-${escapeHtml(o.providerTaskId || `segment-${o.index+1}`)}.mp4" target="_blank" rel="noopener" data-download-output="${o.providerTaskId || o.index}">下载到本地</a>
       </div>
     </article>`).join('') : '<div class="empty-state">暂无视频输出。提交后会自动显示真实任务状态和生成结果。</div>';
 
@@ -619,14 +649,37 @@ function readDimensions(file) {
 async function selectDraft(id) {
   const draft = await getDraft(id);
   if (!draft) return;
+
+  clearInterval(state.pollTimer);
+  state.pollTimer = null;
+
   state.objectUrls.forEach(url => URL.revokeObjectURL(url));
   state.objectUrls.clear();
+
+  // 切换项目时立刻清空上一项目的输出缓存，避免右侧继续展示上一个项目的视频。
+  state.outputs = [];
+  state.jobs = [];
+
   state.draft = draft;
   normalizeSegments(state.draft);
   state.selectedSegmentId = state.draft.segments[0]?.id || null;
-  try { await syncRemoteTasks(); } catch (error) { console.warn(error); }
+  localStorage.setItem(LAST_SELECTED_DRAFT_KEY, id);
+
+  // 先渲染一次空状态，让用户看到确实切换到了当前项目。
   renderAll();
-  const hasActive = state.draft.segments.some(s => ['submitted','queued','running','processing'].includes(String(s.status || '').toLowerCase()));
+
+  try {
+    await syncRemoteTasks();
+    await loadOutputs();
+  } catch (error) {
+    console.warn('[Seedance Studio] project switch sync failed', error);
+  }
+
+  renderAll();
+
+  const hasActive = state.draft.segments.some(s =>
+    ['submitting','submitted','queued','running','processing'].includes(String(s.status || '').toLowerCase())
+  );
   if (hasActive) startPolling();
 }
 
@@ -736,6 +789,9 @@ async function uploadFrame(frame, projectId, order) {
   frame.uploadWidth = safeFrame.width;
   frame.uploadHeight = safeFrame.height;
   frame.wasAspectPadded = Boolean(safeFrame.normalized);
+  frame.aspectPadMode = safeFrame.padMode || 'none';
+  frame.uploadSafeRatio = safeFrame.safeRatio || (safeFrame.width && safeFrame.height ? safeFrame.width / safeFrame.height : null);
+  frame.originalRatio = safeFrame.originalRatio || (frame.width && frame.height ? frame.width / frame.height : null);
   return frame;
 }
 
@@ -1090,6 +1146,11 @@ async function loadOutputs() {
   const currentProjectId = state.draft?.remoteProjectId || null;
   const rowsById = new Map();
 
+  if (!currentProjectId && !taskIds.length && !segmentIds.length && !providerIds.size) {
+    state.outputs = [];
+    return;
+  }
+
   async function collect(query) {
     const { data, error } = await query;
     if (error) {
@@ -1340,13 +1401,16 @@ function wireEvents() {
 async function init() {
   if (!await initSession()) return;
   wireEvents();
+  document.body.dataset.seedanceBuild = APP_BUILD;
   state.drafts = await listDrafts();
   if (!state.drafts.length) {
     const draft = newDraft();
     await saveDraft(draft);
     state.drafts = [draft];
   }
-  await selectDraft([...state.drafts].sort((a,b)=>b.updatedAt-a.updatedAt)[0].id);
+  const lastSelectedId = localStorage.getItem(LAST_SELECTED_DRAFT_KEY);
+  const initialDraft = state.drafts.find(d => d.id === lastSelectedId) || orderedDrafts()[0];
+  await selectDraft(initialDraft.id);
   setView('quick');
 }
 
