@@ -1,7 +1,7 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260721-task-state-history-v12';
+const APP_BUILD = '20260721-text-to-video-mode-v13';
 const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v5-blackbar-2p49-force-reupload';
 console.log('[Seedance Studio]', APP_BUILD);
 
@@ -236,6 +236,7 @@ function newDraft() {
     workspaces: {
       first_last: createWorkspaceState(),
       multi_frame: createWorkspaceState(),
+      text_only: createWorkspaceState(),
     },
   };
 }
@@ -269,8 +270,10 @@ function migrateDraftWorkspaces(draft) {
   }
   if (!draft.workspaces.first_last) draft.workspaces.first_last = createWorkspaceState();
   if (!draft.workspaces.multi_frame) draft.workspaces.multi_frame = createWorkspaceState();
+  if (!draft.workspaces.text_only) draft.workspaces.text_only = createWorkspaceState();
   if (!Array.isArray(draft.workspaces.first_last.outputHistory)) draft.workspaces.first_last.outputHistory = [];
   if (!Array.isArray(draft.workspaces.multi_frame.outputHistory)) draft.workspaces.multi_frame.outputHistory = [];
+  if (!Array.isArray(draft.workspaces.text_only.outputHistory)) draft.workspaces.text_only.outputHistory = [];
 
   // 兼容旧代码：当前模式的 frames / segments 始终映射到当前工作区。
   const workspace = getWorkspace(draft);
@@ -284,7 +287,7 @@ function migrateDraftWorkspaces(draft) {
 function getWorkspace(draft = state.draft, mode = draft?.mode) {
   if (!draft) return createWorkspaceState();
   if (!draft.workspaces) draft.workspaces = { first_last: createWorkspaceState(), multi_frame: createWorkspaceState() };
-  const key = mode === 'first_last' ? 'first_last' : 'multi_frame';
+  const key = mode === 'first_last' ? 'first_last' : (mode === 'text_only' ? 'text_only' : 'multi_frame');
   if (!draft.workspaces[key]) draft.workspaces[key] = createWorkspaceState();
   return draft.workspaces[key];
 }
@@ -313,7 +316,9 @@ function saveCurrentWorkspaceSelection() {
 }
 
 function workspaceLabel(mode = state.draft?.mode) {
-  return mode === 'first_last' ? '首尾帧' : '多帧 Storyboard';
+  if (mode === 'first_last') return '首尾帧';
+  if (mode === 'text_only') return '纯文字生成';
+  return '多帧 Storyboard';
 }
 
 function getFrameUrl(frame) {
@@ -329,34 +334,56 @@ function releaseFrameUrl(frameId) {
 }
 
 function normalizeSegments(draft) {
-  const old = new Map((draft.segments || []).map(s => [`${s.fromFrameId}:${s.toFrameId}`, s]));
-  let pairs = [];
-  if (draft.frames.length >= 2) {
-    if (draft.mode === 'first_last') {
-      pairs = [[draft.frames[0], draft.frames[draft.frames.length - 1]]];
-    } else {
-      for (let i = 0; i < draft.frames.length - 1; i++) pairs.push([draft.frames[i], draft.frames[i + 1]]);
+  if (draft.mode === 'text_only') {
+    const existing = (draft.segments || [])[0];
+    draft.segments = [{
+      id: existing?.id || uid(),
+      fromFrameId: null,
+      toFrameId: null,
+      prompt: existing?.prompt || '',
+      duration: existing?.duration || 4,
+      model: existing?.model || 'mini',
+      resolution: existing?.resolution || '720p',
+      status: existing?.status || 'draft',
+      providerTaskId: existing?.providerTaskId || null,
+      remoteSegmentId: existing?.remoteSegmentId || null,
+      remoteTaskId: existing?.remoteTaskId || null,
+      outputPath: existing?.outputPath || null,
+      outputUrl: existing?.outputUrl || null,
+      error: existing?.error || null,
+      index: 0,
+      mode: 'text_only',
+    }];
+  } else {
+    const old = new Map((draft.segments || []).map(s => [`${s.fromFrameId}:${s.toFrameId}`, s]));
+    let pairs = [];
+    if (draft.frames.length >= 2) {
+      if (draft.mode === 'first_last') {
+        pairs = [[draft.frames[0], draft.frames[draft.frames.length - 1]]];
+      } else {
+        for (let i = 0; i < draft.frames.length - 1; i++) pairs.push([draft.frames[i], draft.frames[i + 1]]);
+      }
     }
+    draft.segments = pairs.map(([from, to], index) => {
+      const existing = old.get(`${from.id}:${to.id}`);
+      return existing || {
+        id: uid(),
+        fromFrameId: from.id,
+        toFrameId: to.id,
+        prompt: '',
+        duration: 4,
+        model: 'mini',
+        resolution: '720p',
+        status: 'draft',
+        providerTaskId: null,
+        remoteSegmentId: null,
+        remoteTaskId: null,
+        outputPath: null,
+        error: null,
+        index,
+      };
+    }).map((segment, index) => ({ ...segment, index }));
   }
-  draft.segments = pairs.map(([from, to], index) => {
-    const existing = old.get(`${from.id}:${to.id}`);
-    return existing || {
-      id: uid(),
-      fromFrameId: from.id,
-      toFrameId: to.id,
-      prompt: '',
-      duration: 4,
-      model: 'mini',
-      resolution: '720p',
-      status: 'draft',
-      providerTaskId: null,
-      remoteSegmentId: null,
-      remoteTaskId: null,
-      outputPath: null,
-      error: null,
-      index,
-    };
-  }).map((segment, index) => ({ ...segment, index }));
   if (!draft.segments.some(s => s.id === state.selectedSegmentId)) {
     state.selectedSegmentId = draft.segments[0]?.id || null;
   }
@@ -548,7 +575,7 @@ function renderEditor() {
       <p>${escapeHtml(s.prompt || '尚未填写提示词')}</p>
       <span>${s.duration}s · ${s.model==='fast'?'Fast':'Mini'}</span>
       <span>${s.resolution} · ${statusText(s.status)}</span>
-    </button>`).join('') : '<div class="empty-state">至少上传两张图片才会创建片段。</div>';
+    </button>`).join('') : '<div class="empty-state">首尾帧/多帧至少上传两张图片；纯文字模式直接输入描述即可生成。</div>';
   qsa('[data-segment-row]').forEach(el => el.onclick = () => {
     state.selectedSegmentId = el.dataset.segmentRow;
     renderEditor();
@@ -563,8 +590,8 @@ function renderInspector() {
   if (!segment) return;
   const fromIndex = state.draft.frames.findIndex(f => f.id === segment.fromFrameId);
   const toIndex = state.draft.frames.findIndex(f => f.id === segment.toFrameId);
-  $('inspector-index').textContent = `SEGMENT ${String(segment.index+1).padStart(2,'0')}`;
-  $('inspector-name').textContent = `图 ${fromIndex+1} → 图 ${toIndex+1}`;
+  $('inspector-index').textContent = state.draft.mode === 'text_only' ? 'TEXT TO VIDEO' : `SEGMENT ${String(segment.index+1).padStart(2,'0')}`;
+  $('inspector-name').textContent = state.draft.mode === 'text_only' ? '纯文字描述生成' : `图 ${fromIndex+1} → 图 ${toIndex+1}`;
   $('inspector-status').textContent = statusText(segment.status);
   $('segment-prompt').value = segment.prompt;
   $('segment-duration').value = String(segment.duration);
@@ -574,8 +601,8 @@ function renderInspector() {
 }
 
 function renderSummary() {
-  $('summary-frames').textContent = state.draft.frames.length;
-  $('summary-segments').textContent = state.draft.segments.length;
+  $('summary-frames').textContent = state.draft.mode === 'text_only' ? '无需图片' : state.draft.frames.length;
+  $('summary-segments').textContent = state.draft.mode === 'text_only' ? 1 : state.draft.segments.length;
   $('summary-duration').textContent = `${state.draft.segments.reduce((sum,s)=>sum+Number(s.duration||0),0)} 秒`;
 }
 
@@ -592,6 +619,17 @@ function renderSettings() {
 
 function buildStrictFrameLockPrompt(segment) {
   const rawPrompt = String(segment?.prompt || '').trim();
+  if (state.draft.mode === 'text_only') {
+    const ratioLabel = state.draft.ratio === 'follow' ? '16:9' : state.draft.ratio;
+    return [
+      '【纯文字生成要求】',
+      '当前任务为纯文字描述生成模式，没有上传参考图。',
+      '请严格根据用户文字描述生成视频，不要凭空添加与描述冲突的主体、文字、Logo、人物或复杂背景。',
+      `输出比例：${ratioLabel}；整体应保持画面稳定、主体明确、镜头运动自然。`,
+      '【用户视频描述】',
+      rawPrompt || '请生成一个画面稳定、质感高级、自然运动的短视频。'
+    ].join('\n');
+  }
   const fromIndex = state.draft.frames.findIndex(f => f.id === segment.fromFrameId);
   const toIndex = state.draft.frames.findIndex(f => f.id === segment.toFrameId);
   const modeLabel = state.draft.mode === 'first_last' ? '首尾帧模式' : '多帧 Storyboard 模式';
@@ -971,7 +1009,7 @@ async function ensureRemoteProject() {
   const payload = {
     owner_id: state.user.id,
     name: state.draft.name,
-    mode: state.draft.mode,
+    mode: isTextOnly ? 'text_only' : state.draft.mode,
     ratio: state.draft.ratio === 'follow' ? 'adaptive' : state.draft.ratio,
     resolution: '720p',
     frame_fit_mode: state.draft.fitMode,
@@ -1046,6 +1084,16 @@ async function uploadFrame(frame, projectId, order) {
 async function uploadNeededFrames(segmentIds) {
   const projectId = await ensureRemoteProject();
   const segments = state.draft.segments.filter(s => segmentIds.includes(s.id));
+  if (state.draft.mode === 'text_only') {
+    segments.forEach(segment => {
+      segment.status = 'submitting';
+      segment.progress = 13;
+      segment.error = null;
+    });
+    renderAll();
+    await persist();
+    return projectId;
+  }
   const needed = new Set(segments.flatMap(s => [s.fromFrameId, s.toFrameId]));
   const frames = state.draft.frames.filter(frame => needed.has(frame.id));
 
@@ -1083,21 +1131,23 @@ async function submitOne(segment) {
   const projectId = state.draft.remoteProjectId;
   const from = state.draft.frames.find(f => f.id === segment.fromFrameId);
   const to = state.draft.frames.find(f => f.id === segment.toFrameId);
+  const isTextOnly = state.draft.mode === 'text_only';
   if (!projectId) throw new Error('远程项目尚未创建');
-  if (!from?.remoteAssetId || !to?.remoteAssetId) throw new Error(`Segment ${segment.index + 1} 的首尾帧尚未上传完成`);
+  if (!isTextOnly && (!from?.remoteAssetId || !to?.remoteAssetId)) throw new Error(`Segment ${segment.index + 1} 的首尾帧尚未上传完成`);
 
   const segmentPayload = {
     owner_id: state.user.id,
     project_id: projectId,
     position: segment.index,
-    from_asset_id: from.remoteAssetId,
-    to_asset_id: to.remoteAssetId,
+    from_asset_id: isTextOnly ? null : from.remoteAssetId,
+    to_asset_id: isTextOnly ? null : to.remoteAssetId,
     prompt: segment.prompt,
     model_alias: segment.model,
     duration: Number(segment.duration),
     resolution: segment.resolution,
     ratio: state.draft.ratio === 'follow' ? 'adaptive' : state.draft.ratio,
     status: 'ready',
+    mode: isTextOnly ? 'text_only' : state.draft.mode,
   };
 
   if (!segment.remoteSegmentId) {
@@ -1120,6 +1170,7 @@ async function submitOne(segment) {
           resolution: segmentPayload.resolution,
           ratio: segmentPayload.ratio,
           status: 'ready',
+          mode: segmentPayload.mode,
         })
         .eq('id', segment.remoteSegmentId)
         .eq('owner_id', state.user.id)
@@ -1138,7 +1189,7 @@ async function submitOne(segment) {
   const body = {
     project_id: projectId,
     segment_id: segment.remoteSegmentId,
-    asset_ids: [from.remoteAssetId, to.remoteAssetId],
+    asset_ids: isTextOnly ? [] : [from.remoteAssetId, to.remoteAssetId],
     prompt: segment.prompt,
     effective_prompt: buildStrictFrameLockPrompt(segment),
     prompt_mode: 'strict_frame_lock_v12',
@@ -1150,7 +1201,7 @@ async function submitOne(segment) {
     frame_fit_mode: state.draft.fitMode,
     final_width: Number(state.draft.finalWidth),
     final_height: Number(state.draft.finalHeight),
-    mode: state.draft.mode,
+    mode: isTextOnly ? 'text_only' : state.draft.mode,
   };
 
   let lastError = null;
@@ -1250,7 +1301,7 @@ async function resubmitSegment(segmentId) {
 async function generateSegments(segmentIds) {
   if (state.isGenerating) return toast('任务正在提交', '请等待当前提交完成后再操作。');
   const segments = state.draft.segments.filter(s => segmentIds.includes(s.id));
-  if (!segments.length) return toast('没有可生成片段', '请先上传至少两张图片。');
+  if (!segments.length) return toast('没有可生成片段', state.draft.mode === 'text_only' ? '请先填写文字描述。' : '首尾帧/多帧请先上传至少两张图片；纯文字模式请填写描述。');
 
   let resetCount = 0;
   segments.forEach(segment => {
@@ -1724,7 +1775,7 @@ function wireEvents() {
   qsa('.view-tab').forEach(btn => btn.onclick = () => setView(btn.dataset.view));
   qsa('#mode-switch button').forEach(btn => btn.onclick = async () => {
     saveCurrentWorkspaceSelection();
-    state.draft.mode = btn.dataset.mode === 'first_last' ? 'first_last' : 'multi_frame';
+    state.draft.mode = btn.dataset.mode === 'first_last' ? 'first_last' : (btn.dataset.mode === 'text_only' ? 'text_only' : 'multi_frame');
     bindCurrentWorkspace();
     normalizeSegments(state.draft);
     saveCurrentWorkspaceSelection();
