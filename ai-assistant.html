@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Seedance 视频生成中心 - Davis Design System</title>
-  <link rel="stylesheet" href="./seedance/style.css?v=20260721-local-output-layout-fix-v1" />
+  <link rel="stylesheet" href="./seedance/style.css?v=20260721-native-text-reference-mode-v14" />
   <style>[hidden]{display:none!important}</style>
 </head>
 <body>
@@ -67,8 +67,28 @@
                 </div>
                 <div class="mode-switch" id="mode-switch">
                   <button data-mode="first_last">首尾帧</button>
-              <button data-mode="text_only">纯文字</button>
                   <button data-mode="multi_frame" class="active">多帧 Storyboard</button>
+                  <button data-mode="text_only">纯文字</button>
+                </div>
+              </div>
+
+              <div id="text-mode-panel" class="text-mode-panel" hidden>
+                <div class="text-mode-copy">
+                  <strong>纯文字描述生成</strong>
+                  <span>不上传图片也可以直接生成；也可以上传一个参考视频，让 Seedance 学习动作、镜头节奏和画面风格。</span>
+                </div>
+                <label class="text-prompt-box">
+                  <span>视频描述</span>
+                  <textarea id="text-mode-prompt" rows="5" placeholder="例如：航拍视角穿过冰岛黑色火山荒原，远处雪山和蓝色冰川逐渐出现，镜头缓慢向前推进，电影感，真实自然光。"></textarea>
+                </label>
+                <div class="reference-video-card" id="reference-video-card">
+                  <input id="reference-video-input" type="file" accept="video/mp4,video/quicktime,video/webm" hidden />
+                  <button class="reference-video-trigger" id="reference-video-trigger" type="button">
+                    <b>＋</b>
+                    <span>上传参考视频</span>
+                    <small>可选：学习动作 / 镜头 / 节奏，不做版权 IP 模式</small>
+                  </button>
+                  <div id="reference-video-preview" class="reference-video-preview" hidden></div>
                 </div>
               </div>
 
@@ -76,7 +96,7 @@
                 <input id="file-input" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden />
                 <div class="upload-icon">＋</div>
                 <strong>点击或拖拽上传图片</strong>
-                <span>立即显示本地预览，不会提前上传 Supabase</span>
+                <span>首尾帧 / 多帧模式使用；纯文字模式不用上传图片</span>
               </div>
 
               <div id="quick-timeline" class="quick-timeline"></div>
@@ -93,12 +113,14 @@
                 <label>
                   <span>项目比例</span>
                   <select id="project-ratio">
-                    <option value="follow">跟随首帧</option>
+                    <option value="adaptive">智能比例</option>
+                    <option value="21:9">21:9</option>
                     <option value="16:9">16:9</option>
-                    <option value="9:16">9:16</option>
-                    <option value="1:1">1:1</option>
                     <option value="4:3">4:3</option>
+                    <option value="1:1">1:1</option>
                     <option value="3:4">3:4</option>
+                    <option value="9:16">9:16</option>
+                    <option value="follow">跟随首帧</option>
                     <option value="3:1">3:1 超宽</option>
                     <option value="custom">自定义比例</option>
                   </select>
@@ -201,8 +223,6 @@
                 <label>
                   <span>时长</span>
                   <select id="segment-duration">
-                    <option value="2">2 秒</option>
-                    <option value="3">3 秒</option>
                     <option value="4">4 秒</option>
                     <option value="5">5 秒</option>
                     <option value="6">6 秒</option>
@@ -224,6 +244,13 @@
                   <select id="segment-resolution">
                     <option value="720p">720p</option>
                     <option value="480p">480p</option>
+                  </select>
+                </label>
+                <label>
+                  <span>声音输出</span>
+                  <select id="segment-audio">
+                    <option value="false">关</option>
+                    <option value="true">开</option>
                   </select>
                 </label>
                 <label>
@@ -285,6 +312,6 @@
     </div>
   </div>
 
-  <script type="module" src="./seedance/app.js?v=20260721-local-output-layout-fix-v1"></script>
+  <script type="module" src="./seedance/app.js?v=20260721-native-text-reference-mode-v14"></script>
 </body>
 </html>
