@@ -1,7 +1,7 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260721-safe-rollback-minimal-ui-fix-v20';
+const APP_BUILD = '20260721-at-reference-free-prompt-v21';
 const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v5-blackbar-2p49-force-reupload';
 console.log('[Seedance Studio]', APP_BUILD);
 
@@ -400,12 +400,9 @@ function renderTextModePanel() {
     };
   });
 
-  preview.querySelectorAll('[data-reference-direction]').forEach(select => {
-    select.onchange = async () => {
-      const asset = (state.referenceAssets || []).find(item => item.id === select.dataset.referenceDirection);
-      if (!asset) return;
-      asset.referenceDirection = select.value;
-      getWorkspace().referenceAssets = state.referenceAssets;
+  preview.querySelectorAll('[data-insert-reference]').forEach(btn => {
+    btn.onclick = async () => {
+      insertReferenceToken(btn.dataset.insertReference || '');
       await persist();
     };
   });
@@ -417,15 +414,14 @@ function referenceAssetMarkup(asset, index) {
   const url = getBlobUrl(asset);
   const type = String(asset.type || '');
   const label = assetKindLabel(asset);
-  const title = `${label}${index + 1}`;
-  const direction = asset.referenceDirection || defaultReferenceDirection(asset);
+  const token = referenceToken(asset, index);
   let media = '';
   if (type.startsWith('video/')) {
     media = `<video src="${url}" controls preload="metadata"></video>`;
   } else if (type.startsWith('audio/')) {
     media = `<div class="audio-ref-card"><b>♪</b><audio src="${url}" controls preload="metadata"></audio></div>`;
   } else if (type.startsWith('image/')) {
-    media = `<img src="${url}" alt="${escapeHtml(asset.name || title)}" />`;
+    media = `<img src="${url}" alt="${escapeHtml(asset.name || token)}" />`;
   } else {
     media = `<div class="file-ref-card">REF</div>`;
   }
@@ -433,22 +429,27 @@ function referenceAssetMarkup(asset, index) {
   return `<article class="reference-pool-item">
     <div class="reference-pool-media">${media}</div>
     <div class="reference-video-meta">
-      <strong>${title} · ${escapeHtml(asset.name || '参考内容')}</strong>
+      <div class="reference-title-row">
+        <strong>${escapeHtml(token)}</strong>
+        <button type="button" class="reference-token-btn" data-insert-reference="${escapeHtml(token)}">插入 ${escapeHtml(token)}</button>
+      </div>
+      <em title="${escapeHtml(asset.name || '参考内容')}">${escapeHtml(asset.name || '参考内容')}</em>
       <span>${formatBytes(asset.size || 0)} · ${escapeHtml(asset.type || 'file')}</span>
       <small>${asset.remoteAssetId ? '已上传 Supabase，生成时会传给 Ark' : '本地参考内容，生成时才上传'}</small>
-      <label class="reference-direction-label">
-        <span>参考方向</span>
-        <select data-reference-direction="${asset.id}">
-          <option value="visual_motion" ${direction === 'visual_motion' ? 'selected' : ''}>视频动作 / 镜头</option>
-          <option value="visual_style" ${direction === 'visual_style' ? 'selected' : ''}>画面风格 / 构图</option>
-          <option value="audio_rhythm" ${direction === 'audio_rhythm' ? 'selected' : ''}>声音 / 节奏</option>
-          <option value="overall" ${direction === 'overall' ? 'selected' : ''}>综合参考</option>
-        </select>
-      </label>
+      <p class="reference-free-tip">在描述里自由写：${escapeHtml(token)} 参考人物动作 / 运镜 / 声音 / 风格。系统不固定用途。</p>
     </div>
     <button class="icon-mini danger" data-remove-reference="${asset.id}" type="button">删除</button>
   </article>`;
 }
+
+function referenceToken(asset, index) {
+  const type = String(asset?.type || '');
+  if (type.startsWith('video/')) return `@视频${index + 1}`;
+  if (type.startsWith('audio/')) return `@音频${index + 1}`;
+  if (type.startsWith('image/')) return `@图片${index + 1}`;
+  return `@参考${index + 1}`;
+}
+
 
 function assetKindLabel(asset) {
   const type = String(asset.type || '');
@@ -463,6 +464,32 @@ function defaultReferenceDirection(asset) {
   if (type.startsWith('audio/')) return 'audio_rhythm';
   if (type.startsWith('image/')) return 'visual_style';
   return 'visual_motion';
+}
+
+function insertReferenceToken(token) {
+  if (!token) return;
+  const textarea = $('text-mode-prompt') || $('segment-prompt');
+  normalizeSegments(state.draft);
+  const segment = state.draft.segments[0];
+  if (!textarea || !segment) return;
+
+  const start = textarea.selectionStart ?? textarea.value.length;
+  const end = textarea.selectionEnd ?? textarea.value.length;
+  const before = textarea.value.slice(0, start);
+  const after = textarea.value.slice(end);
+  const needsSpaceBefore = before && !/\s$/.test(before);
+  const needsSpaceAfter = after && !/^\s/.test(after);
+  const inserted = `${needsSpaceBefore ? ' ' : ''}${token}${needsSpaceAfter ? ' ' : ''}`;
+  textarea.value = before + inserted + after;
+  const pos = before.length + inserted.length;
+  textarea.focus();
+  textarea.setSelectionRange(pos, pos);
+
+  segment.prompt = textarea.value;
+  state.selectedSegmentId = segment.id;
+  saveCurrentWorkspaceSelection();
+  renderSummary();
+  toast('已插入引用', `${token} 已加入描述，你可以继续写具体参考什么。`);
 }
 
 function formatBytes(size) {
@@ -1210,7 +1237,6 @@ async function addReferenceAssets(fileList) {
       size: file.size,
       blob: file,
       createdAt: Date.now(),
-      referenceDirection: defaultReferenceDirection({ type: file.type }),
       remoteAssetId: null,
       remotePath: null,
     });
@@ -1592,11 +1618,12 @@ async function submitOne(segment) {
     mode: isTextOnly ? 'text_only' : state.draft.mode,
     reference_asset_id: isTextOnly ? (segment.referenceAssetId || state.referenceAssets?.[0]?.remoteAssetId || null) : null,
     reference_asset_ids: isTextOnly ? (segment.referenceAssetIds || (state.referenceAssets || []).map(item => item.remoteAssetId).filter(Boolean)) : [],
-    reference_directions: isTextOnly ? (state.referenceAssets || []).map(item => ({
+    reference_directions: isTextOnly ? (state.referenceAssets || []).map((item, index) => ({
       asset_id: item.remoteAssetId || null,
+      token: referenceToken(item, index),
       name: item.name,
       mime_type: item.type,
-      direction: item.referenceDirection || defaultReferenceDirection(item),
+      usage: 'free_prompt_reference',
     })) : [],
     generate_audio: Boolean(segment.generateAudio),
   };
@@ -1651,11 +1678,12 @@ async function submitOne(segment) {
     client_submit_nonce: submitNonce,
     reference_asset_id: isTextOnly ? (segment.referenceAssetId || state.referenceAssets?.[0]?.remoteAssetId || null) : null,
     reference_asset_ids: isTextOnly ? (segment.referenceAssetIds || (state.referenceAssets || []).map(item => item.remoteAssetId).filter(Boolean)) : [],
-    reference_directions: isTextOnly ? (state.referenceAssets || []).map(item => ({
+    reference_directions: isTextOnly ? (state.referenceAssets || []).map((item, index) => ({
       asset_id: item.remoteAssetId || null,
+      token: referenceToken(item, index),
       name: item.name,
       mime_type: item.type,
-      direction: item.referenceDirection || defaultReferenceDirection(item),
+      usage: 'free_prompt_reference',
     })) : [],
     generate_audio: Boolean(segment.generateAudio),
     model_alias: segment.model,
