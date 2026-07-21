@@ -1,7 +1,7 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260721-mode-isolation-reedit-v9';
+const APP_BUILD = '20260721-edit-submit-new-task-v11';
 const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v5-blackbar-2p49-force-reupload';
 console.log('[Seedance Studio]', APP_BUILD);
 
@@ -615,6 +615,20 @@ function updateRatioTip() {
       : `项目内全部片段统一使用 ${ratio}，最终输出尺寸：${size}。`;
 }
 
+
+function isOutputCurrentForSegment(output) {
+  const segment = state.draft?.segments?.find(s => {
+    if (output.segmentId && s.id === output.segmentId) return true;
+    if (output.providerTaskId && s.providerTaskId === output.providerTaskId) return true;
+    return false;
+  });
+  if (!segment) return true;
+  if (segment.providerTaskId && output.providerTaskId && output.providerTaskId !== segment.providerTaskId) return false;
+  if (segment.remoteTaskId && output.taskId && output.taskId !== segment.remoteTaskId) return false;
+  if ((segment.previousTaskIds || []).includes(output.providerTaskId) || (segment.previousTaskIds || []).includes(output.taskId)) return false;
+  return true;
+}
+
 function renderJobs() {
   const segments = state.draft.segments;
   $('jobs-list').innerHTML = segments.length ? segments.map(s => `
@@ -630,11 +644,12 @@ function renderJobs() {
       <div class="job-actions">
         <button data-refresh-segment="${s.id}">立即查询</button>
         <button data-edit-from-job="${s.id}">重新编辑</button>
-        <button data-retry-segment="${s.id}" class="danger-lite">重新生成</button>
+        <button data-retry-segment="${s.id}" class="danger-lite">重新提交</button>
       </div>
     </article>`).join('') : '<div class="empty-state">暂无生成任务</div>';
 
-  $('outputs-list').innerHTML = state.outputs.length ? state.outputs.map(o => `
+  const visibleOutputs = (state.outputs || []).filter(isOutputCurrentForSegment);
+  $('outputs-list').innerHTML = visibleOutputs.length ? visibleOutputs.map(o => `
     <article class="output-card">
       <video controls preload="metadata" src="${o.url}"></video>
       <div class="output-copy">
@@ -651,11 +666,7 @@ function renderJobs() {
   qsa('[data-refresh-segment]').forEach(btn => btn.onclick = async () => { await refreshJobs(); });
   qsa('[data-edit-from-job]').forEach(btn => btn.onclick = () => reEditSegment(btn.dataset.editFromJob));
   qsa('[data-edit-output-segment]').forEach(btn => btn.onclick = () => reEditSegment(btn.dataset.editOutputSegment || findSegmentIdByOutputIndex(btn.dataset.outputIndex)));
-  qsa('[data-retry-segment]').forEach(btn => btn.onclick = async () => {
-    if (await confirmBox('确认重新生成', '重新生成会再次提交 Ark 并可能产生费用。更推荐先点“重新编辑”检查首尾帧和提示词。确定继续吗？')) {
-      generateSegments([btn.dataset.retrySegment]);
-    }
-  });
+  qsa('[data-retry-segment]').forEach(btn => btn.onclick = () => resubmitSegment(btn.dataset.retrySegment));
   qsa('[data-download-output]').forEach(link => link.onclick = () => {
     const set = downloadedSet();
     set.add(link.dataset.downloadOutput);
@@ -982,26 +993,49 @@ async function submitOne(segment) {
   if (!projectId) throw new Error('远程项目尚未创建');
   if (!from?.remoteAssetId || !to?.remoteAssetId) throw new Error(`Segment ${segment.index + 1} 的首尾帧尚未上传完成`);
 
+  const segmentPayload = {
+    owner_id: state.user.id,
+    project_id: projectId,
+    position: segment.index,
+    from_asset_id: from.remoteAssetId,
+    to_asset_id: to.remoteAssetId,
+    prompt: segment.prompt,
+    model_alias: segment.model,
+    duration: Number(segment.duration),
+    resolution: segment.resolution,
+    ratio: state.draft.ratio === 'follow' ? 'adaptive' : state.draft.ratio,
+    status: 'ready',
+  };
+
   if (!segment.remoteSegmentId) {
     const insert = await withTimeout(
-      supabase.from('video_segments').insert({
-        owner_id: state.user.id,
-        project_id: projectId,
-        position: segment.index,
-        from_asset_id: from.remoteAssetId,
-        to_asset_id: to.remoteAssetId,
-        prompt: segment.prompt,
-        model_alias: segment.model,
-        duration: Number(segment.duration),
-        resolution: segment.resolution,
-        ratio: state.draft.ratio === 'follow' ? 'adaptive' : state.draft.ratio,
-        status: 'ready',
-      }).select().single(),
+      supabase.from('video_segments').insert(segmentPayload).select().single(),
       TIMEOUTS.database,
       `创建 Segment ${segment.index + 1}`,
     );
     if (insert.error) throw new Error(`创建 Segment ${segment.index + 1} 失败：${errorMessage(insert.error)}`);
     segment.remoteSegmentId = insert.data.id;
+  } else {
+    const update = await withTimeout(
+      supabase.from('video_segments')
+        .update({
+          from_asset_id: segmentPayload.from_asset_id,
+          to_asset_id: segmentPayload.to_asset_id,
+          prompt: segmentPayload.prompt,
+          model_alias: segmentPayload.model_alias,
+          duration: segmentPayload.duration,
+          resolution: segmentPayload.resolution,
+          ratio: segmentPayload.ratio,
+          status: 'ready',
+        })
+        .eq('id', segment.remoteSegmentId)
+        .eq('owner_id', state.user.id)
+        .select()
+        .single(),
+      TIMEOUTS.database,
+      `更新 Segment ${segment.index + 1}`,
+    );
+    if (update.error) throw new Error(`更新 Segment ${segment.index + 1} 失败：${errorMessage(update.error)}`);
   }
 
   const body = {
@@ -1010,7 +1044,8 @@ async function submitOne(segment) {
     asset_ids: [from.remoteAssetId, to.remoteAssetId],
     prompt: segment.prompt,
     effective_prompt: buildStrictFrameLockPrompt(segment),
-    prompt_mode: 'strict_frame_lock_v8',
+    prompt_mode: 'strict_frame_lock_v11',
+    client_submit_nonce: `${segment.id}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     model_alias: segment.model,
     duration: Number(segment.duration),
     resolution: segment.resolution,
@@ -1037,6 +1072,8 @@ async function submitOne(segment) {
       segment.progress = Number(data.progress || 20);
       segment.remoteTaskId = data.task_id;
       segment.providerTaskId = data.provider_task_id;
+      segment.outputPath = null;
+      segment.outputUrl = null;
       segment.error = null;
       await persist();
       return segment;
@@ -1050,10 +1087,79 @@ async function submitOne(segment) {
   throw lastError || new Error('提交 Seedance 失败');
 }
 
+
+function resetSegmentForNewSubmit(segment) {
+  if (!segment) return;
+  const oldProviderTaskId = segment.providerTaskId || null;
+  const oldRemoteTaskId = segment.remoteTaskId || null;
+
+  segment.status = 'draft';
+  segment.progress = 0;
+  segment.error = null;
+  segment.providerTaskId = null;
+  segment.remoteTaskId = null;
+  segment.remoteSegmentId = null;
+  segment.outputPath = null;
+  segment.outputUrl = null;
+  segment.lastResubmitAt = Date.now();
+  segment.previousTaskIds = [...(segment.previousTaskIds || []), oldProviderTaskId, oldRemoteTaskId].filter(Boolean);
+
+  // 当前片段要重新提交时，不能继续把旧视频当成新结果展示。
+  state.outputs = (state.outputs || []).filter(output => {
+    if (output.segmentId && output.segmentId === segment.id) return false;
+    if (oldProviderTaskId && output.providerTaskId === oldProviderTaskId) return false;
+    if (oldRemoteTaskId && output.taskId === oldRemoteTaskId) return false;
+    return true;
+  });
+}
+
+
+function segmentHasExistingTask(segment) {
+  return Boolean(segment?.providerTaskId || segment?.remoteTaskId || segment?.outputPath || segment?.outputUrl || ['completed','succeeded','success','failed','cancelled'].includes(String(segment?.status || '').toLowerCase()));
+}
+
+function prepareSegmentForEditorSubmit(segment) {
+  if (!segmentHasExistingTask(segment)) return false;
+  resetSegmentForNewSubmit(segment);
+  return true;
+}
+
+async function resubmitSegment(segmentId) {
+  const segment = state.draft?.segments?.find(s => s.id === segmentId);
+  if (!segment) {
+    toast('无法重新提交', '当前工作区没有找到对应片段。');
+    return;
+  }
+
+  const ok = await confirmBox(
+    '重新提交新任务',
+    '这会创建一个新的 Ark 生成任务，并可能再次产生费用。旧视频不会被当成新结果展示。确定继续吗？'
+  );
+  if (!ok) return;
+
+  resetSegmentForNewSubmit(segment);
+  saveCurrentWorkspaceSelection();
+  renderAll();
+  await persist();
+  await generateSegments([segment.id]);
+}
+
+
 async function generateSegments(segmentIds) {
   if (state.isGenerating) return toast('任务正在提交', '请等待当前提交完成后再操作。');
   const segments = state.draft.segments.filter(s => segmentIds.includes(s.id));
   if (!segments.length) return toast('没有可生成片段', '请先上传至少两张图片。');
+
+  let resetCount = 0;
+  segments.forEach(segment => {
+    if (prepareSegmentForEditorSubmit(segment)) resetCount += 1;
+  });
+  if (resetCount) {
+    state.outputs = (state.outputs || []).filter(isOutputCurrentForSegment);
+    saveCurrentWorkspaceSelection();
+    renderAll();
+    await persist();
+  }
   const invalid = segments.find(s => !s.prompt.trim());
   if (invalid) {
     state.selectedSegmentId = invalid.id;
