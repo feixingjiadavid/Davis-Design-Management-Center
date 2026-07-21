@@ -1,7 +1,7 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260721-multi-reference-pool-v15';
+const APP_BUILD = '20260721-dropdown-recover-output-v16';
 const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v5-blackbar-2p49-force-reupload';
 console.log('[Seedance Studio]', APP_BUILD);
 
@@ -486,16 +486,20 @@ function enhanceCustomSelects() {
         <span></span>
         <i>⌄</i>
       </button>
-      <div class="custom-select-menu"></div>
     `;
     select.insertAdjacentElement('afterend', wrapper);
 
+    const menu = document.createElement('div');
+    menu.className = 'custom-select-menu custom-select-portal';
+    menu.dataset.for = select.id || '';
+    document.body.appendChild(menu);
+    wrapper._customMenu = menu;
+
     wrapper.querySelector('.custom-select-trigger').addEventListener('click', event => {
       event.stopPropagation();
-      document.querySelectorAll('.custom-select.open').forEach(item => {
-        if (item !== wrapper) item.classList.remove('open');
-      });
-      wrapper.classList.toggle('open');
+      const willOpen = !wrapper.classList.contains('open');
+      closeAllCustomSelects();
+      if (willOpen) openCustomSelect(select, wrapper, menu);
     });
 
     select.addEventListener('change', () => syncCustomSelect(select));
@@ -504,18 +508,64 @@ function enhanceCustomSelects() {
 
   if (!document.body.dataset.customSelectGlobal) {
     document.body.dataset.customSelectGlobal = '1';
-    document.addEventListener('click', () => {
-      document.querySelectorAll('.custom-select.open').forEach(item => item.classList.remove('open'));
-    });
+    document.addEventListener('click', closeAllCustomSelects);
+    window.addEventListener('resize', repositionOpenCustomSelect);
+    window.addEventListener('scroll', repositionOpenCustomSelect, true);
   }
+}
+
+function openCustomSelect(select, wrapper, menu) {
+  wrapper.classList.add('open');
+  menu.classList.add('open');
+  syncCustomSelect(select);
+  positionCustomSelectMenu(select, wrapper, menu);
+}
+
+function closeAllCustomSelects() {
+  document.querySelectorAll('.custom-select.open').forEach(item => item.classList.remove('open'));
+  document.querySelectorAll('.custom-select-menu.open').forEach(item => item.classList.remove('open'));
+}
+
+function repositionOpenCustomSelect() {
+  const wrapper = document.querySelector('.custom-select.open');
+  if (!wrapper) return;
+  const selectId = wrapper.dataset.for;
+  const select = selectId ? document.getElementById(selectId) : null;
+  const menu = wrapper._customMenu || document.querySelector(`.custom-select-menu[data-for="${selectId}"]`);
+  if (select && menu) positionCustomSelectMenu(select, wrapper, menu);
+}
+
+function positionCustomSelectMenu(select, wrapper, menu) {
+  const rect = wrapper.getBoundingClientRect();
+  const viewportH = window.innerHeight || document.documentElement.clientHeight;
+  const viewportW = window.innerWidth || document.documentElement.clientWidth;
+  const maxHeight = Math.min(360, Math.max(180, viewportH - 48));
+  const wantedHeight = Math.min(maxHeight, Math.max(180, menu.scrollHeight || 220));
+  const spaceBelow = viewportH - rect.bottom - 12;
+  const spaceAbove = rect.top - 12;
+  const openUp = spaceBelow < Math.min(220, wantedHeight) && spaceAbove > spaceBelow;
+
+  const width = Math.min(rect.width, viewportW - 24);
+  const left = Math.min(Math.max(12, rect.left), viewportW - width - 12);
+  const top = openUp
+    ? Math.max(12, rect.top - Math.min(wantedHeight, spaceAbove) - 8)
+    : Math.min(viewportH - Math.min(wantedHeight, spaceBelow) - 12, rect.bottom + 8);
+
+  menu.style.setProperty('--select-left', `${left}px`);
+  menu.style.setProperty('--select-top', `${top}px`);
+  menu.style.setProperty('--select-width', `${width}px`);
+  menu.style.setProperty('--select-max-height', `${openUp ? Math.max(160, spaceAbove - 16) : Math.max(160, spaceBelow - 16)}px`);
+  menu.classList.toggle('drop-up', openUp);
 }
 
 function syncCustomSelect(select) {
   if (!select?.dataset?.customReady) return;
   const wrapper = select.nextElementSibling?.classList?.contains('custom-select') ? select.nextElementSibling : null;
   if (!wrapper) return;
+  const menu = wrapper._customMenu || document.querySelector(`.custom-select-menu[data-for="${select.id || ''}"]`);
+  if (!menu) return;
+
   const triggerText = wrapper.querySelector('.custom-select-trigger span');
-  const menu = wrapper.querySelector('.custom-select-menu');
   const current = select.selectedOptions[0];
   if (triggerText) triggerText.textContent = current?.textContent || select.value || '请选择';
 
@@ -531,10 +581,15 @@ function syncCustomSelect(select) {
       event.stopPropagation();
       select.value = btn.dataset.value;
       select.dispatchEvent(new Event('change', { bubbles: true }));
-      wrapper.classList.remove('open');
+      closeAllCustomSelects();
       syncCustomSelect(select);
     });
   });
+
+  if (wrapper.classList.contains('open')) {
+    menu.classList.add('open');
+    positionCustomSelectMenu(select, wrapper, menu);
+  }
 }
 
 function syncCustomSelects() {
@@ -1016,6 +1071,7 @@ function renderJobs() {
       ${s.error ? `<p style="color:#ff8090;white-space:pre-wrap">${escapeHtml(s.error)}</p>` : ''}
       <div class="job-actions">
         <button data-refresh-segment="${s.id}">立即查询</button>
+        <button data-recover-output="${s.id}">找回视频</button>
         <button data-edit-from-job="${s.id}">重新编辑</button>
         <button data-retry-segment="${s.id}" class="danger-lite">重新提交</button>
       </div>
@@ -1032,6 +1088,7 @@ function renderJobs() {
   $('outputs-list').innerHTML = outputMarkup || '<div class="empty-state">暂无视频输出。提交后会自动显示真实任务状态和生成结果。</div>';
 
   qsa('[data-refresh-segment]').forEach(btn => btn.onclick = async () => { await refreshJobs(); });
+  qsa('[data-recover-output]').forEach(btn => btn.onclick = async () => { await recoverSegmentOutput(btn.dataset.recoverOutput); });
   qsa('[data-edit-from-job]').forEach(btn => btn.onclick = () => reEditSegment(btn.dataset.editFromJob));
   qsa('[data-edit-output-segment]').forEach(btn => btn.onclick = () => reEditSegment(btn.dataset.editOutputSegment || findSegmentIdByOutputIndex(btn.dataset.outputIndex)));
   qsa('[data-retry-segment]').forEach(btn => btn.onclick = () => resubmitSegment(btn.dataset.retrySegment));
@@ -1928,6 +1985,61 @@ async function syncRemoteTasks() {
 
   await persist();
 }
+
+
+async function recoverSegmentOutput(segmentId) {
+  const segment = state.draft?.segments?.find(s => s.id === segmentId);
+  if (!segment) {
+    toast('无法找回', '当前工作区没有找到这个片段。');
+    return;
+  }
+  if (!segment.remoteTaskId && !segment.providerTaskId) {
+    toast('无法找回', '这个片段还没有 Ark Task ID，不能查询结果。');
+    return;
+  }
+
+  segment.status = segment.status || 'running';
+  segment.error = null;
+  renderAll();
+
+  try {
+    const payload = {
+      task_id: segment.remoteTaskId || null,
+      provider_task_id: segment.providerTaskId || null,
+      force_recover: true,
+    };
+    const data = await invokeEdgeFunction('seedance-status', payload);
+
+    const result = (data.results || []).find(item =>
+      (segment.remoteTaskId && item.task_id === segment.remoteTaskId) ||
+      (segment.providerTaskId && item.provider_task_id === segment.providerTaskId)
+    ) || data;
+
+    if (result.status) segment.status = result.status;
+    if (result.progress !== undefined) segment.progress = Number(result.progress || segment.progress || 0);
+    if (result.provider_task_id) segment.providerTaskId = result.provider_task_id;
+    if (result.task_id) segment.remoteTaskId = result.task_id;
+    if (result.error) segment.error = result.error;
+
+    await loadOutputs();
+    saveCurrentWorkspaceSelection();
+    renderAll();
+
+    const hasOutput = (state.outputs || []).some(output =>
+      (segment.providerTaskId && output.providerTaskId === segment.providerTaskId) ||
+      (segment.remoteTaskId && output.taskId === segment.remoteTaskId)
+    );
+    if (hasOutput) toast('已找回视频', '扣费生成的视频已经显示在右侧输出区。');
+    else toast('已查询 Ark', '任务已同步；如果仍未显示，请稍等 20 秒后再点“找回视频”。');
+  } catch (error) {
+    segment.error = errorMessage(error);
+    renderAll();
+    toast('找回失败', errorMessage(error));
+  } finally {
+    await persist();
+  }
+}
+
 
 async function refreshJobs() {
   try {
