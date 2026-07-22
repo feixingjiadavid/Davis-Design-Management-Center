@@ -1,7 +1,7 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260722-final-blob-proxy-auth-download-v26';
+const APP_BUILD = '20260722-lock-current-project-v30';
 const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v5-blackbar-2p49-force-reupload';
 const SEEDANCE_VIDEO_PROXY_URL = 'https://supffjeeouibhqdfqosk.supabase.co/functions/v1/seedance-video-proxy';
 console.log('[Seedance Studio]', APP_BUILD);
@@ -1268,7 +1268,30 @@ function isOutputCurrentForSegment(output) {
   return true;
 }
 
+
+function keepOnlyCurrentProjectOutputs() {
+  const currentProjectId = state.draft?.remoteProjectId || getWorkspace()?.remoteProjectId || null;
+  if (!currentProjectId) return;
+
+  const belongsToCurrentProject = output => {
+    const rowProjectId = output?.row?.project_id || output?.projectId || null;
+    if (!rowProjectId) return true;
+    return rowProjectId === currentProjectId;
+  };
+
+  if (Array.isArray(state.outputs)) {
+    state.outputs = state.outputs.filter(belongsToCurrentProject);
+  }
+
+  if (Array.isArray(state.outputHistory)) {
+    state.outputHistory = state.outputHistory.filter(belongsToCurrentProject);
+  }
+}
+
+
 function renderJobs() {
+  keepOnlyCurrentProjectOutputs();
+
   const segments = state.draft.segments;
   $('jobs-list').innerHTML = segments.length ? segments.map(s => `
     <article class="job-card">
