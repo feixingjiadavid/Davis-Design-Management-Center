@@ -1,7 +1,7 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260722-text-reference-upload-v35';
+const APP_BUILD = '20260722-output-bind-provider-v36';
 const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v5-blackbar-2p49-force-reupload';
 const SEEDANCE_VIDEO_PROXY_URL = 'https://supffjeeouibhqdfqosk.supabase.co/functions/v1/seedance-video-proxy';
 console.log('[Seedance Studio]', APP_BUILD);
@@ -2505,13 +2505,14 @@ async function loadOutputs() {
   }
 
   const segments = state.draft?.segments || [];
-  const taskIds = segments.map(s => s.remoteTaskId).filter(Boolean);
-  const segmentIds = segments.map(s => s.remoteSegmentId).filter(Boolean);
+  const taskIds = new Set(segments.map(s => s.remoteTaskId).filter(Boolean));
+  const segmentIds = new Set(segments.map(s => s.remoteSegmentId).filter(Boolean));
   const providerIds = new Set(segments.map(s => s.providerTaskId).filter(Boolean));
-  const currentProjectId = state.draft?.remoteProjectId || null;
+  let currentProjectId = state.draft?.remoteProjectId || getWorkspace()?.remoteProjectId || null;
   const rowsById = new Map();
+  const taskByProviderId = new Map();
 
-  if (!currentProjectId && !taskIds.length && !segmentIds.length && !providerIds.size) {
+  if (!currentProjectId && !taskIds.size && !segmentIds.size && !providerIds.size) {
     state.outputs = [];
     return;
   }
@@ -2520,27 +2521,76 @@ async function loadOutputs() {
     const { data, error } = await query;
     if (error) {
       console.warn('loadOutputs query failed', error);
-      return;
+      return [];
     }
     for (const row of data || []) rowsById.set(row.id, row);
+    return data || [];
   }
 
-  if (taskIds.length) {
+  // 关键修复：本地很多时候只保存了 cgt providerTaskId，没有保存 Supabase task_id/segment_id。
+  // 先用 provider_task_id 反查 video_tasks，再用 task_id/segment_id 找 video_outputs。
+  if (providerIds.size) {
+    const { data: taskRows, error: taskError } = await supabase
+      .from('video_tasks')
+      .select('id, segment_id, project_id, provider_task_id, status, progress, error_message, updated_at')
+      .eq('owner_id', state.user.id)
+      .in('provider_task_id', [...providerIds]);
+
+    if (taskError) {
+      console.warn('loadOutputs task lookup failed', taskError);
+    } else {
+      for (const task of taskRows || []) {
+        if (!task?.provider_task_id) continue;
+        taskByProviderId.set(task.provider_task_id, task);
+        if (task.id) taskIds.add(task.id);
+        if (task.segment_id) segmentIds.add(task.segment_id);
+        if (!currentProjectId && task.project_id) {
+          currentProjectId = task.project_id;
+          state.draft.remoteProjectId = currentProjectId;
+          const workspace = getWorkspace();
+          workspace.remoteProjectId = currentProjectId;
+        }
+
+        const local = segments.find(s => s.providerTaskId === task.provider_task_id) || (segments.length === 1 ? segments[0] : null);
+        if (local) {
+          local.providerTaskId = task.provider_task_id;
+          if (task.id) local.remoteTaskId = task.id;
+          if (task.segment_id) local.remoteSegmentId = task.segment_id;
+          if (task.status) local.status = task.status;
+          if (task.progress !== null && task.progress !== undefined) local.progress = Number(task.progress || local.progress || 0);
+          local.error = task.error_message || null;
+        }
+      }
+    }
+  }
+
+  if (taskIds.size) {
     await collect(
       supabase.from('video_outputs')
         .select('*')
         .eq('owner_id', state.user.id)
-        .in('task_id', taskIds)
+        .in('task_id', [...taskIds])
         .order('created_at', { ascending: false })
     );
   }
 
-  if (segmentIds.length) {
+  if (segmentIds.size) {
     await collect(
       supabase.from('video_outputs')
         .select('*')
         .eq('owner_id', state.user.id)
-        .in('segment_id', segmentIds)
+        .in('segment_id', [...segmentIds])
+        .order('created_at', { ascending: false })
+    );
+  }
+
+  // 再兜底一次：很多输出的 storage_path 是 ark://cgt-xxx.mp4，可直接按 providerTaskId 找回。
+  if (providerIds.size) {
+    await collect(
+      supabase.from('video_outputs')
+        .select('*')
+        .eq('owner_id', state.user.id)
+        .in('storage_path', [...providerIds].map(id => `ark://${id}.mp4`))
         .order('created_at', { ascending: false })
     );
   }
@@ -2588,6 +2638,11 @@ async function loadOutputs() {
     // 如果数据库已经有当前项目的视频输出，但本地草稿因为回滚/刷新丢了 remoteSegmentId，
     // 单片段项目直接归到 Segment 01，避免“视频已生成但页面不显示”。
     if (segmentIndex < 0 && row.project_id && currentProjectId && row.project_id === currentProjectId && segments.length === 1) {
+      segmentIndex = 0;
+    }
+
+    // 如果是按 providerTaskId 找到的输出，也允许单片段项目直接归到 Segment 01。
+    if (segmentIndex < 0 && providerTaskId && providerIds.has(providerTaskId) && segments.length === 1) {
       segmentIndex = 0;
     }
 
