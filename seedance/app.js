@@ -1,7 +1,7 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260722-video-proxy-blob-playback';
+const APP_BUILD = '20260722-video-proxy-stream-playback';
 const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v5-blackbar-2p49-force-reupload';
 const SEEDANCE_VIDEO_PROXY_URL = 'https://supffjeeouibhqdfqosk.supabase.co/functions/v1/seedance-video-proxy';
 console.log('[Seedance Studio]', APP_BUILD);
@@ -1225,30 +1225,56 @@ async function hydrateProxyVideoElements() {
   }
 }
 
+
+function buildVideoProxyUrl(output) {
+  const providerTaskId = output?.providerTaskId || '';
+  const taskId = output?.taskId || '';
+  const token = state.session?.access_token || '';
+
+  if (!providerTaskId && !taskId) return '';
+
+  const params = new URLSearchParams();
+  if (providerTaskId) params.set('provider_task_id', providerTaskId);
+  if (taskId) params.set('task_id', taskId);
+  if (token) params.set('access_token', token);
+
+  return `${SEEDANCE_VIDEO_PROXY_URL}?${params.toString()}`;
+}
+
+function markProxyVideoElementsReady() {
+  qsa('[data-output-load-status]').forEach(el => {
+    if (!el.textContent || el.textContent.includes('等待') || el.textContent.includes('正在通过服务端代理')) {
+      el.textContent = '通过服务端代理流式播放；点播放即可加载';
+    }
+  });
+}
+
 function outputCardMarkup(o, historical = false) {
   const title = historical
     ? `Segment ${String(Number(o.index || 0) + 1).padStart(2,'0')} · 历史版本`
     : `Segment ${String(Number(o.index || 0) + 1).padStart(2,'0')} · 已完成`;
+
   const key = outputKey(o);
-  const isArkOutput = o.storageMode === 'ark-temp' || o.providerTaskId;
-  const directUrl = isArkOutput ? '' : (o.url || '');
+  const isArkOutput = o.storageMode === 'ark-temp' || Boolean(o.providerTaskId);
+  const proxyUrl = isArkOutput ? buildVideoProxyUrl(o) : '';
+  const directUrl = isArkOutput ? proxyUrl : (o.url || '');
 
   return `
     <article class="output-card ${historical ? 'output-card-history' : ''}">
       <video controls preload="metadata"
-        src="${escapeHtml(directUrl)}"
+        src="${escapeHtml(directUrl || '')}"
         data-output-key="${escapeHtml(key)}"
         data-provider-task-id="${escapeHtml(o.providerTaskId || '')}"
         data-task-id="${escapeHtml(o.taskId || '')}"></video>
       <div class="output-copy">
         <strong>${title}</strong>
-        <span>${historical ? '旧版本已保留，不会被新提交覆盖' : (isArkOutput ? 'Ark 输出 · 通过服务端代理拉取 MP4' : 'Supabase Storage 已保存')}</span>
-        <small data-output-load-status="${escapeHtml(key)}">${isArkOutput ? '等待代理加载视频...' : '可直接播放'}</small>
+        <span>${historical ? '旧版本已保留，不会被新提交覆盖' : (isArkOutput ? 'Ark 输出 · 通过服务端代理流式播放' : 'Supabase Storage 已保存')}</span>
+        <small data-output-load-status="${escapeHtml(key)}">${isArkOutput ? '通过服务端代理流式播放；点播放即可加载' : '可直接播放'}</small>
         ${o.providerTaskId ? `<small>Ark Task：${escapeHtml(o.providerTaskId)}</small>` : ''}
         ${historical && o.promptSnapshot ? `<small>旧提示词：${escapeHtml(o.promptSnapshot).slice(0, 120)}...</small>` : ''}
         <div class="output-actions">
           <button data-edit-output-segment="${o.segmentId || ''}" data-output-index="${o.index}">重新编辑</button>
-          <a href="${escapeHtml(directUrl || '#')}" download="seedance-${escapeHtml(o.providerTaskId || `segment-${Number(o.index || 0)+1}`)}.mp4" target="_blank" rel="noopener" data-proxy-download="${escapeHtml(key)}" data-download-output="${o.providerTaskId || o.index}">下载到本地</a>
+          <a href="${escapeHtml(directUrl || '#')}" download="seedance-${escapeHtml(o.providerTaskId || `segment-${Number(o.index || 0)+1}`)}.mp4" target="_blank" rel="noopener" data-download-output="${o.providerTaskId || o.index}">下载到本地</a>
         </div>
       </div>
     </article>`;
@@ -1298,7 +1324,7 @@ function renderJobs() {
     historyOutputs.length ? `<div class="history-title">历史输出</div>${historyOutputs.map(o => outputCardMarkup(o, true)).join('')}` : '',
   ].filter(Boolean).join('');
   $('outputs-list').innerHTML = outputMarkup || '<div class="empty-state">暂无视频输出。提交后会自动显示真实任务状态和生成结果。</div>';
-  setTimeout(hydrateProxyVideoElements, 0);
+  setTimeout(markProxyVideoElementsReady, 0);
 
   qsa('[data-refresh-segment]').forEach(btn => btn.onclick = async () => { await refreshJobs(); });
   qsa('[data-recover-output]').forEach(btn => btn.onclick = async () => { await recoverSegmentOutput(btn.dataset.recoverOutput); });
