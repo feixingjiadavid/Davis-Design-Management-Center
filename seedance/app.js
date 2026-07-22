@@ -1,7 +1,7 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260722-simple-actions-v37';
+const APP_BUILD = '20260722-provider-authoritative-output-v38';
 const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v5-blackbar-2p49-force-reupload';
 const SEEDANCE_VIDEO_PROXY_URL = 'https://supffjeeouibhqdfqosk.supabase.co/functions/v1/seedance-video-proxy';
 console.log('[Seedance Studio]', APP_BUILD);
@@ -2553,14 +2553,23 @@ async function loadOutputs() {
         taskByProviderId.set(task.provider_task_id, task);
         if (task.id) taskIds.add(task.id);
         if (task.segment_id) segmentIds.add(task.segment_id);
-        if (!currentProjectId && task.project_id) {
+        const local = segments.find(s => s.providerTaskId === task.provider_task_id) || (segments.length === 1 ? segments[0] : null);
+
+        // v38：providerTaskId 是当前页面真实任务的最高优先级。
+        // 如果本地草稿 remoteProjectId 是旧的/错的，要用 video_tasks 里的 project_id 纠正，
+        // 否则后面会因为 project_id 不一致把真实 output 过滤掉，导致右侧没有视频模块。
+        if (local && task.project_id && currentProjectId !== task.project_id) {
+          currentProjectId = task.project_id;
+          state.draft.remoteProjectId = currentProjectId;
+          const workspace = getWorkspace();
+          workspace.remoteProjectId = currentProjectId;
+        } else if (!currentProjectId && task.project_id) {
           currentProjectId = task.project_id;
           state.draft.remoteProjectId = currentProjectId;
           const workspace = getWorkspace();
           workspace.remoteProjectId = currentProjectId;
         }
 
-        const local = segments.find(s => s.providerTaskId === task.provider_task_id) || (segments.length === 1 ? segments[0] : null);
         if (local) {
           local.providerTaskId = task.provider_task_id;
           if (task.id) local.remoteTaskId = task.id;
@@ -2655,9 +2664,19 @@ async function loadOutputs() {
       segmentIndex = 0;
     }
 
+    // v38：如果 output 是用当前 Segment 的 providerTaskId 找到的，它就是当前任务的真实输出。
+    // 不允许被旧 remoteProjectId 过滤掉；同时把本地项目 ID 纠正为数据库里的真实 project_id。
+    const exactProviderMatch = Boolean(providerTaskId && providerIds.has(providerTaskId));
+    if (exactProviderMatch && row.project_id && currentProjectId !== row.project_id) {
+      currentProjectId = row.project_id;
+      state.draft.remoteProjectId = currentProjectId;
+      const workspace = getWorkspace();
+      workspace.remoteProjectId = currentProjectId;
+    }
+
     // 关键：不是当前项目当前片段的输出，不展示、不下载。
     if (segmentIndex < 0) continue;
-    if (row.project_id && currentProjectId && row.project_id !== currentProjectId) continue;
+    if (row.project_id && currentProjectId && row.project_id !== currentProjectId && !exactProviderMatch) continue;
 
     const segment = segments[segmentIndex];
     const output = {
