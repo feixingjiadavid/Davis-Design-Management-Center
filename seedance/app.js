@@ -1,7 +1,7 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260721-at-reference-free-prompt-v21';
+const APP_BUILD = '20260722-fix-istextonly-submit';
 const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v5-blackbar-2p49-force-reupload';
 console.log('[Seedance Studio]', APP_BUILD);
 
@@ -1466,11 +1466,15 @@ function statusText(status) {
 
 async function ensureRemoteProject() {
   bindCurrentWorkspace();
+
   const workspace = getWorkspace();
+  const isTextOnly = state.draft?.mode === 'text_only';
+
   if (workspace.remoteProjectId) {
     state.draft.remoteProjectId = workspace.remoteProjectId;
     return workspace.remoteProjectId;
   }
+
   const payload = {
     owner_id: state.user.id,
     name: state.draft.name,
@@ -1480,16 +1484,23 @@ async function ensureRemoteProject() {
     frame_fit_mode: state.draft.fitMode,
     status: 'draft',
   };
+
   const result = await withTimeout(
     supabase.from('video_projects').insert(payload).select().single(),
     TIMEOUTS.database,
     '创建远程项目',
   );
-  if (result.error) throw new Error(`创建项目失败：${errorMessage(result.error)}`);
+
+  if (result.error) {
+    throw new Error(`创建项目失败：${errorMessage(result.error)}`);
+  }
+
   state.draft.remoteProjectId = result.data.id;
   workspace.remoteProjectId = result.data.id;
+
   saveCurrentWorkspaceSelection();
   await persist();
+
   return result.data.id;
 }
 
