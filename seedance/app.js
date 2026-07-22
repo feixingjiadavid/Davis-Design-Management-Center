@@ -1,7 +1,7 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260721-persistent-local-video-cache-v23';
+const APP_BUILD = '20260722-status-v24-frontend-display-fix';
 
 const VIDEO_CACHE_DB = 'seedance-video-cache-v23';
 const VIDEO_CACHE_STORE = 'videos';
@@ -2297,6 +2297,43 @@ async function bindProviderTaskAndRecover(segmentId) {
 }
 
 
+
+function addRecoveredOutputFromStatus(segment, result) {
+  const url = result?.video_url || result?.provider_video_url || result?.output_url || result?.download_url || null;
+  if (!segment || !url) return false;
+
+  const providerTaskId = result.provider_task_id || segment.providerTaskId || '';
+  const taskId = result.task_id || segment.remoteTaskId || null;
+
+  state.outputs = state.outputs || [];
+  const exists = state.outputs.some(output =>
+    output.url === url ||
+    (providerTaskId && output.providerTaskId === providerTaskId) ||
+    (taskId && output.taskId === taskId)
+  );
+
+  if (!exists) {
+    state.outputs.unshift({
+      url,
+      storageMode: result.output?.storage_path ? 'supabase-storage-signed-url' : 'ark-temp-recovered',
+      providerTaskId,
+      taskId,
+      segmentId: segment.id,
+      index: segment.index,
+      row: { created_at: new Date().toISOString(), task_id: taskId },
+      localCacheStatus: 'pending',
+    });
+  }
+
+  segment.status = 'completed';
+  segment.progress = 100;
+  segment.error = null;
+  if (providerTaskId) segment.providerTaskId = providerTaskId;
+  if (taskId) segment.remoteTaskId = taskId;
+  return true;
+}
+
+
 async function recoverSegmentOutput(segmentId) {
   const segment = state.draft?.segments?.find(s => s.id === segmentId);
   if (!segment) {
@@ -2332,6 +2369,7 @@ async function recoverSegmentOutput(segmentId) {
     if (result.error) segment.error = result.error;
 
     const recoveredVideoUrl = result.video_url || result.provider_video_url || result.output_url || result.download_url || null;
+    if (recoveredVideoUrl) addRecoveredOutputFromStatus(segment, result);
 
     if (recoveredVideoUrl) {
       state.outputs = state.outputs || [];
