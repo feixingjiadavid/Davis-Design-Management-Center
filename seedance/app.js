@@ -1,7 +1,7 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260722-output-bind-provider-v36';
+const APP_BUILD = '20260722-simple-actions-v37';
 const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v5-blackbar-2p49-force-reupload';
 const SEEDANCE_VIDEO_PROXY_URL = 'https://supffjeeouibhqdfqosk.supabase.co/functions/v1/seedance-video-proxy';
 console.log('[Seedance Studio]', APP_BUILD);
@@ -871,7 +871,7 @@ function jobStageMarkup(segment) {
       <div style="display:grid;gap:5px;margin-top:10px;font-size:10px;color:#8c92a1">
         ${steps.map(([label,done]) => `<span>${done ? '✓' : status==='failed' ? '×' : '○'} ${label}</span>`).join('')}
       </div>
-      ${segment.providerTaskId ? `<div style="margin-top:9px;font-size:10px;color:#8b91a3;word-break:break-all">Ark Task：${escapeHtml(segment.providerTaskId)}</div>` : ''}
+      ${segment.providerTaskId ? `<div style="margin-top:9px;font-size:10px;color:#8b91a3">后台任务已记录，可自动刷新结果</div>` : ''}
     </div>`;
 }
 
@@ -1372,14 +1372,11 @@ function renderJobs() {
       </div>
       <p>${escapeHtml(s.prompt || '未填写提示词')}</p>
       ${jobStageMarkup(s)}
-      ${s.providerTaskId ? `<p class="task-id">Ark Task：${escapeHtml(s.providerTaskId)}</p>` : ''}
+      ${s.providerTaskId ? `<p class="task-id">后台任务已记录</p>` : ''}
       ${s.error ? `<p style="color:#ff8090;white-space:pre-wrap">${escapeHtml(s.error)}</p>` : ''}
       <div class="job-actions">
-        <button data-refresh-segment="${s.id}">立即查询</button>
-        <button data-recover-output="${s.id}">找回视频</button>
-        <button data-bind-provider-task="${s.id}">输入Task找回</button>
+        <button data-sync-output="${s.id}">刷新结果</button>
         <button data-edit-from-job="${s.id}">重新编辑</button>
-        <button data-retry-segment="${s.id}" class="danger-lite">重新提交</button>
       </div>
     </article>`).join('') : '<div class="empty-state">暂无生成任务</div>';
 
@@ -1394,12 +1391,24 @@ function renderJobs() {
   $('outputs-list').innerHTML = outputMarkup || '<div class="empty-state">暂无视频输出。提交后会自动显示真实任务状态和生成结果。</div>';
   setTimeout(hydrateProxyVideoElements, 0);
 
-  qsa('[data-refresh-segment]').forEach(btn => btn.onclick = async () => { await refreshJobs(); });
-  qsa('[data-recover-output]').forEach(btn => btn.onclick = async () => { await recoverSegmentOutput(btn.dataset.recoverOutput); });
-  qsa('[data-bind-provider-task]').forEach(btn => btn.onclick = async () => { await bindProviderTaskAndRecover(btn.dataset.bindProviderTask); });
+  qsa('[data-sync-output]').forEach(btn => btn.onclick = async () => {
+    const segmentId = btn.dataset.syncOutput;
+    const oldText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '刷新中...';
+    try {
+      await refreshJobs();
+      await recoverSegmentOutput(segmentId);
+      await loadOutputs();
+      saveCurrentWorkspaceSelection();
+      renderAll();
+    } finally {
+      btn.disabled = false;
+      btn.textContent = oldText || '刷新结果';
+    }
+  });
   qsa('[data-edit-from-job]').forEach(btn => btn.onclick = () => reEditSegment(btn.dataset.editFromJob));
   qsa('[data-edit-output-segment]').forEach(btn => btn.onclick = () => reEditSegment(btn.dataset.editOutputSegment || findSegmentIdByOutputIndex(btn.dataset.outputIndex)));
-  qsa('[data-retry-segment]').forEach(btn => btn.onclick = () => resubmitSegment(btn.dataset.retrySegment));
   qsa('[data-download-output]').forEach(link => link.onclick = event => {
     if (!link.href || link.getAttribute('href') === '#' || link.href.endsWith('#')) {
       event.preventDefault();
