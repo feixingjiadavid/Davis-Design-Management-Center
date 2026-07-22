@@ -1,12 +1,7 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260722-status-v24-frontend-display-fix';
-
-const VIDEO_CACHE_DB = 'seedance-video-cache-v23';
-const VIDEO_CACHE_STORE = 'videos';
-const VIDEO_CACHE_VERSION = 1;
-const VIDEO_CACHE_MAX_BYTES = 900 * 1024 * 1024;
+const APP_BUILD = '20260721-at-reference-free-prompt-v21';
 const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v5-blackbar-2p49-force-reupload';
 console.log('[Seedance Studio]', APP_BUILD);
 
@@ -18,8 +13,6 @@ const state = {
   selectedSegmentId: null,
   currentView: 'quick',
   objectUrls: new Map(),
-  cachedVideoUrls: new Map(),
-  videoCacheDb: null,
   jobs: [],
   outputs: [],
   outputHistory: [],
@@ -353,228 +346,6 @@ function releaseFrameUrl(frameId) {
   const url = state.objectUrls.get(frameId);
   if (url) URL.revokeObjectURL(url);
   state.objectUrls.delete(frameId);
-}
-
-
-
-function videoCacheKey(output) {
-  if (!output) return '';
-  return String(output.providerTaskId || output.taskId || output.url || output.storage_path || output.index || '').trim();
-}
-
-function openVideoCacheDb() {
-  if (state.videoCacheDb) return Promise.resolve(state.videoCacheDb);
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(VIDEO_CACHE_DB, VIDEO_CACHE_VERSION);
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(VIDEO_CACHE_STORE)) {
-        const store = db.createObjectStore(VIDEO_CACHE_STORE, { keyPath: 'key' });
-        store.createIndex('createdAt', 'createdAt');
-        store.createIndex('lastAccessedAt', 'lastAccessedAt');
-        store.createIndex('size', 'size');
-      }
-    };
-    request.onsuccess = () => {
-      state.videoCacheDb = request.result;
-      resolve(request.result);
-    };
-    request.onerror = () => reject(request.error || new Error('打开本地视频缓存失败'));
-  });
-}
-
-async function idbGet(storeName, key) {
-  const db = await openVideoCacheDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(storeName, 'readonly');
-    const req = tx.objectStore(storeName).get(key);
-    req.onsuccess = () => resolve(req.result || null);
-    req.onerror = () => reject(req.error || new Error('读取本地缓存失败'));
-  });
-}
-
-async function idbPut(storeName, value) {
-  const db = await openVideoCacheDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(storeName, 'readwrite');
-    const req = tx.objectStore(storeName).put(value);
-    req.onsuccess = () => resolve(true);
-    req.onerror = () => reject(req.error || new Error('写入本地缓存失败'));
-  });
-}
-
-async function idbDelete(storeName, key) {
-  const db = await openVideoCacheDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(storeName, 'readwrite');
-    const req = tx.objectStore(storeName).delete(key);
-    req.onsuccess = () => resolve(true);
-    req.onerror = () => reject(req.error || new Error('删除本地缓存失败'));
-  });
-}
-
-async function idbAll(storeName) {
-  const db = await openVideoCacheDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(storeName, 'readonly');
-    const req = tx.objectStore(storeName).getAll();
-    req.onsuccess = () => resolve(req.result || []);
-    req.onerror = () => reject(req.error || new Error('读取本地缓存列表失败'));
-  });
-}
-
-async function getCachedVideoRecord(output) {
-  const key = videoCacheKey(output);
-  if (!key) return null;
-  const record = await idbGet(VIDEO_CACHE_STORE, key);
-  if (record) {
-    record.lastAccessedAt = Date.now();
-    try { await idbPut(VIDEO_CACHE_STORE, record); } catch {}
-  }
-  return record;
-}
-
-async function cachedVideoSrc(output) {
-  const key = videoCacheKey(output);
-  if (!key) return output?.url || '';
-  if (state.cachedVideoUrls.has(key)) return state.cachedVideoUrls.get(key);
-
-  const record = await getCachedVideoRecord(output);
-  if (!record?.blob) return output?.url || '';
-
-  const objectUrl = URL.createObjectURL(record.blob);
-  state.cachedVideoUrls.set(key, objectUrl);
-  return objectUrl;
-}
-
-async function cacheOutputVideo(output, options = {}) {
-  const key = videoCacheKey(output);
-  if (!key || !output?.url) return { ok: false, reason: 'no-key-or-url' };
-
-  const existing = await getCachedVideoRecord(output);
-  if (existing?.blob) {
-    output.localCacheStatus = 'cached';
-    output.localCacheReason = '';
-    return { ok: true, cached: true, size: existing.size || existing.blob.size || 0 };
-  }
-
-  let response;
-  try {
-    response = await fetch(output.url, { mode: 'cors', cache: 'no-store' });
-  } catch (error) {
-    output.localCacheStatus = 'failed';
-    output.localCacheReason = `远程链接读取失败：${errorMessage(error)}`;
-    return { ok: false, reason: output.localCacheReason };
-  }
-
-  if (!response.ok) {
-    output.localCacheStatus = 'failed';
-    output.localCacheReason = `远程链接 HTTP ${response.status}`;
-    return { ok: false, reason: output.localCacheReason };
-  }
-
-  let blob;
-  try {
-    blob = await response.blob();
-  } catch (error) {
-    output.localCacheStatus = 'failed';
-    output.localCacheReason = `视频文件读取失败：${errorMessage(error)}`;
-    return { ok: false, reason: output.localCacheReason };
-  }
-
-  if (!blob?.size) {
-    output.localCacheStatus = 'failed';
-    output.localCacheReason = '空视频文件';
-    return { ok: false, reason: output.localCacheReason };
-  }
-
-  const contentType = response.headers.get('content-type') || blob.type || 'video/mp4';
-  await idbPut(VIDEO_CACHE_STORE, {
-    key,
-    blob,
-    size: blob.size,
-    contentType,
-    providerTaskId: output.providerTaskId || null,
-    taskId: output.taskId || null,
-    url: output.url || null,
-    segmentId: output.segmentId || null,
-    index: output.index ?? null,
-    promptSnapshot: output.promptSnapshot || '',
-    createdAt: Date.now(),
-    lastAccessedAt: Date.now(),
-    appBuild: APP_BUILD,
-  });
-
-  await pruneVideoCache();
-
-  const oldUrl = state.cachedVideoUrls.get(key);
-  if (oldUrl) URL.revokeObjectURL(oldUrl);
-  const objectUrl = URL.createObjectURL(blob);
-  state.cachedVideoUrls.set(key, objectUrl);
-  output.localCacheStatus = 'cached';
-  output.localCacheReason = '';
-
-  if (options.toast !== false) toast('已缓存到本机', `视频已写入浏览器本地缓存：${formatBytes(blob.size)}。`);
-  return { ok: true, cached: false, size: blob.size };
-}
-
-async function pruneVideoCache() {
-  const records = await idbAll(VIDEO_CACHE_STORE);
-  let total = records.reduce((sum, item) => sum + Number(item.size || item.blob?.size || 0), 0);
-  if (total <= VIDEO_CACHE_MAX_BYTES) return;
-
-  const sorted = records.sort((a, b) => Number(a.lastAccessedAt || a.createdAt || 0) - Number(b.lastAccessedAt || b.createdAt || 0));
-  for (const record of sorted) {
-    if (total <= VIDEO_CACHE_MAX_BYTES * 0.85) break;
-    await idbDelete(VIDEO_CACHE_STORE, record.key);
-    total -= Number(record.size || record.blob?.size || 0);
-    const objectUrl = state.cachedVideoUrls.get(record.key);
-    if (objectUrl) URL.revokeObjectURL(objectUrl);
-    state.cachedVideoUrls.delete(record.key);
-  }
-}
-
-function scheduleOutputLocalCache(output) {
-  const key = videoCacheKey(output);
-  if (!key || !output?.url) return;
-  if (output.localCacheStatus === 'cached' || output.localCacheStatus === 'caching') return;
-  output.localCacheStatus = 'caching';
-  cacheOutputVideo(output, { toast: false }).then(result => {
-    output.localCacheStatus = result.ok ? 'cached' : 'failed';
-    output.localCacheReason = result.reason || '';
-    saveCurrentWorkspaceSelection();
-    renderJobs();
-  }).catch(error => {
-    output.localCacheStatus = 'failed';
-    output.localCacheReason = errorMessage(error);
-    saveCurrentWorkspaceSelection();
-    renderJobs();
-  });
-}
-
-async function hydrateOutputVideoElements() {
-  const videoEls = document.querySelectorAll('video[data-output-key]');
-  for (const video of videoEls) {
-    const key = video.dataset.outputKey;
-    const output = [...(state.outputs || []), ...(state.outputHistory || [])].find(item => videoCacheKey(item) === key);
-    if (!output) continue;
-    try {
-      const src = await cachedVideoSrc(output);
-      if (src && video.src !== src) video.src = src;
-      if (output.url) scheduleOutputLocalCache(output);
-    } catch (error) {
-      console.warn('[Seedance Studio] hydrate video failed', error);
-    }
-  }
-}
-
-async function manualCacheOutput(outputKey) {
-  const output = [...(state.outputs || []), ...(state.outputHistory || [])].find(item => videoCacheKey(item) === outputKey);
-  if (!output) return toast('找不到视频', '当前输出列表里没有这个视频。');
-  const result = await cacheOutputVideo(output, { toast: true });
-  if (!result.ok) toast('缓存失败', `${result.reason || '远程链接可能已过期'}。请先用 Ark Task 找回，再缓存。`);
-  saveCurrentWorkspaceSelection();
-  renderJobs();
 }
 
 
@@ -1284,33 +1055,21 @@ function outputCardMarkup(o, historical = false) {
   const title = historical
     ? `Segment ${String(Number(o.index || 0) + 1).padStart(2,'0')} · 历史版本`
     : `Segment ${String(Number(o.index || 0) + 1).padStart(2,'0')} · 已完成`;
-  const key = videoCacheKey(o);
-  const cacheLabel = o.localCacheStatus === 'cached'
-    ? '已缓存到本机'
-    : o.localCacheStatus === 'caching'
-      ? '正在缓存到本机'
-      : o.localCacheStatus === 'failed'
-        ? '本地缓存失败'
-        : '待写入本地缓存';
-
   return `
     <article class="output-card ${historical ? 'output-card-history' : ''}">
-      <video controls preload="metadata" data-output-key="${escapeHtml(key)}" src="${o.url || ''}"></video>
+      <video controls preload="metadata" src="${o.url}"></video>
       <div class="output-copy">
         <strong>${title}</strong>
-        <span>${historical ? '旧版本已保留，不会被新提交覆盖' : (o.storageMode === 'ark-temp' || o.storageMode === 'ark-temp-recovered' || o.storageMode === 'ark-url-local-download' ? 'Ark 临时链接 · 自动写入浏览器本地缓存' : 'Supabase Storage 已保存')}</span>
-        <small class="local-cache-status">${cacheLabel}${o.localCacheReason ? ` · ${escapeHtml(o.localCacheReason)}` : ''}</small>
+        <span>${historical ? '旧版本已保留，不会被新提交覆盖' : (o.storageMode === 'ark-temp' ? '未占用 Supabase Storage · Ark 临时链接，请及时下载到本地' : 'Supabase Storage 已保存')}</span>
         ${o.providerTaskId ? `<small>Ark Task：${escapeHtml(o.providerTaskId)}</small>` : ''}
         ${historical && o.promptSnapshot ? `<small>旧提示词：${escapeHtml(o.promptSnapshot).slice(0, 120)}...</small>` : ''}
         <div class="output-actions">
           <button data-edit-output-segment="${o.segmentId || ''}" data-output-index="${o.index}">重新编辑</button>
-          <button data-cache-output="${escapeHtml(key)}">缓存到本机</button>
-          <a href="${o.url || '#'}" download="seedance-${escapeHtml(o.providerTaskId || `segment-${Number(o.index || 0)+1}`)}.mp4" target="_blank" rel="noopener" data-download-output="${o.providerTaskId || o.index}">下载到本地</a>
+          <a href="${o.url}" download="seedance-${escapeHtml(o.providerTaskId || `segment-${Number(o.index || 0)+1}`)}.mp4" target="_blank" rel="noopener" data-download-output="${o.providerTaskId || o.index}">下载到本地</a>
         </div>
       </div>
     </article>`;
 }
-
 
 function isOutputCurrentForSegment(output) {
   const segment = state.draft?.segments?.find(s => {
@@ -1355,7 +1114,6 @@ function renderJobs() {
     historyOutputs.length ? `<div class="history-title">历史输出</div>${historyOutputs.map(o => outputCardMarkup(o, true)).join('')}` : '',
   ].filter(Boolean).join('');
   $('outputs-list').innerHTML = outputMarkup || '<div class="empty-state">暂无视频输出。提交后会自动显示真实任务状态和生成结果。</div>';
-  setTimeout(hydrateOutputVideoElements, 0);
 
   qsa('[data-refresh-segment]').forEach(btn => btn.onclick = async () => { await refreshJobs(); });
   qsa('[data-recover-output]').forEach(btn => btn.onclick = async () => { await recoverSegmentOutput(btn.dataset.recoverOutput); });
@@ -1363,7 +1121,6 @@ function renderJobs() {
   qsa('[data-edit-from-job]').forEach(btn => btn.onclick = () => reEditSegment(btn.dataset.editFromJob));
   qsa('[data-edit-output-segment]').forEach(btn => btn.onclick = () => reEditSegment(btn.dataset.editOutputSegment || findSegmentIdByOutputIndex(btn.dataset.outputIndex)));
   qsa('[data-retry-segment]').forEach(btn => btn.onclick = () => resubmitSegment(btn.dataset.retrySegment));
-  qsa('[data-cache-output]').forEach(btn => btn.onclick = async () => { await manualCacheOutput(btn.dataset.cacheOutput); });
   qsa('[data-download-output]').forEach(link => link.onclick = () => {
     const set = downloadedSet();
     set.add(link.dataset.downloadOutput);
@@ -2297,43 +2054,6 @@ async function bindProviderTaskAndRecover(segmentId) {
 }
 
 
-
-function addRecoveredOutputFromStatus(segment, result) {
-  const url = result?.video_url || result?.provider_video_url || result?.output_url || result?.download_url || null;
-  if (!segment || !url) return false;
-
-  const providerTaskId = result.provider_task_id || segment.providerTaskId || '';
-  const taskId = result.task_id || segment.remoteTaskId || null;
-
-  state.outputs = state.outputs || [];
-  const exists = state.outputs.some(output =>
-    output.url === url ||
-    (providerTaskId && output.providerTaskId === providerTaskId) ||
-    (taskId && output.taskId === taskId)
-  );
-
-  if (!exists) {
-    state.outputs.unshift({
-      url,
-      storageMode: result.output?.storage_path ? 'supabase-storage-signed-url' : 'ark-temp-recovered',
-      providerTaskId,
-      taskId,
-      segmentId: segment.id,
-      index: segment.index,
-      row: { created_at: new Date().toISOString(), task_id: taskId },
-      localCacheStatus: 'pending',
-    });
-  }
-
-  segment.status = 'completed';
-  segment.progress = 100;
-  segment.error = null;
-  if (providerTaskId) segment.providerTaskId = providerTaskId;
-  if (taskId) segment.remoteTaskId = taskId;
-  return true;
-}
-
-
 async function recoverSegmentOutput(segmentId) {
   const segment = state.draft?.segments?.find(s => s.id === segmentId);
   if (!segment) {
@@ -2369,7 +2089,6 @@ async function recoverSegmentOutput(segmentId) {
     if (result.error) segment.error = result.error;
 
     const recoveredVideoUrl = result.video_url || result.provider_video_url || result.output_url || result.download_url || null;
-    if (recoveredVideoUrl) addRecoveredOutputFromStatus(segment, result);
 
     if (recoveredVideoUrl) {
       state.outputs = state.outputs || [];
@@ -2383,7 +2102,6 @@ async function recoverSegmentOutput(segmentId) {
           segmentId: segment.id,
           index: segment.index,
           row: { created_at: new Date().toISOString(), task_id: segment.remoteTaskId || null },
-          localCacheStatus: 'pending',
         });
       }
       segment.status = 'completed';
@@ -2572,11 +2290,8 @@ async function loadOutputs() {
   state.outputs = [...bySegment.values()].sort((a,b)=>a.index-b.index);
   saveCurrentWorkspaceSelection();
 
-  // 默认本地优先：触发下载，同时写入浏览器 IndexedDB 持久缓存。
-  for (const output of state.outputs) {
-    maybeAutoDownloadOutput(output);
-    scheduleOutputLocalCache(output);
-  }
+  // 默认本地优先：只对当前项目当前片段的视频触发一次本地下载。
+  for (const output of state.outputs) maybeAutoDownloadOutput(output);
 }
 function startPolling() {
   clearInterval(state.pollTimer);
