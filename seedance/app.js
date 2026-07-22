@@ -1,7 +1,7 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260722-fix-istextonly-submit';
+const APP_BUILD = '20260722-fix-show-generated-ark-outputs';
 const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v5-blackbar-2p49-force-reupload';
 console.log('[Seedance Studio]', APP_BUILD);
 
@@ -981,6 +981,71 @@ function updateRatioTip() {
 
 
 
+
+function deepFindVideoUrl(value) {
+  if (!value) return '';
+  if (typeof value === 'string') {
+    const isHttp = /^https?:\/\//i.test(value);
+    const looksVideo = /\.(mp4|mov|webm)(\?|#|$)/i.test(value) || /video/i.test(value);
+    return isHttp && looksVideo ? value : '';
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = deepFindVideoUrl(item);
+      if (found) return found;
+    }
+    return '';
+  }
+  if (typeof value === 'object') {
+    const priorityKeys = [
+      'video_url',
+      'file_url',
+      'output_url',
+      'download_url',
+      'url',
+      'signed_url',
+      'provider_video_url',
+    ];
+    for (const key of priorityKeys) {
+      if (key in value) {
+        const found = deepFindVideoUrl(value[key]);
+        if (found) return found;
+      }
+    }
+    for (const item of Object.values(value)) {
+      const found = deepFindVideoUrl(item);
+      if (found) return found;
+    }
+  }
+  return '';
+}
+
+function outputVideoUrlFromMetadata(meta = {}) {
+  return (
+    meta.provider_video_url ||
+    meta.video_url ||
+    meta.output_url ||
+    meta.download_url ||
+    meta.provider_url ||
+    meta.ark_response?.content?.video_url ||
+    meta.ark_response?.content?.file_url ||
+    meta.ark_response?.data?.content?.video_url ||
+    meta.ark_response?.data?.content?.file_url ||
+    deepFindVideoUrl(meta)
+  );
+}
+
+function providerTaskIdFromOutputRow(row, meta = {}) {
+  return (
+    meta.provider_task_id ||
+    meta.providerTaskId ||
+    meta.ark_response?.id ||
+    meta.ark_response?.data?.id ||
+    String(row?.storage_path || '').replace(/^ark:\/\//, '').replace(/\.mp4$/, '') ||
+    ''
+  );
+}
+
 function activeTaskStatuses() {
   return new Set(['preparing','uploading','submitting','retrying','submitted','queued','running','processing']);
 }
@@ -1057,10 +1122,10 @@ function outputCardMarkup(o, historical = false) {
     : `Segment ${String(Number(o.index || 0) + 1).padStart(2,'0')} · 已完成`;
   return `
     <article class="output-card ${historical ? 'output-card-history' : ''}">
-      <video controls preload="metadata" src="${o.url}"></video>
+      <video controls preload="metadata" src="${escapeHtml(o.url || '')}"></video>
       <div class="output-copy">
         <strong>${title}</strong>
-        <span>${historical ? '旧版本已保留，不会被新提交覆盖' : (o.storageMode === 'ark-temp' ? '未占用 Supabase Storage · Ark 临时链接，请及时下载到本地' : 'Supabase Storage 已保存')}</span>
+        <span>${historical ? '旧版本已保留，不会被新提交覆盖' : (o.storageMode === 'ark-temp' ? 'Ark 输出链接 · 请及时下载到本地' : 'Supabase Storage 已保存')}</span>
         ${o.providerTaskId ? `<small>Ark Task：${escapeHtml(o.providerTaskId)}</small>` : ''}
         ${historical && o.promptSnapshot ? `<small>旧提示词：${escapeHtml(o.promptSnapshot).slice(0, 120)}...</small>` : ''}
         <div class="output-actions">
@@ -2239,11 +2304,7 @@ async function loadOutputs() {
 
   for (const row of rows) {
     const meta = row.metadata || {};
-    const providerUrl =
-      meta.provider_video_url ||
-      meta.ark_response?.content?.video_url ||
-      meta.ark_response?.content?.file_url ||
-      meta.video_url;
+    const providerUrl = outputVideoUrlFromMetadata(meta);
 
     let url = providerUrl;
     let storageMode = providerUrl ? 'ark-temp' : 'supabase';
@@ -2258,13 +2319,19 @@ async function loadOutputs() {
 
     if (!url) continue;
 
-    const providerTaskId = meta.provider_task_id || meta.ark_response?.id || String(row.storage_path || '').replace(/^ark:\/\//, '').replace(/\.mp4$/, '');
-    const segmentIndex = segments.findIndex(
+    const providerTaskId = providerTaskIdFromOutputRow(row, meta);
+    let segmentIndex = segments.findIndex(
       s =>
         (row.segment_id && s.remoteSegmentId === row.segment_id) ||
         (row.task_id && s.remoteTaskId === row.task_id) ||
         (providerTaskId && s.providerTaskId === providerTaskId)
     );
+
+    // 如果数据库已经有当前项目的视频输出，但本地草稿因为回滚/刷新丢了 remoteSegmentId，
+    // 单片段项目直接归到 Segment 01，避免“视频已生成但页面不显示”。
+    if (segmentIndex < 0 && row.project_id && currentProjectId && row.project_id === currentProjectId && segments.length === 1) {
+      segmentIndex = 0;
+    }
 
     // 关键：不是当前项目当前片段的输出，不展示、不下载。
     if (segmentIndex < 0) continue;
@@ -2280,7 +2347,19 @@ async function loadOutputs() {
       segmentId: segment?.id || null,
       remoteSegmentId: row.segment_id || null,
       index: segmentIndex,
+      promptSnapshot: segment?.prompt || '',
     };
+
+    // 只要 output 已经有真实视频 URL，就把本地片段状态改成完成，
+    // 防止右侧一直显示“生成中/排队中”。
+    if (segment && url) {
+      segment.status = 'succeeded';
+      segment.progress = 100;
+      segment.error = null;
+      if (providerTaskId) segment.providerTaskId = providerTaskId;
+      if (row.task_id) segment.remoteTaskId = row.task_id;
+      if (row.segment_id) segment.remoteSegmentId = row.segment_id;
+    }
 
     const key = String(segmentIndex);
     const old = bySegment.get(key);
