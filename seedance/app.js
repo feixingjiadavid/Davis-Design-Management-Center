@@ -1,8 +1,9 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260722-fix-show-generated-ark-outputs';
+const APP_BUILD = '20260722-video-proxy-blob-playback';
 const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v5-blackbar-2p49-force-reupload';
+const SEEDANCE_VIDEO_PROXY_URL = 'https://supffjeeouibhqdfqosk.supabase.co/functions/v1/seedance-video-proxy';
 console.log('[Seedance Studio]', APP_BUILD);
 
 const state = {
@@ -13,6 +14,7 @@ const state = {
   selectedSegmentId: null,
   currentView: 'quick',
   objectUrls: new Map(),
+  outputBlobUrls: new Map(),
   jobs: [],
   outputs: [],
   outputHistory: [],
@@ -179,6 +181,8 @@ function triggerLocalDownload(url, filename) {
 
 function maybeAutoDownloadOutput(output) {
   if (!output?.url) return;
+  // Ark 签名临时 URL 不能直接作为本地下载来源；播放器会通过 seedance-video-proxy 拉 Blob。
+  if (output.storageMode === 'ark-temp') return;
   const key = output.providerTaskId || output.row?.task_id || output.url;
   const set = downloadedSet();
   if (set.has(key)) return;
@@ -1116,25 +1120,140 @@ function renderActiveGenerationCards() {
   `).join('');
 }
 
+
+function outputKey(o) {
+  return String(o?.providerTaskId || o?.taskId || o?.url || o?.index || '').trim();
+}
+
+async function fetchVideoBlobThroughProxy(output) {
+  const providerTaskId = output?.providerTaskId;
+  const taskId = output?.taskId;
+  if (!providerTaskId && !taskId) throw new Error('缺少 Ark Task ID，无法通过代理拉取视频');
+
+  const token = await getAccessToken();
+  const params = new URLSearchParams();
+  if (providerTaskId) params.set('provider_task_id', providerTaskId);
+  if (taskId) params.set('task_id', taskId);
+
+  const response = await fetch(`${SEEDANCE_VIDEO_PROXY_URL}?${params.toString()}`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const contentType = response.headers.get('content-type') || '';
+  if (!response.ok) {
+    let detail = '';
+    try {
+      const json = await response.json();
+      detail = json.message || json.error || JSON.stringify(json);
+    } catch {
+      detail = await response.text().catch(() => '');
+    }
+    throw new Error(detail || `视频代理返回 HTTP ${response.status}`);
+  }
+
+  if (!contentType.includes('video') && !contentType.includes('octet-stream')) {
+    let detail = '';
+    try {
+      const json = await response.json();
+      detail = json.message || json.error || JSON.stringify(json);
+    } catch {
+      detail = await response.text().catch(() => '');
+    }
+    throw new Error(detail || '视频代理没有返回 MP4 文件');
+  }
+
+  const blob = await response.blob();
+  if (!blob.size) throw new Error('代理返回了空视频文件');
+  return blob;
+}
+
+async function hydrateProxyVideoElements() {
+  const videos = qsa('video[data-provider-task-id]');
+  for (const video of videos) {
+    if (video.dataset.proxyLoading === '1' || video.dataset.proxyLoaded === '1') continue;
+
+    const providerTaskId = video.dataset.providerTaskId || '';
+    const taskId = video.dataset.taskId || '';
+    const key = providerTaskId || taskId || video.dataset.outputKey || '';
+    const statusEl = document.querySelector(`[data-output-load-status="${CSS.escape(key)}"]`);
+    const downloadEl = document.querySelector(`[data-proxy-download="${CSS.escape(key)}"]`);
+
+    if (!key) continue;
+
+    if (state.outputBlobUrls.has(key)) {
+      const cachedUrl = state.outputBlobUrls.get(key);
+      video.src = cachedUrl;
+      video.dataset.proxyLoaded = '1';
+      if (downloadEl) downloadEl.href = cachedUrl;
+      if (statusEl) statusEl.textContent = '已通过代理加载，可播放/下载';
+      continue;
+    }
+
+    const output = [...(state.outputs || []), ...(state.outputHistory || [])].find(o => {
+      return o.providerTaskId === providerTaskId || o.taskId === taskId || outputKey(o) === key;
+    });
+
+    if (!output) continue;
+
+    video.dataset.proxyLoading = '1';
+    if (statusEl) statusEl.textContent = '正在通过服务端代理拉取 MP4...';
+
+    try {
+      const blob = await fetchVideoBlobThroughProxy(output);
+      const objectUrl = URL.createObjectURL(blob);
+      state.outputBlobUrls.set(key, objectUrl);
+
+      video.src = objectUrl;
+      video.dataset.proxyLoaded = '1';
+      video.dataset.proxyLoading = '0';
+      video.load();
+
+      if (downloadEl) {
+        downloadEl.href = objectUrl;
+        downloadEl.download = `seedance-${providerTaskId || taskId || Date.now()}.mp4`;
+      }
+      if (statusEl) statusEl.textContent = `已通过代理加载：${formatBytes(blob.size)}`;
+    } catch (error) {
+      video.dataset.proxyLoading = '0';
+      const msg = errorMessage(error, '视频代理加载失败');
+      if (statusEl) statusEl.textContent = `加载失败：${msg}`;
+      console.warn('[Seedance Studio] proxy video load failed', error);
+    }
+  }
+}
+
 function outputCardMarkup(o, historical = false) {
   const title = historical
     ? `Segment ${String(Number(o.index || 0) + 1).padStart(2,'0')} · 历史版本`
     : `Segment ${String(Number(o.index || 0) + 1).padStart(2,'0')} · 已完成`;
+  const key = outputKey(o);
+  const isArkOutput = o.storageMode === 'ark-temp' || o.providerTaskId;
+  const directUrl = isArkOutput ? '' : (o.url || '');
+
   return `
     <article class="output-card ${historical ? 'output-card-history' : ''}">
-      <video controls preload="metadata" src="${escapeHtml(o.url || '')}"></video>
+      <video controls preload="metadata"
+        src="${escapeHtml(directUrl)}"
+        data-output-key="${escapeHtml(key)}"
+        data-provider-task-id="${escapeHtml(o.providerTaskId || '')}"
+        data-task-id="${escapeHtml(o.taskId || '')}"></video>
       <div class="output-copy">
         <strong>${title}</strong>
-        <span>${historical ? '旧版本已保留，不会被新提交覆盖' : (o.storageMode === 'ark-temp' ? 'Ark 输出链接 · 请及时下载到本地' : 'Supabase Storage 已保存')}</span>
+        <span>${historical ? '旧版本已保留，不会被新提交覆盖' : (isArkOutput ? 'Ark 输出 · 通过服务端代理拉取 MP4' : 'Supabase Storage 已保存')}</span>
+        <small data-output-load-status="${escapeHtml(key)}">${isArkOutput ? '等待代理加载视频...' : '可直接播放'}</small>
         ${o.providerTaskId ? `<small>Ark Task：${escapeHtml(o.providerTaskId)}</small>` : ''}
         ${historical && o.promptSnapshot ? `<small>旧提示词：${escapeHtml(o.promptSnapshot).slice(0, 120)}...</small>` : ''}
         <div class="output-actions">
           <button data-edit-output-segment="${o.segmentId || ''}" data-output-index="${o.index}">重新编辑</button>
-          <a href="${o.url}" download="seedance-${escapeHtml(o.providerTaskId || `segment-${Number(o.index || 0)+1}`)}.mp4" target="_blank" rel="noopener" data-download-output="${o.providerTaskId || o.index}">下载到本地</a>
+          <a href="${escapeHtml(directUrl || '#')}" download="seedance-${escapeHtml(o.providerTaskId || `segment-${Number(o.index || 0)+1}`)}.mp4" target="_blank" rel="noopener" data-proxy-download="${escapeHtml(key)}" data-download-output="${o.providerTaskId || o.index}">下载到本地</a>
         </div>
       </div>
     </article>`;
 }
+
 
 function isOutputCurrentForSegment(output) {
   const segment = state.draft?.segments?.find(s => {
@@ -1179,6 +1298,7 @@ function renderJobs() {
     historyOutputs.length ? `<div class="history-title">历史输出</div>${historyOutputs.map(o => outputCardMarkup(o, true)).join('')}` : '',
   ].filter(Boolean).join('');
   $('outputs-list').innerHTML = outputMarkup || '<div class="empty-state">暂无视频输出。提交后会自动显示真实任务状态和生成结果。</div>';
+  setTimeout(hydrateProxyVideoElements, 0);
 
   qsa('[data-refresh-segment]').forEach(btn => btn.onclick = async () => { await refreshJobs(); });
   qsa('[data-recover-output]').forEach(btn => btn.onclick = async () => { await recoverSegmentOutput(btn.dataset.recoverOutput); });
