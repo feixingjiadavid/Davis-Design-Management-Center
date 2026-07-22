@@ -1,7 +1,7 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260722-lock-current-project-v30';
+const APP_BUILD = '20260722-text-reference-upload-v35';
 const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v5-blackbar-2p49-force-reupload';
 const SEEDANCE_VIDEO_PROXY_URL = 'https://supffjeeouibhqdfqosk.supabase.co/functions/v1/seedance-video-proxy';
 console.log('[Seedance Studio]', APP_BUILD);
@@ -359,6 +359,79 @@ function getBlobUrl(fileLike) {
   return state.objectUrls.get(fileLike.id);
 }
 
+
+function referenceAssetKey(asset) {
+  if (!asset) return '';
+  return String(
+    asset.id ||
+    asset.remoteAssetId ||
+    asset.remotePath ||
+    `${asset.name || ''}|${asset.size || 0}|${asset.type || ''}|${asset.createdAt || ''}`
+  );
+}
+
+function mergeReferenceAssetLists(...lists) {
+  const merged = [];
+  const seen = new Set();
+  for (const list of lists) {
+    if (!Array.isArray(list)) continue;
+    for (const item of list) {
+      if (!item || typeof item !== 'object') continue;
+      const key = referenceAssetKey(item);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      merged.push(item);
+    }
+  }
+  return merged;
+}
+
+function currentReferenceAssets() {
+  const workspace = getWorkspace();
+  const textWorkspace = state.draft?.workspaces?.text_only || null;
+  return mergeReferenceAssetLists(
+    state.referenceAssets,
+    workspace?.referenceAssets,
+    textWorkspace?.referenceAssets,
+    state.referenceVideo ? [state.referenceVideo] : [],
+    workspace?.referenceVideo ? [workspace.referenceVideo] : [],
+    textWorkspace?.referenceVideo ? [textWorkspace.referenceVideo] : [],
+  );
+}
+
+function commitTextReferenceAssets(list = currentReferenceAssets()) {
+  const assets = mergeReferenceAssetLists(list);
+  state.referenceAssets = assets;
+  state.referenceVideo = assets.find(item => String(item.type || '').startsWith('video/')) || assets[0] || null;
+
+  if (state.draft) {
+    const workspace = getWorkspace();
+    workspace.referenceAssets = assets;
+    workspace.referenceVideo = state.referenceVideo;
+    state.draft.referenceAssets = assets;
+    state.draft.referenceVideo = state.referenceVideo;
+    if (state.draft.workspaces?.text_only) {
+      state.draft.workspaces.text_only.referenceAssets = assets;
+      state.draft.workspaces.text_only.referenceVideo = state.referenceVideo;
+    }
+  }
+
+  return assets;
+}
+
+function validatePromptReferenceTokens(segment, assets = currentReferenceAssets()) {
+  if (state.draft?.mode !== 'text_only') return;
+  const prompt = String(segment?.prompt || '');
+  const tokens = [...prompt.matchAll(/@(视频|图片|音频|参考)(\d+)/g)].map(match => match[0]);
+  if (!tokens.length) return;
+
+  const available = new Set(assets.map((asset, index) => referenceToken(asset, index)));
+  const missing = [...new Set(tokens)].filter(token => !available.has(token));
+  if (missing.length) {
+    throw new Error(`描述里引用了 ${missing.join('、')}，但参考素材池里没有对应素材。请重新添加参考视频/图片，或点击素材卡上的“插入 @xxx”。`);
+  }
+}
+
 function renderTextModePanel() {
   const panel = $('text-mode-panel');
   if (!panel) return;
@@ -378,7 +451,7 @@ function renderTextModePanel() {
   const card = $('reference-video-card');
   if (!preview || !card) return;
 
-  const assets = state.referenceAssets || getWorkspace().referenceAssets || [];
+  const assets = commitTextReferenceAssets();
   if (!assets.length) {
     preview.hidden = true;
     preview.innerHTML = '';
@@ -393,12 +466,10 @@ function renderTextModePanel() {
   preview.querySelectorAll('[data-remove-reference]').forEach(btn => {
     btn.onclick = async () => {
       const id = btn.dataset.removeReference;
-      const target = (state.referenceAssets || []).find(item => item.id === id);
+      const refs = currentReferenceAssets();
+      const target = refs.find(item => item.id === id);
       if (target?.id) releaseFrameUrl(target.id);
-      state.referenceAssets = (state.referenceAssets || []).filter(item => item.id !== id);
-      state.referenceVideo = state.referenceAssets[0] || null;
-      getWorkspace().referenceAssets = state.referenceAssets;
-      getWorkspace().referenceVideo = state.referenceVideo;
+      commitTextReferenceAssets(refs.filter(item => item.id !== id));
       renderTextModePanel();
       await persist();
     };
@@ -784,7 +855,7 @@ function jobStageMarkup(segment) {
     status === 'succeeded' || status === 'completed' || status === 'success' ? 100 : 0
   ));
   const steps = [
-    ['素材上传', ['submitting','submitted','queued','running','processing','succeeded','completed','success'].includes(status)],
+    ['素材上传', ['uploading','submitting','submitted','queued','running','processing','succeeded','completed','success'].includes(status)],
     ['任务提交', ['queued','running','processing','succeeded','completed','success'].includes(status)],
     ['Seedance 生成', ['running','processing','succeeded','completed','success'].includes(status)],
   ];
@@ -1442,8 +1513,8 @@ async function addReferenceAssets(fileList) {
       continue;
     }
 
-    state.referenceAssets = state.referenceAssets || [];
-    state.referenceAssets.push({
+    const refs = commitTextReferenceAssets();
+    refs.push({
       id: uid(),
       name: file.name,
       type: file.type,
@@ -1456,9 +1527,7 @@ async function addReferenceAssets(fileList) {
     added += 1;
   }
 
-  state.referenceVideo = state.referenceAssets[0] || null;
-  getWorkspace().referenceAssets = state.referenceAssets;
-  getWorkspace().referenceVideo = state.referenceVideo;
+  commitTextReferenceAssets(state.referenceAssets);
   renderTextModePanel();
   await persist();
   if (added) toast('参考内容已加入', `已添加 ${added} 个参考内容，可在文字中指定参考方向。`);
@@ -1469,11 +1538,22 @@ async function uploadReferenceVideo(projectId) {
   return ids[0] || null;
 }
 
-async function uploadReferenceAssets(projectId) {
-  const assets = state.referenceAssets || getWorkspace().referenceAssets || [];
+async function uploadReferenceAssets(projectId, segmentsForProgress = []) {
+  const assets = commitTextReferenceAssets();
   const resultIds = [];
+  const segments = Array.isArray(segmentsForProgress) ? segmentsForProgress : [];
 
-  for (const ref of assets) {
+  for (let index = 0; index < assets.length; index++) {
+    const ref = assets[index];
+    const progress = Math.min(12, 4 + Math.round(((index + 0.35) / Math.max(assets.length, 1)) * 8));
+    segments.forEach(segment => {
+      segment.status = 'uploading';
+      segment.progress = progress;
+      segment.error = `正在上传参考素材 ${index + 1}/${assets.length}：${ref.name || assetKindLabel(ref)}`;
+    });
+    renderJobs();
+    await persist();
+
     if (ref.remoteAssetId && ref.remotePath) {
       resultIds.push(ref.remoteAssetId);
       continue;
@@ -1521,12 +1601,14 @@ async function uploadReferenceAssets(projectId) {
     ref.remoteAssetId = insert.data.id;
     ref.remotePath = path;
     resultIds.push(ref.remoteAssetId);
+    commitTextReferenceAssets(assets);
   }
 
-  state.referenceAssets = assets;
-  state.referenceVideo = assets[0] || null;
-  getWorkspace().referenceAssets = assets;
-  getWorkspace().referenceVideo = state.referenceVideo;
+  commitTextReferenceAssets(assets);
+  segments.forEach(segment => {
+    segment.error = null;
+  });
+  await persist();
   return resultIds;
 }
 
@@ -1774,10 +1856,28 @@ async function uploadNeededFrames(segmentIds) {
   const projectId = await ensureRemoteProject();
   const segments = state.draft.segments.filter(s => segmentIds.includes(s.id));
   if (state.draft.mode === 'text_only') {
-    const referenceAssetIds = await uploadReferenceAssets(projectId);
+    const assets = commitTextReferenceAssets();
+    segments.forEach(segment => {
+      validatePromptReferenceTokens(segment, assets);
+      segment.status = 'uploading';
+      segment.progress = assets.length ? 3 : 12;
+      segment.error = assets.length ? `准备上传 ${assets.length} 个参考素材...` : null;
+    });
+    renderJobs();
+    await persist();
+
+    const referenceAssetIds = await uploadReferenceAssets(projectId, segments);
+    const uploadedAssets = commitTextReferenceAssets();
     segments.forEach(segment => {
       segment.referenceAssetId = referenceAssetIds[0] || null;
       segment.referenceAssetIds = referenceAssetIds;
+      segment.referenceDirections = uploadedAssets.map((item, index) => ({
+        asset_id: item.remoteAssetId || null,
+        token: referenceToken(item, index),
+        name: item.name,
+        mime_type: item.type,
+        usage: 'free_prompt_reference',
+      }));
       segment.status = 'submitting';
       segment.progress = 13;
       segment.error = null;
@@ -1824,6 +1924,8 @@ async function submitOne(segment) {
   const from = state.draft.frames.find(f => f.id === segment.fromFrameId);
   const to = state.draft.frames.find(f => f.id === segment.toFrameId);
   const isTextOnly = state.draft.mode === 'text_only';
+  const textReferenceAssets = isTextOnly ? commitTextReferenceAssets() : [];
+  if (isTextOnly) validatePromptReferenceTokens(segment, textReferenceAssets);
   if (!projectId) throw new Error('远程项目尚未创建');
   if (!isTextOnly && (!from?.remoteAssetId || !to?.remoteAssetId)) throw new Error(`Segment ${segment.index + 1} 的首尾帧尚未上传完成`);
 
@@ -1840,9 +1942,9 @@ async function submitOne(segment) {
     ratio: state.draft.ratio === 'follow' ? 'adaptive' : state.draft.ratio,
     status: 'ready',
     mode: isTextOnly ? 'text_only' : state.draft.mode,
-    reference_asset_id: isTextOnly ? (segment.referenceAssetId || state.referenceAssets?.[0]?.remoteAssetId || null) : null,
-    reference_asset_ids: isTextOnly ? (segment.referenceAssetIds || (state.referenceAssets || []).map(item => item.remoteAssetId).filter(Boolean)) : [],
-    reference_directions: isTextOnly ? (state.referenceAssets || []).map((item, index) => ({
+    reference_asset_id: isTextOnly ? (segment.referenceAssetId || textReferenceAssets?.[0]?.remoteAssetId || null) : null,
+    reference_asset_ids: isTextOnly ? (segment.referenceAssetIds || textReferenceAssets.map(item => item.remoteAssetId).filter(Boolean)) : [],
+    reference_directions: isTextOnly ? textReferenceAssets.map((item, index) => ({
       asset_id: item.remoteAssetId || null,
       token: referenceToken(item, index),
       name: item.name,
@@ -2042,6 +2144,14 @@ async function generateSegments(segmentIds) {
     setView('editor');
     renderEditor();
     return toast('提示词未填写', `请先填写 Segment ${invalid.index+1} 的提示词。`);
+  }
+  if (state.draft.mode === 'text_only') {
+    const refs = commitTextReferenceAssets();
+    try {
+      segments.forEach(segment => validatePromptReferenceTokens(segment, refs));
+    } catch (error) {
+      return toast('参考素材缺失', errorMessage(error));
+    }
   }
   if (!await confirmBox('确认提交真实任务', `将提交 ${segments.length} 个视频片段。为避免 Ark 连接超时，多帧会逐段提交，可能产生 Ark API 费用。`)) return;
 
