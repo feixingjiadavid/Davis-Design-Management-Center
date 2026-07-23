@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260723-mode-isolation-no-duplicate-r3';
+const PRODUCTION_BUILD = '20260723-text-mode-isolation-r4';
 const ORIGINAL_BUILD = '20260723-google-drive-only-output-v46';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -160,7 +160,7 @@ function v47HydrateProxyVideoElements() {
         const retryMs = permanentLike ? 10 * 60 * 1000 : 60 * 1000;
         proxyFailureCache.set(key, { message: msg, retryAt: Date.now() + retryMs });
         if (statusEl) statusEl.textContent = `加载失败：${msg}`;
-        console.warn('[Seedance Studio R3] proxy video load failed', { key, status, error });
+        console.warn('[Seedance Studio R4] proxy video load failed', { key, status, error });
       }
     }
   })();
@@ -187,7 +187,7 @@ function v47RecoverLatestDriveOutputWhenEmpty(force = false) {
         toast('当前项目暂无可播放视频', '没有找到属于当前工作区且已成功保存到 Google Drive 的视频。');
       }
     } catch (error) {
-      console.warn('[Seedance Studio R3] strict drive recover failed', error);
+      console.warn('[Seedance Studio R4] strict drive recover failed', error);
       if (force) toast('拉取失败', errorMessage(error));
     } finally {
       state.driveFallbackLoading = false;
@@ -296,7 +296,7 @@ function v47LoadOutputs() {
         .in(column, values)
         .order('created_at', { ascending: false });
       if (error) {
-        console.warn(`[Seedance Studio R3] video_tasks ${column} lookup failed`, error);
+        console.warn(`[Seedance Studio R4] video_tasks ${column} lookup failed`, error);
         return;
       }
       for (const row of data || []) taskRowsById.set(row.id, row);
@@ -355,7 +355,7 @@ function v47LoadOutputs() {
         .eq('mode', state.draft.mode)
         .order('created_at', { ascending: false })
         .limit(30);
-      if (error) console.warn('[Seedance Studio R3] project recovery lookup failed', error);
+      if (error) console.warn('[Seedance Studio R4] project recovery lookup failed', error);
       const all = projects || [];
       const sameName = all.filter(project => project.name === state.draft.name);
       const candidates = sameName.length ? sameName : all;
@@ -389,7 +389,7 @@ function v47LoadOutputs() {
       .limit(100);
 
     if (outputError) {
-      console.warn('[Seedance Studio R3] current-project output query failed', outputError);
+      console.warn('[Seedance Studio R4] current-project output query failed', outputError);
       state.outputs = [];
       state.outputHistory = [];
       return;
@@ -499,13 +499,83 @@ function v47LoadOutputs() {
   })();
 }
 
-function r3ModeKey(mode) {
+function r4ModeKey(mode) {
   return mode === 'first_last' ? 'first_last' : (mode === 'text_only' ? 'text_only' : 'multi_frame');
 }
 
-function r3MigrateDraftWorkspaces(draft) {
+function r4NormalizeName(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ');
+}
+
+function r4ChooseProject(projects, options = {}) {
+  const mode = r4ModeKey(options.mode);
+  const draftName = r4NormalizeName(options.name);
+  const workspaceProjectId = options.workspaceProjectId || null;
+  const taskProjectIds = new Set(options.taskProjectIds || []);
+  const targetTime = Number(options.targetTime || Date.now());
+  const modeProjects = (projects || []).filter(project => r4ModeKey(project?.mode) === mode);
+  if (!modeProjects.length) return null;
+
+  const sameName = draftName
+    ? modeProjects.filter(project => r4NormalizeName(project?.name) === draftName)
+    : [];
+
+  let pool = sameName;
+  if (!pool.length) {
+    const preferred = modeProjects.filter(project =>
+      project.id === workspaceProjectId || taskProjectIds.has(project.id)
+    );
+    if (preferred.length) {
+      pool = preferred;
+    } else if (modeProjects.length === 1) {
+      pool = modeProjects;
+    } else {
+      const ordered = [...modeProjects].sort((a, b) => {
+        const da = Math.abs((new Date(a?.created_at || 0).getTime() || 0) - targetTime);
+        const db = Math.abs((new Date(b?.created_at || 0).getTime() || 0) - targetTime);
+        return da - db;
+      });
+      const nearestDistance = Math.abs((new Date(ordered[0]?.created_at || 0).getTime() || 0) - targetTime);
+      // 没有同名、没有明确绑定时宁可不显示，也不跨项目猜测。
+      if (nearestDistance > 15 * 60 * 1000) return null;
+      pool = [ordered[0]];
+    }
+  }
+
+  return [...pool].sort((a, b) => {
+    const aTask = taskProjectIds.has(a.id) ? 1 : 0;
+    const bTask = taskProjectIds.has(b.id) ? 1 : 0;
+    if (aTask !== bTask) return bTask - aTask;
+    const da = Math.abs((new Date(a?.created_at || 0).getTime() || 0) - targetTime);
+    const db = Math.abs((new Date(b?.created_at || 0).getTime() || 0) - targetTime);
+    if (da !== db) return da - db;
+    const aWorkspace = a.id === workspaceProjectId ? 1 : 0;
+    const bWorkspace = b.id === workspaceProjectId ? 1 : 0;
+    if (aWorkspace !== bWorkspace) return bWorkspace - aWorkspace;
+    return new Date(b?.created_at || 0) - new Date(a?.created_at || 0);
+  })[0] || null;
+}
+
+function r4ContextSnapshot() {
+  return {
+    draftId: state.draft?.id || null,
+    mode: r4ModeKey(state.draft?.mode),
+    epoch: Number(state.r4ContextEpoch || 0),
+  };
+}
+
+function r4ContextIsCurrent(snapshot) {
+  return Boolean(
+    snapshot &&
+    state.draft?.id === snapshot.draftId &&
+    r4ModeKey(state.draft?.mode) === snapshot.mode &&
+    Number(state.r4ContextEpoch || 0) === Number(snapshot.epoch || 0)
+  );
+}
+
+function r4MigrateDraftWorkspaces(draft) {
   if (!draft) return draft;
-  const activeMode = r3ModeKey(draft.mode);
+  const activeMode = r4ModeKey(draft.mode);
   const hadWorkspaces = Boolean(draft.workspaces);
   const oldFrames = Array.isArray(draft.frames) ? draft.frames : [];
   const oldSegments = Array.isArray(draft.segments) ? draft.segments : [];
@@ -541,10 +611,8 @@ function r3MigrateDraftWorkspaces(draft) {
     activeWorkspace.segments = oldSegments;
     activeWorkspace.remoteProjectId = oldRemoteProjectId;
     activeWorkspace.selectedSegmentId = oldSelectedSegmentId;
-  } else if (!activeWorkspace.remoteProjectId && oldRemoteProjectId) {
-    // 只作为候选值保存；loadOutputs 会向 Supabase 校验项目 mode，错的会被自动换掉。
-    activeWorkspace.remoteProjectId = oldRemoteProjectId;
   }
+  // 已经存在 workspaces 时，绝不再把顶层 remoteProjectId 灌进另一个模式。
 
   draft.mode = activeMode;
   draft.frames = activeWorkspace.frames;
@@ -554,52 +622,74 @@ function r3MigrateDraftWorkspaces(draft) {
   return draft;
 }
 
-function r3BindCurrentWorkspace() {
+function r4BindCurrentWorkspace() {
   if (!state.draft) return;
   migrateDraftWorkspaces(state.draft);
-  const mode = r3ModeKey(state.draft.mode);
+  const mode = r4ModeKey(state.draft.mode);
   const workspace = state.draft.workspaces[mode];
+
+  state.r4ContextEpoch = Number(state.r4ContextEpoch || 0) + 1;
+  state.r4VerifiedContextKey = null;
+  state.r4VerifiedProjectId = null;
+  state.driveFallbackDoneForDraftId = null;
+
   state.draft.frames = workspace.frames;
   state.draft.segments = workspace.segments;
   state.draft.remoteProjectId = workspace.remoteProjectId || null;
-  state.outputs = Array.isArray(workspace.outputs) ? workspace.outputs : [];
-  state.outputHistory = Array.isArray(workspace.outputHistory) ? workspace.outputHistory : [];
-  state.jobs = Array.isArray(workspace.jobs) ? workspace.jobs : [];
   state.referenceAssets = Array.isArray(workspace.referenceAssets)
     ? workspace.referenceAssets
     : (workspace.referenceVideo ? [workspace.referenceVideo] : []);
   state.referenceVideo = workspace.referenceVideo || state.referenceAssets[0] || null;
   state.selectedSegmentId = workspace.selectedSegmentId || workspace.segments[0]?.id || null;
+
+  // 云端是输出真源。切换项目/模式时不渲染本地旧缓存，避免一闪而过或串出其他模式视频。
+  state.outputs = [];
+  state.outputHistory = [];
+  state.jobs = [];
+  workspace.outputs = [];
+  workspace.outputHistory = [];
+  workspace.jobs = [];
+
+  if (typeof renderJobs === 'function') {
+    renderJobs.lastOutputMarkup = null;
+    renderJobs.lastContextKey = null;
+  }
 }
 
-function r3SaveCurrentWorkspaceSelection() {
+function r4SaveCurrentWorkspaceSelection() {
   if (!state.draft) return;
-  const mode = r3ModeKey(state.draft.mode);
+  const mode = r4ModeKey(state.draft.mode);
   if (!state.draft.workspaces) migrateDraftWorkspaces(state.draft);
   const workspace = state.draft.workspaces[mode] || createWorkspaceState();
   state.draft.workspaces[mode] = workspace;
+
   workspace.frames = state.draft.frames || [];
   workspace.segments = state.draft.segments || [];
   workspace.outputs = state.outputs || [];
   workspace.outputHistory = state.outputHistory || [];
   workspace.jobs = state.jobs || [];
   workspace.selectedSegmentId = state.selectedSegmentId || null;
-  workspace.remoteProjectId = state.draft.remoteProjectId || workspace.remoteProjectId || null;
+
+  const verifiedKey = `${state.draft.id}:${mode}`;
+  if (state.r4VerifiedContextKey === verifiedKey && state.r4VerifiedProjectId) {
+    workspace.remoteProjectId = state.r4VerifiedProjectId;
+  }
+  // ensureRemoteProject / loadOutputs 会直接写 workspace.remoteProjectId；这里不从顶层反灌。
+  workspace.remoteProjectId = workspace.remoteProjectId || null;
+
   if (mode === 'text_only') {
     workspace.referenceAssets = state.referenceAssets || [];
     workspace.referenceVideo = state.referenceVideo || workspace.referenceAssets[0] || null;
   }
-  // 顶层字段仅作为当前工作区兼容别名，不允许反向覆盖其他模式。
-  state.draft.remoteProjectId = workspace.remoteProjectId || null;
+
+  state.draft.remoteProjectId = workspace.remoteProjectId;
   state.draft.selectedSegmentId = workspace.selectedSegmentId;
 }
 
-async function r3ResolveCurrentProject() {
-  if (!state.user?.id || !state.draft) return null;
-  migrateDraftWorkspaces(state.draft);
-  const mode = r3ModeKey(state.draft.mode);
+async function r4ResolveCurrentProject(snapshot) {
+  if (!state.user?.id || !state.draft || !r4ContextIsCurrent(snapshot)) return null;
+  const mode = snapshot.mode;
   const workspace = getWorkspace(state.draft, mode);
-  const localProjectIds = [...new Set([workspace.remoteProjectId, state.draft.remoteProjectId].filter(Boolean))];
   const localSegments = Array.isArray(workspace.segments) ? workspace.segments : [];
   const providerIds = [...new Set(localSegments.map(item => item.providerTaskId).filter(Boolean))];
   const taskIds = [...new Set(localSegments.map(item => item.remoteTaskId).filter(Boolean))];
@@ -607,14 +697,15 @@ async function r3ResolveCurrentProject() {
   const taskProjectIds = new Set();
 
   async function collectTaskProjects(column, values) {
-    if (!values.length) return;
+    if (!values.length || !r4ContextIsCurrent(snapshot)) return;
     const { data, error } = await supabase
       .from('video_tasks')
       .select('project_id')
       .eq('owner_id', state.user.id)
       .in(column, values);
+    if (!r4ContextIsCurrent(snapshot)) return;
     if (error) {
-      console.warn(`[Seedance Studio R3] task project lookup failed: ${column}`, error);
+      console.warn(`[Seedance Studio R4] task project lookup failed: ${column}`, error);
       return;
     }
     for (const row of data || []) if (row.project_id) taskProjectIds.add(row.project_id);
@@ -623,15 +714,17 @@ async function r3ResolveCurrentProject() {
   await collectTaskProjects('provider_task_id', providerIds);
   await collectTaskProjects('id', taskIds);
   await collectTaskProjects('segment_id', segmentIds);
+  if (!r4ContextIsCurrent(snapshot)) return null;
 
-  const preferredIds = [...new Set([...localProjectIds, ...taskProjectIds])];
   const projectsById = new Map();
+  const preferredIds = [...new Set([workspace.remoteProjectId, ...taskProjectIds].filter(Boolean))];
   if (preferredIds.length) {
     const { data, error } = await supabase
       .from('video_projects')
       .select('id,name,mode,status,created_at,updated_at')
       .eq('owner_id', state.user.id)
       .in('id', preferredIds);
+    if (!r4ContextIsCurrent(snapshot)) return null;
     if (!error) for (const project of data || []) projectsById.set(project.id, project);
   }
 
@@ -642,39 +735,20 @@ async function r3ResolveCurrentProject() {
     .eq('mode', mode)
     .order('created_at', { ascending: false })
     .limit(100);
+  if (!r4ContextIsCurrent(snapshot)) return null;
   if (modeError) throw new Error(`读取 ${mode} 项目失败：${errorMessage(modeError)}`);
   for (const project of modeProjects || []) projectsById.set(project.id, project);
 
-  const targetTime = Number(state.draft.createdAt || state.draft.updatedAt || Date.now());
-  const candidates = [...projectsById.values()].filter(project => r3ModeKey(project.mode) === mode);
-  let best = null;
-  let bestScore = -Infinity;
-  for (const project of candidates) {
-    let score = 0;
-    if (project.id === workspace.remoteProjectId) score += 1_000_000;
-    if (project.id === state.draft.remoteProjectId) score += 500_000;
-    if (taskProjectIds.has(project.id)) score += 250_000;
-    if (String(project.name || '') === String(state.draft.name || '')) score += 100_000;
-    const createdMs = new Date(project.created_at || 0).getTime() || 0;
-    score -= Math.min(Math.abs(createdMs - targetTime) / 1000, 50_000);
-    if (score > bestScore) {
-      bestScore = score;
-      best = project;
-    }
-  }
-
-  if (!best) {
-    workspace.remoteProjectId = null;
-    state.draft.remoteProjectId = null;
-    return null;
-  }
-
-  workspace.remoteProjectId = best.id;
-  state.draft.remoteProjectId = best.id;
-  return best;
+  return r4ChooseProject([...projectsById.values()], {
+    mode,
+    name: state.draft.name,
+    workspaceProjectId: workspace.remoteProjectId || null,
+    taskProjectIds: [...taskProjectIds],
+    targetTime: Number(state.draft.createdAt || state.draft.updatedAt || Date.now()),
+  });
 }
 
-function r3TaskScore(task, outputTaskIds, exactIds) {
+function r4TaskScore(task, outputTaskIds, exactIds) {
   const status = String(task?.status || '').toLowerCase();
   let score = new Date(task?.created_at || 0).getTime() || 0;
   if (outputTaskIds.has(task.id)) score += 10_000_000_000_000;
@@ -685,12 +759,11 @@ function r3TaskScore(task, outputTaskIds, exactIds) {
   return score;
 }
 
-async function r3SyncRemoteTasks() {
-  // 单一严格入口：任务同步与输出恢复共用同一个按 mode 校验后的 project_id。
+async function r4SyncRemoteTasks() {
   await loadOutputs();
 }
 
-function r3LoadOutputs() {
+function r4LoadOutputs() {
   return (async () => {
     if (!state.user?.id || !state.draft) {
       state.outputs = [];
@@ -699,16 +772,25 @@ function r3LoadOutputs() {
     }
 
     migrateDraftWorkspaces(state.draft);
-    bindCurrentWorkspace();
     normalizeSegments(state.draft);
-    const mode = r3ModeKey(state.draft.mode);
-    const workspace = getWorkspace(state.draft, mode);
-    const project = await r3ResolveCurrentProject();
+    const snapshot = r4ContextSnapshot();
+    state.r4OutputRequestSeq = Number(state.r4OutputRequestSeq || 0) + 1;
+    const requestId = state.r4OutputRequestSeq;
+    const isCurrent = () => r4ContextIsCurrent(snapshot) && Number(state.r4OutputRequestSeq || 0) === requestId;
+    const workspace = getWorkspace(state.draft, snapshot.mode);
+
+    const project = await r4ResolveCurrentProject(snapshot);
+    if (!isCurrent()) return;
+
     if (!project) {
       state.outputs = [];
       state.outputHistory = [];
       workspace.outputs = [];
       workspace.outputHistory = [];
+      workspace.remoteProjectId = null;
+      state.draft.remoteProjectId = null;
+      state.r4VerifiedContextKey = `${snapshot.draftId}:${snapshot.mode}`;
+      state.r4VerifiedProjectId = null;
       saveCurrentWorkspaceSelection();
       return;
     }
@@ -732,6 +814,7 @@ function r3LoadOutputs() {
         .order('created_at', { ascending: false })
         .limit(100),
     ]);
+    if (!isCurrent()) return;
 
     if (segmentResult.error) throw new Error(`读取当前模式片段失败：${errorMessage(segmentResult.error)}`);
     if (taskResult.error) throw new Error(`读取当前模式任务失败：${errorMessage(taskResult.error)}`);
@@ -758,7 +841,7 @@ function r3LoadOutputs() {
         candidateSegmentIds.has(task.segment_id) ||
         exactIds.has(task.id) || exactIds.has(task.provider_task_id) || exactIds.has(task.segment_id)
       );
-      candidates.sort((a, b) => r3TaskScore(b, outputTaskIds, exactIds) - r3TaskScore(a, outputTaskIds, exactIds));
+      candidates.sort((a, b) => r4TaskScore(b, outputTaskIds, exactIds) - r4TaskScore(a, outputTaskIds, exactIds));
       const chosenTask = candidates[0];
       if (!chosenTask) continue;
       local.remoteSegmentId = chosenTask.segment_id || local.remoteSegmentId;
@@ -772,7 +855,7 @@ function r3LoadOutputs() {
     const now = Date.now();
     const candidatesBySegment = new Map();
     for (const row of rows) {
-      if (row.project_id && row.project_id !== projectId) continue;
+      if (row.project_id !== projectId) continue;
       const meta = row.metadata || {};
       const providerTaskId = providerTaskIdFromOutputRow(row, meta);
       const googleDriveFileId = meta.google_drive_file_id || meta.googleDriveFileId || meta.drive_file_id || meta.driveFileId || null;
@@ -791,6 +874,7 @@ function r3LoadOutputs() {
         storageMode = 'ark-proxy';
       } else if (row.storage_path && row.bucket_id && row.bucket_id !== 'ark-url') {
         const signed = await supabase.storage.from(row.bucket_id).createSignedUrl(row.storage_path, 3600);
+        if (!isCurrent()) return;
         if (!signed.error && signed.data?.signedUrl) {
           url = signed.data.signedUrl;
           storageMode = 'supabase';
@@ -819,6 +903,7 @@ function r3LoadOutputs() {
       const output = {
         row,
         projectId,
+        mode: snapshot.mode,
         url,
         storageMode,
         providerTaskId,
@@ -834,6 +919,7 @@ function r3LoadOutputs() {
       if (!candidatesBySegment.has(segmentIndex)) candidatesBySegment.set(segmentIndex, []);
       candidatesBySegment.get(segmentIndex).push(output);
     }
+    if (!isCurrent()) return;
 
     const current = [];
     const history = [];
@@ -846,8 +932,8 @@ function r3LoadOutputs() {
         history.push({
           ...old,
           historical: true,
-          historyId: `${old.outputId || old.providerTaskId || old.taskId}-r3`,
-          reason: `${workspaceLabel(mode)}历史生成版本`,
+          historyId: `${old.outputId || old.providerTaskId || old.taskId}-r4`,
+          reason: `${workspaceLabel(snapshot.mode)}历史生成版本`,
         });
       }
       const local = localSegments[segmentIndex];
@@ -861,6 +947,7 @@ function r3LoadOutputs() {
       }
     }
 
+    if (!isCurrent()) return;
     state.outputs = current.sort((a, b) => a.index - b.index);
     state.outputHistory = history
       .sort((a, b) => new Date(b.row?.created_at || 0) - new Date(a.row?.created_at || 0))
@@ -870,8 +957,134 @@ function r3LoadOutputs() {
     workspace.outputHistory = state.outputHistory;
     workspace.segments = localSegments;
     state.draft.remoteProjectId = projectId;
+    state.r4VerifiedContextKey = `${snapshot.draftId}:${snapshot.mode}`;
+    state.r4VerifiedProjectId = projectId;
     saveCurrentWorkspaceSelection();
   })();
+}
+
+function r4RecoverLatestDriveOutputWhenEmpty(force = false) {
+  return (async () => {
+    if (!state.user?.id || !state.draft?.id) return;
+    const snapshot = r4ContextSnapshot();
+    const contextKey = `${snapshot.draftId}:${snapshot.mode}`;
+    state.r4RecoveryInflight = state.r4RecoveryInflight || new Map();
+    state.r4RecoveryCooldown = state.r4RecoveryCooldown || new Map();
+
+    if ((state.outputs || []).length) return;
+    if (state.r4RecoveryInflight.has(contextKey)) return state.r4RecoveryInflight.get(contextKey);
+    const cooldownUntil = Number(state.r4RecoveryCooldown.get(contextKey) || 0);
+    if (!force && cooldownUntil > Date.now()) return;
+
+    const request = (async () => {
+      try {
+        await loadOutputs();
+        if (!r4ContextIsCurrent(snapshot)) return;
+        renderJobs();
+        if ((state.outputs || []).length) {
+          setTimeout(hydrateProxyVideoElements, 0);
+          if (force) toast('已恢复当前项目视频', '已按当前项目和当前模式从 Google Drive 输出记录恢复。');
+        } else {
+          state.r4RecoveryCooldown.set(contextKey, Date.now() + 10_000);
+          if (force) toast('当前项目暂无可播放视频', '没有找到与当前项目名称、当前模式匹配的 Google Drive 视频。');
+        }
+      } catch (error) {
+        state.r4RecoveryCooldown.set(contextKey, Date.now() + 10_000);
+        console.warn('[Seedance Studio R4] strict drive recover failed', error);
+        if (force && r4ContextIsCurrent(snapshot)) toast('拉取失败', errorMessage(error));
+      }
+    })().finally(() => state.r4RecoveryInflight.delete(contextKey));
+
+    state.r4RecoveryInflight.set(contextKey, request);
+    return request;
+  })();
+}
+
+function r4RenderJobs() {
+  if (!state.draft) return;
+  const mode = r4ModeKey(state.draft.mode);
+  const workspace = getWorkspace(state.draft, mode);
+  const strictProjectId = workspace.remoteProjectId || state.draft.remoteProjectId || null;
+  const contextKey = `${state.draft.id}:${mode}:${strictProjectId || 'unbound'}`;
+  const outputsList = $('outputs-list');
+
+  if (renderJobs.lastContextKey !== contextKey) {
+    renderJobs.lastContextKey = contextKey;
+    renderJobs.lastOutputMarkup = null;
+    if (outputsList) outputsList.innerHTML = '';
+  }
+
+  const belongs = output => Boolean(
+    strictProjectId &&
+    (output?.projectId || output?.row?.project_id) === strictProjectId &&
+    (!output?.mode || r4ModeKey(output.mode) === mode)
+  );
+  state.outputs = (state.outputs || []).filter(belongs);
+  state.outputHistory = (state.outputHistory || []).filter(belongs);
+
+  const segments = state.draft.segments || [];
+  $('jobs-list').innerHTML = segments.length ? segments.map(s => `
+    <article class="job-card">
+      <div class="job-head">
+        <strong>Segment ${String(s.index + 1).padStart(2, '0')}</strong>
+        <span>${statusText(s.status)}</span>
+      </div>
+      <p>${escapeHtml(s.prompt || '未填写提示词')}</p>
+      ${jobStageMarkup(s)}
+      ${s.providerTaskId ? '<p class="task-id">后台任务已记录</p>' : ''}
+      ${s.error ? `<p style="color:#ff8090;white-space:pre-wrap">${escapeHtml(s.error)}</p>` : ''}
+      <div class="job-actions">
+        <button data-sync-output="${s.id}">刷新结果</button>
+        <button data-edit-from-job="${s.id}">重新编辑</button>
+      </div>
+    </article>`).join('') : '<div class="empty-state">暂无生成任务</div>';
+
+  const activeMarkup = renderActiveGenerationCards();
+  const visibleOutputs = currentOutputRows();
+  const historyOutputs = historicalOutputRows();
+  const outputMarkup = [
+    activeMarkup,
+    visibleOutputs.map(o => outputCardMarkup(o, false)).join(''),
+    historyOutputs.length ? `<div class="history-title">当前项目历史输出</div>${historyOutputs.map(o => outputCardMarkup(o, true)).join('')}` : '',
+  ].filter(Boolean).join('');
+  const nextMarkup = outputMarkup || '<div class="empty-state">暂无当前项目视频输出。正在按项目与模式检查 Google Drive 记录...</div>';
+
+  if (renderJobs.lastOutputMarkup !== nextMarkup || !outputsList.childNodes.length) {
+    outputsList.innerHTML = nextMarkup;
+    renderJobs.lastOutputMarkup = nextMarkup;
+  }
+  setTimeout(hydrateProxyVideoElements, 0);
+  if (!outputMarkup) setTimeout(() => recoverLatestDriveOutputWhenEmpty(false), 0);
+
+  qsa('[data-sync-output]').forEach(btn => btn.onclick = async () => {
+    const segmentId = btn.dataset.syncOutput;
+    const oldText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '刷新中...';
+    try {
+      await refreshJobs();
+      if (!r4ContextIsCurrent(r4ContextSnapshot())) return;
+      await recoverSegmentOutput(segmentId);
+      await loadOutputs();
+      saveCurrentWorkspaceSelection();
+      renderAll();
+    } finally {
+      btn.disabled = false;
+      btn.textContent = oldText || '刷新结果';
+    }
+  });
+  qsa('[data-edit-from-job]').forEach(btn => btn.onclick = () => reEditSegment(btn.dataset.editFromJob));
+  qsa('[data-edit-output-segment]').forEach(btn => btn.onclick = () => reEditSegment(btn.dataset.editOutputSegment || findSegmentIdByOutputIndex(btn.dataset.outputIndex)));
+  qsa('[data-download-output]').forEach(link => link.onclick = event => {
+    if (!link.href || link.getAttribute('href') === '#' || link.href.endsWith('#')) {
+      event.preventDefault();
+      toast('视频还没加载完成', '等右侧显示“已通过 Google Drive 代理加载：xx MB”后，再点下载到本地。');
+      return;
+    }
+    const set = downloadedSet();
+    set.add(link.dataset.downloadOutput);
+    saveDownloadedSet(set);
+  });
 }
 
 function renamedFunction(fn, targetName) {
@@ -883,7 +1096,7 @@ function replaceSection(source, startMarker, endMarker, replacement) {
   const start = source.indexOf(startMarker);
   const end = source.indexOf(endMarker, start + startMarker.length);
   if (start < 0 || end < 0 || end <= start) {
-    throw new Error(`v47 补丁无法定位代码区段：${startMarker} → ${endMarker}`);
+    throw new Error(`正式补丁无法定位代码区段：${startMarker} → ${endMarker}`);
   }
   return `${source.slice(0, start)}${replacement}\n\n${source.slice(end)}`;
 }
@@ -915,50 +1128,54 @@ export function patchV46Source(source, { supabaseUrl, dbUrl }) {
     patched,
     'async function recoverLatestDriveOutputWhenEmpty(force = false) {',
     'function renderJobs() {',
-    renamedFunction(v47RecoverLatestDriveOutputWhenEmpty, 'recoverLatestDriveOutputWhenEmpty'),
+    renamedFunction(r4RecoverLatestDriveOutputWhenEmpty, 'recoverLatestDriveOutputWhenEmpty'),
   );
   patched = replaceSection(
     patched,
     'function renderJobs() {',
     'function findSegmentIdByOutputIndex(',
-    renamedFunction(v47RenderJobs, 'renderJobs'),
+    renamedFunction(r4RenderJobs, 'renderJobs'),
   );
   patched = replaceSection(
     patched,
     'async function loadOutputs() {',
     'function startPolling() {',
-    renamedFunction(r3LoadOutputs, 'loadOutputs'),
+    renamedFunction(r4LoadOutputs, 'loadOutputs'),
   );
 
-  const r3Support = [
-    r3ModeKey,
-    r3ResolveCurrentProject,
-    r3TaskScore,
+  const r4Support = [
+    r4ModeKey,
+    r4NormalizeName,
+    r4ChooseProject,
+    r4ContextSnapshot,
+    r4ContextIsCurrent,
+    r4ResolveCurrentProject,
+    r4TaskScore,
   ].map(fn => fn.toString()).join('\n\n');
 
   patched = replaceSection(
     patched,
     'function migrateDraftWorkspaces(draft) {',
     'function getWorkspace(',
-    `${r3Support}\n\n${renamedFunction(r3MigrateDraftWorkspaces, 'migrateDraftWorkspaces')}`,
+    `${r4Support}\n\n${renamedFunction(r4MigrateDraftWorkspaces, 'migrateDraftWorkspaces')}`,
   );
   patched = replaceSection(
     patched,
     'function bindCurrentWorkspace() {',
     'function saveCurrentWorkspaceSelection() {',
-    renamedFunction(r3BindCurrentWorkspace, 'bindCurrentWorkspace'),
+    renamedFunction(r4BindCurrentWorkspace, 'bindCurrentWorkspace'),
   );
   patched = replaceSection(
     patched,
     'function saveCurrentWorkspaceSelection() {',
     'function workspaceLabel(',
-    renamedFunction(r3SaveCurrentWorkspaceSelection, 'saveCurrentWorkspaceSelection'),
+    renamedFunction(r4SaveCurrentWorkspaceSelection, 'saveCurrentWorkspaceSelection'),
   );
   patched = replaceSection(
     patched,
     'async function syncRemoteTasks() {',
     'async function bindProviderTaskAndRecover(',
-    renamedFunction(r3SyncRemoteTasks, 'syncRemoteTasks'),
+    renamedFunction(r4SyncRemoteTasks, 'syncRemoteTasks'),
   );
 
   const originalGenerateSignature = 'async function generateSegments(segmentIds) {';
@@ -981,7 +1198,7 @@ export function patchV46Source(source, { supabaseUrl, dbUrl }) {
       await loadOutputs();
       renderAll();
     } catch (error) {
-      console.warn('[Seedance Studio R3] pre-submit strict sync failed', error);
+      console.warn('[Seedance Studio R4] pre-submit strict sync failed', error);
     }
     const existingTasks = segments.filter(segment =>
       segmentHasExistingTask(segment) ||
@@ -989,7 +1206,7 @@ export function patchV46Source(source, { supabaseUrl, dbUrl }) {
     );
     if (existingTasks.length) {
       const labels = existingTasks.map(segment => \`Segment \${Number(segment.index || 0) + 1}\`).join('、');
-      return toast('已阻止重复提交', \`\${labels} 已存在任务或视频。普通生成不会再次扣费提交；需要新版本时，请先进入“重新编辑”，再明确点击重新提交。\`);
+      return toast('已阻止重复提交', \`\${labels} 已存在任务或视频。普通生成不会再次扣费提交；只有明确重新提交才允许创建新任务。\`);
     }
   }
 `;
@@ -1008,7 +1225,7 @@ export function patchV46Source(source, { supabaseUrl, dbUrl }) {
   return `${patched}\n//# sourceURL=seedance/app-production-runtime.js\n`;
 }
 
-export async function bootV47() {
+export async function bootProduction() {
   const originalUrl = new URL(`${ORIGINAL_FILE}?v=${ORIGINAL_BUILD}`, import.meta.url);
   const supabaseUrl = new URL('../supabase-config.js', import.meta.url).href;
   const dbUrl = new URL('./db.js', import.meta.url).href;
@@ -1027,8 +1244,8 @@ export async function bootV47() {
 }
 
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-  bootV47().catch(error => {
-    console.error('[Seedance Studio R3] boot failed', error);
+  bootProduction().catch(error => {
+    console.error('[Seedance Studio R4] boot failed', error);
     const box = document.createElement('div');
     box.style.cssText = 'position:fixed;inset:20px;z-index:99999;background:#220b12;color:#fff;border:1px solid #ff6075;border-radius:14px;padding:20px;font:14px/1.6 system-ui;overflow:auto';
     box.innerHTML = `<strong>Seedance 正式修复版启动失败</strong><br>${String(error?.message || error).replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]))}<br><br>请确认 seedance/app-v46.js 仍保留原文件，并且 ai-assistant.html 加载的是 seedance/app.js。`;
