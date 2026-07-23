@@ -1,7 +1,7 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260722-fix-empty-binding-early-return-v42';
+const APP_BUILD = '20260723-drive-first-recover-v44';
 const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v5-blackbar-2p49-force-reupload';
 const SEEDANCE_VIDEO_PROXY_URL = 'https://supffjeeouibhqdfqosk.supabase.co/functions/v1/seedance-video-proxy';
 console.log('[Seedance Studio]', APP_BUILD);
@@ -1305,7 +1305,7 @@ function outputCardMarkup(o, historical = false) {
     ? `Segment ${String(Number(o.index || 0) + 1).padStart(2,'0')} · 历史版本`
     : `Segment ${String(Number(o.index || 0) + 1).padStart(2,'0')} · 已完成`;
   const key = outputKey(o);
-  const isArkOutput = o.storageMode === 'ark-temp' || o.providerTaskId;
+  const isArkOutput = o.storageMode === 'ark-temp' || o.storageMode === 'ark-proxy' || o.storageMode === 'google-drive-proxy' || o.providerTaskId || o.googleDriveFileId;
   const directUrl = isArkOutput ? '' : (o.url || '');
 
   return `
@@ -1349,6 +1349,9 @@ function keepOnlyCurrentProjectOutputs() {
   if (!currentProjectId) return;
 
   const belongsToCurrentProject = output => {
+    // v44：兜底找回的视频已经挂回当前单片段项目，
+    // 不允许被旧/错的本地 remoteProjectId 再过滤掉。
+    if (output?.forceRecovered) return true;
     const rowProjectId = output?.row?.project_id || output?.projectId || null;
     if (!rowProjectId) return true;
     return rowProjectId === currentProjectId;
@@ -2408,7 +2411,21 @@ async function recoverSegmentOutput(segmentId) {
     return;
   }
   if (!segment.remoteTaskId && !segment.providerTaskId) {
-    toast('缺少 Ark Task ID', '本地没有保存 cgt-...，请点“输入Task找回”，把火山 Ark 任务记录里的 Task ID 粘贴进来。');
+    // v44：已经接入 Google Drive 存储后，用户不应该知道 Task ID。
+    // 本地绑定丢失时，直接从 video_outputs / Google Drive 记录里兜底找回。
+    await loadOutputs();
+    saveCurrentWorkspaceSelection();
+    renderAll();
+
+    const hasOutput = (state.outputs || []).some(output =>
+      Number(output.index) === Number(segment.index) || output.segmentId === segment.id
+    );
+
+    if (hasOutput) {
+      toast('已找回视频', '已从云端输出记录恢复到右侧视频区。');
+    } else {
+      toast('暂未找到视频', '云盘有文件但页面还未匹配到输出记录，请再刷新一次或检查 video_outputs。');
+    }
     return;
   }
 
@@ -2641,14 +2658,14 @@ async function loadOutputs() {
     // 没有任何本地绑定时，不管状态文本是否被本地化，都允许查最近成功输出；
     // 有本地绑定时，仍然要求当前片段看起来已完成，避免误挂别的项目。
     if (looksFinished || !hasLocalBinding) {
-      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      // v44：Google Drive 是长期存储，不再限制最近 24 小时。
+      // 本地绑定丢失时，从当前账号全部输出里找最新候选。
       const { data: latestRows, error: latestError } = await supabase
         .from('video_outputs')
         .select('*')
         .eq('owner_id', state.user.id)
-        .gte('created_at', since)
         .order('created_at', { ascending: false })
-        .limit(5);
+        .limit(50);
 
       if (latestError) {
         console.warn('loadOutputs latest fallback failed', latestError);
@@ -2738,6 +2755,8 @@ async function loadOutputs() {
       remoteSegmentId: row.segment_id || null,
       index: segmentIndex,
       promptSnapshot: segment?.prompt || '',
+      forceRecovered: forcedCurrentOutput,
+      googleDriveFileId: googleDriveFileId || null,
     };
 
     // 只要 output 已经有真实视频 URL，就把本地片段状态改成完成，
