@@ -1,7 +1,7 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260722-provider-authoritative-output-v38';
+const APP_BUILD = '20260722-autoplay-batch-merge-v39';
 const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v5-blackbar-2p49-force-reupload';
 const SEEDANCE_VIDEO_PROXY_URL = 'https://supffjeeouibhqdfqosk.supabase.co/functions/v1/seedance-video-proxy';
 console.log('[Seedance Studio]', APP_BUILD);
@@ -15,6 +15,7 @@ const state = {
   currentView: 'quick',
   objectUrls: new Map(),
   outputBlobUrls: new Map(),
+  outputBlobs: new Map(),
   jobs: [],
   outputs: [],
   outputHistory: [],
@@ -1275,6 +1276,7 @@ async function hydrateProxyVideoElements() {
     try {
       const blob = await fetchVideoBlobThroughProxy(output);
       const objectUrl = URL.createObjectURL(blob);
+      state.outputBlobs.set(key, blob);
       state.outputBlobUrls.set(key, objectUrl);
 
       video.src = objectUrl;
@@ -2132,28 +2134,127 @@ async function resubmitSegment(segmentId) {
 }
 
 
+
+function isSegmentSuccess(segment) {
+  return ['succeeded','completed','success'].includes(String(segment?.status || '').toLowerCase());
+}
+
+function isSegmentFailed(segment) {
+  return ['failed','error','cancelled','canceled'].includes(String(segment?.status || '').toLowerCase());
+}
+
+function outputMatchesSegment(output, segment) {
+  if (!output || !segment) return false;
+  return (
+    (output.segmentId && output.segmentId === segment.id) ||
+    (output.remoteSegmentId && segment.remoteSegmentId && output.remoteSegmentId === segment.remoteSegmentId) ||
+    (output.providerTaskId && segment.providerTaskId && output.providerTaskId === segment.providerTaskId) ||
+    (output.taskId && segment.remoteTaskId && output.taskId === segment.remoteTaskId) ||
+    Number(output.index) === Number(segment.index)
+  );
+}
+
+function outputForSegment(segment) {
+  return (state.outputs || []).find(output => outputMatchesSegment(output, segment));
+}
+
+async function waitForSegmentOutputThenContinue(segment, timeoutMs = 18 * 60 * 1000) {
+  const startedAt = Date.now();
+  let lastToastAt = 0;
+
+  while (Date.now() - startedAt < timeoutMs) {
+    try {
+      await refreshSingleSegment(segment.id);
+    } catch (error) {
+      console.warn('[Seedance Studio] wait refresh failed', error);
+    }
+
+    try {
+      await loadOutputs();
+    } catch (error) {
+      console.warn('[Seedance Studio] wait load output failed', error);
+    }
+
+    const output = outputForSegment(segment);
+    if (output || isSegmentSuccess(segment)) {
+      segment.status = 'succeeded';
+      segment.progress = 100;
+      segment.error = null;
+      renderAll();
+      await persist();
+      return output || true;
+    }
+
+    if (isSegmentFailed(segment)) {
+      throw new Error(segment.error || `Segment ${segment.index + 1} 生成失败`);
+    }
+
+    const elapsed = Math.round((Date.now() - startedAt) / 1000);
+    segment.error = `已提交，等待本段生成完成后自动继续下一段... ${elapsed}s`;
+    segment.progress = Math.max(Number(segment.progress || 0), 20);
+    renderAll();
+    await persist();
+
+    if (Date.now() - lastToastAt > 60000) {
+      lastToastAt = Date.now();
+      toast(`等待 Segment ${segment.index + 1}`, '本段完成后会自动提交下一段，不需要手动点。');
+    }
+
+    await sleep(10000);
+  }
+
+  throw new Error(`Segment ${segment.index + 1} 等待生成超时，请稍后点“刷新结果”。`);
+}
+
+async function blobForOutput(output) {
+  const key = outputKey(output);
+  if (key && state.outputBlobs?.has(key)) return state.outputBlobs.get(key);
+
+  const blob = await fetchVideoBlobThroughProxy(output);
+  if (!blob?.size) throw new Error('视频文件为空，无法合并');
+
+  if (key) {
+    state.outputBlobs.set(key, blob);
+    if (!state.outputBlobUrls.has(key)) {
+      state.outputBlobUrls.set(key, URL.createObjectURL(blob));
+    }
+  }
+
+  return blob;
+}
+
+
 async function generateSegments(segmentIds) {
   if (state.isGenerating) return toast('任务正在提交', '请等待当前提交完成后再操作。');
-  const segments = state.draft.segments.filter(s => segmentIds.includes(s.id));
-  if (!segments.length) return toast('没有可生成片段', state.draft.mode === 'text_only' ? '请先填写文字描述。' : '首尾帧/多帧请先上传至少两张图片；纯文字模式请填写描述。');
+
+  const segments = state.draft.segments
+    .filter(s => segmentIds.includes(s.id))
+    .sort((a, b) => Number(a.index || 0) - Number(b.index || 0));
+
+  if (!segments.length) {
+    return toast('没有可生成片段', state.draft.mode === 'text_only' ? '请先填写文字描述。' : '首尾帧/多帧请先上传至少两张图片；纯文字模式请填写描述。');
+  }
 
   let resetCount = 0;
   segments.forEach(segment => {
     if (prepareSegmentForEditorSubmit(segment)) resetCount += 1;
   });
+
   if (resetCount) {
     state.outputs = (state.outputs || []).filter(isOutputCurrentForSegment);
     saveCurrentWorkspaceSelection();
     renderAll();
     await persist();
   }
+
   const invalid = segments.find(s => !s.prompt.trim());
   if (invalid) {
     state.selectedSegmentId = invalid.id;
     setView('editor');
     renderEditor();
-    return toast('提示词未填写', `请先填写 Segment ${invalid.index+1} 的提示词。`);
+    return toast('提示词未填写', `请先填写 Segment ${invalid.index + 1} 的提示词。`);
   }
+
   if (state.draft.mode === 'text_only') {
     const refs = commitTextReferenceAssets();
     try {
@@ -2162,21 +2263,36 @@ async function generateSegments(segmentIds) {
       return toast('参考素材缺失', errorMessage(error));
     }
   }
-  if (!await confirmBox('确认提交真实任务', `将提交 ${segments.length} 个视频片段。为避免 Ark 连接超时，多帧会逐段提交，可能产生 Ark API 费用。`)) return;
+
+  const isBatch = segments.length > 1;
+  const confirmMessage = isBatch
+    ? `将按顺序生成 ${segments.length} 个片段：上一段成功出视频后，自动提交下一段，避免你一个个点。`
+    : `将提交 1 个视频片段，可能产生 Ark API 费用。`;
+
+  if (!await confirmBox('确认提交真实任务', confirmMessage)) return;
 
   state.isGenerating = true;
   const generateAllButton = $('generate-all');
   if (generateAllButton) {
     generateAllButton.disabled = true;
-    generateAllButton.textContent = '正在提交...';
+    generateAllButton.textContent = isBatch ? '自动生成中...' : '正在提交...';
   }
+
   setView('jobs');
 
   try {
-    segments.forEach(s => { s.status = 'preparing'; s.progress = 1; s.error = null; s.remoteTaskId = null; s.providerTaskId = null; s.remoteSegmentId = null; s.outputPath = null; });
-    // 强制当前要生成的帧重新上传。旧版本曾把 3:1 原图直接传给 Ark，导致 image_url 比例 3.00 报错。
-    // 重新上传会走 makeArkSafeFrameBlob，把超宽图自动补边到 Seedance 可接受比例。
-    const forceFrameIds = new Set(segments.flatMap(s => [s.fromFrameId, s.toFrameId]));
+    segments.forEach(s => {
+      s.status = 'preparing';
+      s.progress = 1;
+      s.error = null;
+      s.remoteTaskId = null;
+      s.providerTaskId = null;
+      s.remoteSegmentId = null;
+      s.outputPath = null;
+      s.outputUrl = null;
+    });
+
+    const forceFrameIds = new Set(segments.flatMap(s => [s.fromFrameId, s.toFrameId]).filter(Boolean));
     state.draft.frames.forEach(frame => {
       if (forceFrameIds.has(frame.id)) {
         frame.remoteAssetId = null;
@@ -2185,50 +2301,63 @@ async function generateSegments(segmentIds) {
         frame.wasAspectPadded = false;
       }
     });
+
     renderAll();
     await persist();
     await uploadNeededFrames(segmentIds);
 
-    const queue = [...segments];
-    const workers = Array.from({ length: Math.min(1, queue.length) }, async () => {
-      while (queue.length) {
-        const segment = queue.shift();
-        try {
-          segment.status = 'submitting';
-          segment.progress = 14;
-          renderJobs();
-          await submitOne(segment);
-        } catch (error) {
-          segment.status = 'failed';
-          segment.progress = 0;
-          segment.error = errorMessage(error, '提交失败');
-        }
-        await persist();
-        renderAll();
-      }
-    });
-    await Promise.all(workers);
+    let successCount = 0;
+    let failedCount = 0;
 
-    await refreshJobs();
-    const successCount = segments.filter(s => ['queued','running','processing','succeeded','completed','success'].includes(s.status)).length;
-    const failedCount = segments.filter(s => s.status === 'failed').length;
-    if (successCount) {
-      toast('真实任务已提交', `${successCount} 段已进入 Seedance；${failedCount ? `${failedCount} 段失败。` : '正在自动查询状态。'}`);
-      startPolling();
-    } else {
-      toast('提交失败', segments[0]?.error || '所有片段均未提交成功');
-    }
-  } catch (error) {
-    const message = errorMessage(error, '提交失败');
-    segments.forEach(segment => {
-      if (['preparing','uploading','submitting','submitted','queued'].includes(segment.status)) {
+    for (const segment of segments) {
+      try {
+        segment.status = 'submitting';
+        segment.progress = Math.max(Number(segment.progress || 0), 14);
+        segment.error = isBatch
+          ? `正在自动提交 Segment ${segment.index + 1}/${segments.length}...`
+          : null;
+        renderAll();
+        await persist();
+
+        await submitOne(segment);
+
+        if (isBatch) {
+          segment.error = `已提交，等待本段完成后自动生成下一段...`;
+          renderAll();
+          await persist();
+          await waitForSegmentOutputThenContinue(segment);
+        }
+
+        successCount += 1;
+      } catch (error) {
+        failedCount += 1;
         segment.status = 'failed';
         segment.progress = 0;
-        segment.error = message;
+        segment.error = errorMessage(error, '提交失败');
+        renderAll();
+        await persist();
+
+        if (isBatch) {
+          toast('自动生成已暂停', `Segment ${segment.index + 1} 失败，后续片段不会继续扣费提交。`);
+          break;
+        }
       }
-    });
-    await persist();
-    renderAll();
+    }
+
+    await refreshJobs();
+
+    if (isBatch) {
+      if (failedCount) toast('自动生成暂停', `已成功 ${successCount} 段，失败 ${failedCount} 段。`);
+      else toast('自动生成完成', `${successCount} 个片段已全部生成完成，可以合并长视频。`);
+    } else {
+      const current = segments[0];
+      if (isSegmentFailed(current)) toast('提交失败', current.error || '请查看任务卡片。');
+      else toast('任务已提交', '生成完成后会自动出现在右侧输出区。');
+      startPolling();
+    }
+  } catch (error) {
+    const message = errorMessage(error, '生成失败');
+    console.error(error);
     toast('提交失败', message);
   } finally {
     state.isGenerating = false;
@@ -2739,49 +2868,91 @@ function startPolling() {
 
 async function mergeAll() {
   await loadOutputs();
-  const ordered = [...state.outputs].sort((a,b)=>a.index-b.index);
+  const ordered = [...state.outputs].sort((a, b) => a.index - b.index);
+
   if (ordered.length !== state.draft.segments.length || !ordered.length) {
     return toast('暂不能合并', '必须等待全部片段成功生成。');
   }
-  if (!await confirmBox('浏览器内合并', '将下载全部片段并使用 FFmpeg WASM 统一尺寸后拼接。长视频可能占用较多内存。')) return;
+
+  if (ordered.length === 1) {
+    try {
+      $('merge-all').disabled = true;
+      $('merge-all').textContent = '正在下载片段...';
+      const blob = await blobForOutput(ordered[0]);
+      const url = URL.createObjectURL(blob);
+      triggerLocalDownload(url, `${safeFilename(state.draft.name || 'seedance-project')}-${Date.now()}.mp4`);
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      return toast('已下载视频', '当前只有 1 个片段，不需要拼接，已下载原视频。');
+    } catch (error) {
+      return toast('下载失败', errorMessage(error));
+    } finally {
+      $('merge-all').disabled = false;
+      $('merge-all').textContent = '合并长视频';
+    }
+  }
+
+  if (!await confirmBox('合并长视频', '将通过服务端代理下载全部片段，再在浏览器里统一尺寸并拼接。这个过程可能需要几分钟，请不要关闭页面。')) return;
+
   $('merge-all').disabled = true;
   $('merge-all').textContent = '正在加载合并引擎...';
+
   try {
     const [{ FFmpeg }, { fetchFile, toBlobURL }] = await Promise.all([
       import('https://esm.sh/@ffmpeg/ffmpeg@0.12.10'),
       import('https://esm.sh/@ffmpeg/util@0.12.1'),
     ]);
+
     const ffmpeg = new FFmpeg();
     const base = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
     await ffmpeg.load({
       coreURL: await toBlobURL(`${base}/ffmpeg-core.js`, 'text/javascript'),
       wasmURL: await toBlobURL(`${base}/ffmpeg-core.wasm`, 'application/wasm'),
     });
+
     const width = Number(state.draft.finalWidth);
     const height = Number(state.draft.finalHeight);
+
     for (let i = 0; i < ordered.length; i++) {
-      $('merge-all').textContent = `处理片段 ${i+1}/${ordered.length}`;
-      await ffmpeg.writeFile(`in${i}.mp4`, await fetchFile(ordered[i].url));
+      $('merge-all').textContent = `下载片段 ${i + 1}/${ordered.length}`;
+      const blob = await blobForOutput(ordered[i]);
+
+      $('merge-all').textContent = `处理片段 ${i + 1}/${ordered.length}`;
+      await ffmpeg.writeFile(`in${i}.mp4`, await fetchFile(blob));
+
       const vf = state.draft.fitMode === 'cover'
         ? `scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height}`
         : `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:black`;
-      await ffmpeg.exec(['-i',`in${i}.mp4`,'-vf',vf,'-r','30','-c:v','libx264','-preset','ultrafast','-crf','23','-an',`norm${i}.mp4`]);
+
+      await ffmpeg.exec([
+        '-i', `in${i}.mp4`,
+        '-vf', vf,
+        '-r', '30',
+        '-c:v', 'libx264',
+        '-preset', 'ultrafast',
+        '-crf', '23',
+        '-pix_fmt', 'yuv420p',
+        '-an',
+        `norm${i}.mp4`,
+      ]);
     }
-    const concatText = ordered.map((_,i)=>`file 'norm${i}.mp4'`).join('\n');
+
+    const concatText = ordered.map((_, i) => `file 'norm${i}.mp4'`).join('\n');
     await ffmpeg.writeFile('concat.txt', new TextEncoder().encode(concatText));
+
     $('merge-all').textContent = '正在拼接...';
-    await ffmpeg.exec(['-f','concat','-safe','0','-i','concat.txt','-c','copy','final.mp4']);
+    await ffmpeg.exec(['-f', 'concat', '-safe', '0', '-i', 'concat.txt', '-c', 'copy', 'final.mp4']);
+
     const data = await ffmpeg.readFile('final.mp4');
-    const blob = new Blob([data.buffer], { type:'video/mp4' });
+    const blob = new Blob([data.buffer], { type: 'video/mp4' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${state.draft.name || 'seedance-project'}-${Date.now()}.mp4`;
-    a.click();
-    setTimeout(()=>URL.revokeObjectURL(url), 60000);
+
+    triggerLocalDownload(url, `${safeFilename(state.draft.name || 'seedance-project')}-${Date.now()}.mp4`);
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+
     toast('合并完成', '最终长视频已经开始下载。');
   } catch (error) {
-    toast('合并失败', error.message || String(error));
+    console.error('[Seedance Studio] merge failed', error);
+    toast('合并失败', errorMessage(error));
   } finally {
     $('merge-all').disabled = false;
     $('merge-all').textContent = '合并长视频';
