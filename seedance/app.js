@@ -1,7 +1,7 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260723-drive-first-recover-v44';
+const APP_BUILD = '20260723-final-drive-dom-fallback-v45';
 const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v5-blackbar-2p49-force-reupload';
 const SEEDANCE_VIDEO_PROXY_URL = 'https://supffjeeouibhqdfqosk.supabase.co/functions/v1/seedance-video-proxy';
 console.log('[Seedance Studio]', APP_BUILD);
@@ -23,6 +23,8 @@ const state = {
   referenceAssets: [],
   pollTimer: null,
   isGenerating: false,
+  driveFallbackLoading: false,
+  driveFallbackDoneForDraftId: null,
 };
 
 const $ = id => document.getElementById(id);
@@ -1367,6 +1369,116 @@ function keepOnlyCurrentProjectOutputs() {
 }
 
 
+
+async function recoverLatestDriveOutputWhenEmpty() {
+  if (state.driveFallbackLoading) return;
+  if (!state.user?.id || !state.draft?.id) return;
+
+  const segments = state.draft?.segments || [];
+  if (segments.length !== 1) return;
+
+  const segment = segments[0];
+  const looksDone = Number(segment.progress || 0) >= 100 ||
+    ['succeeded','completed','success'].includes(String(segment.status || '').toLowerCase());
+
+  if (!looksDone) return;
+  if ((state.outputs || []).length) return;
+  if (state.driveFallbackDoneForDraftId === state.draft.id) return;
+
+  state.driveFallbackLoading = true;
+  state.driveFallbackDoneForDraftId = state.draft.id;
+
+  try {
+    console.log('[Seedance Studio] v45 drive fallback start', {
+      draftId: state.draft.id,
+      name: state.draft.name,
+      mode: state.draft.mode,
+      segmentId: segment.id,
+    });
+
+    const { data, error } = await supabase
+      .from('video_outputs')
+      .select('*')
+      .eq('owner_id', state.user.id)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) {
+      console.warn('[Seedance Studio] v45 drive fallback query failed', error);
+      return;
+    }
+
+    const rows = data || [];
+    const row = rows.find(item => {
+      const meta = item.metadata || {};
+      const providerTaskId = providerTaskIdFromOutputRow(item, meta);
+      const driveFileId = meta.google_drive_file_id || meta.googleDriveFileId || meta.drive_file_id || meta.driveFileId || null;
+      const hasUrl = Boolean(outputVideoUrlFromMetadata(meta));
+      const isArkPath = String(item.storage_path || '').startsWith('ark://') || item.bucket_id === 'ark-url';
+      return hasUrl || driveFileId || providerTaskId || isArkPath;
+    });
+
+    if (!row) {
+      console.warn('[Seedance Studio] v45 drive fallback found no usable output', rows);
+      return;
+    }
+
+    const meta = row.metadata || {};
+    const providerTaskId = providerTaskIdFromOutputRow(row, meta);
+    const googleDriveFileId = meta.google_drive_file_id || meta.googleDriveFileId || meta.drive_file_id || meta.driveFileId || null;
+    const providerUrl = outputVideoUrlFromMetadata(meta);
+
+    const output = {
+      row,
+      url: providerUrl || `seedance-proxy://${providerTaskId || googleDriveFileId || row.id}`,
+      storageMode: providerUrl ? 'ark-temp' : (googleDriveFileId ? 'google-drive-proxy' : 'ark-proxy'),
+      providerTaskId,
+      taskId: row.task_id || null,
+      segmentId: segment.id,
+      remoteSegmentId: row.segment_id || null,
+      index: 0,
+      promptSnapshot: segment.prompt || '',
+      forceRecovered: true,
+      googleDriveFileId: googleDriveFileId || null,
+    };
+
+    state.outputs = [output];
+
+    segment.status = 'succeeded';
+    segment.progress = 100;
+    segment.error = null;
+    if (providerTaskId) segment.providerTaskId = providerTaskId;
+    if (row.task_id) segment.remoteTaskId = row.task_id;
+    if (row.segment_id) segment.remoteSegmentId = row.segment_id;
+
+    if (row.project_id) {
+      state.draft.remoteProjectId = row.project_id;
+      const workspace = getWorkspace();
+      workspace.remoteProjectId = row.project_id;
+    }
+
+    saveCurrentWorkspaceSelection();
+    await persist();
+
+    console.log('[Seedance Studio] v45 drive fallback recovered output', {
+      providerTaskId,
+      googleDriveFileId,
+      outputId: row.id,
+      projectId: row.project_id,
+      storagePath: row.storage_path,
+    });
+
+    renderJobs();
+    setTimeout(hydrateProxyVideoElements, 0);
+    toast('已找回云盘视频', '已从 Google Drive / 云端输出记录恢复到右侧视频区。');
+  } catch (error) {
+    console.warn('[Seedance Studio] v45 drive fallback failed', error);
+  } finally {
+    state.driveFallbackLoading = false;
+  }
+}
+
+
 function renderJobs() {
   keepOnlyCurrentProjectOutputs();
 
@@ -1395,8 +1507,9 @@ function renderJobs() {
     visibleOutputs.map(o => outputCardMarkup(o, false)).join(''),
     historyOutputs.length ? `<div class="history-title">历史输出</div>${historyOutputs.map(o => outputCardMarkup(o, true)).join('')}` : '',
   ].filter(Boolean).join('');
-  $('outputs-list').innerHTML = outputMarkup || '<div class="empty-state">暂无视频输出。提交后会自动显示真实任务状态和生成结果。</div>';
+  $('outputs-list').innerHTML = outputMarkup || '<div class="empty-state">暂无视频输出。正在检查 Google Drive / 云端输出记录...</div>';
   setTimeout(hydrateProxyVideoElements, 0);
+  if (!outputMarkup) setTimeout(recoverLatestDriveOutputWhenEmpty, 0);
 
   qsa('[data-sync-output]').forEach(btn => btn.onclick = async () => {
     const segmentId = btn.dataset.syncOutput;
