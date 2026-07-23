@@ -1,7 +1,7 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260722-drive-output-render-v41';
+const APP_BUILD = '20260722-fix-empty-binding-early-return-v42';
 const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v5-blackbar-2p49-force-reupload';
 const SEEDANCE_VIDEO_PROXY_URL = 'https://supffjeeouibhqdfqosk.supabase.co/functions/v1/seedance-video-proxy';
 console.log('[Seedance Studio]', APP_BUILD);
@@ -2526,10 +2526,11 @@ async function loadOutputs() {
   const taskByProviderId = new Map();
   const forcedCurrentOutputIds = new Set();
 
-  if (!currentProjectId && !taskIds.size && !segmentIds.size && !providerIds.size) {
-    state.outputs = [];
-    return;
-  }
+  // v42：不要在这里提前 return。
+  // 本地草稿经过回滚后可能没有 remoteProjectId / taskId / providerTaskId，
+  // 但数据库和 Google Drive 里已经有最近成功输出。
+  // 必须继续往下走最新输出兜底逻辑，否则“未命名项目”永远找不回视频。
+  const hasLocalBinding = Boolean(currentProjectId || taskIds.size || segmentIds.size || providerIds.size);
 
   async function collect(query) {
     const { data, error } = await query;
@@ -2636,7 +2637,10 @@ async function loadOutputs() {
   if (segments.length === 1) {
     const onlySegment = segments[0];
     const looksFinished = ['succeeded','completed','success'].includes(String(onlySegment?.status || '').toLowerCase()) || Number(onlySegment?.progress || 0) >= 100;
-    if (looksFinished) {
+
+    // 没有任何本地绑定时，不管状态文本是否被本地化，都允许查最近成功输出；
+    // 有本地绑定时，仍然要求当前片段看起来已完成，避免误挂别的项目。
+    if (looksFinished || !hasLocalBinding) {
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data: latestRows, error: latestError } = await supabase
         .from('video_outputs')
@@ -2644,7 +2648,7 @@ async function loadOutputs() {
         .eq('owner_id', state.user.id)
         .gte('created_at', since)
         .order('created_at', { ascending: false })
-        .limit(3);
+        .limit(5);
 
       if (latestError) {
         console.warn('loadOutputs latest fallback failed', latestError);
