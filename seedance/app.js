@@ -1,7 +1,7 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260722-recover-latest-and-merge-worker-v40';
+const APP_BUILD = '20260722-drive-output-render-v41';
 const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v5-blackbar-2p49-force-reupload';
 const SEEDANCE_VIDEO_PROXY_URL = 'https://supffjeeouibhqdfqosk.supabase.co/functions/v1/seedance-video-proxy';
 console.log('[Seedance Studio]', APP_BUILD);
@@ -1206,6 +1206,8 @@ async function fetchVideoBlobThroughProxy(output) {
   const params = new URLSearchParams();
   if (providerTaskId) params.set('provider_task_id', providerTaskId);
   if (taskId) params.set('task_id', taskId);
+  const driveFileId = output?.row?.metadata?.google_drive_file_id || output?.googleDriveFileId || '';
+  if (driveFileId) params.set('google_drive_file_id', driveFileId);
 
   const response = await fetch(`${SEEDANCE_VIDEO_PROXY_URL}?${params.toString()}`, {
     method: 'GET',
@@ -2628,25 +2630,29 @@ async function loadOutputs() {
     );
   }
 
-  // v40 兜底：有些本地草稿在多次回滚后丢了 remoteProjectId/remoteTaskId/providerTaskId，
-  // 但页面只有一个已完成片段，数据库和 Google Drive 明明有刚生成的视频。
-  // 此时“刷新结果”允许把最近 24 小时内最新的成功输出挂回 Segment 01。
-  if (!rowsById.size && segments.length === 1) {
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const { data: latestRows, error: latestError } = await supabase
-      .from('video_outputs')
-      .select('*')
-      .eq('owner_id', state.user.id)
-      .gte('created_at', since)
-      .order('created_at', { ascending: false })
-      .limit(1);
+  // v41 兜底：本地项目多次回滚后可能没有 remoteProjectId/taskId/providerTaskId。
+  // 只要当前是单片段且已完成，就把最近 24 小时内最新成功 output 拉进来候选。
+  // 后面会强制挂到 Segment 01，用于修复“云盘有文件，右侧没有视频模块”。
+  if (segments.length === 1) {
+    const onlySegment = segments[0];
+    const looksFinished = ['succeeded','completed','success'].includes(String(onlySegment?.status || '').toLowerCase()) || Number(onlySegment?.progress || 0) >= 100;
+    if (looksFinished) {
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data: latestRows, error: latestError } = await supabase
+        .from('video_outputs')
+        .select('*')
+        .eq('owner_id', state.user.id)
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(3);
 
-    if (latestError) {
-      console.warn('loadOutputs latest fallback failed', latestError);
-    } else {
-      for (const row of latestRows || []) {
-        rowsById.set(row.id, row);
-        forcedCurrentOutputIds.add(row.id);
+      if (latestError) {
+        console.warn('loadOutputs latest fallback failed', latestError);
+      } else {
+        for (const row of latestRows || []) {
+          rowsById.set(row.id, row);
+          forcedCurrentOutputIds.add(row.id);
+        }
       }
     }
   }
@@ -2657,6 +2663,9 @@ async function loadOutputs() {
   for (const row of rows) {
     const meta = row.metadata || {};
     const providerUrl = outputVideoUrlFromMetadata(meta);
+
+    const providerTaskId = providerTaskIdFromOutputRow(row, meta);
+    const googleDriveFileId = meta.google_drive_file_id || meta.googleDriveFileId || meta.drive_file_id || meta.driveFileId || null;
 
     let url = providerUrl;
     let storageMode = providerUrl ? 'ark-temp' : 'supabase';
@@ -2669,9 +2678,14 @@ async function loadOutputs() {
       url = signed.data.signedUrl;
     }
 
-    if (!url) continue;
+    // v41：Google Drive 已备份 / ark-url 输出也要允许渲染视频模块。
+    // 这里先放一个内部占位 URL，真正播放时 hydrateVideoElements 会通过 seedance-video-proxy 拉 Blob。
+    if (!url && (providerTaskId || googleDriveFileId || row.bucket_id === 'ark-url' || String(row.storage_path || '').startsWith('ark://'))) {
+      url = `seedance-proxy://${providerTaskId || googleDriveFileId || row.id}`;
+      storageMode = googleDriveFileId ? 'google-drive-proxy' : 'ark-proxy';
+    }
 
-    const providerTaskId = providerTaskIdFromOutputRow(row, meta);
+    if (!url) continue;
     let segmentIndex = segments.findIndex(
       s =>
         (row.segment_id && s.remoteSegmentId === row.segment_id) ||
@@ -2690,13 +2704,12 @@ async function loadOutputs() {
       segmentIndex = 0;
     }
 
-    // v40：最近成功输出兜底命中时，强制挂回单片段项目。
     const forcedCurrentOutput = forcedCurrentOutputIds.has(row.id);
     if (segmentIndex < 0 && forcedCurrentOutput && segments.length === 1) {
       segmentIndex = 0;
     }
 
-    // v38：如果 output 是用当前 Segment 的 providerTaskId 找到的，它就是当前任务的真实输出。
+    // v38/v41：如果 output 是当前 Segment 的 providerTaskId 或单片段兜底找到的，它就是当前任务的真实输出。
     // 不允许被旧 remoteProjectId 过滤掉；同时把本地项目 ID 纠正为数据库里的真实 project_id。
     const exactProviderMatch = Boolean(providerTaskId && providerIds.has(providerTaskId));
     if ((exactProviderMatch || forcedCurrentOutput) && row.project_id && currentProjectId !== row.project_id) {
@@ -2770,90 +2783,49 @@ function startPolling() {
   }, 5000);
 }
 
-
-async function blobForOutput(output) {
-  const key = outputKey(output);
-  if (key && state.outputBlobs?.has(key)) return state.outputBlobs.get(key);
-
-  const blob = await fetchVideoBlobThroughProxy(output);
-  if (!blob?.size) throw new Error('视频文件为空，无法合并');
-
-  if (key) {
-    state.outputBlobs.set(key, blob);
-    if (!state.outputBlobUrls.has(key)) {
-      state.outputBlobUrls.set(key, URL.createObjectURL(blob));
-    }
-  }
-
-  return blob;
-}
-
 async function mergeAll() {
   await loadOutputs();
   const ordered = [...state.outputs].sort((a,b)=>a.index-b.index);
   if (ordered.length !== state.draft.segments.length || !ordered.length) {
     return toast('暂不能合并', '必须等待全部片段成功生成。');
   }
-
-  if (ordered.length === 1) {
-    try {
-      $('merge-all').disabled = true;
-      $('merge-all').textContent = '正在下载视频...';
-      const blob = await blobForOutput(ordered[0]);
-      const url = URL.createObjectURL(blob);
-      triggerLocalDownload(url, `${safeFilename(state.draft.name || 'seedance-project')}-${Date.now()}.mp4`);
-      setTimeout(()=>URL.revokeObjectURL(url), 60000);
-      return toast('已下载视频', '当前只有 1 个片段，不需要拼接，已下载原视频。');
-    } catch (error) {
-      return toast('下载失败', errorMessage(error));
-    } finally {
-      $('merge-all').disabled = false;
-      $('merge-all').textContent = '合并长视频';
-    }
-  }
-
   if (!await confirmBox('浏览器内合并', '将下载全部片段并使用 FFmpeg WASM 统一尺寸后拼接。长视频可能占用较多内存。')) return;
   $('merge-all').disabled = true;
   $('merge-all').textContent = '正在加载合并引擎...';
-
   try {
     const [{ FFmpeg }, { fetchFile, toBlobURL }] = await Promise.all([
       import('https://esm.sh/@ffmpeg/ffmpeg@0.12.10'),
       import('https://esm.sh/@ffmpeg/util@0.12.1'),
     ]);
-
     const ffmpeg = new FFmpeg();
     const ffmpegBase = 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm';
     const coreBase = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
-
     await ffmpeg.load({
       workerURL: await toBlobURL(`${ffmpegBase}/worker.js`, 'text/javascript'),
       coreURL: await toBlobURL(`${coreBase}/ffmpeg-core.js`, 'text/javascript'),
       wasmURL: await toBlobURL(`${coreBase}/ffmpeg-core.wasm`, 'application/wasm'),
     });
-
     const width = Number(state.draft.finalWidth);
     const height = Number(state.draft.finalHeight);
-
     for (let i = 0; i < ordered.length; i++) {
-      $('merge-all').textContent = `下载片段 ${i+1}/${ordered.length}`;
-      const blob = await blobForOutput(ordered[i]);
-
       $('merge-all').textContent = `处理片段 ${i+1}/${ordered.length}`;
-      await ffmpeg.writeFile(`in${i}.mp4`, await fetchFile(blob));
-
+      let inputSource = ordered[i].url;
+      const key = outputKey(ordered[i]);
+      if (key && state.outputBlobs?.has(key)) inputSource = state.outputBlobs.get(key);
+      else if (String(inputSource || '').startsWith('seedance-proxy://')) {
+        inputSource = await fetchVideoBlobThroughProxy(ordered[i]);
+        if (key) state.outputBlobs.set(key, inputSource);
+      }
+      await ffmpeg.writeFile(`in${i}.mp4`, await fetchFile(inputSource));
       const vf = state.draft.fitMode === 'cover'
         ? `scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height}`
         : `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:black`;
-
       await ffmpeg.exec(['-i',`in${i}.mp4`,'-vf',vf,'-r','30','-c:v','libx264','-preset','ultrafast','-crf','23','-pix_fmt','yuv420p','-an',`norm${i}.mp4`]);
     }
-
     const concatText = ordered.map((_,i)=>`file 'norm${i}.mp4'`).join('\n');
     await ffmpeg.writeFile('concat.txt', new TextEncoder().encode(concatText));
     $('merge-all').textContent = '正在拼接...';
     await ffmpeg.exec(['-f','concat','-safe','0','-i','concat.txt','-c','copy','final.mp4']);
-
     const data = await ffmpeg.readFile('final.mp4');
     const blob = new Blob([data.buffer], { type:'video/mp4' });
     const url = URL.createObjectURL(blob);
