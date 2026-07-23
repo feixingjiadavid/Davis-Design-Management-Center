@@ -1,0 +1,130 @@
+name: Seedance Hotfix No Duplicate Submit
+
+on:
+  push:
+    paths:
+      - '.github/workflows/seedance-hotfix-no-duplicate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  hotfix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch app.js and HTML
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          app_path = Path('seedance/app.js')
+          html_path = Path('ai-assistant.html')
+          app = app_path.read_text(encoding='utf-8')
+          html = html_path.read_text(encoding='utf-8')
+
+          app = app.replace(
+              "const APP_BUILD = '20260723-production-app';",
+              "const APP_BUILD = '20260723-production-app-r2-no-duplicate-submit';",
+              1,
+          )
+
+          old_migration_start = "const STRICT_OUTPUT_MIGRATION_KEY = 'seedance_strict_output_migration_20260723_v1';"
+          init_marker = 'async function init() {'
+          start = app.find(old_migration_start)
+          end = app.find(init_marker, start)
+          if start < 0 or end < 0:
+              raise RuntimeError('Could not locate destructive migration block')
+          safe_migration = '''const STRICT_OUTPUT_MIGRATION_KEY = 'seedance_strict_output_migration_20260723_v2_safe';
+
+async function migratePollutedBindingsOnce(drafts) {
+  // 安全迁移：绝不重置任务状态、任务 ID、远程片段 ID 或远程项目 ID。
+  // 远程真实状态由 syncRemoteTasks() 和 loadOutputs() 恢复。
+  localStorage.setItem(STRICT_OUTPUT_MIGRATION_KEY, 'done');
+  return drafts;
+}
+
+'''
+          app = app[:start] + safe_migration + app[end:]
+
+          app = app.replace(
+              'async function generateSegments(segmentIds) {',
+              'async function generateSegments(segmentIds, options = {}) {',
+              1,
+          )
+
+          old_reset = '''  let resetCount = 0;
+  segments.forEach(segment => {
+    if (prepareSegmentForEditorSubmit(segment)) resetCount += 1;
+  });
+  if (resetCount) {
+    state.outputs = (state.outputs || []).filter(isOutputCurrentForSegment);
+    saveCurrentWorkspaceSelection();
+    renderAll();
+    await persist();
+  }
+'''
+          new_guard = '''  // 普通生成前先从 Supabase 恢复真实任务状态，防止本地草稿丢失 ID 后重复扣费提交。
+  if (!options.allowResubmit && state.draft?.remoteProjectId) {
+    try {
+      await syncRemoteTasks();
+      await loadOutputs();
+      saveCurrentWorkspaceSelection();
+      await persist();
+      renderAll();
+    } catch (error) {
+      console.warn('[Seedance Studio] pre-submit remote sync failed', error);
+    }
+  }
+
+  const existingTasks = segments.filter(segmentHasExistingTask);
+  if (existingTasks.length && !options.allowResubmit) {
+    const labels = existingTasks.map(segment => `Segment ${segment.index + 1}`).join('、');
+    return toast(
+      '已阻止重复提交',
+      `${labels} 已经存在生成任务或视频结果。普通生成不会再次提交；确实需要新版本时，请在任务与输出中明确点击“重新提交”。`,
+    );
+  }
+'''
+          if old_reset not in app:
+              raise RuntimeError('Could not locate automatic reset block')
+          app = app.replace(old_reset, new_guard, 1)
+
+          old_resubmit = '  await generateSegments([segment.id]);'
+          new_resubmit = '  await generateSegments([segment.id], { allowResubmit: true });'
+          if old_resubmit not in app:
+              raise RuntimeError('Could not locate explicit resubmit call')
+          app = app.replace(old_resubmit, new_resubmit, 1)
+
+          html = html.replace(
+              './seedance/app.js?v=20260723-production-app',
+              './seedance/app.js?v=20260723-production-app-r2-no-duplicate-submit',
+          )
+
+          app_path.write_text(app, encoding='utf-8')
+          html_path.write_text(html, encoding='utf-8')
+          PY
+
+      - name: Verify hotfix
+        shell: bash
+        run: |
+          cp seedance/app.js /tmp/app.mjs
+          node --check /tmp/app.mjs
+          grep -F "production-app-r2-no-duplicate-submit" seedance/app.js
+          grep -F "已阻止重复提交" seedance/app.js
+          grep -F "allowResubmit: true" seedance/app.js
+          ! grep -F "segment.status = 'draft';" <(sed -n '/migratePollutedBindingsOnce/,/async function init/p' seedance/app.js)
+          grep -F './seedance/app.js?v=20260723-production-app-r2-no-duplicate-submit' ai-assistant.html
+
+      - name: Commit and clean workflow
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add seedance/app.js ai-assistant.html
+          git rm -f .github/workflows/seedance-hotfix-no-duplicate.yml
+          git commit -m 'fix(seedance): prevent duplicate paid submissions and preserve task state'
+          git push
