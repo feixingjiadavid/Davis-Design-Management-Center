@@ -1,7 +1,7 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260723-google-drive-only-output-v46';
+const APP_BUILD = '20260723-production-app';
 const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v5-blackbar-2p49-force-reupload';
 const SEEDANCE_VIDEO_PROXY_URL = 'https://supffjeeouibhqdfqosk.supabase.co/functions/v1/seedance-video-proxy';
 console.log('[Seedance Studio]', APP_BUILD);
@@ -1208,118 +1208,168 @@ function outputKey(o) {
   ).trim();
 }
 
-async function fetchVideoBlobThroughProxy(output) {
-  const outputId = output?.outputId || output?.row?.id || '';
-  const providerTaskId = output?.providerTaskId || '';
-  const taskId = output?.taskId || '';
-  const driveFileId = output?.row?.metadata?.google_drive_file_id || output?.googleDriveFileId || '';
+function fetchVideoBlobThroughProxy(output) {
+  return (async () => {
+    const outputId = output?.outputId || output?.row?.id || '';
+    const providerTaskId = output?.providerTaskId || '';
+    const taskId = output?.taskId || '';
+    const driveFileId = output?.row?.metadata?.google_drive_file_id || output?.googleDriveFileId || '';
 
-  if (!outputId && !driveFileId && !providerTaskId && !taskId) {
-    throw new Error('缺少 output_id / Google Drive file_id，无法通过代理拉取视频');
-  }
-
-  const token = await getAccessToken();
-  const params = new URLSearchParams();
-  if (outputId) params.set('output_id', outputId);
-  if (driveFileId) params.set('google_drive_file_id', driveFileId);
-  if (providerTaskId) params.set('provider_task_id', providerTaskId);
-  if (taskId) params.set('task_id', taskId);
-
-  const response = await fetch(`${SEEDANCE_VIDEO_PROXY_URL}?${params.toString()}`, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  const contentType = response.headers.get('content-type') || '';
-  if (!response.ok) {
-    let detail = '';
-    try {
-      const json = await response.json();
-      detail = json.message || json.error || JSON.stringify(json);
-    } catch {
-      detail = await response.text().catch(() => '');
+    if (!outputId && !driveFileId && !providerTaskId && !taskId) {
+      throw new Error('缺少 output_id / Google Drive file_id，无法通过代理拉取视频');
     }
-    throw new Error(detail || `视频代理返回 HTTP ${response.status}`);
-  }
 
-  if (!contentType.includes('video') && !contentType.includes('octet-stream')) {
-    let detail = '';
+    const token = await getAccessToken();
+    const params = new URLSearchParams();
+    if (outputId) params.set('output_id', outputId);
+    if (driveFileId) params.set('google_drive_file_id', driveFileId);
+    if (providerTaskId) params.set('provider_task_id', providerTaskId);
+    if (taskId) params.set('task_id', taskId);
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 120000);
+    let response;
     try {
-      const json = await response.json();
-      detail = json.message || json.error || JSON.stringify(json);
-    } catch {
-      detail = await response.text().catch(() => '');
+      response = await fetch(`${SEEDANCE_VIDEO_PROXY_URL}?${params.toString()}`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
+      });
+    } catch (error) {
+      const wrapped = new Error(error?.name === 'AbortError' ? '视频代理加载超时' : errorMessage(error, '视频代理请求失败'));
+      wrapped.status = 0;
+      throw wrapped;
+    } finally {
+      clearTimeout(timer);
     }
-    throw new Error(detail || '视频代理没有返回 MP4 文件');
-  }
 
-  const blob = await response.blob();
-  if (!blob.size) throw new Error('代理返回了空视频文件');
-  return blob;
+    const contentType = response.headers.get('content-type') || '';
+    if (!response.ok) {
+      let detail = '';
+      try {
+        const json = await response.json();
+        detail = json.message || json.error || JSON.stringify(json);
+      } catch {
+        detail = await response.text().catch(() => '');
+      }
+      const error = new Error(detail || `视频代理返回 HTTP ${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
+
+    if (!contentType.includes('video') && !contentType.includes('octet-stream')) {
+      let detail = '';
+      try {
+        const json = await response.json();
+        detail = json.message || json.error || JSON.stringify(json);
+      } catch {
+        detail = await response.text().catch(() => '');
+      }
+      const error = new Error(detail || '视频代理没有返回 MP4 文件');
+      error.status = response.status;
+      throw error;
+    }
+
+    const blob = await response.blob();
+    if (!blob.size) {
+      const error = new Error('代理返回了空视频文件');
+      error.status = response.status;
+      throw error;
+    }
+    return blob;
+  })();
 }
 
-async function hydrateProxyVideoElements() {
-  const videos = qsa('video[data-output-id], video[data-provider-task-id]');
-  for (const video of videos) {
-    if (video.dataset.proxyLoading === '1' || video.dataset.proxyLoaded === '1') continue;
+function hydrateProxyVideoElements() {
+  return (async () => {
+    const videos = qsa('video[data-output-id], video[data-provider-task-id]');
+    const proxyFailureCache = hydrateProxyVideoElements.proxyFailureCache || new Map();
+    const proxyInflight = hydrateProxyVideoElements.proxyInflight || new Map();
+    hydrateProxyVideoElements.proxyFailureCache = proxyFailureCache;
+    hydrateProxyVideoElements.proxyInflight = proxyInflight;
 
-    const outputId = video.dataset.outputId || '';
-    const googleDriveFileId = video.dataset.googleDriveFileId || '';
-    const providerTaskId = video.dataset.providerTaskId || '';
-    const taskId = video.dataset.taskId || '';
-    const key = outputId || googleDriveFileId || providerTaskId || taskId || video.dataset.outputKey || '';
-    const statusEl = document.querySelector(`[data-output-load-status="${CSS.escape(key)}"]`);
-    const downloadEl = document.querySelector(`[data-proxy-download="${CSS.escape(key)}"]`);
+    for (const video of videos) {
+      if (video.dataset.proxyLoading === '1' || video.dataset.proxyLoaded === '1') continue;
 
-    if (!key) continue;
+      const outputId = video.dataset.outputId || '';
+      const googleDriveFileId = video.dataset.googleDriveFileId || '';
+      const providerTaskId = video.dataset.providerTaskId || '';
+      const taskId = video.dataset.taskId || '';
+      const key = outputId || googleDriveFileId || providerTaskId || taskId || video.dataset.outputKey || '';
+      if (!key) continue;
 
-    if (state.outputBlobUrls.has(key)) {
-      const cachedUrl = state.outputBlobUrls.get(key);
-      video.src = cachedUrl;
-      video.dataset.proxyLoaded = '1';
-      if (downloadEl) downloadEl.href = cachedUrl;
-      if (statusEl) statusEl.textContent = '已通过代理加载，可播放/下载';
-      continue;
-    }
+      const statusEl = document.querySelector(`[data-output-load-status="${CSS.escape(key)}"]`);
+      const downloadEl = document.querySelector(`[data-proxy-download="${CSS.escape(key)}"]`);
 
-    const output = [...(state.outputs || []), ...(state.outputHistory || [])].find(o => {
-      return (outputId && (o.outputId === outputId || o.row?.id === outputId)) ||
-        (googleDriveFileId && o.googleDriveFileId === googleDriveFileId) ||
-        (providerTaskId && o.providerTaskId === providerTaskId) ||
-        (taskId && o.taskId === taskId) ||
-        outputKey(o) === key;
-    });
-
-    if (!output) continue;
-
-    video.dataset.proxyLoading = '1';
-    if (statusEl) statusEl.textContent = '正在通过服务端代理拉取 MP4...';
-
-    try {
-      const blob = await fetchVideoBlobThroughProxy(output);
-      const objectUrl = URL.createObjectURL(blob);
-      state.outputBlobs.set(key, blob);
-      state.outputBlobUrls.set(key, objectUrl);
-
-      video.src = objectUrl;
-      video.dataset.proxyLoaded = '1';
-      video.dataset.proxyLoading = '0';
-      video.load();
-
-      if (downloadEl) {
-        downloadEl.href = objectUrl;
-        downloadEl.download = `seedance-${providerTaskId || taskId || Date.now()}.mp4`;
+      if (state.outputBlobUrls.has(key)) {
+        const cachedUrl = state.outputBlobUrls.get(key);
+        if (video.src !== cachedUrl) video.src = cachedUrl;
+        video.dataset.proxyLoaded = '1';
+        video.dataset.proxyLoading = '0';
+        if (downloadEl) {
+          downloadEl.href = cachedUrl;
+          downloadEl.download = `seedance-${providerTaskId || taskId || Date.now()}.mp4`;
+        }
+        if (statusEl) statusEl.textContent = '已通过 Google Drive 代理加载，可播放/下载';
+        continue;
       }
-      if (statusEl) statusEl.textContent = `已通过代理加载：${formatBytes(blob.size)}`;
-    } catch (error) {
-      video.dataset.proxyLoading = '0';
-      const msg = errorMessage(error, '视频代理加载失败');
-      if (statusEl) statusEl.textContent = `加载失败：${msg}`;
-      console.warn('[Seedance Studio] proxy video load failed', error);
+
+      const failed = proxyFailureCache.get(key);
+      if (failed && failed.retryAt > Date.now()) {
+        if (statusEl) statusEl.textContent = `暂不重试：${failed.message}`;
+        video.dataset.proxyLoading = '0';
+        continue;
+      }
+
+      const output = [...(state.outputs || []), ...(state.outputHistory || [])].find(o => {
+        return (outputId && (o.outputId === outputId || o.row?.id === outputId)) ||
+          (googleDriveFileId && o.googleDriveFileId === googleDriveFileId) ||
+          (providerTaskId && o.providerTaskId === providerTaskId) ||
+          (taskId && o.taskId === taskId) ||
+          outputKey(o) === key;
+      });
+      if (!output) continue;
+
+      video.dataset.proxyLoading = '1';
+      if (statusEl) statusEl.textContent = '正在通过 Google Drive 服务端代理拉取 MP4...';
+
+      try {
+        let request = proxyInflight.get(key);
+        if (!request) {
+          request = fetchVideoBlobThroughProxy(output).finally(() => proxyInflight.delete(key));
+          proxyInflight.set(key, request);
+        }
+        const blob = await request;
+        let objectUrl = state.outputBlobUrls.get(key);
+        if (!objectUrl) {
+          objectUrl = URL.createObjectURL(blob);
+          state.outputBlobs.set(key, blob);
+          state.outputBlobUrls.set(key, objectUrl);
+        }
+        proxyFailureCache.delete(key);
+
+        video.src = objectUrl;
+        video.dataset.proxyLoaded = '1';
+        video.dataset.proxyLoading = '0';
+        video.load();
+
+        if (downloadEl) {
+          downloadEl.href = objectUrl;
+          downloadEl.download = `seedance-${providerTaskId || taskId || Date.now()}.mp4`;
+        }
+        if (statusEl) statusEl.textContent = `已通过 Google Drive 代理加载：${formatBytes(blob.size)}`;
+      } catch (error) {
+        video.dataset.proxyLoading = '0';
+        const status = Number(error?.status || 0);
+        const msg = errorMessage(error, '视频代理加载失败');
+        const permanentLike = [404, 410, 502].includes(status) || /OUTPUT_HAS_NO_PLAYABLE_SOURCE|VIDEO_FETCH_FAILED|GOOGLE_DRIVE_FETCH_FAILED/i.test(msg);
+        const retryMs = permanentLike ? 10 * 60 * 1000 : 60 * 1000;
+        proxyFailureCache.set(key, { message: msg, retryAt: Date.now() + retryMs });
+        if (statusEl) statusEl.textContent = `加载失败：${msg}`;
+        console.warn('[Seedance Studio v47] proxy video load failed', { key, status, error });
+      }
     }
-  }
+  })();
 }
 
 function outputCardMarkup(o, historical = false) {
@@ -1392,152 +1442,57 @@ function keepOnlyCurrentProjectOutputs() {
 
 
 
-async function recoverLatestDriveOutputWhenEmpty(force = false) {
-  if (state.driveFallbackLoading) return;
-  if (!state.user?.id || !state.draft?.id) return;
+function recoverLatestDriveOutputWhenEmpty(force = false) {
+  return (async () => {
+    if (state.driveFallbackLoading) return;
+    if (!state.user?.id || !state.draft?.id) return;
+    if ((state.outputs || []).length) return;
 
-  const segments = state.draft?.segments || [];
-  if (segments.length !== 1) return;
+    const recoveryKey = `${state.draft.id}:${state.draft.mode}`;
+    if (!force && state.driveFallbackDoneForDraftId === recoveryKey) return;
+    state.driveFallbackDoneForDraftId = recoveryKey;
+    state.driveFallbackLoading = true;
 
-  const segment = segments[0];
-  const looksDone = Number(segment.progress || 0) >= 100 ||
-    ['succeeded','completed','success'].includes(String(segment.status || '').toLowerCase());
-
-  if (!force && !looksDone) return;
-
-  state.driveFallbackLoading = true;
-
-  try {
-    console.log('[Seedance Studio] v46 force drive recover start', {
-      draftId: state.draft.id,
-      name: state.draft.name,
-      createdAt: state.draft.createdAt,
-      segmentId: segment.id,
-      force,
-    });
-
-    const { data, error } = await supabase
-      .from('video_outputs')
-      .select('*')
-      .eq('owner_id', state.user.id)
-      .order('created_at', { ascending: false })
-      .limit(80);
-
-    if (error) {
-      console.warn('[Seedance Studio] v46 drive recover query failed', error);
-      toast('查找失败', error.message || '读取 video_outputs 失败');
-      return;
-    }
-
-    const rows = (data || []).filter(item => {
-      const meta = item.metadata || {};
-      const providerTaskId = providerTaskIdFromOutputRow(item, meta);
-      const driveFileId = meta.google_drive_file_id || meta.googleDriveFileId || meta.drive_file_id || meta.driveFileId || null;
-      const hasUrl = Boolean(outputVideoUrlFromMetadata(meta));
-      const isArkPath = String(item.storage_path || '').startsWith('ark://') || item.bucket_id === 'ark-url';
-      return driveFileId || hasUrl || providerTaskId || isArkPath;
-    });
-
-    if (!rows.length) {
-      toast('没有找到云端视频', '当前账号 video_outputs 没有可用的 Google Drive / 视频输出记录。');
-      return;
-    }
-
-    const draftCreatedMs = Number(state.draft.createdAt || 0);
-    const scoreRow = row => {
-      const createdMs = new Date(row.created_at || 0).getTime() || 0;
-      const meta = row.metadata || {};
-      let score = createdMs;
-      if (row.project_id && state.draft.remoteProjectId && row.project_id === state.draft.remoteProjectId) score += 1e13;
-      if (row.segment_id && segment.remoteSegmentId && row.segment_id === segment.remoteSegmentId) score += 1e13;
-      if (row.task_id && segment.remoteTaskId && row.task_id === segment.remoteTaskId) score += 1e13;
-      const p = providerTaskIdFromOutputRow(row, meta);
-      if (p && segment.providerTaskId && p === segment.providerTaskId) score += 1e13;
-      if (meta.google_drive_file_id || meta.googleDriveFileId || meta.drive_file_id || meta.driveFileId) score += 1e12;
-      // 本地绑定全丢时，用草稿创建时间附近/之后的输出优先，避免乱挂很旧项目。
-      if (draftCreatedMs) {
-        const delta = createdMs - draftCreatedMs;
-        if (delta >= -30 * 60 * 1000 && delta <= 6 * 60 * 60 * 1000) score += 5e12 - Math.abs(delta);
+    try {
+      await loadOutputs();
+      if ((state.outputs || []).length) {
+        renderJobs();
+        setTimeout(hydrateProxyVideoElements, 0);
+        toast('已恢复当前项目视频', '只从当前工作区对应的 Supabase 项目与 Google Drive 输出中恢复。');
+      } else if (force) {
+        toast('当前项目暂无可播放视频', '没有找到属于当前工作区且已成功保存到 Google Drive 的视频。');
       }
-      return score;
-    };
-
-    rows.sort((a, b) => scoreRow(b) - scoreRow(a));
-    const row = rows[0];
-
-    const meta = row.metadata || {};
-    const providerTaskId = providerTaskIdFromOutputRow(row, meta);
-    const googleDriveFileId = meta.google_drive_file_id || meta.googleDriveFileId || meta.drive_file_id || meta.driveFileId || null;
-    const providerUrl = outputVideoUrlFromMetadata(meta);
-
-    const output = {
-      row,
-      outputId: row.id || null,
-      url: providerUrl || `seedance-proxy://${row.id || providerTaskId || googleDriveFileId}`,
-      storageMode: googleDriveFileId ? 'google-drive-proxy' : (providerUrl ? 'ark-temp' : 'ark-proxy'),
-      providerTaskId,
-      taskId: row.task_id || null,
-      segmentId: segment.id,
-      remoteSegmentId: row.segment_id || null,
-      index: 0,
-      promptSnapshot: segment.prompt || '',
-      forceRecovered: true,
-      googleDriveFileId: googleDriveFileId || null,
-    };
-
-    state.outputs = [output];
-    state.outputHistory = state.outputHistory || [];
-
-    segment.status = 'succeeded';
-    segment.progress = 100;
-    segment.error = null;
-    if (providerTaskId) segment.providerTaskId = providerTaskId;
-    if (row.task_id) segment.remoteTaskId = row.task_id;
-    if (row.segment_id) segment.remoteSegmentId = row.segment_id;
-
-    if (row.project_id) {
-      state.draft.remoteProjectId = row.project_id;
-      const workspace = getWorkspace();
-      workspace.remoteProjectId = row.project_id;
+    } catch (error) {
+      console.warn('[Seedance Studio v47] strict drive recover failed', error);
+      if (force) toast('拉取失败', errorMessage(error));
+    } finally {
+      state.driveFallbackLoading = false;
     }
-
-    saveCurrentWorkspaceSelection();
-    await persist();
-
-    console.log('[Seedance Studio] v46 force drive recovered output', {
-      outputId: row.id,
-      providerTaskId,
-      googleDriveFileId,
-      projectId: row.project_id,
-      storagePath: row.storage_path,
-      createdAt: row.created_at,
-    });
-
-    renderJobs();
-    setTimeout(hydrateProxyVideoElements, 0);
-    toast('已拉取云盘视频', '已从 Google Drive 输出记录恢复到右侧视频区。');
-  } catch (error) {
-    console.warn('[Seedance Studio] v46 drive recover failed', error);
-    toast('拉取失败', errorMessage(error));
-  } finally {
-    state.driveFallbackLoading = false;
-  }
+  })();
 }
 
-
 function renderJobs() {
+  if (!state.draft) return;
   keepOnlyCurrentProjectOutputs();
 
-  const segments = state.draft.segments;
+  const strictProjectId = state.draft.remoteProjectId || getWorkspace()?.remoteProjectId || null;
+  const belongsToStrictProject = output => {
+    const rowProjectId = output?.row?.project_id || output?.projectId || null;
+    return !strictProjectId || !rowProjectId || rowProjectId === strictProjectId;
+  };
+  state.outputs = (state.outputs || []).filter(belongsToStrictProject);
+  state.outputHistory = (state.outputHistory || []).filter(belongsToStrictProject);
+
+  const segments = state.draft.segments || [];
   $('jobs-list').innerHTML = segments.length ? segments.map(s => `
     <article class="job-card">
       <div class="job-head">
-        <strong>Segment ${String(s.index+1).padStart(2,'0')}</strong>
+        <strong>Segment ${String(s.index + 1).padStart(2, '0')}</strong>
         <span>${statusText(s.status)}</span>
       </div>
       <p>${escapeHtml(s.prompt || '未填写提示词')}</p>
       ${jobStageMarkup(s)}
-      ${s.providerTaskId ? `<p class="task-id">后台任务已记录</p>` : ''}
+      ${s.providerTaskId ? '<p class="task-id">后台任务已记录</p>' : ''}
       ${s.error ? `<p style="color:#ff8090;white-space:pre-wrap">${escapeHtml(s.error)}</p>` : ''}
       <div class="job-actions">
         <button data-sync-output="${s.id}">刷新结果</button>
@@ -1551,11 +1506,17 @@ function renderJobs() {
   const outputMarkup = [
     activeMarkup,
     visibleOutputs.map(o => outputCardMarkup(o, false)).join(''),
-    historyOutputs.length ? `<div class="history-title">历史输出</div>${historyOutputs.map(o => outputCardMarkup(o, true)).join('')}` : '',
+    historyOutputs.length ? `<div class="history-title">当前项目历史输出</div>${historyOutputs.map(o => outputCardMarkup(o, true)).join('')}` : '',
   ].filter(Boolean).join('');
-  $('outputs-list').innerHTML = outputMarkup || '<div class="empty-state">暂无视频输出。正在检查 Google Drive / 云端输出记录...</div>';
+  const nextMarkup = outputMarkup || '<div class="empty-state">暂无当前项目视频输出。正在检查 Google Drive 记录...</div>';
+  const outputsList = $('outputs-list');
+
+  if (renderJobs.lastOutputMarkup !== nextMarkup || !outputsList.childNodes.length) {
+    outputsList.innerHTML = nextMarkup;
+    renderJobs.lastOutputMarkup = nextMarkup;
+  }
   setTimeout(hydrateProxyVideoElements, 0);
-  if (!outputMarkup) setTimeout(recoverLatestDriveOutputWhenEmpty, 0);
+  if (!outputMarkup) setTimeout(() => recoverLatestDriveOutputWhenEmpty(false), 0);
 
   qsa('[data-sync-output]').forEach(btn => btn.onclick = async () => {
     const segmentId = btn.dataset.syncOutput;
@@ -1578,7 +1539,7 @@ function renderJobs() {
   qsa('[data-download-output]').forEach(link => link.onclick = event => {
     if (!link.href || link.getAttribute('href') === '#' || link.href.endsWith('#')) {
       event.preventDefault();
-      toast('视频还没下载完成', '等右侧显示“已通过代理加载：xx MB”后，再点下载到本地。');
+      toast('视频还没加载完成', '等右侧显示“已通过 Google Drive 代理加载：xx MB”后，再点下载到本地。');
       return;
     }
     const set = downloadedSet();
@@ -1586,7 +1547,6 @@ function renderJobs() {
     saveDownloadedSet(set);
   });
 }
-
 
 function findSegmentIdByOutputIndex(indexValue) {
   const index = Number(indexValue);
@@ -2688,272 +2648,233 @@ async function refreshJobs() {
   renderJobs();
 }
 
-async function loadOutputs() {
-  if (!state.user?.id) {
-    state.outputs = [];
-    return;
-  }
-
-  const segments = state.draft?.segments || [];
-  const taskIds = new Set(segments.map(s => s.remoteTaskId).filter(Boolean));
-  const segmentIds = new Set(segments.map(s => s.remoteSegmentId).filter(Boolean));
-  const providerIds = new Set(segments.map(s => s.providerTaskId).filter(Boolean));
-  let currentProjectId = state.draft?.remoteProjectId || getWorkspace()?.remoteProjectId || null;
-  const rowsById = new Map();
-  const taskByProviderId = new Map();
-  const forcedCurrentOutputIds = new Set();
-
-  // v42：不要在这里提前 return。
-  // 本地草稿经过回滚后可能没有 remoteProjectId / taskId / providerTaskId，
-  // 但数据库和 Google Drive 里已经有最近成功输出。
-  // 必须继续往下走最新输出兜底逻辑，否则“未命名项目”永远找不回视频。
-  const hasLocalBinding = Boolean(currentProjectId || taskIds.size || segmentIds.size || providerIds.size);
-
-  async function collect(query) {
-    const { data, error } = await query;
-    if (error) {
-      console.warn('loadOutputs query failed', error);
-      return [];
+function loadOutputs() {
+  return (async () => {
+    if (!state.user?.id || !state.draft) {
+      state.outputs = [];
+      state.outputHistory = [];
+      return;
     }
-    for (const row of data || []) rowsById.set(row.id, row);
-    return data || [];
-  }
 
-  // 关键修复：本地很多时候只保存了 cgt providerTaskId，没有保存 Supabase task_id/segment_id。
-  // 先用 provider_task_id 反查 video_tasks，再用 task_id/segment_id 找 video_outputs。
-  if (providerIds.size) {
-    const { data: taskRows, error: taskError } = await supabase
-      .from('video_tasks')
-      .select('id, segment_id, project_id, provider_task_id, status, progress, error_message, updated_at')
+    const segments = state.draft.segments || [];
+    const workspace = getWorkspace();
+    const providerIds = [...new Set(segments.map(s => s.providerTaskId).filter(Boolean))];
+    const taskIds = [...new Set(segments.map(s => s.remoteTaskId).filter(Boolean))];
+    const segmentIds = [...new Set(segments.map(s => s.remoteSegmentId).filter(Boolean))];
+    const taskRowsById = new Map();
+
+    async function collectTasks(column, values) {
+      if (!values.length) return;
+      const { data, error } = await supabase
+        .from('video_tasks')
+        .select('id, segment_id, project_id, provider_task_id, status, progress, error_message, created_at, updated_at')
+        .eq('owner_id', state.user.id)
+        .in(column, values)
+        .order('created_at', { ascending: false });
+      if (error) {
+        console.warn(`[Seedance Studio v47] video_tasks ${column} lookup failed`, error);
+        return;
+      }
+      for (const row of data || []) taskRowsById.set(row.id, row);
+    }
+
+    await collectTasks('provider_task_id', providerIds);
+    await collectTasks('id', taskIds);
+    await collectTasks('segment_id', segmentIds);
+    const taskRows = [...taskRowsById.values()];
+
+    for (const task of taskRows) {
+      const local = segments.find(s =>
+        (task.provider_task_id && s.providerTaskId === task.provider_task_id) ||
+        (task.id && s.remoteTaskId === task.id) ||
+        (task.segment_id && s.remoteSegmentId === task.segment_id)
+      ) || (segments.length === 1 ? segments[0] : null);
+      if (!local) continue;
+      if (task.provider_task_id) local.providerTaskId = task.provider_task_id;
+      if (task.id) local.remoteTaskId = task.id;
+      if (task.segment_id) local.remoteSegmentId = task.segment_id;
+      if (task.status) local.status = task.status;
+      if (task.progress !== null && task.progress !== undefined) local.progress = Number(task.progress || 0);
+      local.error = task.error_message || null;
+    }
+
+    let currentProjectId = null;
+    if (taskRows.length) {
+      const projectScore = new Map();
+      for (const task of taskRows) {
+        if (!task.project_id) continue;
+        let score = 1;
+        if (providerIds.includes(task.provider_task_id)) score += 100;
+        if (taskIds.includes(task.id)) score += 100;
+        if (segmentIds.includes(task.segment_id)) score += 50;
+        projectScore.set(task.project_id, (projectScore.get(task.project_id) || 0) + score);
+      }
+      currentProjectId = [...projectScore.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+    }
+
+    const localProjectId = workspace.remoteProjectId || state.draft.remoteProjectId || null;
+    if (!currentProjectId && localProjectId) {
+      const { data: project } = await supabase
+        .from('video_projects')
+        .select('id, name, mode, created_at')
+        .eq('owner_id', state.user.id)
+        .eq('id', localProjectId)
+        .maybeSingle();
+      if (project && project.mode === state.draft.mode) currentProjectId = project.id;
+    }
+
+    if (!currentProjectId) {
+      const { data: projects, error } = await supabase
+        .from('video_projects')
+        .select('id, name, mode, created_at')
+        .eq('owner_id', state.user.id)
+        .eq('mode', state.draft.mode)
+        .order('created_at', { ascending: false })
+        .limit(30);
+      if (error) console.warn('[Seedance Studio v47] project recovery lookup failed', error);
+      const all = projects || [];
+      const sameName = all.filter(project => project.name === state.draft.name);
+      const candidates = sameName.length ? sameName : all;
+      const targetTime = Number(state.draft.createdAt || state.draft.updatedAt || Date.now());
+      candidates.sort((a, b) => {
+        const da = Math.abs((new Date(a.created_at || 0).getTime() || 0) - targetTime);
+        const db = Math.abs((new Date(b.created_at || 0).getTime() || 0) - targetTime);
+        return da - db;
+      });
+      currentProjectId = candidates[0]?.id || null;
+    }
+
+    if (!currentProjectId) {
+      state.outputs = [];
+      state.outputHistory = [];
+      workspace.outputs = [];
+      workspace.outputHistory = [];
+      saveCurrentWorkspaceSelection();
+      return;
+    }
+
+    workspace.remoteProjectId = currentProjectId;
+    state.draft.remoteProjectId = currentProjectId;
+
+    const { data: rows, error: outputError } = await supabase
+      .from('video_outputs')
+      .select('*')
       .eq('owner_id', state.user.id)
-      .in('provider_task_id', [...providerIds]);
+      .eq('project_id', currentProjectId)
+      .order('created_at', { ascending: false })
+      .limit(100);
 
-    if (taskError) {
-      console.warn('loadOutputs task lookup failed', taskError);
-    } else {
-      for (const task of taskRows || []) {
-        if (!task?.provider_task_id) continue;
-        taskByProviderId.set(task.provider_task_id, task);
-        if (task.id) taskIds.add(task.id);
-        if (task.segment_id) segmentIds.add(task.segment_id);
-        const local = segments.find(s => s.providerTaskId === task.provider_task_id) || (segments.length === 1 ? segments[0] : null);
-
-        // v38：providerTaskId 是当前页面真实任务的最高优先级。
-        // 如果本地草稿 remoteProjectId 是旧的/错的，要用 video_tasks 里的 project_id 纠正，
-        // 否则后面会因为 project_id 不一致把真实 output 过滤掉，导致右侧没有视频模块。
-        if (local && task.project_id && currentProjectId !== task.project_id) {
-          currentProjectId = task.project_id;
-          state.draft.remoteProjectId = currentProjectId;
-          const workspace = getWorkspace();
-          workspace.remoteProjectId = currentProjectId;
-        } else if (!currentProjectId && task.project_id) {
-          currentProjectId = task.project_id;
-          state.draft.remoteProjectId = currentProjectId;
-          const workspace = getWorkspace();
-          workspace.remoteProjectId = currentProjectId;
-        }
-
-        if (local) {
-          local.providerTaskId = task.provider_task_id;
-          if (task.id) local.remoteTaskId = task.id;
-          if (task.segment_id) local.remoteSegmentId = task.segment_id;
-          if (task.status) local.status = task.status;
-          if (task.progress !== null && task.progress !== undefined) local.progress = Number(task.progress || local.progress || 0);
-          local.error = task.error_message || null;
-        }
-      }
+    if (outputError) {
+      console.warn('[Seedance Studio v47] current-project output query failed', outputError);
+      state.outputs = [];
+      state.outputHistory = [];
+      return;
     }
-  }
 
-  if (taskIds.size) {
-    await collect(
-      supabase.from('video_outputs')
-        .select('*')
-        .eq('owner_id', state.user.id)
-        .in('task_id', [...taskIds])
-        .order('created_at', { ascending: false })
-    );
-  }
+    const candidatesBySegment = new Map();
+    const now = Date.now();
 
-  if (segmentIds.size) {
-    await collect(
-      supabase.from('video_outputs')
-        .select('*')
-        .eq('owner_id', state.user.id)
-        .in('segment_id', [...segmentIds])
-        .order('created_at', { ascending: false })
-    );
-  }
+    for (const row of rows || []) {
+      const meta = row.metadata || {};
+      const providerTaskId = providerTaskIdFromOutputRow(row, meta);
+      const googleDriveFileId = meta.google_drive_file_id || meta.googleDriveFileId || meta.drive_file_id || meta.driveFileId || null;
+      const driveStatus = String(meta.google_drive_backup_status || '').toLowerCase();
+      const providerUrl = outputVideoUrlFromMetadata(meta);
+      const providerExpiry = Date.parse(meta.provider_video_url_expires_at || '');
+      const providerStillValid = Boolean(providerUrl) && (!Number.isFinite(providerExpiry) || providerExpiry > now + 60000);
 
-  // 再兜底一次：很多输出的 storage_path 是 ark://cgt-xxx.mp4，可直接按 providerTaskId 找回。
-  if (providerIds.size) {
-    await collect(
-      supabase.from('video_outputs')
-        .select('*')
-        .eq('owner_id', state.user.id)
-        .in('storage_path', [...providerIds].map(id => `ark://${id}.mp4`))
-        .order('created_at', { ascending: false })
-    );
-  }
-
-  // 只查当前远程项目的输出，不再全局兜底最近 50 条，避免不同项目显示/下载同一个视频。
-  if (currentProjectId) {
-    await collect(
-      supabase.from('video_outputs')
-        .select('*')
-        .eq('owner_id', state.user.id)
-        .eq('project_id', currentProjectId)
-        .order('created_at', { ascending: false })
-        .limit(50)
-    );
-  }
-
-  // v41 兜底：本地项目多次回滚后可能没有 remoteProjectId/taskId/providerTaskId。
-  // 只要当前是单片段且已完成，就把最近 24 小时内最新成功 output 拉进来候选。
-  // 后面会强制挂到 Segment 01，用于修复“云盘有文件，右侧没有视频模块”。
-  if (segments.length === 1) {
-    const onlySegment = segments[0];
-    const looksFinished = ['succeeded','completed','success'].includes(String(onlySegment?.status || '').toLowerCase()) || Number(onlySegment?.progress || 0) >= 100;
-
-    // 没有任何本地绑定时，不管状态文本是否被本地化，都允许查最近成功输出；
-    // 有本地绑定时，仍然要求当前片段看起来已完成，避免误挂别的项目。
-    if (looksFinished || !hasLocalBinding) {
-      // v44：Google Drive 是长期存储，不再限制最近 24 小时。
-      // 本地绑定丢失时，从当前账号全部输出里找最新候选。
-      const { data: latestRows, error: latestError } = await supabase
-        .from('video_outputs')
-        .select('*')
-        .eq('owner_id', state.user.id)
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (latestError) {
-        console.warn('loadOutputs latest fallback failed', latestError);
-      } else {
-        for (const row of latestRows || []) {
-          rowsById.set(row.id, row);
-          forcedCurrentOutputIds.add(row.id);
+      let url = '';
+      let storageMode = '';
+      if (googleDriveFileId && driveStatus !== 'failed') {
+        url = `seedance-proxy://${row.id || googleDriveFileId}`;
+        storageMode = 'google-drive-proxy';
+      } else if (providerStillValid) {
+        url = `seedance-proxy://${row.id || providerTaskId}`;
+        storageMode = 'ark-proxy';
+      } else if (row.storage_path && row.bucket_id && row.bucket_id !== 'ark-url') {
+        const signed = await supabase.storage.from(row.bucket_id).createSignedUrl(row.storage_path, 3600);
+        if (!signed.error && signed.data?.signedUrl) {
+          url = signed.data.signedUrl;
+          storageMode = 'supabase';
         }
       }
-    }
-  }
+      if (!url) continue;
 
-  const rows = [...rowsById.values()];
-  const bySegment = new Map();
-
-  for (const row of rows) {
-    const meta = row.metadata || {};
-    const providerUrl = outputVideoUrlFromMetadata(meta);
-
-    const providerTaskId = providerTaskIdFromOutputRow(row, meta);
-    const googleDriveFileId = meta.google_drive_file_id || meta.googleDriveFileId || meta.drive_file_id || meta.driveFileId || null;
-
-    let url = providerUrl;
-    let storageMode = providerUrl ? 'ark-temp' : 'supabase';
-
-    if (!url && row.storage_path && row.bucket_id !== 'ark-url') {
-      const signed = await supabase.storage
-        .from(row.bucket_id || 'seedance-outputs')
-        .createSignedUrl(row.storage_path, 3600);
-      if (signed.error) continue;
-      url = signed.data.signedUrl;
-    }
-
-    // v41：Google Drive 已备份 / ark-url 输出也要允许渲染视频模块。
-    // 这里先放一个内部占位 URL，真正播放时 hydrateVideoElements 会通过 seedance-video-proxy 拉 Blob。
-    if (!url && (providerTaskId || googleDriveFileId || row.bucket_id === 'ark-url' || String(row.storage_path || '').startsWith('ark://'))) {
-      url = `seedance-proxy://${providerTaskId || googleDriveFileId || row.id}`;
-      storageMode = googleDriveFileId ? 'google-drive-proxy' : 'ark-proxy';
-    }
-
-    if (!url) continue;
-    let segmentIndex = segments.findIndex(
-      s =>
+      let segmentIndex = segments.findIndex(s =>
         (row.segment_id && s.remoteSegmentId === row.segment_id) ||
         (row.task_id && s.remoteTaskId === row.task_id) ||
         (providerTaskId && s.providerTaskId === providerTaskId)
-    );
+      );
+      if (segmentIndex < 0 && segments.length === 1) segmentIndex = 0;
+      if (segmentIndex < 0) continue;
 
-    // 如果数据库已经有当前项目的视频输出，但本地草稿因为回滚/刷新丢了 remoteSegmentId，
-    // 单片段项目直接归到 Segment 01，避免“视频已生成但页面不显示”。
-    if (segmentIndex < 0 && row.project_id && currentProjectId && row.project_id === currentProjectId && segments.length === 1) {
-      segmentIndex = 0;
+      const segment = segments[segmentIndex];
+      let matchScore = 0;
+      if (segment?.providerTaskId && providerTaskId === segment.providerTaskId) matchScore += 1000;
+      if (segment?.remoteTaskId && row.task_id === segment.remoteTaskId) matchScore += 1000;
+      if (segment?.remoteSegmentId && row.segment_id === segment.remoteSegmentId) matchScore += 500;
+      if (googleDriveFileId) matchScore += 100;
+
+      const output = {
+        row,
+        url,
+        storageMode,
+        providerTaskId,
+        taskId: row.task_id || null,
+        segmentId: segment?.id || null,
+        remoteSegmentId: row.segment_id || null,
+        index: segmentIndex,
+        promptSnapshot: segment?.prompt || '',
+        forceRecovered: false,
+        googleDriveFileId,
+        outputId: row.id || null,
+        matchScore,
+      };
+      if (!candidatesBySegment.has(segmentIndex)) candidatesBySegment.set(segmentIndex, []);
+      candidatesBySegment.get(segmentIndex).push(output);
     }
 
-    // 如果是按 providerTaskId 找到的输出，也允许单片段项目直接归到 Segment 01。
-    if (segmentIndex < 0 && providerTaskId && providerIds.has(providerTaskId) && segments.length === 1) {
-      segmentIndex = 0;
+    const current = [];
+    const history = [];
+    for (const [segmentIndex, list] of candidatesBySegment.entries()) {
+      list.sort((a, b) => {
+        if (b.matchScore !== a.matchScore) return b.matchScore - a.matchScore;
+        return new Date(b.row?.created_at || 0) - new Date(a.row?.created_at || 0);
+      });
+      const chosen = list[0];
+      if (!chosen) continue;
+      current.push(chosen);
+      for (const old of list.slice(1)) {
+        history.push({
+          ...old,
+          historical: true,
+          historyId: `${old.outputId || old.providerTaskId || old.taskId}-v47`,
+          reason: '当前项目历史生成版本',
+          index: segmentIndex,
+        });
+      }
+
+      const segment = segments[segmentIndex];
+      if (segment) {
+        segment.status = 'succeeded';
+        segment.progress = 100;
+        segment.error = null;
+        if (chosen.providerTaskId) segment.providerTaskId = chosen.providerTaskId;
+        if (chosen.taskId) segment.remoteTaskId = chosen.taskId;
+        if (chosen.remoteSegmentId) segment.remoteSegmentId = chosen.remoteSegmentId;
+      }
     }
 
-    const forcedCurrentOutput = forcedCurrentOutputIds.has(row.id);
-    if (segmentIndex < 0 && forcedCurrentOutput && segments.length === 1) {
-      segmentIndex = 0;
-    }
-
-    // v38/v41：如果 output 是当前 Segment 的 providerTaskId 或单片段兜底找到的，它就是当前任务的真实输出。
-    // 不允许被旧 remoteProjectId 过滤掉；同时把本地项目 ID 纠正为数据库里的真实 project_id。
-    const exactProviderMatch = Boolean(providerTaskId && providerIds.has(providerTaskId));
-    if ((exactProviderMatch || forcedCurrentOutput) && row.project_id && currentProjectId !== row.project_id) {
-      currentProjectId = row.project_id;
-      state.draft.remoteProjectId = currentProjectId;
-      const workspace = getWorkspace();
-      workspace.remoteProjectId = currentProjectId;
-    }
-
-    // 关键：不是当前项目当前片段的输出，不展示、不下载。
-    if (segmentIndex < 0) continue;
-    if (row.project_id && currentProjectId && row.project_id !== currentProjectId && !exactProviderMatch && !forcedCurrentOutput) continue;
-
-    const segment = segments[segmentIndex];
-    const output = {
-      row,
-      url,
-      storageMode,
-      providerTaskId,
-      taskId: row.task_id || null,
-      segmentId: segment?.id || null,
-      remoteSegmentId: row.segment_id || null,
-      index: segmentIndex,
-      promptSnapshot: segment?.prompt || '',
-      forceRecovered: forcedCurrentOutput,
-      googleDriveFileId: googleDriveFileId || null,
-      outputId: row.id || null,
-    };
-
-    // 只要 output 已经有真实视频 URL，就把本地片段状态改成完成，
-    // 防止右侧一直显示“生成中/排队中”。
-    if (segment && url) {
-      segment.status = 'succeeded';
-      segment.progress = 100;
-      segment.error = null;
-      if (providerTaskId) segment.providerTaskId = providerTaskId;
-      if (row.task_id) segment.remoteTaskId = row.task_id;
-      if (row.segment_id) segment.remoteSegmentId = row.segment_id;
-    }
-
-    const key = String(segmentIndex);
-    const old = bySegment.get(key);
-
-    // 当前输出只接受当前正在绑定的 task/provider；历史输出不抢占当前输出。
-    const isCurrent =
-      forcedCurrentOutput ||
-      (segment?.providerTaskId && providerTaskId && providerTaskId === segment.providerTaskId) ||
-      (segment?.remoteTaskId && row.task_id && row.task_id === segment.remoteTaskId) ||
-      (!segment?.providerTaskId && !segment?.remoteTaskId);
-
-    if (isCurrent && (!old || new Date(row.created_at || 0) > new Date(old.row.created_at || 0))) {
-      bySegment.set(key, output);
-    } else if (!isCurrent) {
-      rememberHistoricalOutput(output, segment, '历史生成版本');
-    }
-  }
-
-  state.outputs = [...bySegment.values()].sort((a,b)=>a.index-b.index);
-  saveCurrentWorkspaceSelection();
-
-  // 默认本地优先：只对当前项目当前片段的视频触发一次本地下载。
-  for (const output of state.outputs) maybeAutoDownloadOutput(output);
+    state.outputs = current.sort((a, b) => a.index - b.index);
+    state.outputHistory = history
+      .sort((a, b) => new Date(b.row?.created_at || 0) - new Date(a.row?.created_at || 0))
+      .slice(0, 30);
+    workspace.outputs = state.outputs;
+    workspace.outputHistory = state.outputHistory;
+    saveCurrentWorkspaceSelection();
+  })();
 }
+
 function startPolling() {
   clearInterval(state.pollTimer);
   refreshJobs();
@@ -3132,12 +3053,46 @@ function wireEvents() {
   $('merge-all').onclick = mergeAll;
 }
 
+const STRICT_OUTPUT_MIGRATION_KEY = 'seedance_strict_output_migration_20260723_v1';
+
+async function migratePollutedBindingsOnce(drafts) {
+  if (localStorage.getItem(STRICT_OUTPUT_MIGRATION_KEY) === 'done') return drafts;
+  let changed = 0;
+  for (const draft of drafts || []) {
+    migrateDraftWorkspaces(draft);
+    for (const mode of ['first_last', 'multi_frame', 'text_only']) {
+      const workspace = getWorkspace(draft, mode);
+      const segments = Array.isArray(workspace.segments) ? workspace.segments : [];
+      const staleOutputs = [...(workspace.outputs || []), ...(workspace.outputHistory || [])]
+        .some(output => output?.storageMode === 'ark-temp' || String(output?.url || '').includes('tos-cn-beijing.volces.com'));
+      if (!staleOutputs) continue;
+      workspace.outputs = [];
+      workspace.outputHistory = [];
+      workspace.jobs = [];
+      for (const segment of segments) {
+        segment.providerTaskId = null;
+        segment.remoteTaskId = null;
+        segment.remoteSegmentId = null;
+        segment.status = 'draft';
+        segment.progress = 0;
+        segment.error = null;
+      }
+      changed += 1;
+    }
+    await saveDraft(draft);
+  }
+  localStorage.setItem(STRICT_OUTPUT_MIGRATION_KEY, 'done');
+  if (changed) console.log('[Seedance Studio] cleaned stale local video bindings', changed);
+  return drafts;
+}
+
 async function init() {
   if (!await initSession()) return;
   wireEvents();
   enhanceCustomSelects();
   document.body.dataset.seedanceBuild = APP_BUILD;
   state.drafts = await listDrafts();
+  state.drafts = await migratePollutedBindingsOnce(state.drafts);
   if (!state.drafts.length) {
     const draft = newDraft();
     await saveDraft(draft);
@@ -3153,3 +3108,5 @@ init().catch(error => {
   console.error(error);
   toast('页面初始化失败', error.message || String(error));
 });
+
+//# sourceURL=seedance/app.js
