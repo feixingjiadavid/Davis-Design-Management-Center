@@ -1,7 +1,7 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260722-provider-authoritative-output-v38';
+const APP_BUILD = '20260722-recover-latest-and-merge-worker-v40';
 const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v5-blackbar-2p49-force-reupload';
 const SEEDANCE_VIDEO_PROXY_URL = 'https://supffjeeouibhqdfqosk.supabase.co/functions/v1/seedance-video-proxy';
 console.log('[Seedance Studio]', APP_BUILD);
@@ -15,6 +15,7 @@ const state = {
   currentView: 'quick',
   objectUrls: new Map(),
   outputBlobUrls: new Map(),
+  outputBlobs: new Map(),
   jobs: [],
   outputs: [],
   outputHistory: [],
@@ -1275,6 +1276,7 @@ async function hydrateProxyVideoElements() {
     try {
       const blob = await fetchVideoBlobThroughProxy(output);
       const objectUrl = URL.createObjectURL(blob);
+      state.outputBlobs.set(key, blob);
       state.outputBlobUrls.set(key, objectUrl);
 
       video.src = objectUrl;
@@ -2520,6 +2522,7 @@ async function loadOutputs() {
   let currentProjectId = state.draft?.remoteProjectId || getWorkspace()?.remoteProjectId || null;
   const rowsById = new Map();
   const taskByProviderId = new Map();
+  const forcedCurrentOutputIds = new Set();
 
   if (!currentProjectId && !taskIds.size && !segmentIds.size && !providerIds.size) {
     state.outputs = [];
@@ -2625,6 +2628,29 @@ async function loadOutputs() {
     );
   }
 
+  // v40 兜底：有些本地草稿在多次回滚后丢了 remoteProjectId/remoteTaskId/providerTaskId，
+  // 但页面只有一个已完成片段，数据库和 Google Drive 明明有刚生成的视频。
+  // 此时“刷新结果”允许把最近 24 小时内最新的成功输出挂回 Segment 01。
+  if (!rowsById.size && segments.length === 1) {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data: latestRows, error: latestError } = await supabase
+      .from('video_outputs')
+      .select('*')
+      .eq('owner_id', state.user.id)
+      .gte('created_at', since)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (latestError) {
+      console.warn('loadOutputs latest fallback failed', latestError);
+    } else {
+      for (const row of latestRows || []) {
+        rowsById.set(row.id, row);
+        forcedCurrentOutputIds.add(row.id);
+      }
+    }
+  }
+
   const rows = [...rowsById.values()];
   const bySegment = new Map();
 
@@ -2664,10 +2690,16 @@ async function loadOutputs() {
       segmentIndex = 0;
     }
 
+    // v40：最近成功输出兜底命中时，强制挂回单片段项目。
+    const forcedCurrentOutput = forcedCurrentOutputIds.has(row.id);
+    if (segmentIndex < 0 && forcedCurrentOutput && segments.length === 1) {
+      segmentIndex = 0;
+    }
+
     // v38：如果 output 是用当前 Segment 的 providerTaskId 找到的，它就是当前任务的真实输出。
     // 不允许被旧 remoteProjectId 过滤掉；同时把本地项目 ID 纠正为数据库里的真实 project_id。
     const exactProviderMatch = Boolean(providerTaskId && providerIds.has(providerTaskId));
-    if (exactProviderMatch && row.project_id && currentProjectId !== row.project_id) {
+    if ((exactProviderMatch || forcedCurrentOutput) && row.project_id && currentProjectId !== row.project_id) {
       currentProjectId = row.project_id;
       state.draft.remoteProjectId = currentProjectId;
       const workspace = getWorkspace();
@@ -2676,7 +2708,7 @@ async function loadOutputs() {
 
     // 关键：不是当前项目当前片段的输出，不展示、不下载。
     if (segmentIndex < 0) continue;
-    if (row.project_id && currentProjectId && row.project_id !== currentProjectId && !exactProviderMatch) continue;
+    if (row.project_id && currentProjectId && row.project_id !== currentProjectId && !exactProviderMatch && !forcedCurrentOutput) continue;
 
     const segment = segments[segmentIndex];
     const output = {
@@ -2707,6 +2739,7 @@ async function loadOutputs() {
 
     // 当前输出只接受当前正在绑定的 task/provider；历史输出不抢占当前输出。
     const isCurrent =
+      forcedCurrentOutput ||
       (segment?.providerTaskId && providerTaskId && providerTaskId === segment.providerTaskId) ||
       (segment?.remoteTaskId && row.task_id && row.task_id === segment.remoteTaskId) ||
       (!segment?.providerTaskId && !segment?.remoteTaskId);
@@ -2737,51 +2770,99 @@ function startPolling() {
   }, 5000);
 }
 
+
+async function blobForOutput(output) {
+  const key = outputKey(output);
+  if (key && state.outputBlobs?.has(key)) return state.outputBlobs.get(key);
+
+  const blob = await fetchVideoBlobThroughProxy(output);
+  if (!blob?.size) throw new Error('视频文件为空，无法合并');
+
+  if (key) {
+    state.outputBlobs.set(key, blob);
+    if (!state.outputBlobUrls.has(key)) {
+      state.outputBlobUrls.set(key, URL.createObjectURL(blob));
+    }
+  }
+
+  return blob;
+}
+
 async function mergeAll() {
   await loadOutputs();
   const ordered = [...state.outputs].sort((a,b)=>a.index-b.index);
   if (ordered.length !== state.draft.segments.length || !ordered.length) {
     return toast('暂不能合并', '必须等待全部片段成功生成。');
   }
+
+  if (ordered.length === 1) {
+    try {
+      $('merge-all').disabled = true;
+      $('merge-all').textContent = '正在下载视频...';
+      const blob = await blobForOutput(ordered[0]);
+      const url = URL.createObjectURL(blob);
+      triggerLocalDownload(url, `${safeFilename(state.draft.name || 'seedance-project')}-${Date.now()}.mp4`);
+      setTimeout(()=>URL.revokeObjectURL(url), 60000);
+      return toast('已下载视频', '当前只有 1 个片段，不需要拼接，已下载原视频。');
+    } catch (error) {
+      return toast('下载失败', errorMessage(error));
+    } finally {
+      $('merge-all').disabled = false;
+      $('merge-all').textContent = '合并长视频';
+    }
+  }
+
   if (!await confirmBox('浏览器内合并', '将下载全部片段并使用 FFmpeg WASM 统一尺寸后拼接。长视频可能占用较多内存。')) return;
   $('merge-all').disabled = true;
   $('merge-all').textContent = '正在加载合并引擎...';
+
   try {
     const [{ FFmpeg }, { fetchFile, toBlobURL }] = await Promise.all([
       import('https://esm.sh/@ffmpeg/ffmpeg@0.12.10'),
       import('https://esm.sh/@ffmpeg/util@0.12.1'),
     ]);
+
     const ffmpeg = new FFmpeg();
-    const base = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
+    const ffmpegBase = 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm';
+    const coreBase = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
+
     await ffmpeg.load({
-      coreURL: await toBlobURL(`${base}/ffmpeg-core.js`, 'text/javascript'),
-      wasmURL: await toBlobURL(`${base}/ffmpeg-core.wasm`, 'application/wasm'),
+      workerURL: await toBlobURL(`${ffmpegBase}/worker.js`, 'text/javascript'),
+      coreURL: await toBlobURL(`${coreBase}/ffmpeg-core.js`, 'text/javascript'),
+      wasmURL: await toBlobURL(`${coreBase}/ffmpeg-core.wasm`, 'application/wasm'),
     });
+
     const width = Number(state.draft.finalWidth);
     const height = Number(state.draft.finalHeight);
+
     for (let i = 0; i < ordered.length; i++) {
+      $('merge-all').textContent = `下载片段 ${i+1}/${ordered.length}`;
+      const blob = await blobForOutput(ordered[i]);
+
       $('merge-all').textContent = `处理片段 ${i+1}/${ordered.length}`;
-      await ffmpeg.writeFile(`in${i}.mp4`, await fetchFile(ordered[i].url));
+      await ffmpeg.writeFile(`in${i}.mp4`, await fetchFile(blob));
+
       const vf = state.draft.fitMode === 'cover'
         ? `scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height}`
         : `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:black`;
-      await ffmpeg.exec(['-i',`in${i}.mp4`,'-vf',vf,'-r','30','-c:v','libx264','-preset','ultrafast','-crf','23','-an',`norm${i}.mp4`]);
+
+      await ffmpeg.exec(['-i',`in${i}.mp4`,'-vf',vf,'-r','30','-c:v','libx264','-preset','ultrafast','-crf','23','-pix_fmt','yuv420p','-an',`norm${i}.mp4`]);
     }
+
     const concatText = ordered.map((_,i)=>`file 'norm${i}.mp4'`).join('\n');
     await ffmpeg.writeFile('concat.txt', new TextEncoder().encode(concatText));
     $('merge-all').textContent = '正在拼接...';
     await ffmpeg.exec(['-f','concat','-safe','0','-i','concat.txt','-c','copy','final.mp4']);
+
     const data = await ffmpeg.readFile('final.mp4');
     const blob = new Blob([data.buffer], { type:'video/mp4' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${state.draft.name || 'seedance-project'}-${Date.now()}.mp4`;
-    a.click();
+    triggerLocalDownload(url, `${safeFilename(state.draft.name || 'seedance-project')}-${Date.now()}.mp4`);
     setTimeout(()=>URL.revokeObjectURL(url), 60000);
     toast('合并完成', '最终长视频已经开始下载。');
   } catch (error) {
-    toast('合并失败', error.message || String(error));
+    console.error('[Seedance Studio] merge failed', error);
+    toast('合并失败', errorMessage(error));
   } finally {
     $('merge-all').disabled = false;
     $('merge-all').textContent = '合并长视频';
