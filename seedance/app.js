@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260724-single-project-single-mode-r5-3-history-rebind';
+const PRODUCTION_BUILD = '20260724-single-project-single-mode-r5-4-output-render-fix';
 const ORIGINAL_BUILD = '20260723-google-drive-only-output-v46';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -1063,10 +1063,10 @@ function r5RenderJobs() {
   const next = markup || '<div class="empty-state">当前独立项目暂无视频。点击“刷新状态”只会查询这个项目，不会搜索或展示其他项目。</div>';
   const signature = [...visible, ...history].map(r5OutputStableKey).join('|') + `:${segments.map(s => `${s.id}-${s.status}-${s.progress}`).join('|')}`;
   const list = $('outputs-list');
-  if (r5RenderJobs.lastContextKey !== contextKey || r5RenderJobs.lastOutputSignature !== signature || !list.childNodes.length) {
+  if (renderJobs.lastContextKey !== contextKey || renderJobs.lastOutputSignature !== signature || !list.childNodes.length) {
     list.innerHTML = next;
-    r5RenderJobs.lastContextKey = contextKey;
-    r5RenderJobs.lastOutputSignature = signature;
+    renderJobs.lastContextKey = contextKey;
+    renderJobs.lastOutputSignature = signature;
   }
   setTimeout(hydrateProxyVideoElements, 0);
 
