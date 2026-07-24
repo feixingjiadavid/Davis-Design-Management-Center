@@ -1,8 +1,8 @@
-const PRODUCTION_BUILD = '20260723-text-mode-isolation-r4';
+const PRODUCTION_BUILD = '20260723-single-project-single-mode-r5';
 const ORIGINAL_BUILD = '20260723-google-drive-only-output-v46';
 const ORIGINAL_FILE = './app-v46.js';
 
-function v47FetchVideoBlobThroughProxy(output) {
+function r5FetchVideoBlobThroughProxy(output) {
   return (async () => {
     const outputId = output?.outputId || output?.row?.id || '';
     const providerTaskId = output?.providerTaskId || '';
@@ -74,786 +74,552 @@ function v47FetchVideoBlobThroughProxy(output) {
   })();
 }
 
-function v47HydrateProxyVideoElements() {
-  return (async () => {
-    const videos = qsa('video[data-output-id], video[data-provider-task-id]');
-    const proxyFailureCache = hydrateProxyVideoElements.proxyFailureCache || new Map();
-    const proxyInflight = hydrateProxyVideoElements.proxyInflight || new Map();
-    hydrateProxyVideoElements.proxyFailureCache = proxyFailureCache;
-    hydrateProxyVideoElements.proxyInflight = proxyInflight;
-
-    for (const video of videos) {
-      if (video.dataset.proxyLoading === '1' || video.dataset.proxyLoaded === '1') continue;
-
-      const outputId = video.dataset.outputId || '';
-      const googleDriveFileId = video.dataset.googleDriveFileId || '';
-      const providerTaskId = video.dataset.providerTaskId || '';
-      const taskId = video.dataset.taskId || '';
-      const key = outputId || googleDriveFileId || providerTaskId || taskId || video.dataset.outputKey || '';
-      if (!key) continue;
-
-      const statusEl = document.querySelector(`[data-output-load-status="${CSS.escape(key)}"]`);
-      const downloadEl = document.querySelector(`[data-proxy-download="${CSS.escape(key)}"]`);
-
-      if (state.outputBlobUrls.has(key)) {
-        const cachedUrl = state.outputBlobUrls.get(key);
-        if (video.src !== cachedUrl) video.src = cachedUrl;
-        video.dataset.proxyLoaded = '1';
-        video.dataset.proxyLoading = '0';
-        if (downloadEl) {
-          downloadEl.href = cachedUrl;
-          downloadEl.download = `seedance-${providerTaskId || taskId || Date.now()}.mp4`;
-        }
-        if (statusEl) statusEl.textContent = '已通过 Google Drive 代理加载，可播放/下载';
-        continue;
-      }
-
-      const failed = proxyFailureCache.get(key);
-      if (failed && failed.retryAt > Date.now()) {
-        if (statusEl) statusEl.textContent = `暂不重试：${failed.message}`;
-        video.dataset.proxyLoading = '0';
-        continue;
-      }
-
-      const output = [...(state.outputs || []), ...(state.outputHistory || [])].find(o => {
-        return (outputId && (o.outputId === outputId || o.row?.id === outputId)) ||
-          (googleDriveFileId && o.googleDriveFileId === googleDriveFileId) ||
-          (providerTaskId && o.providerTaskId === providerTaskId) ||
-          (taskId && o.taskId === taskId) ||
-          outputKey(o) === key;
-      });
-      if (!output) continue;
-
-      video.dataset.proxyLoading = '1';
-      if (statusEl) statusEl.textContent = '正在通过 Google Drive 服务端代理拉取 MP4...';
-
-      try {
-        let request = proxyInflight.get(key);
-        if (!request) {
-          request = fetchVideoBlobThroughProxy(output).finally(() => proxyInflight.delete(key));
-          proxyInflight.set(key, request);
-        }
-        const blob = await request;
-        let objectUrl = state.outputBlobUrls.get(key);
-        if (!objectUrl) {
-          objectUrl = URL.createObjectURL(blob);
-          state.outputBlobs.set(key, blob);
-          state.outputBlobUrls.set(key, objectUrl);
-        }
-        proxyFailureCache.delete(key);
-
-        video.src = objectUrl;
-        video.dataset.proxyLoaded = '1';
-        video.dataset.proxyLoading = '0';
-        video.load();
-
-        if (downloadEl) {
-          downloadEl.href = objectUrl;
-          downloadEl.download = `seedance-${providerTaskId || taskId || Date.now()}.mp4`;
-        }
-        if (statusEl) statusEl.textContent = `已通过 Google Drive 代理加载：${formatBytes(blob.size)}`;
-      } catch (error) {
-        video.dataset.proxyLoading = '0';
-        const status = Number(error?.status || 0);
-        const msg = errorMessage(error, '视频代理加载失败');
-        const permanentLike = [404, 410, 502].includes(status) || /OUTPUT_HAS_NO_PLAYABLE_SOURCE|VIDEO_FETCH_FAILED|GOOGLE_DRIVE_FETCH_FAILED/i.test(msg);
-        const retryMs = permanentLike ? 10 * 60 * 1000 : 60 * 1000;
-        proxyFailureCache.set(key, { message: msg, retryAt: Date.now() + retryMs });
-        if (statusEl) statusEl.textContent = `加载失败：${msg}`;
-        console.warn('[Seedance Studio R4] proxy video load failed', { key, status, error });
-      }
-    }
-  })();
-}
-
-function v47RecoverLatestDriveOutputWhenEmpty(force = false) {
-  return (async () => {
-    if (state.driveFallbackLoading) return;
-    if (!state.user?.id || !state.draft?.id) return;
-    if ((state.outputs || []).length) return;
-
-    const recoveryKey = `${state.draft.id}:${state.draft.mode}`;
-    if (!force && state.driveFallbackDoneForDraftId === recoveryKey) return;
-    state.driveFallbackDoneForDraftId = recoveryKey;
-    state.driveFallbackLoading = true;
-
-    try {
-      await loadOutputs();
-      if ((state.outputs || []).length) {
-        renderJobs();
-        setTimeout(hydrateProxyVideoElements, 0);
-        toast('已恢复当前项目视频', '只从当前工作区对应的 Supabase 项目与 Google Drive 输出中恢复。');
-      } else if (force) {
-        toast('当前项目暂无可播放视频', '没有找到属于当前工作区且已成功保存到 Google Drive 的视频。');
-      }
-    } catch (error) {
-      console.warn('[Seedance Studio R4] strict drive recover failed', error);
-      if (force) toast('拉取失败', errorMessage(error));
-    } finally {
-      state.driveFallbackLoading = false;
-    }
-  })();
-}
-
-function v47RenderJobs() {
-  if (!state.draft) return;
-  keepOnlyCurrentProjectOutputs();
-
-  const strictProjectId = state.draft.remoteProjectId || getWorkspace()?.remoteProjectId || null;
-  const belongsToStrictProject = output => {
-    const rowProjectId = output?.row?.project_id || output?.projectId || null;
-    return !strictProjectId || !rowProjectId || rowProjectId === strictProjectId;
-  };
-  state.outputs = (state.outputs || []).filter(belongsToStrictProject);
-  state.outputHistory = (state.outputHistory || []).filter(belongsToStrictProject);
-
-  const segments = state.draft.segments || [];
-  $('jobs-list').innerHTML = segments.length ? segments.map(s => `
-    <article class="job-card">
-      <div class="job-head">
-        <strong>Segment ${String(s.index + 1).padStart(2, '0')}</strong>
-        <span>${statusText(s.status)}</span>
-      </div>
-      <p>${escapeHtml(s.prompt || '未填写提示词')}</p>
-      ${jobStageMarkup(s)}
-      ${s.providerTaskId ? '<p class="task-id">后台任务已记录</p>' : ''}
-      ${s.error ? `<p style="color:#ff8090;white-space:pre-wrap">${escapeHtml(s.error)}</p>` : ''}
-      <div class="job-actions">
-        <button data-sync-output="${s.id}">刷新结果</button>
-        <button data-edit-from-job="${s.id}">重新编辑</button>
-      </div>
-    </article>`).join('') : '<div class="empty-state">暂无生成任务</div>';
-
-  const activeMarkup = renderActiveGenerationCards();
-  const visibleOutputs = currentOutputRows();
-  const historyOutputs = historicalOutputRows();
-  const outputMarkup = [
-    activeMarkup,
-    visibleOutputs.map(o => outputCardMarkup(o, false)).join(''),
-    historyOutputs.length ? `<div class="history-title">当前项目历史输出</div>${historyOutputs.map(o => outputCardMarkup(o, true)).join('')}` : '',
-  ].filter(Boolean).join('');
-  const nextMarkup = outputMarkup || '<div class="empty-state">暂无当前项目视频输出。正在检查 Google Drive 记录...</div>';
-  const outputsList = $('outputs-list');
-
-  if (renderJobs.lastOutputMarkup !== nextMarkup || !outputsList.childNodes.length) {
-    outputsList.innerHTML = nextMarkup;
-    renderJobs.lastOutputMarkup = nextMarkup;
-  }
-  setTimeout(hydrateProxyVideoElements, 0);
-  if (!outputMarkup) setTimeout(() => recoverLatestDriveOutputWhenEmpty(false), 0);
-
-  qsa('[data-sync-output]').forEach(btn => btn.onclick = async () => {
-    const segmentId = btn.dataset.syncOutput;
-    const oldText = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = '刷新中...';
-    try {
-      await refreshJobs();
-      await recoverSegmentOutput(segmentId);
-      await loadOutputs();
-      saveCurrentWorkspaceSelection();
-      renderAll();
-    } finally {
-      btn.disabled = false;
-      btn.textContent = oldText || '刷新结果';
-    }
-  });
-  qsa('[data-edit-from-job]').forEach(btn => btn.onclick = () => reEditSegment(btn.dataset.editFromJob));
-  qsa('[data-edit-output-segment]').forEach(btn => btn.onclick = () => reEditSegment(btn.dataset.editOutputSegment || findSegmentIdByOutputIndex(btn.dataset.outputIndex)));
-  qsa('[data-download-output]').forEach(link => link.onclick = event => {
-    if (!link.href || link.getAttribute('href') === '#' || link.href.endsWith('#')) {
-      event.preventDefault();
-      toast('视频还没加载完成', '等右侧显示“已通过 Google Drive 代理加载：xx MB”后，再点下载到本地。');
-      return;
-    }
-    const set = downloadedSet();
-    set.add(link.dataset.downloadOutput);
-    saveDownloadedSet(set);
-  });
-}
-
-function v47LoadOutputs() {
-  return (async () => {
-    if (!state.user?.id || !state.draft) {
-      state.outputs = [];
-      state.outputHistory = [];
-      return;
-    }
-
-    const segments = state.draft.segments || [];
-    const workspace = getWorkspace();
-    const providerIds = [...new Set(segments.map(s => s.providerTaskId).filter(Boolean))];
-    const taskIds = [...new Set(segments.map(s => s.remoteTaskId).filter(Boolean))];
-    const segmentIds = [...new Set(segments.map(s => s.remoteSegmentId).filter(Boolean))];
-    const taskRowsById = new Map();
-
-    async function collectTasks(column, values) {
-      if (!values.length) return;
-      const { data, error } = await supabase
-        .from('video_tasks')
-        .select('id, segment_id, project_id, provider_task_id, status, progress, error_message, created_at, updated_at')
-        .eq('owner_id', state.user.id)
-        .in(column, values)
-        .order('created_at', { ascending: false });
-      if (error) {
-        console.warn(`[Seedance Studio R4] video_tasks ${column} lookup failed`, error);
-        return;
-      }
-      for (const row of data || []) taskRowsById.set(row.id, row);
-    }
-
-    await collectTasks('provider_task_id', providerIds);
-    await collectTasks('id', taskIds);
-    await collectTasks('segment_id', segmentIds);
-    const taskRows = [...taskRowsById.values()];
-
-    for (const task of taskRows) {
-      const local = segments.find(s =>
-        (task.provider_task_id && s.providerTaskId === task.provider_task_id) ||
-        (task.id && s.remoteTaskId === task.id) ||
-        (task.segment_id && s.remoteSegmentId === task.segment_id)
-      ) || (segments.length === 1 ? segments[0] : null);
-      if (!local) continue;
-      if (task.provider_task_id) local.providerTaskId = task.provider_task_id;
-      if (task.id) local.remoteTaskId = task.id;
-      if (task.segment_id) local.remoteSegmentId = task.segment_id;
-      if (task.status) local.status = task.status;
-      if (task.progress !== null && task.progress !== undefined) local.progress = Number(task.progress || 0);
-      local.error = task.error_message || null;
-    }
-
-    let currentProjectId = null;
-    if (taskRows.length) {
-      const projectScore = new Map();
-      for (const task of taskRows) {
-        if (!task.project_id) continue;
-        let score = 1;
-        if (providerIds.includes(task.provider_task_id)) score += 100;
-        if (taskIds.includes(task.id)) score += 100;
-        if (segmentIds.includes(task.segment_id)) score += 50;
-        projectScore.set(task.project_id, (projectScore.get(task.project_id) || 0) + score);
-      }
-      currentProjectId = [...projectScore.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || null;
-    }
-
-    const localProjectId = workspace.remoteProjectId || state.draft.remoteProjectId || null;
-    if (!currentProjectId && localProjectId) {
-      const { data: project } = await supabase
-        .from('video_projects')
-        .select('id, name, mode, created_at')
-        .eq('owner_id', state.user.id)
-        .eq('id', localProjectId)
-        .maybeSingle();
-      if (project && project.mode === state.draft.mode) currentProjectId = project.id;
-    }
-
-    if (!currentProjectId) {
-      const { data: projects, error } = await supabase
-        .from('video_projects')
-        .select('id, name, mode, created_at')
-        .eq('owner_id', state.user.id)
-        .eq('mode', state.draft.mode)
-        .order('created_at', { ascending: false })
-        .limit(30);
-      if (error) console.warn('[Seedance Studio R4] project recovery lookup failed', error);
-      const all = projects || [];
-      const sameName = all.filter(project => project.name === state.draft.name);
-      const candidates = sameName.length ? sameName : all;
-      const targetTime = Number(state.draft.createdAt || state.draft.updatedAt || Date.now());
-      candidates.sort((a, b) => {
-        const da = Math.abs((new Date(a.created_at || 0).getTime() || 0) - targetTime);
-        const db = Math.abs((new Date(b.created_at || 0).getTime() || 0) - targetTime);
-        return da - db;
-      });
-      currentProjectId = candidates[0]?.id || null;
-    }
-
-    if (!currentProjectId) {
-      state.outputs = [];
-      state.outputHistory = [];
-      workspace.outputs = [];
-      workspace.outputHistory = [];
-      saveCurrentWorkspaceSelection();
-      return;
-    }
-
-    workspace.remoteProjectId = currentProjectId;
-    state.draft.remoteProjectId = currentProjectId;
-
-    const { data: rows, error: outputError } = await supabase
-      .from('video_outputs')
-      .select('*')
-      .eq('owner_id', state.user.id)
-      .eq('project_id', currentProjectId)
-      .order('created_at', { ascending: false })
-      .limit(100);
-
-    if (outputError) {
-      console.warn('[Seedance Studio R4] current-project output query failed', outputError);
-      state.outputs = [];
-      state.outputHistory = [];
-      return;
-    }
-
-    const candidatesBySegment = new Map();
-    const now = Date.now();
-
-    for (const row of rows || []) {
-      const meta = row.metadata || {};
-      const providerTaskId = providerTaskIdFromOutputRow(row, meta);
-      const googleDriveFileId = meta.google_drive_file_id || meta.googleDriveFileId || meta.drive_file_id || meta.driveFileId || null;
-      const driveStatus = String(meta.google_drive_backup_status || '').toLowerCase();
-      const providerUrl = outputVideoUrlFromMetadata(meta);
-      const providerExpiry = Date.parse(meta.provider_video_url_expires_at || '');
-      const providerStillValid = Boolean(providerUrl) && (!Number.isFinite(providerExpiry) || providerExpiry > now + 60000);
-
-      let url = '';
-      let storageMode = '';
-      if (googleDriveFileId && driveStatus !== 'failed') {
-        url = `seedance-proxy://${row.id || googleDriveFileId}`;
-        storageMode = 'google-drive-proxy';
-      } else if (providerStillValid) {
-        url = `seedance-proxy://${row.id || providerTaskId}`;
-        storageMode = 'ark-proxy';
-      } else if (row.storage_path && row.bucket_id && row.bucket_id !== 'ark-url') {
-        const signed = await supabase.storage.from(row.bucket_id).createSignedUrl(row.storage_path, 3600);
-        if (!signed.error && signed.data?.signedUrl) {
-          url = signed.data.signedUrl;
-          storageMode = 'supabase';
-        }
-      }
-      if (!url) continue;
-
-      let segmentIndex = segments.findIndex(s =>
-        (row.segment_id && s.remoteSegmentId === row.segment_id) ||
-        (row.task_id && s.remoteTaskId === row.task_id) ||
-        (providerTaskId && s.providerTaskId === providerTaskId)
-      );
-      if (segmentIndex < 0 && segments.length === 1) segmentIndex = 0;
-      if (segmentIndex < 0) continue;
-
-      const segment = segments[segmentIndex];
-      let matchScore = 0;
-      if (segment?.providerTaskId && providerTaskId === segment.providerTaskId) matchScore += 1000;
-      if (segment?.remoteTaskId && row.task_id === segment.remoteTaskId) matchScore += 1000;
-      if (segment?.remoteSegmentId && row.segment_id === segment.remoteSegmentId) matchScore += 500;
-      if (googleDriveFileId) matchScore += 100;
-
-      const output = {
-        row,
-        url,
-        storageMode,
-        providerTaskId,
-        taskId: row.task_id || null,
-        segmentId: segment?.id || null,
-        remoteSegmentId: row.segment_id || null,
-        index: segmentIndex,
-        promptSnapshot: segment?.prompt || '',
-        forceRecovered: false,
-        googleDriveFileId,
-        outputId: row.id || null,
-        matchScore,
-      };
-      if (!candidatesBySegment.has(segmentIndex)) candidatesBySegment.set(segmentIndex, []);
-      candidatesBySegment.get(segmentIndex).push(output);
-    }
-
-    const current = [];
-    const history = [];
-    for (const [segmentIndex, list] of candidatesBySegment.entries()) {
-      list.sort((a, b) => {
-        if (b.matchScore !== a.matchScore) return b.matchScore - a.matchScore;
-        return new Date(b.row?.created_at || 0) - new Date(a.row?.created_at || 0);
-      });
-      const chosen = list[0];
-      if (!chosen) continue;
-      current.push(chosen);
-      for (const old of list.slice(1)) {
-        history.push({
-          ...old,
-          historical: true,
-          historyId: `${old.outputId || old.providerTaskId || old.taskId}-v47`,
-          reason: '当前项目历史生成版本',
-          index: segmentIndex,
-        });
-      }
-
-      const segment = segments[segmentIndex];
-      if (segment) {
-        segment.status = 'succeeded';
-        segment.progress = 100;
-        segment.error = null;
-        if (chosen.providerTaskId) segment.providerTaskId = chosen.providerTaskId;
-        if (chosen.taskId) segment.remoteTaskId = chosen.taskId;
-        if (chosen.remoteSegmentId) segment.remoteSegmentId = chosen.remoteSegmentId;
-      }
-    }
-
-    state.outputs = current.sort((a, b) => a.index - b.index);
-    state.outputHistory = history
-      .sort((a, b) => new Date(b.row?.created_at || 0) - new Date(a.row?.created_at || 0))
-      .slice(0, 30);
-    workspace.outputs = state.outputs;
-    workspace.outputHistory = state.outputHistory;
-    saveCurrentWorkspaceSelection();
-  })();
-}
-
-function r4ModeKey(mode) {
+function r5ModeKey(mode) {
   return mode === 'first_last' ? 'first_last' : (mode === 'text_only' ? 'text_only' : 'multi_frame');
 }
 
-function r4NormalizeName(value) {
-  return String(value || '').trim().replace(/\s+/g, ' ');
+function r5ModeLabel(mode) {
+  const key = r5ModeKey(mode);
+  if (key === 'first_last') return '首尾帧';
+  if (key === 'text_only') return '纯文字生成';
+  return '多帧 Storyboard';
 }
 
-function r4ChooseProject(projects, options = {}) {
-  const mode = r4ModeKey(options.mode);
-  const draftName = r4NormalizeName(options.name);
-  const workspaceProjectId = options.workspaceProjectId || null;
-  const taskProjectIds = new Set(options.taskProjectIds || []);
-  const targetTime = Number(options.targetTime || Date.now());
-  const modeProjects = (projects || []).filter(project => r4ModeKey(project?.mode) === mode);
-  if (!modeProjects.length) return null;
-
-  const sameName = draftName
-    ? modeProjects.filter(project => r4NormalizeName(project?.name) === draftName)
-    : [];
-
-  let pool = sameName;
-  if (!pool.length) {
-    const preferred = modeProjects.filter(project =>
-      project.id === workspaceProjectId || taskProjectIds.has(project.id)
-    );
-    if (preferred.length) {
-      pool = preferred;
-    } else if (modeProjects.length === 1) {
-      pool = modeProjects;
-    } else {
-      const ordered = [...modeProjects].sort((a, b) => {
-        const da = Math.abs((new Date(a?.created_at || 0).getTime() || 0) - targetTime);
-        const db = Math.abs((new Date(b?.created_at || 0).getTime() || 0) - targetTime);
-        return da - db;
-      });
-      const nearestDistance = Math.abs((new Date(ordered[0]?.created_at || 0).getTime() || 0) - targetTime);
-      // 没有同名、没有明确绑定时宁可不显示，也不跨项目猜测。
-      if (nearestDistance > 15 * 60 * 1000) return null;
-      pool = [ordered[0]];
-    }
-  }
-
-  return [...pool].sort((a, b) => {
-    const aTask = taskProjectIds.has(a.id) ? 1 : 0;
-    const bTask = taskProjectIds.has(b.id) ? 1 : 0;
-    if (aTask !== bTask) return bTask - aTask;
-    const da = Math.abs((new Date(a?.created_at || 0).getTime() || 0) - targetTime);
-    const db = Math.abs((new Date(b?.created_at || 0).getTime() || 0) - targetTime);
-    if (da !== db) return da - db;
-    const aWorkspace = a.id === workspaceProjectId ? 1 : 0;
-    const bWorkspace = b.id === workspaceProjectId ? 1 : 0;
-    if (aWorkspace !== bWorkspace) return bWorkspace - aWorkspace;
-    return new Date(b?.created_at || 0) - new Date(a?.created_at || 0);
-  })[0] || null;
+function r5ModeSuffix(mode) {
+  const key = r5ModeKey(mode);
+  if (key === 'first_last') return '首尾帧';
+  if (key === 'text_only') return '纯文字';
+  return '多帧';
 }
 
-function r4ContextSnapshot() {
-  return {
-    draftId: state.draft?.id || null,
-    mode: r4ModeKey(state.draft?.mode),
-    epoch: Number(state.r4ContextEpoch || 0),
-  };
+function r5BaseProjectName(name) {
+  return String(name || '未命名 Seedance 项目')
+    .replace(/\s*[－—-]\s*(首尾帧|多帧(?: Storyboard)?|纯文字(?:生成)?)\s*$/u, '')
+    .trim() || '未命名 Seedance 项目';
 }
 
-function r4ContextIsCurrent(snapshot) {
-  return Boolean(
-    snapshot &&
-    state.draft?.id === snapshot.draftId &&
-    r4ModeKey(state.draft?.mode) === snapshot.mode &&
-    Number(state.r4ContextEpoch || 0) === Number(snapshot.epoch || 0)
+function r5Clone(value) {
+  try { return structuredClone(value); } catch { return value; }
+}
+
+function r5WorkspaceHasContent(workspace) {
+  if (!workspace) return false;
+  if (workspace.remoteProjectId) return true;
+  if ((workspace.frames || []).length) return true;
+  if ((workspace.outputs || []).length || (workspace.outputHistory || []).length) return true;
+  if ((workspace.referenceAssets || []).length || workspace.referenceVideo) return true;
+  if ((workspace.jobs || []).length) return true;
+  return (workspace.segments || []).some(segment =>
+    String(segment?.prompt || '').trim() ||
+    segment?.providerTaskId || segment?.remoteTaskId || segment?.remoteSegmentId ||
+    !['draft', ''].includes(String(segment?.status || '').toLowerCase())
   );
 }
 
-function r4MigrateDraftWorkspaces(draft) {
+function r5CreateWorkspaceClone(workspace) {
+  const next = r5Clone(workspace || {}) || {};
+  if (!Array.isArray(next.frames)) next.frames = [];
+  if (!Array.isArray(next.segments)) next.segments = [];
+  if (!Array.isArray(next.outputs)) next.outputs = [];
+  if (!Array.isArray(next.outputHistory)) next.outputHistory = [];
+  if (!Array.isArray(next.jobs)) next.jobs = [];
+  if (!Array.isArray(next.referenceAssets)) next.referenceAssets = next.referenceVideo ? [next.referenceVideo] : [];
+  if (!('referenceVideo' in next)) next.referenceVideo = null;
+  if (!('remoteProjectId' in next)) next.remoteProjectId = null;
+  if (!('selectedSegmentId' in next)) next.selectedSegmentId = null;
+  if (!('cloudSyncedAt' in next)) next.cloudSyncedAt = 0;
+  return next;
+}
+
+function r5NewDraft(mode = 'multi_frame', name = '') {
+  const key = r5ModeKey(mode);
+  const id = uid();
+  const workspace = createWorkspaceState();
+  const displayName = String(name || '').trim() || `未命名 ${r5ModeSuffix(key)}项目`;
+  return {
+    id,
+    name: displayName,
+    remoteProjectName: displayName,
+    mode: key,
+    lockedMode: key,
+    projectModeLocked: true,
+    singleModeVersion: 'r5',
+    ratio: '16:9',
+    finalWidth: 1920,
+    finalHeight: 1080,
+    fitMode: 'contain',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    remoteProjectId: null,
+    workspaces: { [key]: workspace },
+    frames: workspace.frames,
+    segments: workspace.segments,
+    selectedSegmentId: null,
+  };
+}
+
+function r5GetWorkspace(draft = state.draft) {
+  if (!draft) return createWorkspaceState();
+  const key = r5ModeKey(draft.lockedMode || draft.mode);
+  draft.mode = key;
+  draft.lockedMode = key;
+  draft.projectModeLocked = true;
+  if (!draft.workspaces || typeof draft.workspaces !== 'object') draft.workspaces = {};
+  if (!draft.workspaces[key]) draft.workspaces[key] = createWorkspaceState();
+  const workspace = draft.workspaces[key];
+  if (!Array.isArray(workspace.frames)) workspace.frames = [];
+  if (!Array.isArray(workspace.segments)) workspace.segments = [];
+  if (!Array.isArray(workspace.outputs)) workspace.outputs = [];
+  if (!Array.isArray(workspace.outputHistory)) workspace.outputHistory = [];
+  if (!Array.isArray(workspace.jobs)) workspace.jobs = [];
+  if (!Array.isArray(workspace.referenceAssets)) workspace.referenceAssets = workspace.referenceVideo ? [workspace.referenceVideo] : [];
+  if (!('referenceVideo' in workspace)) workspace.referenceVideo = null;
+  if (!('remoteProjectId' in workspace)) workspace.remoteProjectId = null;
+  if (!('cloudSyncedAt' in workspace)) workspace.cloudSyncedAt = 0;
+  return workspace;
+}
+
+function r5MigrateDraftWorkspaces(draft) {
   if (!draft) return draft;
-  const activeMode = r4ModeKey(draft.mode);
-  const hadWorkspaces = Boolean(draft.workspaces);
-  const oldFrames = Array.isArray(draft.frames) ? draft.frames : [];
-  const oldSegments = Array.isArray(draft.segments) ? draft.segments : [];
-  const oldRemoteProjectId = draft.remoteProjectId || null;
-  const oldSelectedSegmentId = draft.selectedSegmentId || null;
-
-  if (!draft.workspaces) {
-    draft.workspaces = {
-      first_last: createWorkspaceState(),
-      multi_frame: createWorkspaceState(),
-      text_only: createWorkspaceState(),
-    };
-  }
-
-  for (const mode of ['first_last', 'multi_frame', 'text_only']) {
-    if (!draft.workspaces[mode]) draft.workspaces[mode] = createWorkspaceState();
-    const workspace = draft.workspaces[mode];
-    if (!Array.isArray(workspace.frames)) workspace.frames = [];
-    if (!Array.isArray(workspace.segments)) workspace.segments = [];
-    if (!Array.isArray(workspace.outputs)) workspace.outputs = [];
-    if (!Array.isArray(workspace.outputHistory)) workspace.outputHistory = [];
-    if (!Array.isArray(workspace.jobs)) workspace.jobs = [];
-    if (!Array.isArray(workspace.referenceAssets)) {
-      workspace.referenceAssets = workspace.referenceVideo ? [workspace.referenceVideo] : [];
-    }
-    if (!('referenceVideo' in workspace)) workspace.referenceVideo = null;
-    if (!('remoteProjectId' in workspace)) workspace.remoteProjectId = null;
-  }
-
-  const activeWorkspace = draft.workspaces[activeMode];
-  if (!hadWorkspaces) {
-    activeWorkspace.frames = oldFrames;
-    activeWorkspace.segments = oldSegments;
-    activeWorkspace.remoteProjectId = oldRemoteProjectId;
-    activeWorkspace.selectedSegmentId = oldSelectedSegmentId;
-  }
-  // 已经存在 workspaces 时，绝不再把顶层 remoteProjectId 灌进另一个模式。
-
-  draft.mode = activeMode;
-  draft.frames = activeWorkspace.frames;
-  draft.segments = activeWorkspace.segments;
-  draft.remoteProjectId = activeWorkspace.remoteProjectId || null;
-  draft.selectedSegmentId = activeWorkspace.selectedSegmentId || activeWorkspace.segments[0]?.id || null;
+  const key = r5ModeKey(draft.lockedMode || draft.mode);
+  const workspace = r5GetWorkspace(draft);
+  draft.mode = key;
+  draft.lockedMode = key;
+  draft.projectModeLocked = true;
+  draft.singleModeVersion = 'r5';
+  draft.frames = workspace.frames;
+  draft.segments = workspace.segments;
+  draft.remoteProjectId = workspace.remoteProjectId || draft.remoteProjectId || null;
+  workspace.remoteProjectId = draft.remoteProjectId || workspace.remoteProjectId || null;
+  draft.selectedSegmentId = workspace.selectedSegmentId || draft.selectedSegmentId || workspace.segments[0]?.id || null;
+  workspace.selectedSegmentId = draft.selectedSegmentId;
+  if (!draft.remoteProjectName) draft.remoteProjectName = r5BaseProjectName(draft.name);
   return draft;
 }
 
-function r4BindCurrentWorkspace() {
+function r5BuildSplitDraft(source, mode, workspace, id, multiple) {
+  const key = r5ModeKey(mode);
+  const baseName = r5BaseProjectName(source.name);
+  const active = r5CreateWorkspaceClone(workspace);
+  const draft = r5Clone(source) || {};
+  draft.id = id;
+  draft.name = multiple ? `${baseName}－${r5ModeSuffix(key)}` : baseName;
+  draft.remoteProjectName = source.remoteProjectName || baseName;
+  draft.mode = key;
+  draft.lockedMode = key;
+  draft.projectModeLocked = true;
+  draft.singleModeVersion = 'r5';
+  draft.migrationSourceDraftId = source.id;
+  draft.workspaces = { [key]: active };
+  draft.frames = active.frames;
+  draft.segments = active.segments;
+  draft.remoteProjectId = active.remoteProjectId || null;
+  draft.selectedSegmentId = active.selectedSegmentId || active.segments[0]?.id || null;
+  draft.createdAt = Number(source.createdAt || Date.now());
+  draft.updatedAt = Date.now();
+  return draft;
+}
+
+async function r5MigrateDraftCollection(drafts) {
+  const result = [];
+  const seenIds = new Set();
+  for (const raw of drafts || []) {
+    if (!raw) continue;
+    if (raw.projectModeLocked && raw.singleModeVersion === 'r5') {
+      const locked = r5MigrateDraftWorkspaces(raw);
+      if (!seenIds.has(locked.id)) { result.push(locked); seenIds.add(locked.id); }
+      continue;
+    }
+
+    const fallbackMode = r5ModeKey(raw.mode);
+    const oldWorkspaces = raw.workspaces && typeof raw.workspaces === 'object'
+      ? raw.workspaces
+      : {
+          [fallbackMode]: {
+            frames: raw.frames || [],
+            segments: raw.segments || [],
+            outputs: raw.outputs || [],
+            outputHistory: raw.outputHistory || [],
+            referenceVideo: raw.referenceVideo || null,
+            referenceAssets: raw.referenceAssets || [],
+            jobs: raw.jobs || [],
+            selectedSegmentId: raw.selectedSegmentId || null,
+            remoteProjectId: raw.remoteProjectId || null,
+          },
+        };
+
+    let modes = ['first_last', 'multi_frame', 'text_only'].filter(mode => r5WorkspaceHasContent(oldWorkspaces[mode]));
+    if (!modes.length) modes = [fallbackMode];
+    const multiple = modes.length > 1;
+    const reuseMode = modes.includes(fallbackMode) ? fallbackMode : modes[0];
+
+    for (const mode of modes) {
+      const id = mode === reuseMode ? raw.id : uid();
+      const split = r5BuildSplitDraft(raw, mode, oldWorkspaces[mode], id, multiple);
+      await saveDraft(split);
+      if (!seenIds.has(split.id)) { result.push(split); seenIds.add(split.id); }
+    }
+  }
+  return result.sort((a, b) => Number(b.createdAt || b.updatedAt || 0) - Number(a.createdAt || a.updatedAt || 0));
+}
+
+function r5BindCurrentWorkspace() {
   if (!state.draft) return;
   migrateDraftWorkspaces(state.draft);
-  const mode = r4ModeKey(state.draft.mode);
-  const workspace = state.draft.workspaces[mode];
-
-  state.r4ContextEpoch = Number(state.r4ContextEpoch || 0) + 1;
-  state.r4VerifiedContextKey = null;
-  state.r4VerifiedProjectId = null;
-  state.driveFallbackDoneForDraftId = null;
-
+  const workspace = getWorkspace();
+  const contextKey = `${state.draft.id}:${r5ModeKey(state.draft.mode)}`;
+  if (state.r5BoundContextKey !== contextKey) {
+    state.r5BoundContextKey = contextKey;
+    state.r5ContextEpoch = Number(state.r5ContextEpoch || 0) + 1;
+    if (typeof renderJobs === 'function') {
+      renderJobs.lastContextKey = null;
+      renderJobs.lastOutputSignature = null;
+    }
+  }
   state.draft.frames = workspace.frames;
   state.draft.segments = workspace.segments;
   state.draft.remoteProjectId = workspace.remoteProjectId || null;
-  state.referenceAssets = Array.isArray(workspace.referenceAssets)
-    ? workspace.referenceAssets
-    : (workspace.referenceVideo ? [workspace.referenceVideo] : []);
+  state.outputs = Array.isArray(workspace.outputs) ? workspace.outputs : [];
+  state.outputHistory = Array.isArray(workspace.outputHistory) ? workspace.outputHistory : [];
+  state.jobs = Array.isArray(workspace.jobs) ? workspace.jobs : [];
+  state.referenceAssets = Array.isArray(workspace.referenceAssets) ? workspace.referenceAssets : [];
   state.referenceVideo = workspace.referenceVideo || state.referenceAssets[0] || null;
   state.selectedSegmentId = workspace.selectedSegmentId || workspace.segments[0]?.id || null;
-
-  // 云端是输出真源。切换项目/模式时不渲染本地旧缓存，避免一闪而过或串出其他模式视频。
-  state.outputs = [];
-  state.outputHistory = [];
-  state.jobs = [];
-  workspace.outputs = [];
-  workspace.outputHistory = [];
-  workspace.jobs = [];
-
-  if (typeof renderJobs === 'function') {
-    renderJobs.lastOutputMarkup = null;
-    renderJobs.lastContextKey = null;
-  }
+  state.driveFallbackDoneForDraftId = null;
 }
 
-function r4SaveCurrentWorkspaceSelection() {
+function r5SaveCurrentWorkspaceSelection() {
   if (!state.draft) return;
-  const mode = r4ModeKey(state.draft.mode);
-  if (!state.draft.workspaces) migrateDraftWorkspaces(state.draft);
-  const workspace = state.draft.workspaces[mode] || createWorkspaceState();
-  state.draft.workspaces[mode] = workspace;
-
+  const workspace = getWorkspace();
   workspace.frames = state.draft.frames || [];
   workspace.segments = state.draft.segments || [];
   workspace.outputs = state.outputs || [];
   workspace.outputHistory = state.outputHistory || [];
   workspace.jobs = state.jobs || [];
+  workspace.referenceAssets = state.referenceAssets || [];
+  workspace.referenceVideo = state.referenceVideo || workspace.referenceAssets[0] || null;
+  workspace.remoteProjectId = state.draft.remoteProjectId || workspace.remoteProjectId || null;
   workspace.selectedSegmentId = state.selectedSegmentId || null;
-
-  const verifiedKey = `${state.draft.id}:${mode}`;
-  if (state.r4VerifiedContextKey === verifiedKey && state.r4VerifiedProjectId) {
-    workspace.remoteProjectId = state.r4VerifiedProjectId;
-  }
-  // ensureRemoteProject / loadOutputs 会直接写 workspace.remoteProjectId；这里不从顶层反灌。
-  workspace.remoteProjectId = workspace.remoteProjectId || null;
-
-  if (mode === 'text_only') {
-    workspace.referenceAssets = state.referenceAssets || [];
-    workspace.referenceVideo = state.referenceVideo || workspace.referenceAssets[0] || null;
-  }
-
+  state.draft.mode = r5ModeKey(state.draft.lockedMode || state.draft.mode);
+  state.draft.lockedMode = state.draft.mode;
+  state.draft.projectModeLocked = true;
   state.draft.remoteProjectId = workspace.remoteProjectId;
   state.draft.selectedSegmentId = workspace.selectedSegmentId;
 }
 
-async function r4ResolveCurrentProject(snapshot) {
-  if (!state.user?.id || !state.draft || !r4ContextIsCurrent(snapshot)) return null;
-  const mode = snapshot.mode;
-  const workspace = getWorkspace(state.draft, mode);
-  const localSegments = Array.isArray(workspace.segments) ? workspace.segments : [];
-  const providerIds = [...new Set(localSegments.map(item => item.providerTaskId).filter(Boolean))];
-  const taskIds = [...new Set(localSegments.map(item => item.remoteTaskId).filter(Boolean))];
-  const segmentIds = [...new Set(localSegments.map(item => item.remoteSegmentId).filter(Boolean))];
-  const taskProjectIds = new Set();
+function r5ContextSnapshot() {
+  return {
+    draftId: state.draft?.id || null,
+    mode: r5ModeKey(state.draft?.lockedMode || state.draft?.mode),
+    epoch: Number(state.r5ContextEpoch || 0),
+  };
+}
 
-  async function collectTaskProjects(column, values) {
-    if (!values.length || !r4ContextIsCurrent(snapshot)) return;
-    const { data, error } = await supabase
-      .from('video_tasks')
+function r5ContextIsCurrent(snapshot) {
+  return Boolean(snapshot && state.draft?.id === snapshot.draftId &&
+    r5ModeKey(state.draft?.lockedMode || state.draft?.mode) === snapshot.mode &&
+    Number(state.r5ContextEpoch || 0) === Number(snapshot.epoch || 0));
+}
+
+function r5ExactTaskIds(workspace) {
+  const segments = workspace?.segments || [];
+  return {
+    providerIds: [...new Set(segments.map(s => s.providerTaskId).filter(Boolean))],
+    taskIds: [...new Set(segments.map(s => s.remoteTaskId).filter(Boolean))],
+    segmentIds: [...new Set(segments.map(s => s.remoteSegmentId).filter(Boolean))],
+  };
+}
+
+async function r5VerifyProjectId(projectId, mode, snapshot) {
+  if (!projectId || !r5ContextIsCurrent(snapshot)) return null;
+  const { data, error } = await supabase.from('video_projects')
+    .select('id,name,mode,created_at,updated_at')
+    .eq('owner_id', state.user.id)
+    .eq('id', projectId)
+    .maybeSingle();
+  if (!r5ContextIsCurrent(snapshot)) return null;
+  if (error || !data || r5ModeKey(data.mode) !== mode) return null;
+  return data;
+}
+
+async function r5ResolveFixedProject(snapshot) {
+  if (!state.user?.id || !state.draft || !r5ContextIsCurrent(snapshot)) return null;
+  const workspace = getWorkspace();
+  const mode = snapshot.mode;
+
+  const verified = await r5VerifyProjectId(workspace.remoteProjectId || state.draft.remoteProjectId, mode, snapshot);
+  if (verified) return verified;
+
+  const { providerIds, taskIds, segmentIds } = r5ExactTaskIds(workspace);
+  const foundProjectIds = new Set();
+  async function collect(column, values) {
+    if (!values.length || !r5ContextIsCurrent(snapshot)) return;
+    const { data, error } = await supabase.from('video_tasks')
       .select('project_id')
       .eq('owner_id', state.user.id)
       .in(column, values);
-    if (!r4ContextIsCurrent(snapshot)) return;
-    if (error) {
-      console.warn(`[Seedance Studio R4] task project lookup failed: ${column}`, error);
-      return;
-    }
-    for (const row of data || []) if (row.project_id) taskProjectIds.add(row.project_id);
+    if (!r5ContextIsCurrent(snapshot) || error) return;
+    for (const row of data || []) if (row.project_id) foundProjectIds.add(row.project_id);
   }
+  await collect('provider_task_id', providerIds);
+  await collect('id', taskIds);
+  await collect('segment_id', segmentIds);
+  if (!r5ContextIsCurrent(snapshot)) return null;
 
-  await collectTaskProjects('provider_task_id', providerIds);
-  await collectTaskProjects('id', taskIds);
-  await collectTaskProjects('segment_id', segmentIds);
-  if (!r4ContextIsCurrent(snapshot)) return null;
-
-  const projectsById = new Map();
-  const preferredIds = [...new Set([workspace.remoteProjectId, ...taskProjectIds].filter(Boolean))];
-  if (preferredIds.length) {
-    const { data, error } = await supabase
-      .from('video_projects')
-      .select('id,name,mode,status,created_at,updated_at')
-      .eq('owner_id', state.user.id)
-      .in('id', preferredIds);
-    if (!r4ContextIsCurrent(snapshot)) return null;
-    if (!error) for (const project of data || []) projectsById.set(project.id, project);
+  const exactMatches = [];
+  for (const projectId of foundProjectIds) {
+    const project = await r5VerifyProjectId(projectId, mode, snapshot);
+    if (project) exactMatches.push(project);
   }
+  if (exactMatches.length === 1) return exactMatches[0];
+  if (exactMatches.length > 1) return null;
 
-  const { data: modeProjects, error: modeError } = await supabase
-    .from('video_projects')
-    .select('id,name,mode,status,created_at,updated_at')
+  // 旧混合项目首次拆分时，仅允许“同名 + 同模式”且唯一的远程项目自动绑定。
+  const names = [...new Set([
+    state.draft.remoteProjectName,
+    r5BaseProjectName(state.draft.name),
+  ].filter(Boolean))];
+  if (!names.length) return null;
+  const { data: candidates, error } = await supabase.from('video_projects')
+    .select('id,name,mode,created_at,updated_at')
     .eq('owner_id', state.user.id)
     .eq('mode', mode)
-    .order('created_at', { ascending: false })
-    .limit(100);
-  if (!r4ContextIsCurrent(snapshot)) return null;
-  if (modeError) throw new Error(`读取 ${mode} 项目失败：${errorMessage(modeError)}`);
-  for (const project of modeProjects || []) projectsById.set(project.id, project);
-
-  return r4ChooseProject([...projectsById.values()], {
-    mode,
-    name: state.draft.name,
-    workspaceProjectId: workspace.remoteProjectId || null,
-    taskProjectIds: [...taskProjectIds],
-    targetTime: Number(state.draft.createdAt || state.draft.updatedAt || Date.now()),
-  });
+    .in('name', names)
+    .order('created_at', { ascending: false });
+  if (!r5ContextIsCurrent(snapshot) || error) return null;
+  const rows = candidates || [];
+  if (rows.length === 1) return rows[0];
+  if (rows.length > 1) {
+    const ids = rows.map(row => row.id);
+    const { data: outputs } = await supabase.from('video_outputs')
+      .select('project_id')
+      .eq('owner_id', state.user.id)
+      .in('project_id', ids);
+    if (!r5ContextIsCurrent(snapshot)) return null;
+    const withOutput = [...new Set((outputs || []).map(row => row.project_id).filter(Boolean))];
+    if (withOutput.length === 1) return rows.find(row => row.id === withOutput[0]) || null;
+  }
+  return null;
 }
 
-function r4TaskScore(task, outputTaskIds, exactIds) {
+function r5TaskScore(task, outputTaskIds, exactIds) {
   const status = String(task?.status || '').toLowerCase();
   let score = new Date(task?.created_at || 0).getTime() || 0;
   if (outputTaskIds.has(task.id)) score += 10_000_000_000_000;
-  if (['succeeded', 'completed', 'success'].includes(status)) score += 1_000_000_000_000;
-  if (['running', 'processing', 'queued', 'submitted', 'submitting'].includes(status)) score += 10_000_000_000;
-  if (exactIds.has(task.id) || exactIds.has(task.provider_task_id) || exactIds.has(task.segment_id)) score += 1_000_000_000;
-  if (['failed', 'error', 'cancelled'].includes(status)) score -= 1_000_000_000_000;
+  if (['succeeded','completed','success'].includes(status)) score += 1_000_000_000_000;
+  if (exactIds.has(task.id) || exactIds.has(task.provider_task_id) || exactIds.has(task.segment_id)) score += 100_000_000_000;
+  if (['running','processing','queued','submitted','submitting'].includes(status)) score += 10_000_000_000;
+  if (['failed','error','cancelled'].includes(status)) score -= 1_000_000_000_000;
   return score;
 }
 
-async function r4SyncRemoteTasks() {
-  await loadOutputs();
+function r5OutputStableKey(output) {
+  return String(output?.outputId || output?.row?.id || output?.googleDriveFileId || output?.providerTaskId || output?.taskId || '');
 }
 
-function r4LoadOutputs() {
-  return (async () => {
-    if (!state.user?.id || !state.draft) {
-      state.outputs = [];
-      state.outputHistory = [];
-      return;
-    }
+function r5CacheRequestUrl(key) {
+  return `https://seedance-cache.local/video/${encodeURIComponent(String(key || ''))}`;
+}
 
+async function r5ReadPersistentVideo(key) {
+  if (!key || !('caches' in globalThis)) return null;
+  try {
+    const cache = await caches.open('seedance-video-cache-r5');
+    const response = await cache.match(r5CacheRequestUrl(key));
+    if (!response) return null;
+    const blob = await response.blob();
+    return blob?.size ? blob : null;
+  } catch (error) {
+    console.warn('[Seedance Studio R5] read persistent video cache failed', error);
+    return null;
+  }
+}
+
+async function r5PrunePersistentVideoCache(cache, keep = 36) {
+  try {
+    const requests = await cache.keys();
+    if (requests.length <= keep) return;
+    const items = [];
+    for (const request of requests) {
+      const response = await cache.match(request);
+      items.push({ request, at: Number(response?.headers?.get('x-seedance-cached-at') || 0) });
+    }
+    items.sort((a, b) => a.at - b.at);
+    for (const item of items.slice(0, Math.max(0, items.length - keep))) await cache.delete(item.request);
+  } catch {}
+}
+
+async function r5WritePersistentVideo(key, blob) {
+  if (!key || !blob?.size || !('caches' in globalThis)) return;
+  try {
+    const cache = await caches.open('seedance-video-cache-r5');
+    await cache.put(r5CacheRequestUrl(key), new Response(blob, {
+      headers: {
+        'content-type': blob.type || 'video/mp4',
+        'x-seedance-cached-at': String(Date.now()),
+      },
+    }));
+    await r5PrunePersistentVideoCache(cache, 36);
+  } catch (error) {
+    console.warn('[Seedance Studio R5] write persistent video cache failed', error);
+  }
+}
+
+function r5HydrateProxyVideoElements() {
+  return (async () => {
+    const videos = qsa('video[data-output-id], video[data-provider-task-id]');
+    const inflight = hydrateProxyVideoElements.inflight || new Map();
+    const failures = hydrateProxyVideoElements.failures || new Map();
+    hydrateProxyVideoElements.inflight = inflight;
+    hydrateProxyVideoElements.failures = failures;
+
+    for (const video of videos) {
+      if (video.dataset.proxyLoading === '1' || video.dataset.proxyLoaded === '1') continue;
+      const outputId = video.dataset.outputId || '';
+      const driveFileId = video.dataset.googleDriveFileId || '';
+      const providerTaskId = video.dataset.providerTaskId || '';
+      const taskId = video.dataset.taskId || '';
+      const key = outputId || driveFileId || providerTaskId || taskId || video.dataset.outputKey || '';
+      if (!key) continue;
+      const statusEl = document.querySelector(`[data-output-load-status="${CSS.escape(key)}"]`);
+      const downloadEl = document.querySelector(`[data-proxy-download="${CSS.escape(key)}"]`);
+
+      let blob = state.outputBlobs.get(key) || null;
+      let objectUrl = state.outputBlobUrls.get(key) || null;
+      if (!blob && !objectUrl) {
+        blob = await r5ReadPersistentVideo(key);
+        if (blob) {
+          state.outputBlobs.set(key, blob);
+          objectUrl = URL.createObjectURL(blob);
+          state.outputBlobUrls.set(key, objectUrl);
+        }
+      }
+      if (objectUrl) {
+        if (video.src !== objectUrl) video.src = objectUrl;
+        video.dataset.proxyLoaded = '1';
+        if (downloadEl) { downloadEl.href = objectUrl; downloadEl.download = `seedance-${providerTaskId || taskId || key}.mp4`; }
+        if (statusEl) statusEl.textContent = blob ? `已从浏览器视频缓存加载：${formatBytes(blob.size)}` : '已从浏览器视频缓存加载';
+        continue;
+      }
+
+      const failed = failures.get(key);
+      if (failed && failed.retryAt > Date.now()) {
+        if (statusEl) statusEl.textContent = `暂不重复拉取：${failed.message}`;
+        continue;
+      }
+
+      const output = [...(state.outputs || []), ...(state.outputHistory || [])].find(item => r5OutputStableKey(item) === key ||
+        (outputId && item.outputId === outputId) || (driveFileId && item.googleDriveFileId === driveFileId) ||
+        (providerTaskId && item.providerTaskId === providerTaskId) || (taskId && item.taskId === taskId));
+      if (!output) continue;
+
+      video.dataset.proxyLoading = '1';
+      if (statusEl) statusEl.textContent = '首次读取 Google Drive 视频并写入浏览器缓存...';
+      try {
+        let request = inflight.get(key);
+        if (!request) {
+          request = fetchVideoBlobThroughProxy(output).finally(() => inflight.delete(key));
+          inflight.set(key, request);
+        }
+        blob = await request;
+        objectUrl = URL.createObjectURL(blob);
+        state.outputBlobs.set(key, blob);
+        state.outputBlobUrls.set(key, objectUrl);
+        await r5WritePersistentVideo(key, blob);
+        failures.delete(key);
+        video.src = objectUrl;
+        video.dataset.proxyLoaded = '1';
+        video.dataset.proxyLoading = '0';
+        video.load();
+        if (downloadEl) { downloadEl.href = objectUrl; downloadEl.download = `seedance-${providerTaskId || taskId || key}.mp4`; }
+        if (statusEl) statusEl.textContent = `已缓存到浏览器：${formatBytes(blob.size)}，切换项目无需重新拉取`;
+      } catch (error) {
+        video.dataset.proxyLoading = '0';
+        const status = Number(error?.status || 0);
+        const message = errorMessage(error, '视频加载失败');
+        failures.set(key, { message, retryAt: Date.now() + ([404,410,502].includes(status) ? 10 * 60_000 : 60_000) });
+        if (statusEl) statusEl.textContent = `加载失败：${message}`;
+      }
+    }
+  })();
+}
+
+function r5LoadOutputs(force = false) {
+  return (async () => {
+    if (!state.user?.id || !state.draft) return;
     migrateDraftWorkspaces(state.draft);
     normalizeSegments(state.draft);
-    const snapshot = r4ContextSnapshot();
-    state.r4OutputRequestSeq = Number(state.r4OutputRequestSeq || 0) + 1;
-    const requestId = state.r4OutputRequestSeq;
-    const isCurrent = () => r4ContextIsCurrent(snapshot) && Number(state.r4OutputRequestSeq || 0) === requestId;
-    const workspace = getWorkspace(state.draft, snapshot.mode);
-
-    const project = await r4ResolveCurrentProject(snapshot);
-    if (!isCurrent()) return;
-
-    if (!project) {
-      state.outputs = [];
-      state.outputHistory = [];
-      workspace.outputs = [];
-      workspace.outputHistory = [];
-      workspace.remoteProjectId = null;
-      state.draft.remoteProjectId = null;
-      state.r4VerifiedContextKey = `${snapshot.draftId}:${snapshot.mode}`;
-      state.r4VerifiedProjectId = null;
-      saveCurrentWorkspaceSelection();
+    const snapshot = r5ContextSnapshot();
+    const workspace = getWorkspace();
+    const ttl = 5 * 60_000;
+    if (!force && Number(workspace.cloudSyncedAt || 0) > 0 && Date.now() - Number(workspace.cloudSyncedAt || 0) < ttl) {
+      state.outputs = workspace.outputs || [];
+      state.outputHistory = workspace.outputHistory || [];
       return;
     }
 
+    state.r5LoadSeq = Number(state.r5LoadSeq || 0) + 1;
+    const seq = state.r5LoadSeq;
+    const current = () => r5ContextIsCurrent(snapshot) && Number(state.r5LoadSeq || 0) === seq;
+    const project = await r5ResolveFixedProject(snapshot);
+    if (!current()) return;
+    if (!project) {
+      // 保留已有本地缓存，不用“空查询结果”把已恢复视频清掉；同时设置冷却时间，避免反复查询。
+      workspace.cloudSyncedAt = Date.now();
+      state.outputs = workspace.outputs || [];
+      state.outputHistory = workspace.outputHistory || [];
+      saveCurrentWorkspaceSelection();
+      await saveDraft(state.draft);
+      return;
+    }
+
+    workspace.remoteProjectId = project.id;
+    state.draft.remoteProjectId = project.id;
     const projectId = project.id;
     const [segmentResult, taskResult, outputResult] = await Promise.all([
-      supabase.from('video_segments')
-        .select('id,project_id,position,status,created_at,updated_at')
-        .eq('owner_id', state.user.id)
-        .eq('project_id', projectId)
-        .order('created_at', { ascending: false }),
-      supabase.from('video_tasks')
-        .select('id,segment_id,project_id,provider_task_id,status,progress,error_message,created_at,updated_at')
-        .eq('owner_id', state.user.id)
-        .eq('project_id', projectId)
-        .order('created_at', { ascending: false }),
-      supabase.from('video_outputs')
-        .select('*')
-        .eq('owner_id', state.user.id)
-        .eq('project_id', projectId)
-        .order('created_at', { ascending: false })
-        .limit(100),
+      supabase.from('video_segments').select('id,project_id,position,status,created_at,updated_at')
+        .eq('owner_id', state.user.id).eq('project_id', projectId).order('created_at', { ascending: false }),
+      supabase.from('video_tasks').select('id,segment_id,project_id,provider_task_id,status,progress,error_message,created_at,updated_at')
+        .eq('owner_id', state.user.id).eq('project_id', projectId).order('created_at', { ascending: false }),
+      supabase.from('video_outputs').select('*')
+        .eq('owner_id', state.user.id).eq('project_id', projectId).order('created_at', { ascending: false }).limit(100),
     ]);
-    if (!isCurrent()) return;
-
-    if (segmentResult.error) throw new Error(`读取当前模式片段失败：${errorMessage(segmentResult.error)}`);
-    if (taskResult.error) throw new Error(`读取当前模式任务失败：${errorMessage(taskResult.error)}`);
-    if (outputResult.error) throw new Error(`读取当前模式输出失败：${errorMessage(outputResult.error)}`);
+    if (!current()) return;
+    if (segmentResult.error) throw new Error(`读取项目片段失败：${errorMessage(segmentResult.error)}`);
+    if (taskResult.error) throw new Error(`读取项目任务失败：${errorMessage(taskResult.error)}`);
+    if (outputResult.error) throw new Error(`读取项目视频失败：${errorMessage(outputResult.error)}`);
 
     const localSegments = state.draft.segments || [];
     const remoteSegments = segmentResult.data || [];
     const tasks = taskResult.data || [];
     const rows = outputResult.data || [];
-    const remotePosition = new Map(remoteSegments.map(item => [item.id, Number(item.position || 0)]));
-    const remoteIdsByPosition = new Map();
-    for (const item of remoteSegments) {
-      const position = Number(item.position || 0);
-      if (!remoteIdsByPosition.has(position)) remoteIdsByPosition.set(position, new Set());
-      remoteIdsByPosition.get(position).add(item.id);
+    const positionByRemoteSegment = new Map(remoteSegments.map(row => [row.id, Number(row.position || 0)]));
+    const idsByPosition = new Map();
+    for (const row of remoteSegments) {
+      const pos = Number(row.position || 0);
+      if (!idsByPosition.has(pos)) idsByPosition.set(pos, new Set());
+      idsByPosition.get(pos).add(row.id);
     }
     const outputTaskIds = new Set(rows.map(row => row.task_id).filter(Boolean));
 
     for (const local of localSegments) {
       const position = Number(local.index || 0);
-      const candidateSegmentIds = remoteIdsByPosition.get(position) || new Set();
-      const exactIds = new Set([local.remoteTaskId, local.providerTaskId, local.remoteSegmentId].filter(Boolean));
-      const candidates = tasks.filter(task =>
-        candidateSegmentIds.has(task.segment_id) ||
-        exactIds.has(task.id) || exactIds.has(task.provider_task_id) || exactIds.has(task.segment_id)
-      );
-      candidates.sort((a, b) => r4TaskScore(b, outputTaskIds, exactIds) - r4TaskScore(a, outputTaskIds, exactIds));
-      const chosenTask = candidates[0];
-      if (!chosenTask) continue;
-      local.remoteSegmentId = chosenTask.segment_id || local.remoteSegmentId;
-      local.remoteTaskId = chosenTask.id || local.remoteTaskId;
-      local.providerTaskId = chosenTask.provider_task_id || local.providerTaskId;
-      local.status = chosenTask.status || local.status;
-      local.progress = Number(chosenTask.progress ?? local.progress ?? 0);
-      local.error = chosenTask.error_message || null;
+      const remoteIds = idsByPosition.get(position) || new Set();
+      const exact = new Set([local.remoteTaskId, local.providerTaskId, local.remoteSegmentId].filter(Boolean));
+      const candidates = tasks.filter(task => remoteIds.has(task.segment_id) || exact.has(task.id) || exact.has(task.provider_task_id) || exact.has(task.segment_id));
+      candidates.sort((a, b) => r5TaskScore(b, outputTaskIds, exact) - r5TaskScore(a, outputTaskIds, exact));
+      const chosen = candidates[0];
+      if (!chosen) continue;
+      local.remoteSegmentId = chosen.segment_id || local.remoteSegmentId;
+      local.remoteTaskId = chosen.id || local.remoteTaskId;
+      local.providerTaskId = chosen.provider_task_id || local.providerTaskId;
+      local.status = chosen.status || local.status;
+      local.progress = Number(chosen.progress ?? local.progress ?? 0);
+      local.error = chosen.error_message || null;
     }
 
     const now = Date.now();
-    const candidatesBySegment = new Map();
+    const bySegment = new Map();
     for (const row of rows) {
       if (row.project_id !== projectId) continue;
       const meta = row.metadata || {};
@@ -862,229 +628,264 @@ function r4LoadOutputs() {
       const driveStatus = String(meta.google_drive_backup_status || '').toLowerCase();
       const providerUrl = outputVideoUrlFromMetadata(meta);
       const providerExpiry = Date.parse(meta.provider_video_url_expires_at || '');
-      const providerStillValid = Boolean(providerUrl) && (!Number.isFinite(providerExpiry) || providerExpiry > now + 60_000);
-
+      const providerValid = Boolean(providerUrl) && (!Number.isFinite(providerExpiry) || providerExpiry > now + 60_000);
       let url = '';
       let storageMode = '';
       if (googleDriveFileId && driveStatus !== 'failed') {
         url = `seedance-proxy://${row.id || googleDriveFileId}`;
         storageMode = 'google-drive-proxy';
-      } else if (providerStillValid) {
+      } else if (providerValid) {
         url = `seedance-proxy://${row.id || providerTaskId}`;
         storageMode = 'ark-proxy';
       } else if (row.storage_path && row.bucket_id && row.bucket_id !== 'ark-url') {
         const signed = await supabase.storage.from(row.bucket_id).createSignedUrl(row.storage_path, 3600);
-        if (!isCurrent()) return;
-        if (!signed.error && signed.data?.signedUrl) {
-          url = signed.data.signedUrl;
-          storageMode = 'supabase';
-        }
+        if (!current()) return;
+        if (!signed.error && signed.data?.signedUrl) { url = signed.data.signedUrl; storageMode = 'supabase'; }
       }
       if (!url) continue;
 
-      let segmentIndex = localSegments.findIndex(local =>
-        (row.segment_id && local.remoteSegmentId === row.segment_id) ||
-        (row.task_id && local.remoteTaskId === row.task_id) ||
-        (providerTaskId && local.providerTaskId === providerTaskId)
-      );
-      if (segmentIndex < 0 && row.segment_id && remotePosition.has(row.segment_id)) {
-        const position = remotePosition.get(row.segment_id);
-        segmentIndex = localSegments.findIndex(local => Number(local.index || 0) === position);
+      let index = localSegments.findIndex(local => (row.segment_id && local.remoteSegmentId === row.segment_id) ||
+        (row.task_id && local.remoteTaskId === row.task_id) || (providerTaskId && local.providerTaskId === providerTaskId));
+      if (index < 0 && row.segment_id && positionByRemoteSegment.has(row.segment_id)) {
+        const pos = positionByRemoteSegment.get(row.segment_id);
+        index = localSegments.findIndex(local => Number(local.index || 0) === pos);
       }
-      if (segmentIndex < 0 && localSegments.length === 1) segmentIndex = 0;
-      if (segmentIndex < 0) continue;
-
-      const local = localSegments[segmentIndex];
-      let matchScore = new Date(row.created_at || 0).getTime() || 0;
-      if (row.task_id && local?.remoteTaskId === row.task_id) matchScore += 10_000_000_000_000;
-      if (providerTaskId && local?.providerTaskId === providerTaskId) matchScore += 10_000_000_000_000;
-      if (googleDriveFileId) matchScore += 1_000_000_000_000;
-
+      if (index < 0 && localSegments.length === 1) index = 0;
+      if (index < 0) continue;
+      const local = localSegments[index];
+      let score = new Date(row.created_at || 0).getTime() || 0;
+      if (googleDriveFileId) score += 1_000_000_000_000;
+      if (row.task_id && local?.remoteTaskId === row.task_id) score += 10_000_000_000_000;
+      if (providerTaskId && local?.providerTaskId === providerTaskId) score += 10_000_000_000_000;
       const output = {
-        row,
-        projectId,
-        mode: snapshot.mode,
-        url,
-        storageMode,
-        providerTaskId,
-        taskId: row.task_id || null,
-        segmentId: local?.id || null,
-        remoteSegmentId: row.segment_id || null,
-        index: segmentIndex,
-        promptSnapshot: local?.prompt || '',
-        googleDriveFileId,
-        outputId: row.id || null,
-        matchScore,
+        row, projectId, mode: snapshot.mode, url, storageMode, providerTaskId,
+        taskId: row.task_id || null, segmentId: local?.id || null,
+        remoteSegmentId: row.segment_id || null, index,
+        promptSnapshot: local?.prompt || '', googleDriveFileId,
+        outputId: row.id || null, matchScore: score,
       };
-      if (!candidatesBySegment.has(segmentIndex)) candidatesBySegment.set(segmentIndex, []);
-      candidatesBySegment.get(segmentIndex).push(output);
+      if (!bySegment.has(index)) bySegment.set(index, []);
+      bySegment.get(index).push(output);
     }
-    if (!isCurrent()) return;
 
-    const current = [];
+    const outputs = [];
     const history = [];
-    for (const [segmentIndex, list] of candidatesBySegment.entries()) {
+    for (const [index, list] of bySegment.entries()) {
       list.sort((a, b) => b.matchScore - a.matchScore);
-      const chosen = list[0];
-      if (!chosen) continue;
-      current.push(chosen);
-      for (const old of list.slice(1)) {
-        history.push({
-          ...old,
-          historical: true,
-          historyId: `${old.outputId || old.providerTaskId || old.taskId}-r4`,
-          reason: `${workspaceLabel(snapshot.mode)}历史生成版本`,
-        });
-      }
-      const local = localSegments[segmentIndex];
+      if (!list[0]) continue;
+      outputs.push(list[0]);
+      history.push(...list.slice(1).map(old => ({ ...old, historical: true, reason: '当前独立项目历史版本', historyId: `${r5OutputStableKey(old)}-r5` })));
+      const local = localSegments[index];
       if (local) {
-        local.status = 'succeeded';
-        local.progress = 100;
-        local.error = null;
-        if (chosen.providerTaskId) local.providerTaskId = chosen.providerTaskId;
-        if (chosen.taskId) local.remoteTaskId = chosen.taskId;
-        if (chosen.remoteSegmentId) local.remoteSegmentId = chosen.remoteSegmentId;
+        local.status = 'succeeded'; local.progress = 100; local.error = null;
+        local.providerTaskId = list[0].providerTaskId || local.providerTaskId;
+        local.remoteTaskId = list[0].taskId || local.remoteTaskId;
+        local.remoteSegmentId = list[0].remoteSegmentId || local.remoteSegmentId;
       }
     }
-
-    if (!isCurrent()) return;
-    state.outputs = current.sort((a, b) => a.index - b.index);
-    state.outputHistory = history
-      .sort((a, b) => new Date(b.row?.created_at || 0) - new Date(a.row?.created_at || 0))
-      .slice(0, 50);
-    workspace.remoteProjectId = projectId;
+    if (!current()) return;
+    state.outputs = outputs.sort((a, b) => a.index - b.index);
+    state.outputHistory = history.sort((a, b) => new Date(b.row?.created_at || 0) - new Date(a.row?.created_at || 0)).slice(0, 50);
     workspace.outputs = state.outputs;
     workspace.outputHistory = state.outputHistory;
     workspace.segments = localSegments;
-    state.draft.remoteProjectId = projectId;
-    state.r4VerifiedContextKey = `${snapshot.draftId}:${snapshot.mode}`;
-    state.r4VerifiedProjectId = projectId;
+    workspace.remoteProjectId = projectId;
+    workspace.cloudSyncedAt = Date.now();
     saveCurrentWorkspaceSelection();
+    await saveDraft(state.draft);
   })();
 }
 
-function r4RecoverLatestDriveOutputWhenEmpty(force = false) {
+async function r5RefreshJobs() {
+  try { await loadOutputs(true); } catch (error) { console.warn('[Seedance Studio R5] refresh failed', error); }
+  renderJobs();
+}
+
+async function r5SyncRemoteTasks() {
+  await loadOutputs(true);
+}
+
+function r5RecoverLatestDriveOutputWhenEmpty(force = false) {
   return (async () => {
-    if (!state.user?.id || !state.draft?.id) return;
-    const snapshot = r4ContextSnapshot();
-    const contextKey = `${snapshot.draftId}:${snapshot.mode}`;
-    state.r4RecoveryInflight = state.r4RecoveryInflight || new Map();
-    state.r4RecoveryCooldown = state.r4RecoveryCooldown || new Map();
-
-    if ((state.outputs || []).length) return;
-    if (state.r4RecoveryInflight.has(contextKey)) return state.r4RecoveryInflight.get(contextKey);
-    const cooldownUntil = Number(state.r4RecoveryCooldown.get(contextKey) || 0);
-    if (!force && cooldownUntil > Date.now()) return;
-
-    const request = (async () => {
-      try {
-        await loadOutputs();
-        if (!r4ContextIsCurrent(snapshot)) return;
-        renderJobs();
-        if ((state.outputs || []).length) {
-          setTimeout(hydrateProxyVideoElements, 0);
-          if (force) toast('已恢复当前项目视频', '已按当前项目和当前模式从 Google Drive 输出记录恢复。');
-        } else {
-          state.r4RecoveryCooldown.set(contextKey, Date.now() + 10_000);
-          if (force) toast('当前项目暂无可播放视频', '没有找到与当前项目名称、当前模式匹配的 Google Drive 视频。');
-        }
-      } catch (error) {
-        state.r4RecoveryCooldown.set(contextKey, Date.now() + 10_000);
-        console.warn('[Seedance Studio R4] strict drive recover failed', error);
-        if (force && r4ContextIsCurrent(snapshot)) toast('拉取失败', errorMessage(error));
-      }
-    })().finally(() => state.r4RecoveryInflight.delete(contextKey));
-
-    state.r4RecoveryInflight.set(contextKey, request);
-    return request;
+    if (!state.draft) return;
+    try {
+      await loadOutputs(Boolean(force));
+      renderJobs();
+      if (force) toast((state.outputs || []).length ? '已刷新当前项目' : '当前项目暂无视频',
+        (state.outputs || []).length ? '已按固定项目 ID 恢复并使用浏览器视频缓存。' : '没有找到属于这个独立项目的 Google Drive 视频。');
+    } catch (error) { if (force) toast('刷新失败', errorMessage(error)); }
   })();
 }
 
-function r4RenderJobs() {
+function r5RenderJobs() {
   if (!state.draft) return;
-  const mode = r4ModeKey(state.draft.mode);
-  const workspace = getWorkspace(state.draft, mode);
-  const strictProjectId = workspace.remoteProjectId || state.draft.remoteProjectId || null;
-  const contextKey = `${state.draft.id}:${mode}:${strictProjectId || 'unbound'}`;
-  const outputsList = $('outputs-list');
-
-  if (renderJobs.lastContextKey !== contextKey) {
-    renderJobs.lastContextKey = contextKey;
-    renderJobs.lastOutputMarkup = null;
-    if (outputsList) outputsList.innerHTML = '';
-  }
-
-  const belongs = output => Boolean(
-    strictProjectId &&
-    (output?.projectId || output?.row?.project_id) === strictProjectId &&
-    (!output?.mode || r4ModeKey(output.mode) === mode)
-  );
+  const projectId = state.draft.remoteProjectId || getWorkspace().remoteProjectId || '';
+  const mode = r5ModeKey(state.draft.mode);
+  const contextKey = `${state.draft.id}:${mode}:${projectId}`;
+  const belongs = output => (!output?.projectId || !projectId || output.projectId === projectId) && (!output?.mode || r5ModeKey(output.mode) === mode);
   state.outputs = (state.outputs || []).filter(belongs);
   state.outputHistory = (state.outputHistory || []).filter(belongs);
 
   const segments = state.draft.segments || [];
   $('jobs-list').innerHTML = segments.length ? segments.map(s => `
-    <article class="job-card">
-      <div class="job-head">
-        <strong>Segment ${String(s.index + 1).padStart(2, '0')}</strong>
-        <span>${statusText(s.status)}</span>
-      </div>
-      <p>${escapeHtml(s.prompt || '未填写提示词')}</p>
-      ${jobStageMarkup(s)}
-      ${s.providerTaskId ? '<p class="task-id">后台任务已记录</p>' : ''}
-      ${s.error ? `<p style="color:#ff8090;white-space:pre-wrap">${escapeHtml(s.error)}</p>` : ''}
-      <div class="job-actions">
-        <button data-sync-output="${s.id}">刷新结果</button>
-        <button data-edit-from-job="${s.id}">重新编辑</button>
-      </div>
-    </article>`).join('') : '<div class="empty-state">暂无生成任务</div>';
+    <article class="job-card"><div class="job-head"><strong>Segment ${String(s.index + 1).padStart(2, '0')}</strong><span>${statusText(s.status)}</span></div>
+    <p>${escapeHtml(s.prompt || '未填写提示词')}</p>${jobStageMarkup(s)}
+    ${s.providerTaskId ? '<p class="task-id">后台任务已记录</p>' : ''}
+    ${s.error ? `<p style="color:#ff8090;white-space:pre-wrap">${escapeHtml(s.error)}</p>` : ''}
+    <div class="job-actions"><button data-sync-output="${s.id}">刷新结果</button><button data-edit-from-job="${s.id}">重新编辑</button></div></article>`).join('') : '<div class="empty-state">暂无生成任务</div>';
 
   const activeMarkup = renderActiveGenerationCards();
-  const visibleOutputs = currentOutputRows();
-  const historyOutputs = historicalOutputRows();
-  const outputMarkup = [
-    activeMarkup,
-    visibleOutputs.map(o => outputCardMarkup(o, false)).join(''),
-    historyOutputs.length ? `<div class="history-title">当前项目历史输出</div>${historyOutputs.map(o => outputCardMarkup(o, true)).join('')}` : '',
-  ].filter(Boolean).join('');
-  const nextMarkup = outputMarkup || '<div class="empty-state">暂无当前项目视频输出。正在按项目与模式检查 Google Drive 记录...</div>';
-
-  if (renderJobs.lastOutputMarkup !== nextMarkup || !outputsList.childNodes.length) {
-    outputsList.innerHTML = nextMarkup;
-    renderJobs.lastOutputMarkup = nextMarkup;
+  const visible = currentOutputRows();
+  const history = historicalOutputRows();
+  const markup = [activeMarkup, visible.map(o => outputCardMarkup(o, false)).join(''),
+    history.length ? `<div class="history-title">当前独立项目历史输出</div>${history.map(o => outputCardMarkup(o, true)).join('')}` : ''].filter(Boolean).join('');
+  const next = markup || '<div class="empty-state">当前独立项目暂无视频。点击“刷新状态”只会查询这个项目，不会搜索或展示其他项目。</div>';
+  const signature = [...visible, ...history].map(r5OutputStableKey).join('|') + `:${segments.map(s => `${s.id}-${s.status}-${s.progress}`).join('|')}`;
+  const list = $('outputs-list');
+  if (r5RenderJobs.lastContextKey !== contextKey || r5RenderJobs.lastOutputSignature !== signature || !list.childNodes.length) {
+    list.innerHTML = next;
+    r5RenderJobs.lastContextKey = contextKey;
+    r5RenderJobs.lastOutputSignature = signature;
   }
   setTimeout(hydrateProxyVideoElements, 0);
-  if (!outputMarkup) setTimeout(() => recoverLatestDriveOutputWhenEmpty(false), 0);
 
   qsa('[data-sync-output]').forEach(btn => btn.onclick = async () => {
-    const segmentId = btn.dataset.syncOutput;
-    const oldText = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = '刷新中...';
-    try {
-      await refreshJobs();
-      if (!r4ContextIsCurrent(r4ContextSnapshot())) return;
-      await recoverSegmentOutput(segmentId);
-      await loadOutputs();
-      saveCurrentWorkspaceSelection();
-      renderAll();
-    } finally {
-      btn.disabled = false;
-      btn.textContent = oldText || '刷新结果';
-    }
+    btn.disabled = true; const old = btn.textContent; btn.textContent = '刷新中...';
+    try { await loadOutputs(true); renderAll(); } finally { btn.disabled = false; btn.textContent = old || '刷新结果'; }
   });
   qsa('[data-edit-from-job]').forEach(btn => btn.onclick = () => reEditSegment(btn.dataset.editFromJob));
   qsa('[data-edit-output-segment]').forEach(btn => btn.onclick = () => reEditSegment(btn.dataset.editOutputSegment || findSegmentIdByOutputIndex(btn.dataset.outputIndex)));
   qsa('[data-download-output]').forEach(link => link.onclick = event => {
-    if (!link.href || link.getAttribute('href') === '#' || link.href.endsWith('#')) {
-      event.preventDefault();
-      toast('视频还没加载完成', '等右侧显示“已通过 Google Drive 代理加载：xx MB”后，再点下载到本地。');
-      return;
-    }
-    const set = downloadedSet();
-    set.add(link.dataset.downloadOutput);
-    saveDownloadedSet(set);
+    if (!link.href || link.getAttribute('href') === '#' || link.href.endsWith('#')) { event.preventDefault(); toast('视频还没加载完成', '首次读取完成后会自动写入浏览器缓存。'); }
   });
+}
+
+function r5RenderProjects() {
+  const list = orderedDrafts();
+  $('project-list').innerHTML = list.length ? list.map(d => {
+    const mode = r5ModeKey(d.lockedMode || d.mode);
+    const workspace = d.workspaces?.[mode] || d;
+    const count = mode === 'text_only' ? '纯文字' : `${workspace.frames?.length || d.frames?.length || 0} 张图`;
+    return `<button class="project-item ${state.draft?.id === d.id ? 'active' : ''}" data-project="${d.id}">
+      <strong>${escapeHtml(d.name)}</strong>
+      <span><b class="project-mode-tag">${escapeHtml(r5ModeLabel(mode))}</b> · ${count} · ${new Date(d.createdAt || d.updatedAt || Date.now()).toLocaleString('zh-CN')}</span>
+    </button>`;
+  }).join('') : '<div class="empty-state">还没有视频项目，请点击“新建视频项目”并选择模式。</div>';
+  qsa('[data-project]').forEach(btn => btn.onclick = () => selectDraft(btn.dataset.project));
+}
+
+function r5RenderSettings() {
+  $('project-name').value = state.draft.name;
+  $('project-ratio').value = state.draft.ratio;
+  $('final-width').value = state.draft.finalWidth;
+  $('final-height').value = state.draft.finalHeight;
+  $('fit-mode').value = state.draft.fitMode;
+  const label = $('locked-mode-label');
+  if (label) label.textContent = r5ModeLabel(state.draft.mode);
+  const card = $('mode-lock-card');
+  if (card) card.dataset.mode = r5ModeKey(state.draft.mode);
+  updateRatioTip();
+  renderTextModePanel();
+  syncCustomSelects();
+}
+
+function r5SetView(view) {
+  state.currentView = view;
+  qsa('.view').forEach(el => el.classList.toggle('active', el.id === `view-${view}`));
+  qsa('.view-tab').forEach(el => el.classList.toggle('active', el.dataset.view === view));
+  if (view === 'jobs' && state.draft) {
+    const workspace = getWorkspace();
+    state.outputs = workspace.outputs || state.outputs || [];
+    state.outputHistory = workspace.outputHistory || state.outputHistory || [];
+    renderJobs();
+    if (!Number(workspace.cloudSyncedAt || 0) || Date.now() - Number(workspace.cloudSyncedAt || 0) > 5 * 60_000) {
+      loadOutputs(false).then(() => renderJobs()).catch(error => console.warn('[Seedance Studio R5] background sync failed', error));
+    }
+  }
+}
+
+function r5OpenCreateModal() {
+  const modal = $('project-mode-modal');
+  if (!modal) return;
+  const input = $('new-project-name');
+  if (input) input.value = '';
+  const cancel = $('project-mode-cancel');
+  if (cancel) cancel.hidden = !(state.drafts || []).length;
+  modal.hidden = false;
+  setTimeout(() => input?.focus(), 0);
+}
+
+function r5CloseCreateModal() {
+  if ($('project-mode-modal')) $('project-mode-modal').hidden = true;
+}
+
+async function r5CreateProjectFromMode(mode) {
+  const key = r5ModeKey(mode);
+  const inputName = String($('new-project-name')?.value || '').trim();
+  const draft = newDraft(key, inputName || `未命名 ${r5ModeSuffix(key)}项目`);
+  await saveDraft(draft);
+  state.drafts.unshift(draft);
+  r5CloseCreateModal();
+  await selectDraft(draft.id);
+  setView('quick');
+}
+
+function r5WireCreateModal() {
+  if ($('new-project')) $('new-project').onclick = r5OpenCreateModal;
+  qsa('[data-create-project-mode]').forEach(btn => btn.onclick = () => r5CreateProjectFromMode(btn.dataset.createProjectMode));
+  if ($('project-mode-cancel')) $('project-mode-cancel').onclick = r5CloseCreateModal;
+  if ($('project-mode-modal')) $('project-mode-modal').onclick = event => { if (event.target === $('project-mode-modal') && (state.drafts || []).length) r5CloseCreateModal(); };
+}
+
+async function r5SelectDraft(id) {
+  const draft = migrateDraftWorkspaces(await getDraft(id));
+  if (!draft) return;
+  clearInterval(state.pollTimer); state.pollTimer = null;
+  state.objectUrls.forEach(url => URL.revokeObjectURL(url));
+  state.objectUrls.clear();
+  state.draft = draft;
+  bindCurrentWorkspace();
+  normalizeSegments(state.draft);
+  saveCurrentWorkspaceSelection();
+  localStorage.setItem(LAST_SELECTED_DRAFT_KEY, id);
+  renderAll();
+  const workspace = getWorkspace();
+  try {
+    if (!Number(workspace.cloudSyncedAt || 0) || Date.now() - Number(workspace.cloudSyncedAt || 0) > 5 * 60_000) await loadOutputs(false);
+  } catch (error) { console.warn('[Seedance Studio R5] project sync failed', error); }
+  renderAll();
+  const active = state.draft.segments.some(s => ['submitting','submitted','queued','running','processing'].includes(String(s.status || '').toLowerCase()));
+  if (active) startPolling();
+}
+
+async function r5CreateProject() { r5OpenCreateModal(); }
+
+async function r5RemoveProject() {
+  if (!state.draft || !await confirmBox('删除项目', `确定删除“${state.draft.name}”及其本地草稿吗？云端生成记录不会自动删除。`)) return;
+  const id = state.draft.id;
+  const workspace = getWorkspace();
+  (workspace.frames || []).forEach(frame => releaseFrameUrl(frame.id));
+  (workspace.referenceAssets || []).forEach(asset => asset?.id && releaseFrameUrl(asset.id));
+  await deleteDraft(id);
+  state.drafts = state.drafts.filter(item => item.id !== id);
+  state.draft = null;
+  state.outputs = []; state.outputHistory = []; state.jobs = [];
+  if (state.drafts.length) await selectDraft(orderedDrafts()[0].id);
+  else { renderProjects(); r5OpenCreateModal(); }
+}
+
+async function r5Init() {
+  if (!await initSession()) return;
+  wireEvents();
+  r5WireCreateModal();
+  enhanceCustomSelects();
+  document.body.dataset.seedanceBuild = APP_BUILD;
+  state.drafts = await r5MigrateDraftCollection(await listDrafts());
+  if (!state.drafts.length) { renderProjects(); r5OpenCreateModal(); return; }
+  const last = localStorage.getItem(LAST_SELECTED_DRAFT_KEY);
+  const initial = state.drafts.find(d => d.id === last) || orderedDrafts()[0];
+  await selectDraft(initial.id);
+  setView('quick');
 }
 
 function renamedFunction(fn, targetName) {
@@ -1095,94 +896,63 @@ function renamedFunction(fn, targetName) {
 function replaceSection(source, startMarker, endMarker, replacement) {
   const start = source.indexOf(startMarker);
   const end = source.indexOf(endMarker, start + startMarker.length);
-  if (start < 0 || end < 0 || end <= start) {
-    throw new Error(`正式补丁无法定位代码区段：${startMarker} → ${endMarker}`);
-  }
-  return `${source.slice(0, start)}${replacement}\n\n${source.slice(end)}`;
+  if (start < 0 || end < 0 || end <= start) throw new Error(`R5 无法定位代码区段：${startMarker} → ${endMarker}`);
+  return `${source.slice(0, start)}${replacement}
+
+${source.slice(end)}`;
 }
 
 export function patchV46Source(source, { supabaseUrl, dbUrl }) {
   let patched = String(source || '');
-  if (!patched.includes(ORIGINAL_BUILD)) {
-    throw new Error(`只支持 ${ORIGINAL_BUILD}，当前 app-v46.js 版本不匹配`);
-  }
+  if (!patched.includes(ORIGINAL_BUILD)) throw new Error(`只支持 ${ORIGINAL_BUILD}，当前 app-v46.js 版本不匹配`);
+  patched = patched.replace("from '../supabase-config.js'", `from '${supabaseUrl}'`)
+    .replace("from './db.js'", `from '${dbUrl}'`).replace(ORIGINAL_BUILD, PRODUCTION_BUILD);
 
-  patched = patched
-    .replace("from '../supabase-config.js'", `from '${supabaseUrl}'`)
-    .replace("from './db.js'", `from '${dbUrl}'`)
-    .replace(ORIGINAL_BUILD, PRODUCTION_BUILD);
+  const support = [r5ModeKey,r5ModeLabel,r5ModeSuffix,r5BaseProjectName,r5Clone,r5WorkspaceHasContent,r5CreateWorkspaceClone,
+    r5BuildSplitDraft,r5MigrateDraftCollection,r5ContextSnapshot,r5ContextIsCurrent,r5ExactTaskIds,r5VerifyProjectId,
+    r5ResolveFixedProject,r5TaskScore,r5OutputStableKey,r5CacheRequestUrl,r5ReadPersistentVideo,r5PrunePersistentVideoCache,
+    r5WritePersistentVideo,r5OpenCreateModal,r5CloseCreateModal,r5CreateProjectFromMode,r5WireCreateModal].map(fn => fn.toString()).join('\n\n');
 
-  patched = replaceSection(
-    patched,
-    'async function fetchVideoBlobThroughProxy(output) {',
-    'async function hydrateProxyVideoElements() {',
-    renamedFunction(v47FetchVideoBlobThroughProxy, 'fetchVideoBlobThroughProxy'),
-  );
-  patched = replaceSection(
-    patched,
-    'async function hydrateProxyVideoElements() {',
-    'function outputCardMarkup(',
-    renamedFunction(v47HydrateProxyVideoElements, 'hydrateProxyVideoElements'),
-  );
-  patched = replaceSection(
-    patched,
-    'async function recoverLatestDriveOutputWhenEmpty(force = false) {',
-    'function renderJobs() {',
-    renamedFunction(r4RecoverLatestDriveOutputWhenEmpty, 'recoverLatestDriveOutputWhenEmpty'),
-  );
-  patched = replaceSection(
-    patched,
-    'function renderJobs() {',
-    'function findSegmentIdByOutputIndex(',
-    renamedFunction(r4RenderJobs, 'renderJobs'),
-  );
-  patched = replaceSection(
-    patched,
-    'async function loadOutputs() {',
-    'function startPolling() {',
-    renamedFunction(r4LoadOutputs, 'loadOutputs'),
-  );
+  patched = patched.replace("const LAST_SELECTED_DRAFT_KEY = 'seedance_last_selected_draft_id_v1';",
+    "const LAST_SELECTED_DRAFT_KEY = 'seedance_last_selected_draft_id_v1';\n\n" + support);
+  patched = replaceSection(patched, 'function newDraft() {', 'function createWorkspaceState() {', renamedFunction(r5NewDraft, 'newDraft'));
+  patched = replaceSection(patched, 'function migrateDraftWorkspaces(draft) {', 'function getWorkspace(', renamedFunction(r5MigrateDraftWorkspaces, 'migrateDraftWorkspaces'));
+  patched = replaceSection(patched, 'function getWorkspace(', 'function bindCurrentWorkspace() {', renamedFunction(r5GetWorkspace, 'getWorkspace'));
+  patched = replaceSection(patched, 'function bindCurrentWorkspace() {', 'function saveCurrentWorkspaceSelection() {', renamedFunction(r5BindCurrentWorkspace, 'bindCurrentWorkspace'));
+  patched = replaceSection(patched, 'function saveCurrentWorkspaceSelection() {', 'function workspaceLabel(', renamedFunction(r5SaveCurrentWorkspaceSelection, 'saveCurrentWorkspaceSelection'));
+  patched = replaceSection(patched, 'function setView(view) {', 'function orderedDrafts() {', renamedFunction(r5SetView, 'setView'));
+  patched = replaceSection(patched, 'function renderProjects() {', 'function escapeHtml(', renamedFunction(r5RenderProjects, 'renderProjects'));
+  patched = replaceSection(patched, 'function renderSettings() {', 'function buildStrictFrameLockPrompt(', renamedFunction(r5RenderSettings, 'renderSettings'));
+  patched = replaceSection(patched, 'async function selectDraft(id) {', 'async function createProject() {', renamedFunction(r5SelectDraft, 'selectDraft'));
+  patched = replaceSection(patched, 'async function createProject() {', 'async function removeProject() {', renamedFunction(r5CreateProject, 'createProject'));
+  patched = replaceSection(patched, 'async function removeProject() {', 'function statusText(', renamedFunction(r5RemoveProject, 'removeProject'));
+  patched = replaceSection(patched, 'async function fetchVideoBlobThroughProxy(output) {', 'async function hydrateProxyVideoElements() {', renamedFunction(r5FetchVideoBlobThroughProxy, 'fetchVideoBlobThroughProxy'));
+  patched = replaceSection(patched, 'async function hydrateProxyVideoElements() {', 'function outputCardMarkup(', renamedFunction(r5HydrateProxyVideoElements, 'hydrateProxyVideoElements'));
+  patched = replaceSection(patched, 'async function recoverLatestDriveOutputWhenEmpty(force = false) {', 'function renderJobs() {', renamedFunction(r5RecoverLatestDriveOutputWhenEmpty, 'recoverLatestDriveOutputWhenEmpty'));
+  patched = replaceSection(patched, 'function renderJobs() {', 'function findSegmentIdByOutputIndex(', renamedFunction(r5RenderJobs, 'renderJobs'));
+  patched = replaceSection(patched, 'async function syncRemoteTasks() {', 'async function bindProviderTaskAndRecover(', renamedFunction(r5SyncRemoteTasks, 'syncRemoteTasks'));
+  patched = replaceSection(patched, 'async function refreshJobs() {', 'async function loadOutputs() {', renamedFunction(r5RefreshJobs, 'refreshJobs'));
+  patched = replaceSection(patched, 'async function loadOutputs() {', 'function startPolling() {', renamedFunction(r5LoadOutputs, 'loadOutputs'));
+  patched = replaceSection(patched, 'async function init() {', 'init().catch(', renamedFunction(r5Init, 'init'));
 
-  const r4Support = [
-    r4ModeKey,
-    r4NormalizeName,
-    r4ChooseProject,
-    r4ContextSnapshot,
-    r4ContextIsCurrent,
-    r4ResolveCurrentProject,
-    r4TaskScore,
-  ].map(fn => fn.toString()).join('\n\n');
+  patched = patched.replace("  $('new-project').onclick = createProject;", "  $('new-project').onclick = r5OpenCreateModal;");
+  const modeSwitchBlock = `  qsa('#mode-switch button').forEach(btn => btn.onclick = async () => {
+    saveCurrentWorkspaceSelection();
+    state.draft.mode = btn.dataset.mode === 'first_last' ? 'first_last' : (btn.dataset.mode === 'text_only' ? 'text_only' : 'multi_frame');
+    bindCurrentWorkspace();
+    normalizeSegments(state.draft);
+    saveCurrentWorkspaceSelection();
+    renderAll();
+    await persist();
+    toast('已切换工作区', \`\${workspaceLabel()} 的图片、提示词、任务和输出独立保存。\`);
+  });
+`;
+  if (!patched.includes(modeSwitchBlock)) throw new Error('无法定位旧模式切换事件');
+  patched = patched.replace(modeSwitchBlock, '');
 
-  patched = replaceSection(
-    patched,
-    'function migrateDraftWorkspaces(draft) {',
-    'function getWorkspace(',
-    `${r4Support}\n\n${renamedFunction(r4MigrateDraftWorkspaces, 'migrateDraftWorkspaces')}`,
-  );
-  patched = replaceSection(
-    patched,
-    'function bindCurrentWorkspace() {',
-    'function saveCurrentWorkspaceSelection() {',
-    renamedFunction(r4BindCurrentWorkspace, 'bindCurrentWorkspace'),
-  );
-  patched = replaceSection(
-    patched,
-    'function saveCurrentWorkspaceSelection() {',
-    'function workspaceLabel(',
-    renamedFunction(r4SaveCurrentWorkspaceSelection, 'saveCurrentWorkspaceSelection'),
-  );
-  patched = replaceSection(
-    patched,
-    'async function syncRemoteTasks() {',
-    'async function bindProviderTaskAndRecover(',
-    renamedFunction(r4SyncRemoteTasks, 'syncRemoteTasks'),
-  );
-
-  const originalGenerateSignature = 'async function generateSegments(segmentIds) {';
-  if (!patched.includes(originalGenerateSignature)) throw new Error('无法定位 generateSegments');
-  patched = patched.replace(originalGenerateSignature, 'async function generateSegments(segmentIds, options = {}) {');
-
-  const automaticResetBlock = `  let resetCount = 0;
+  const generateSignature = 'async function generateSegments(segmentIds) {';
+  patched = patched.replace(generateSignature, 'async function generateSegments(segmentIds, options = {}) {');
+  const autoReset = `  let resetCount = 0;
   segments.forEach(segment => {
     if (prepareSegmentForEditorSubmit(segment)) resetCount += 1;
   });
@@ -1193,36 +963,20 @@ export function patchV46Source(source, { supabaseUrl, dbUrl }) {
     await persist();
   }
 `;
-  const duplicateGuardBlock = `  if (!options.allowResubmit) {
-    try {
-      await loadOutputs();
-      renderAll();
-    } catch (error) {
-      console.warn('[Seedance Studio R4] pre-submit strict sync failed', error);
-    }
-    const existingTasks = segments.filter(segment =>
-      segmentHasExistingTask(segment) ||
-      (state.outputs || []).some(output => Number(output.index) === Number(segment.index))
-    );
-    if (existingTasks.length) {
-      const labels = existingTasks.map(segment => \`Segment \${Number(segment.index || 0) + 1}\`).join('、');
-      return toast('已阻止重复提交', \`\${labels} 已存在任务或视频。普通生成不会再次扣费提交；只有明确重新提交才允许创建新任务。\`);
-    }
+  const guard = `  if (!options.allowResubmit) {
+    await loadOutputs(false).catch(() => {});
+    const existing = segments.filter(segment => segmentHasExistingTask(segment) || (state.outputs || []).some(output => Number(output.index) === Number(segment.index)));
+    if (existing.length) return toast('已阻止重复提交', '当前独立项目已经存在任务或视频。需要新版本时，请明确点击重新提交。');
   }
 `;
-  if (!patched.includes(automaticResetBlock)) throw new Error('无法定位自动重置任务代码');
-  patched = patched.replace(automaticResetBlock, duplicateGuardBlock);
-
-  const prepareLine = "    segments.forEach(s => { s.status = 'preparing'; s.progress = 1; s.error = null; s.remoteTaskId = null; s.providerTaskId = null; s.remoteSegmentId = null; s.outputPath = null; });";
-  const safePrepareLine = "    segments.forEach(s => { s.status = 'preparing'; s.progress = 1; s.error = null; if (options.allowResubmit) { s.remoteTaskId = null; s.providerTaskId = null; s.remoteSegmentId = null; s.outputPath = null; } });";
-  if (!patched.includes(prepareLine)) throw new Error('无法定位提交前任务清空代码');
-  patched = patched.replace(prepareLine, safePrepareLine);
-
-  const resubmitCall = '  await generateSegments([segment.id]);';
-  if (!patched.includes(resubmitCall)) throw new Error('无法定位明确重新提交入口');
-  patched = patched.replace(resubmitCall, '  await generateSegments([segment.id], { allowResubmit: true });');
-
-  return `${patched}\n//# sourceURL=seedance/app-production-runtime.js\n`;
+  if (!patched.includes(autoReset)) throw new Error('无法定位旧自动重置代码');
+  patched = patched.replace(autoReset, guard);
+  patched = patched.replace("    segments.forEach(s => { s.status = 'preparing'; s.progress = 1; s.error = null; s.remoteTaskId = null; s.providerTaskId = null; s.remoteSegmentId = null; s.outputPath = null; });",
+    "    segments.forEach(s => { s.status = 'preparing'; s.progress = 1; s.error = null; if (options.allowResubmit) { s.remoteTaskId = null; s.providerTaskId = null; s.remoteSegmentId = null; s.outputPath = null; } });");
+  patched = patched.replace('  await generateSegments([segment.id]);', '  await generateSegments([segment.id], { allowResubmit: true });');
+  return `${patched}
+//# sourceURL=seedance/app-production-runtime.js
+`;
 }
 
 export async function bootProduction() {
@@ -1238,17 +992,15 @@ export async function bootProduction() {
     await import(blobUrl);
     document.body.dataset.seedanceLoaderBuild = PRODUCTION_BUILD;
     console.log('[Seedance Studio loader]', PRODUCTION_BUILD);
-  } finally {
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
-  }
+  } finally { setTimeout(() => URL.revokeObjectURL(blobUrl), 30000); }
 }
 
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   bootProduction().catch(error => {
-    console.error('[Seedance Studio R4] boot failed', error);
+    console.error('[Seedance Studio R5] boot failed', error);
     const box = document.createElement('div');
     box.style.cssText = 'position:fixed;inset:20px;z-index:99999;background:#220b12;color:#fff;border:1px solid #ff6075;border-radius:14px;padding:20px;font:14px/1.6 system-ui;overflow:auto';
-    box.innerHTML = `<strong>Seedance 正式修复版启动失败</strong><br>${String(error?.message || error).replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]))}<br><br>请确认 seedance/app-v46.js 仍保留原文件，并且 ai-assistant.html 加载的是 seedance/app.js。`;
+    box.innerHTML = `<strong>Seedance 单项目单模式版启动失败</strong><br>${String(error?.message || error).replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]))}<br><br>请确认 seedance/app-v46.js 保留，并上传本包中的 ai-assistant.html 与 seedance/app.js。`;
     document.body.appendChild(box);
   });
 }
