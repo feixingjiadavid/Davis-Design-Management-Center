@@ -26,11 +26,11 @@ function injectStyles() {
     .ai-prompt-heading>span{margin:0!important}
     .ai-prompt-button{width:auto!important;padding:7px 10px!important;font-size:10px!important;color:#d8d4ff!important;border-color:rgba(139,92,246,.35)!important;background:rgba(109,93,252,.10)!important}
     .ai-prompt-button:hover{background:rgba(109,93,252,.20)!important}
-    .ai-prompt-modal{position:fixed;inset:0;z-index:3000;display:grid;place-items:center;padding:22px;background:rgba(3,4,8,.78);backdrop-filter:blur(14px)}
-    .ai-prompt-card{width:min(1120px,96vw);max-height:92vh;overflow:auto;background:linear-gradient(180deg,#171a22,#101218);border:1px solid rgba(255,255,255,.14);border-radius:22px;box-shadow:0 35px 100px rgba(0,0,0,.55)}
-    .ai-prompt-top{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:22px 24px 18px;border-bottom:1px solid rgba(255,255,255,.08)}
-    .ai-prompt-top h3{margin:0;font-size:18px}.ai-prompt-top p{margin:7px 0 0;color:#8d92a1;font-size:11px;line-height:1.55}
-    .ai-prompt-close{border:1px solid rgba(255,255,255,.1);background:#1b1e27;color:#ddd;width:34px;height:34px;border-radius:10px;font-size:18px}
+    .ai-prompt-modal{position:fixed;inset:0;z-index:3000;display:grid;place-items:center;padding:22px;background:rgba(15,18,28,.45);backdrop-filter:blur(18px)}
+    .ai-prompt-card{width:min(1120px,96vw);max-height:92vh;overflow:auto;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:22px;box-shadow:0 35px 100px rgba(0,0,0,.28);backdrop-filter:blur(30px)}
+    .ai-prompt-top{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:22px 24px 18px;border-bottom:1px solid rgba(255,255,255,.12)}
+    .ai-prompt-top h3{margin:0;font-size:18px;color:inherit}.ai-prompt-top p{margin:7px 0 0;color:rgba(255,255,255,.65);font-size:11px;line-height:1.55}
+    .ai-prompt-close{border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);color:inherit;width:34px;height:34px;border-radius:10px;font-size:18px}
     .ai-prompt-options{padding:14px 24px;border-bottom:1px solid rgba(255,255,255,.07)}
     .ai-prompt-options details{font-size:11px;color:#9a9faf}.ai-prompt-options summary{cursor:pointer;color:#c9cbd4;font-weight:800}
     .ai-prompt-option-row{display:flex;align-items:end;gap:12px;margin-top:12px}.ai-prompt-option-row label{flex:1}.ai-prompt-option-row span{display:block;font-size:10px;color:#737987;margin-bottom:6px}
@@ -45,7 +45,7 @@ function injectStyles() {
     .ai-prompt-status{padding:0 24px 14px;color:#9aa0ad;font-size:11px}.ai-prompt-status.error{color:#ff8090}.ai-prompt-status.ok{color:#42d39b}
     .ai-prompt-actions{display:flex;justify-content:flex-end;gap:10px;padding:16px 24px 22px;border-top:1px solid rgba(255,255,255,.08)}
     .ai-prompt-actions button{border-radius:11px;padding:10px 14px;font-weight:800}
-    .ai-prompt-secondary{border:1px solid rgba(255,255,255,.1);background:#171a22;color:#d7dae3}.ai-prompt-primary{border:0;background:linear-gradient(135deg,#6d5dfc,#8b5cf6);color:#fff}
+    .ai-prompt-secondary{border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.10);color:#d7dae3}.ai-prompt-primary{border:0;background:linear-gradient(135deg,#6d5dfc,#8b5cf6);color:#fff}
     @media(max-width:800px){.ai-prompt-grid,.ai-prompt-meta{grid-template-columns:1fr}.ai-prompt-column textarea{min-height:230px}.ai-prompt-option-row{align-items:stretch;flex-direction:column}}
   `;
   document.head.appendChild(style);
