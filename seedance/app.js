@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260723-single-project-single-mode-r5';
+const PRODUCTION_BUILD = '20260724-single-project-single-mode-r5-1-init-fix';
 const ORIGINAL_BUILD = '20260723-google-drive-only-output-v46';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -182,7 +182,7 @@ function r5GetWorkspace(draft = state.draft) {
 function r5MigrateDraftWorkspaces(draft) {
   if (!draft) return draft;
   const key = r5ModeKey(draft.lockedMode || draft.mode);
-  const workspace = r5GetWorkspace(draft);
+  const workspace = getWorkspace(draft);
   draft.mode = key;
   draft.lockedMode = key;
   draft.projectModeLocked = true;
@@ -226,7 +226,7 @@ async function r5MigrateDraftCollection(drafts) {
   for (const raw of drafts || []) {
     if (!raw) continue;
     if (raw.projectModeLocked && raw.singleModeVersion === 'r5') {
-      const locked = r5MigrateDraftWorkspaces(raw);
+      const locked = migrateDraftWorkspaces(raw);
       if (!seenIds.has(locked.id)) { result.push(locked); seenIds.add(locked.id); }
       continue;
     }
