@@ -4,8 +4,10 @@ import {
   missingReferenceTokens,
 } from './prompt-optimizer-core.js';
 
-const BUILD = '20260723-deepseek-prompt-optimizer-v1';
+const BUILD = '20260724-qwen-vision-deepseek-prompt-optimizer-v2';
 const FUNCTION_NAME = 'seedance-prompt-optimize';
+const VISION_FUNCTION_NAME = 'seedance-vision-analyze';
+const MAX_VISION_IMAGES = 6;
 
 let activeTextarea = null;
 let currentResult = null;
@@ -58,7 +60,7 @@ function ensureModal() {
   modal.innerHTML = `
     <div class="ai-prompt-card" role="dialog" aria-modal="true" aria-labelledby="ai-prompt-title">
       <div class="ai-prompt-top">
-        <div><h3 id="ai-prompt-title">AI 优化提示词</h3><p>DeepSeek 只读取文字上下文，不上传图片、视频或音频本体。优化结果不会自动覆盖原文。</p></div>
+        <div><h3 id="ai-prompt-title">AI 优化提示词</h3><p>上传的图片会先由千问视觉模型理解，再将视觉分析结果与原提示词一并交给 DeepSeek 优化。视频和音频本体不会上传给视觉模型，优化结果不会自动覆盖原文。</p></div>
         <button type="button" class="ai-prompt-close" id="ai-prompt-close" aria-label="关闭">×</button>
       </div>
       <div class="ai-prompt-options">
@@ -139,6 +141,108 @@ function currentReferences() {
   }).filter(item => item.token || item.name);
 }
 
+
+function visibleImageCandidates() {
+  const mode = activeMode();
+  const selectors = mode === 'text_only'
+    ? ['#reference-video-preview img']
+    : ['#quick-timeline img', '#editor-timeline img'];
+
+  const seen = new Set();
+  const images = [];
+
+  selectors.forEach(selector => {
+    document.querySelectorAll(selector).forEach((img, index) => {
+      const src = String(img.currentSrc || img.src || '').trim();
+      if (!src || seen.has(src)) return;
+      if (src.startsWith('data:video/') || src.startsWith('data:audio/')) return;
+      seen.add(src);
+      images.push({
+        src,
+        label: String(
+          img.getAttribute('alt') ||
+          img.getAttribute('title') ||
+          img.closest('.frame-card, .reference-pool-item')?.querySelector('strong, em')?.textContent ||
+          `图片${index + 1}`
+        ).replace(/\s+/g, ' ').trim(),
+      });
+    });
+  });
+
+  return images.slice(0, MAX_VISION_IMAGES);
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('读取本地图片失败'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function imageSourceForVision(src) {
+  if (src.startsWith('data:image/')) return src;
+  if (src.startsWith('http://') || src.startsWith('https://')) return src;
+  if (!src.startsWith('blob:')) throw new Error('图片地址格式不受支持');
+
+  const response = await fetch(src);
+  if (!response.ok) throw new Error(`读取本地图片失败：HTTP ${response.status}`);
+  const blob = await response.blob();
+  if (!blob.type.startsWith('image/')) throw new Error('当前素材不是图片');
+  return blobToDataUrl(blob);
+}
+
+async function analyzeImagesForPrompt(serial) {
+  const candidates = visibleImageCandidates();
+  if (!candidates.length) return null;
+
+  const analyses = [];
+  for (let index = 0; index < candidates.length; index += 1) {
+    if (serial !== requestSerial) return null;
+    const candidate = candidates[index];
+    setStatus(`千问正在理解图片 ${index + 1}/${candidates.length}：${candidate.label || `图片${index + 1}`}…`);
+
+    try {
+      const imageUrl = await imageSourceForVision(candidate.src);
+      const { data, error } = await supabase.functions.invoke(VISION_FUNCTION_NAME, {
+        body: {
+          image_url: imageUrl,
+          prompt: '请准确分析这张图片，为 Seedance 视频提示词优化提供主体、场景、构图、镜头、光影、色彩、关键元素、可行动作、保持规则和避免规则。',
+        },
+      });
+
+      if (error) throw new Error(error.message || '视觉分析服务调用失败');
+      if (!data?.ok || !data?.vision_context) throw new Error(data?.error || '千问没有返回有效视觉结果');
+
+      analyses.push({
+        index: index + 1,
+        label: candidate.label || `图片${index + 1}`,
+        model: data.model || 'qwen-vl-plus',
+        analysis: data.vision_context,
+      });
+    } catch (error) {
+      analyses.push({
+        index: index + 1,
+        label: candidate.label || `图片${index + 1}`,
+        error: error?.message || String(error),
+      });
+    }
+  }
+
+  const successful = analyses.filter(item => item.analysis);
+  if (!successful.length) {
+    const reason = analyses.map(item => item.error).filter(Boolean)[0] || '没有可分析的图片';
+    throw new Error(`图片视觉理解失败：${reason}`);
+  }
+
+  return {
+    source: 'qwen-vl-plus',
+    image_count: successful.length,
+    images: successful,
+  };
+}
+
 function contextFor(textarea) {
   const mode = activeMode();
   return buildOptimizationPayload({
@@ -190,6 +294,10 @@ async function runOptimization() {
 
   try {
     const payload = contextFor(activeTextarea);
+    const visionContext = await analyzeImagesForPrompt(serial);
+    if (serial !== requestSerial) return;
+    if (visionContext) payload.vision_context = visionContext;
+    setStatus(visionContext ? '千问视觉理解完成，正在结合图片与原提示词进行优化…' : '未检测到图片，正在按文字上下文优化…');
     const { data, error } = await supabase.functions.invoke(FUNCTION_NAME, { body: payload });
     if (serial !== requestSerial) return;
     if (error) throw new Error(error.message || '调用优化服务失败');
@@ -205,7 +313,7 @@ async function runOptimization() {
     renderList('ai-prompt-changes', data.changes, '已整理表达和镜头逻辑');
     renderList('ai-prompt-warnings', data.warnings, '未发现明显冲突');
     byId('ai-prompt-use').disabled = false;
-    setStatus(`优化完成 · ${data.model || 'DeepSeek'} · 未自动覆盖原文`, 'ok');
+    setStatus(`优化完成 · ${data.model || 'DeepSeek'}${payload.vision_context ? ' + 千问视觉理解' : ''} · 未自动覆盖原文`, 'ok');
   } catch (error) {
     currentResult = null;
     setStatus(error?.message || String(error), 'error');
