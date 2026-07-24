@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260724-single-project-single-mode-r5-1-init-fix';
+const PRODUCTION_BUILD = '20260724-single-project-single-mode-r5-3-history-rebind';
 const ORIGINAL_BUILD = '20260723-google-drive-only-output-v46';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -193,7 +193,18 @@ function r5MigrateDraftWorkspaces(draft) {
   workspace.remoteProjectId = draft.remoteProjectId || workspace.remoteProjectId || null;
   draft.selectedSegmentId = workspace.selectedSegmentId || draft.selectedSegmentId || workspace.segments[0]?.id || null;
   workspace.selectedSegmentId = draft.selectedSegmentId;
-  if (!draft.remoteProjectName) draft.remoteProjectName = r5BaseProjectName(draft.name);
+
+  const baseName = r5BaseProjectName(draft.name);
+  if (baseName) draft.remoteProjectName = baseName;
+
+  if (workspace.remoteBindingSchema !== 'r5.3') {
+    workspace.bindingCandidateProjectId = workspace.remoteProjectId || draft.remoteProjectId || null;
+    workspace.remoteBindingSchema = 'r5.3';
+    workspace.remoteBindingLocked = false;
+    workspace.remoteBindingVersion = null;
+    workspace.cloudSyncedAt = 0;
+    workspace.lastEmptySyncAt = 0;
+  }
   return draft;
 }
 
@@ -204,7 +215,7 @@ function r5BuildSplitDraft(source, mode, workspace, id, multiple) {
   const draft = r5Clone(source) || {};
   draft.id = id;
   draft.name = multiple ? `${baseName}－${r5ModeSuffix(key)}` : baseName;
-  draft.remoteProjectName = source.remoteProjectName || baseName;
+  draft.remoteProjectName = baseName;
   draft.mode = key;
   draft.lockedMode = key;
   draft.projectModeLocked = true;
@@ -217,6 +228,13 @@ function r5BuildSplitDraft(source, mode, workspace, id, multiple) {
   draft.selectedSegmentId = active.selectedSegmentId || active.segments[0]?.id || null;
   draft.createdAt = Number(source.createdAt || Date.now());
   draft.updatedAt = Date.now();
+
+  active.bindingCandidateProjectId = active.remoteProjectId || null;
+  active.remoteBindingSchema = 'r5.3';
+  active.remoteBindingLocked = false;
+  active.remoteBindingVersion = null;
+  active.cloudSyncedAt = 0;
+  active.lastEmptySyncAt = 0;
   return draft;
 }
 
@@ -330,6 +348,64 @@ function r5ExactTaskIds(workspace) {
   };
 }
 
+function r53IsGenericProjectName(name) {
+  const value = String(name || '').replace(/\s+/g, ' ').trim();
+  return !value || /^未命名(?:\s+Seedance)?(?:\s+项目)?$/u.test(value) || value === '未命名 Seedance 项目';
+}
+
+function r53NormalizePrompt(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/[，。！？、；：,.!?;:'"“”‘’（）()\[\]{}<>《》\-—_]/g, '')
+    .slice(0, 600);
+}
+
+function r53PromptOverlap(localPrompts, remotePrompts) {
+  const locals = (localPrompts || []).map(r53NormalizePrompt).filter(Boolean);
+  const remotes = (remotePrompts || []).map(r53NormalizePrompt).filter(Boolean);
+  if (!locals.length || !remotes.length) return 0;
+  let best = 0;
+  for (const local of locals) {
+    for (const remote of remotes) {
+      if (local === remote) best = Math.max(best, 1);
+      else if (local.includes(remote) || remote.includes(local)) {
+        best = Math.max(best, Math.min(local.length, remote.length) / Math.max(local.length, remote.length));
+      } else {
+        const limit = Math.min(120, local.length, remote.length);
+        let same = 0;
+        for (let i = 0; i < limit; i++) if (local[i] === remote[i]) same += 1;
+        best = Math.max(best, limit ? same / limit : 0);
+      }
+    }
+  }
+  return best;
+}
+
+function r53ProjectCandidateScore(project, stats, context) {
+  let score = 0;
+  if (context.exactProjectIds.has(project.id)) score += 1_000_000_000_000_000;
+  if (context.baseName && String(project.name || '') === context.baseName) score += 10_000_000_000_000;
+  if (context.existingProjectId && project.id === context.existingProjectId) score += 100_000_000_000;
+  score += Number(stats.driveOutputCount || 0) * 1_000_000_000_000;
+  score += Number(stats.outputCount || 0) * 10_000_000_000;
+  score += Number(stats.succeededTaskCount || 0) * 1_000_000_000;
+  score += Math.round(Number(stats.promptOverlap || 0) * 500_000_000);
+
+  const localCount = Number(context.localSegmentCount || 0);
+  const remoteCount = Number(stats.positionCount || 0);
+  if (localCount && remoteCount) {
+    score += Math.max(0, 300_000_000 - Math.abs(localCount - remoteCount) * 100_000_000);
+  }
+
+  const projectTime = new Date(project.created_at || 0).getTime() || 0;
+  const localTime = Number(context.localCreatedAt || 0);
+  if (projectTime && localTime) {
+    score -= Math.min(Math.abs(projectTime - localTime) / 1000, 200_000_000);
+  }
+  return score;
+}
+
 async function r5VerifyProjectId(projectId, mode, snapshot) {
   if (!projectId || !r5ContextIsCurrent(snapshot)) return null;
   const { data, error } = await supabase.from('video_projects')
@@ -346,60 +422,156 @@ async function r5ResolveFixedProject(snapshot) {
   if (!state.user?.id || !state.draft || !r5ContextIsCurrent(snapshot)) return null;
   const workspace = getWorkspace();
   const mode = snapshot.mode;
+  const baseName = r5BaseProjectName(state.draft.name);
+  const existingProjectId = workspace.remoteProjectId || state.draft.remoteProjectId || workspace.bindingCandidateProjectId || null;
 
-  const verified = await r5VerifyProjectId(workspace.remoteProjectId || state.draft.remoteProjectId, mode, snapshot);
-  if (verified) return verified;
+  if (workspace.remoteBindingLocked && workspace.remoteBindingVersion === 'r5.3') {
+    const locked = await r5VerifyProjectId(existingProjectId, mode, snapshot);
+    if (locked) return locked;
+  }
 
   const { providerIds, taskIds, segmentIds } = r5ExactTaskIds(workspace);
-  const foundProjectIds = new Set();
-  async function collect(column, values) {
+  const exactProjectIds = new Set();
+
+  async function collectExact(column, values) {
     if (!values.length || !r5ContextIsCurrent(snapshot)) return;
     const { data, error } = await supabase.from('video_tasks')
       .select('project_id')
       .eq('owner_id', state.user.id)
       .in(column, values);
     if (!r5ContextIsCurrent(snapshot) || error) return;
-    for (const row of data || []) if (row.project_id) foundProjectIds.add(row.project_id);
+    for (const row of data || []) if (row.project_id) exactProjectIds.add(row.project_id);
   }
-  await collect('provider_task_id', providerIds);
-  await collect('id', taskIds);
-  await collect('segment_id', segmentIds);
+
+  await collectExact('provider_task_id', providerIds);
+  await collectExact('id', taskIds);
+  await collectExact('segment_id', segmentIds);
   if (!r5ContextIsCurrent(snapshot)) return null;
 
-  const exactMatches = [];
-  for (const projectId of foundProjectIds) {
-    const project = await r5VerifyProjectId(projectId, mode, snapshot);
-    if (project) exactMatches.push(project);
-  }
-  if (exactMatches.length === 1) return exactMatches[0];
-  if (exactMatches.length > 1) return null;
-
-  // 旧混合项目首次拆分时，仅允许“同名 + 同模式”且唯一的远程项目自动绑定。
-  const names = [...new Set([
-    state.draft.remoteProjectName,
-    r5BaseProjectName(state.draft.name),
-  ].filter(Boolean))];
-  if (!names.length) return null;
-  const { data: candidates, error } = await supabase.from('video_projects')
-    .select('id,name,mode,created_at,updated_at')
-    .eq('owner_id', state.user.id)
-    .eq('mode', mode)
-    .in('name', names)
-    .order('created_at', { ascending: false });
-  if (!r5ContextIsCurrent(snapshot) || error) return null;
-  const rows = candidates || [];
-  if (rows.length === 1) return rows[0];
-  if (rows.length > 1) {
-    const ids = rows.map(row => row.id);
-    const { data: outputs } = await supabase.from('video_outputs')
-      .select('project_id')
+  const candidateMap = new Map();
+  async function addProjectsByIds(ids) {
+    const list = [...new Set((ids || []).filter(Boolean))];
+    if (!list.length || !r5ContextIsCurrent(snapshot)) return;
+    const { data, error } = await supabase.from('video_projects')
+      .select('id,name,mode,created_at,updated_at,status')
       .eq('owner_id', state.user.id)
-      .in('project_id', ids);
-    if (!r5ContextIsCurrent(snapshot)) return null;
-    const withOutput = [...new Set((outputs || []).map(row => row.project_id).filter(Boolean))];
-    if (withOutput.length === 1) return rows.find(row => row.id === withOutput[0]) || null;
+      .in('id', list);
+    if (!r5ContextIsCurrent(snapshot) || error) return;
+    for (const project of data || []) {
+      if (r5ModeKey(project.mode) === mode) candidateMap.set(project.id, project);
+    }
   }
-  return null;
+
+  await addProjectsByIds([...exactProjectIds, existingProjectId]);
+
+  if (baseName) {
+    const { data, error } = await supabase.from('video_projects')
+      .select('id,name,mode,created_at,updated_at,status')
+      .eq('owner_id', state.user.id)
+      .eq('mode', mode)
+      .eq('name', baseName)
+      .order('created_at', { ascending: false });
+    if (!r5ContextIsCurrent(snapshot)) return null;
+    if (!error) for (const project of data || []) candidateMap.set(project.id, project);
+  }
+
+  if (!candidateMap.size) {
+    const fallbackName = String(state.draft.remoteProjectName || '').trim();
+    if (fallbackName && fallbackName !== baseName) {
+      const { data, error } = await supabase.from('video_projects')
+        .select('id,name,mode,created_at,updated_at,status')
+        .eq('owner_id', state.user.id)
+        .eq('mode', mode)
+        .eq('name', fallbackName)
+        .order('created_at', { ascending: false });
+      if (!r5ContextIsCurrent(snapshot)) return null;
+      if (!error) for (const project of data || []) candidateMap.set(project.id, project);
+    }
+  }
+
+  const candidates = [...candidateMap.values()];
+  if (!candidates.length) return null;
+
+  const candidateIds = candidates.map(project => project.id);
+  const [segmentResult, taskResult, outputResult] = await Promise.all([
+    supabase.from('video_segments')
+      .select('id,project_id,position,prompt,status,created_at')
+      .eq('owner_id', state.user.id)
+      .in('project_id', candidateIds),
+    supabase.from('video_tasks')
+      .select('id,project_id,segment_id,provider_task_id,status,created_at')
+      .eq('owner_id', state.user.id)
+      .in('project_id', candidateIds),
+    supabase.from('video_outputs')
+      .select('id,project_id,task_id,segment_id,metadata,created_at')
+      .eq('owner_id', state.user.id)
+      .in('project_id', candidateIds),
+  ]);
+  if (!r5ContextIsCurrent(snapshot)) return null;
+
+  const remoteSegments = segmentResult.error ? [] : (segmentResult.data || []);
+  const remoteTasks = taskResult.error ? [] : (taskResult.data || []);
+  const remoteOutputs = outputResult.error ? [] : (outputResult.data || []);
+  const localPrompts = (workspace.segments || []).map(segment => segment.prompt).filter(Boolean);
+  const context = {
+    exactProjectIds,
+    baseName,
+    existingProjectId,
+    localCreatedAt: Number(state.draft.createdAt || 0),
+    localSegmentCount: (workspace.segments || []).length,
+  };
+
+  const scored = candidates.map(project => {
+    const projectSegments = remoteSegments.filter(row => row.project_id === project.id);
+    const projectTasks = remoteTasks.filter(row => row.project_id === project.id);
+    const projectOutputs = remoteOutputs.filter(row => row.project_id === project.id);
+    const driveOutputCount = projectOutputs.filter(row => {
+      const meta = row.metadata || {};
+      const driveId = meta.google_drive_file_id || meta.googleDriveFileId || meta.drive_file_id || meta.driveFileId;
+      const status = String(meta.google_drive_backup_status || '').toLowerCase();
+      return Boolean(driveId) && status !== 'failed';
+    }).length;
+    const stats = {
+      outputCount: projectOutputs.length,
+      driveOutputCount,
+      succeededTaskCount: projectTasks.filter(row => ['succeeded','completed','success'].includes(String(row.status || '').toLowerCase())).length,
+      positionCount: new Set(projectSegments.map(row => Number(row.position || 0))).size,
+      promptOverlap: r53PromptOverlap(localPrompts, projectSegments.map(row => row.prompt)),
+    };
+    return { project, stats, score: r53ProjectCandidateScore(project, stats, context) };
+  }).sort((a, b) => b.score - a.score);
+
+  let selected = scored[0] || null;
+  const second = scored[1] || null;
+  if (selected && second && !exactProjectIds.has(selected.project.id)) {
+    const decisive =
+      selected.project.name === baseName && second.project.name !== baseName ||
+      selected.stats.driveOutputCount !== second.stats.driveOutputCount ||
+      selected.stats.outputCount !== second.stats.outputCount ||
+      selected.stats.succeededTaskCount !== second.stats.succeededTaskCount ||
+      selected.stats.positionCount !== second.stats.positionCount ||
+      Math.abs(selected.score - second.score) > 50_000_000;
+    if (!decisive) selected = null;
+  }
+  if (!selected) return null;
+
+  const project = selected.project;
+  const changed = workspace.remoteProjectId !== project.id ||
+    workspace.remoteBindingVersion !== 'r5.3' ||
+    !workspace.remoteBindingLocked;
+
+  workspace.remoteProjectId = project.id;
+  workspace.bindingCandidateProjectId = project.id;
+  workspace.remoteBindingSchema = 'r5.3';
+  workspace.remoteBindingVersion = 'r5.3';
+  workspace.remoteBindingLocked = true;
+  workspace.cloudSyncedAt = 0;
+  workspace.lastEmptySyncAt = 0;
+  state.draft.remoteProjectId = project.id;
+  state.draft.remoteProjectName = project.name || baseName || state.draft.remoteProjectName;
+
+  if (changed) await saveDraft(state.draft);
+  return project;
 }
 
 function r5TaskScore(task, outputTaskIds, exactIds) {
@@ -551,8 +723,23 @@ function r5LoadOutputs(force = false) {
     normalizeSegments(state.draft);
     const snapshot = r5ContextSnapshot();
     const workspace = getWorkspace();
+    const nowMs = Date.now();
     const ttl = 5 * 60_000;
-    if (!force && Number(workspace.cloudSyncedAt || 0) > 0 && Date.now() - Number(workspace.cloudSyncedAt || 0) < ttl) {
+
+    if (!force &&
+        workspace.remoteBindingLocked &&
+        workspace.remoteBindingVersion === 'r5.3' &&
+        (workspace.outputs || []).length &&
+        nowMs - Number(workspace.cloudSyncedAt || 0) < ttl) {
+      state.outputs = workspace.outputs || [];
+      state.outputHistory = workspace.outputHistory || [];
+      return;
+    }
+
+    if (!force &&
+        workspace.remoteBindingLocked &&
+        !(workspace.outputs || []).length &&
+        nowMs - Number(workspace.lastEmptySyncAt || 0) < 30_000) {
       state.outputs = workspace.outputs || [];
       state.outputHistory = workspace.outputHistory || [];
       return;
@@ -563,9 +750,9 @@ function r5LoadOutputs(force = false) {
     const current = () => r5ContextIsCurrent(snapshot) && Number(state.r5LoadSeq || 0) === seq;
     const project = await r5ResolveFixedProject(snapshot);
     if (!current()) return;
+
     if (!project) {
-      // 保留已有本地缓存，不用“空查询结果”把已恢复视频清掉；同时设置冷却时间，避免反复查询。
-      workspace.cloudSyncedAt = Date.now();
+      workspace.lastEmptySyncAt = Date.now();
       state.outputs = workspace.outputs || [];
       state.outputHistory = workspace.outputHistory || [];
       saveCurrentWorkspaceSelection();
@@ -574,52 +761,149 @@ function r5LoadOutputs(force = false) {
     }
 
     workspace.remoteProjectId = project.id;
+    workspace.remoteBindingSchema = 'r5.3';
+    workspace.remoteBindingVersion = 'r5.3';
+    workspace.remoteBindingLocked = true;
     state.draft.remoteProjectId = project.id;
     const projectId = project.id;
+
     const [segmentResult, taskResult, outputResult] = await Promise.all([
-      supabase.from('video_segments').select('id,project_id,position,status,created_at,updated_at')
-        .eq('owner_id', state.user.id).eq('project_id', projectId).order('created_at', { ascending: false }),
-      supabase.from('video_tasks').select('id,segment_id,project_id,provider_task_id,status,progress,error_message,created_at,updated_at')
-        .eq('owner_id', state.user.id).eq('project_id', projectId).order('created_at', { ascending: false }),
-      supabase.from('video_outputs').select('*')
-        .eq('owner_id', state.user.id).eq('project_id', projectId).order('created_at', { ascending: false }).limit(100),
+      supabase.from('video_segments')
+        .select('id,project_id,position,prompt,model_alias,duration,resolution,ratio,status,mode,generate_audio,created_at,updated_at')
+        .eq('owner_id', state.user.id)
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false }),
+      supabase.from('video_tasks')
+        .select('id,segment_id,project_id,provider_task_id,status,progress,error_message,model_alias,created_at,updated_at')
+        .eq('owner_id', state.user.id)
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false }),
+      supabase.from('video_outputs')
+        .select('*')
+        .eq('owner_id', state.user.id)
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false })
+        .limit(100),
     ]);
     if (!current()) return;
     if (segmentResult.error) throw new Error(`读取项目片段失败：${errorMessage(segmentResult.error)}`);
     if (taskResult.error) throw new Error(`读取项目任务失败：${errorMessage(taskResult.error)}`);
     if (outputResult.error) throw new Error(`读取项目视频失败：${errorMessage(outputResult.error)}`);
 
-    const localSegments = state.draft.segments || [];
     const remoteSegments = segmentResult.data || [];
     const tasks = taskResult.data || [];
     const rows = outputResult.data || [];
-    const positionByRemoteSegment = new Map(remoteSegments.map(row => [row.id, Number(row.position || 0)]));
-    const idsByPosition = new Map();
-    for (const row of remoteSegments) {
-      const pos = Number(row.position || 0);
-      if (!idsByPosition.has(pos)) idsByPosition.set(pos, new Set());
-      idsByPosition.get(pos).add(row.id);
-    }
+    const originalLocalSegments = Array.isArray(state.draft.segments) ? state.draft.segments : [];
     const outputTaskIds = new Set(rows.map(row => row.task_id).filter(Boolean));
 
-    for (const local of localSegments) {
-      const position = Number(local.index || 0);
-      const remoteIds = idsByPosition.get(position) || new Set();
-      const exact = new Set([local.remoteTaskId, local.providerTaskId, local.remoteSegmentId].filter(Boolean));
-      const candidates = tasks.filter(task => remoteIds.has(task.segment_id) || exact.has(task.id) || exact.has(task.provider_task_id) || exact.has(task.segment_id));
-      candidates.sort((a, b) => r5TaskScore(b, outputTaskIds, exact) - r5TaskScore(a, outputTaskIds, exact));
-      const chosen = candidates[0];
-      if (!chosen) continue;
-      local.remoteSegmentId = chosen.segment_id || local.remoteSegmentId;
-      local.remoteTaskId = chosen.id || local.remoteTaskId;
-      local.providerTaskId = chosen.provider_task_id || local.providerTaskId;
-      local.status = chosen.status || local.status;
-      local.progress = Number(chosen.progress ?? local.progress ?? 0);
-      local.error = chosen.error_message || null;
+    const remoteByPosition = new Map();
+    const positionByRemoteSegment = new Map();
+    for (const remote of remoteSegments) {
+      const position = Number(remote.position || 0);
+      positionByRemoteSegment.set(remote.id, position);
+      if (!remoteByPosition.has(position)) remoteByPosition.set(position, []);
+      remoteByPosition.get(position).push(remote);
     }
 
-    const now = Date.now();
+    const tasksByPosition = new Map();
+    for (const task of tasks) {
+      const position = positionByRemoteSegment.has(task.segment_id)
+        ? positionByRemoteSegment.get(task.segment_id)
+        : 0;
+      if (!tasksByPosition.has(position)) tasksByPosition.set(position, []);
+      tasksByPosition.get(position).push(task);
+    }
+
+    const localByPosition = new Map(originalLocalSegments.map(segment => [Number(segment.index || 0), segment]));
+    const positions = [...new Set([
+      ...remoteByPosition.keys(),
+      ...localByPosition.keys(),
+    ])].sort((a, b) => a - b);
+
+    const chosenTaskByPosition = new Map();
+    const rebuiltSegments = [];
+
+    for (const position of positions) {
+      const existing = localByPosition.get(position) || null;
+      const exact = new Set([
+        existing?.remoteTaskId,
+        existing?.providerTaskId,
+        existing?.remoteSegmentId,
+      ].filter(Boolean));
+      const taskCandidates = [...(tasksByPosition.get(position) || [])]
+        .sort((a, b) => r5TaskScore(b, outputTaskIds, exact) - r5TaskScore(a, outputTaskIds, exact));
+      const chosenTask = taskCandidates[0] || null;
+      if (chosenTask) chosenTaskByPosition.set(position, chosenTask);
+
+      const segmentCandidates = remoteByPosition.get(position) || [];
+      const representative = segmentCandidates.find(row => row.id === chosenTask?.segment_id) ||
+        segmentCandidates.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0] ||
+        null;
+
+      const segment = {
+        ...(existing || {}),
+        id: existing?.id || uid(),
+        fromFrameId: existing?.fromFrameId || null,
+        toFrameId: existing?.toFrameId || null,
+        prompt: String(existing?.prompt || '').trim() ? existing.prompt : (representative?.prompt || ''),
+        duration: Number(existing?.duration || representative?.duration || 4),
+        model: existing?.model || representative?.model_alias || chosenTask?.model_alias || 'mini',
+        resolution: existing?.resolution || representative?.resolution || '720p',
+        status: chosenTask?.status || representative?.status || existing?.status || 'draft',
+        progress: Number(chosenTask?.progress ?? existing?.progress ?? (
+          ['succeeded','completed','success'].includes(String(chosenTask?.status || representative?.status || '').toLowerCase()) ? 100 : 0
+        )),
+        providerTaskId: chosenTask?.provider_task_id || existing?.providerTaskId || null,
+        remoteSegmentId: chosenTask?.segment_id || representative?.id || existing?.remoteSegmentId || null,
+        remoteTaskId: chosenTask?.id || existing?.remoteTaskId || null,
+        outputPath: existing?.outputPath || null,
+        outputUrl: existing?.outputUrl || null,
+        error: chosenTask?.error_message || existing?.error || null,
+        index: position,
+        mode: snapshot.mode,
+        generateAudio: Boolean(existing?.generateAudio ?? representative?.generate_audio),
+        referenceAssetId: existing?.referenceAssetId || null,
+        referenceAssetIds: existing?.referenceAssetIds || [],
+        previousTaskIds: existing?.previousTaskIds || [],
+      };
+      rebuiltSegments.push(segment);
+    }
+
+    if (!rebuiltSegments.length && snapshot.mode === 'text_only') {
+      rebuiltSegments.push({
+        id: uid(),
+        fromFrameId: null,
+        toFrameId: null,
+        prompt: '',
+        duration: 4,
+        model: 'mini',
+        resolution: '720p',
+        status: 'draft',
+        progress: 0,
+        providerTaskId: null,
+        remoteSegmentId: null,
+        remoteTaskId: null,
+        outputPath: null,
+        outputUrl: null,
+        error: null,
+        index: 0,
+        mode: 'text_only',
+        generateAudio: false,
+        referenceAssetId: null,
+        referenceAssetIds: [],
+      });
+    }
+
+    state.draft.segments = rebuiltSegments;
+    workspace.segments = rebuiltSegments;
+    if (!rebuiltSegments.some(segment => segment.id === state.selectedSegmentId)) {
+      state.selectedSegmentId = rebuiltSegments[0]?.id || null;
+    }
+    workspace.selectedSegmentId = state.selectedSegmentId;
+
+    const currentTime = Date.now();
     const bySegment = new Map();
+
     for (const row of rows) {
       if (row.project_id !== projectId) continue;
       const meta = row.metadata || {};
@@ -628,7 +912,8 @@ function r5LoadOutputs(force = false) {
       const driveStatus = String(meta.google_drive_backup_status || '').toLowerCase();
       const providerUrl = outputVideoUrlFromMetadata(meta);
       const providerExpiry = Date.parse(meta.provider_video_url_expires_at || '');
-      const providerValid = Boolean(providerUrl) && (!Number.isFinite(providerExpiry) || providerExpiry > now + 60_000);
+      const providerValid = Boolean(providerUrl) && (!Number.isFinite(providerExpiry) || providerExpiry > currentTime + 60_000);
+
       let url = '';
       let storageMode = '';
       if (googleDriveFileId && driveStatus !== 'failed') {
@@ -640,57 +925,93 @@ function r5LoadOutputs(force = false) {
       } else if (row.storage_path && row.bucket_id && row.bucket_id !== 'ark-url') {
         const signed = await supabase.storage.from(row.bucket_id).createSignedUrl(row.storage_path, 3600);
         if (!current()) return;
-        if (!signed.error && signed.data?.signedUrl) { url = signed.data.signedUrl; storageMode = 'supabase'; }
+        if (!signed.error && signed.data?.signedUrl) {
+          url = signed.data.signedUrl;
+          storageMode = 'supabase';
+        }
       }
       if (!url) continue;
 
-      let index = localSegments.findIndex(local => (row.segment_id && local.remoteSegmentId === row.segment_id) ||
-        (row.task_id && local.remoteTaskId === row.task_id) || (providerTaskId && local.providerTaskId === providerTaskId));
-      if (index < 0 && row.segment_id && positionByRemoteSegment.has(row.segment_id)) {
-        const pos = positionByRemoteSegment.get(row.segment_id);
-        index = localSegments.findIndex(local => Number(local.index || 0) === pos);
+      let position = row.segment_id && positionByRemoteSegment.has(row.segment_id)
+        ? positionByRemoteSegment.get(row.segment_id)
+        : null;
+      if (position == null && row.task_id) {
+        const task = tasks.find(item => item.id === row.task_id);
+        if (task?.segment_id && positionByRemoteSegment.has(task.segment_id)) {
+          position = positionByRemoteSegment.get(task.segment_id);
+        }
       }
-      if (index < 0 && localSegments.length === 1) index = 0;
-      if (index < 0) continue;
-      const local = localSegments[index];
+      if (position == null && rebuiltSegments.length === 1) position = 0;
+      const local = rebuiltSegments.find(segment => Number(segment.index || 0) === Number(position));
+      if (!local) continue;
+
+      const chosenTask = chosenTaskByPosition.get(Number(position));
       let score = new Date(row.created_at || 0).getTime() || 0;
-      if (googleDriveFileId) score += 1_000_000_000_000;
-      if (row.task_id && local?.remoteTaskId === row.task_id) score += 10_000_000_000_000;
-      if (providerTaskId && local?.providerTaskId === providerTaskId) score += 10_000_000_000_000;
+      if (googleDriveFileId && driveStatus !== 'failed') score += 1_000_000_000_000;
+      if (row.task_id && chosenTask?.id === row.task_id) score += 10_000_000_000_000;
+      if (providerTaskId && chosenTask?.provider_task_id === providerTaskId) score += 10_000_000_000_000;
+
       const output = {
-        row, projectId, mode: snapshot.mode, url, storageMode, providerTaskId,
-        taskId: row.task_id || null, segmentId: local?.id || null,
-        remoteSegmentId: row.segment_id || null, index,
-        promptSnapshot: local?.prompt || '', googleDriveFileId,
-        outputId: row.id || null, matchScore: score,
+        row,
+        projectId,
+        mode: snapshot.mode,
+        url,
+        storageMode,
+        providerTaskId,
+        taskId: row.task_id || null,
+        segmentId: local.id,
+        remoteSegmentId: row.segment_id || null,
+        index: Number(position || 0),
+        promptSnapshot: local.prompt || '',
+        googleDriveFileId,
+        outputId: row.id || null,
+        matchScore: score,
       };
-      if (!bySegment.has(index)) bySegment.set(index, []);
-      bySegment.get(index).push(output);
+      if (!bySegment.has(output.index)) bySegment.set(output.index, []);
+      bySegment.get(output.index).push(output);
     }
 
     const outputs = [];
     const history = [];
-    for (const [index, list] of bySegment.entries()) {
+    for (const [position, list] of bySegment.entries()) {
       list.sort((a, b) => b.matchScore - a.matchScore);
-      if (!list[0]) continue;
-      outputs.push(list[0]);
-      history.push(...list.slice(1).map(old => ({ ...old, historical: true, reason: '当前独立项目历史版本', historyId: `${r5OutputStableKey(old)}-r5` })));
-      const local = localSegments[index];
+      const chosen = list[0];
+      if (!chosen) continue;
+      outputs.push(chosen);
+      history.push(...list.slice(1).map(old => ({
+        ...old,
+        historical: true,
+        reason: '当前独立项目历史版本',
+        historyId: `${r5OutputStableKey(old)}-r5-3`,
+      })));
+
+      const local = rebuiltSegments.find(segment => Number(segment.index || 0) === Number(position));
       if (local) {
-        local.status = 'succeeded'; local.progress = 100; local.error = null;
-        local.providerTaskId = list[0].providerTaskId || local.providerTaskId;
-        local.remoteTaskId = list[0].taskId || local.remoteTaskId;
-        local.remoteSegmentId = list[0].remoteSegmentId || local.remoteSegmentId;
+        local.status = 'succeeded';
+        local.progress = 100;
+        local.error = null;
+        local.providerTaskId = chosen.providerTaskId || local.providerTaskId;
+        local.remoteTaskId = chosen.taskId || local.remoteTaskId;
+        local.remoteSegmentId = chosen.remoteSegmentId || local.remoteSegmentId;
       }
     }
+
     if (!current()) return;
     state.outputs = outputs.sort((a, b) => a.index - b.index);
-    state.outputHistory = history.sort((a, b) => new Date(b.row?.created_at || 0) - new Date(a.row?.created_at || 0)).slice(0, 50);
+    state.outputHistory = history
+      .sort((a, b) => new Date(b.row?.created_at || 0) - new Date(a.row?.created_at || 0))
+      .slice(0, 50);
+
     workspace.outputs = state.outputs;
     workspace.outputHistory = state.outputHistory;
-    workspace.segments = localSegments;
+    workspace.segments = rebuiltSegments;
     workspace.remoteProjectId = projectId;
+    workspace.remoteBindingSchema = 'r5.3';
+    workspace.remoteBindingVersion = 'r5.3';
+    workspace.remoteBindingLocked = true;
     workspace.cloudSyncedAt = Date.now();
+    workspace.lastEmptySyncAt = state.outputs.length ? 0 : Date.now();
+    state.draft.remoteProjectId = projectId;
     saveCurrentWorkspaceSelection();
     await saveDraft(state.draft);
   })();
@@ -909,7 +1230,8 @@ export function patchV46Source(source, { supabaseUrl, dbUrl }) {
     .replace("from './db.js'", `from '${dbUrl}'`).replace(ORIGINAL_BUILD, PRODUCTION_BUILD);
 
   const support = [r5ModeKey,r5ModeLabel,r5ModeSuffix,r5BaseProjectName,r5Clone,r5WorkspaceHasContent,r5CreateWorkspaceClone,
-    r5BuildSplitDraft,r5MigrateDraftCollection,r5ContextSnapshot,r5ContextIsCurrent,r5ExactTaskIds,r5VerifyProjectId,
+    r5BuildSplitDraft,r5MigrateDraftCollection,r5ContextSnapshot,r5ContextIsCurrent,r5ExactTaskIds,
+    r53IsGenericProjectName,r53NormalizePrompt,r53PromptOverlap,r53ProjectCandidateScore,r5VerifyProjectId,
     r5ResolveFixedProject,r5TaskScore,r5OutputStableKey,r5CacheRequestUrl,r5ReadPersistentVideo,r5PrunePersistentVideoCache,
     r5WritePersistentVideo,r5OpenCreateModal,r5CloseCreateModal,r5CreateProjectFromMode,r5WireCreateModal].map(fn => fn.toString()).join('\n\n');
 
