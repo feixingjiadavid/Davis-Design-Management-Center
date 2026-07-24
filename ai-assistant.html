@@ -1,191 +1,1254 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Seedance 视频生成中心 - Davis Design System</title>
-  <link rel="stylesheet" href="./seedance/style.css?v=20260722-lock-current-project-v30" />
-  <style>[hidden]{display:none!important}</style>
-  <style>
-    .mode-lock-card{display:flex;flex-direction:column;align-items:flex-end;gap:3px;padding:10px 14px;border:1px solid rgba(139,113,255,.32);border-radius:12px;background:rgba(116,86,255,.08);min-width:190px}
-    .mode-lock-card span,.mode-lock-card small{font-size:11px;color:#8f95a8}.mode-lock-card strong{font-size:14px;color:#fff}
-    .project-mode-tag{display:inline-flex;padding:2px 6px;border-radius:999px;background:rgba(124,92,255,.14);color:#a99aff;font-size:10px;font-weight:700}
-    .project-mode-modal{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:rgba(0,0,0,.68);backdrop-filter:blur(12px)}
-    .project-mode-modal[hidden]{display:none!important}.project-mode-dialog{width:min(720px,calc(100vw - 32px));padding:26px;border:1px solid rgba(255,255,255,.12);border-radius:22px;background:#12141c;box-shadow:0 30px 90px rgba(0,0,0,.55)}
-    .project-mode-dialog h2{margin:0 0 8px;font-size:23px}.project-mode-dialog>p{margin:0 0 20px;color:#9298aa}
-    .project-name-create{display:grid;gap:8px;margin-bottom:18px}.project-name-create span{font-size:12px;color:#a3a8b7}.project-name-create input{width:100%;box-sizing:border-box;padding:12px 14px;border-radius:11px;border:1px solid rgba(255,255,255,.12);background:#0b0d13;color:#fff}
-    .project-mode-options{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.project-mode-option{padding:18px;text-align:left;border:1px solid rgba(255,255,255,.1);border-radius:16px;background:#0d0f16;color:#fff;cursor:pointer}.project-mode-option:hover{border-color:#8064ff;background:rgba(116,86,255,.1);transform:translateY(-1px)}
-    .project-mode-option b{display:block;margin-bottom:7px;font-size:15px}.project-mode-option span{display:block;color:#8f95a8;font-size:11px;line-height:1.5}.project-mode-footer{display:flex;justify-content:flex-end;margin-top:16px}
-    @media(max-width:760px){.project-mode-options{grid-template-columns:1fr}.mode-lock-card{align-items:flex-start;width:100%}}
-  </style>
-</head>
-<body>
-  <div id="app-shell">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-icon">▶</div>
-        <div><strong>Seedance Studio</strong><span>Davis Design System</span></div>
+const PRODUCTION_BUILD = '20260723-text-mode-isolation-r4';
+const ORIGINAL_BUILD = '20260723-google-drive-only-output-v46';
+const ORIGINAL_FILE = './app-v46.js';
+
+function v47FetchVideoBlobThroughProxy(output) {
+  return (async () => {
+    const outputId = output?.outputId || output?.row?.id || '';
+    const providerTaskId = output?.providerTaskId || '';
+    const taskId = output?.taskId || '';
+    const driveFileId = output?.row?.metadata?.google_drive_file_id || output?.googleDriveFileId || '';
+
+    if (!outputId && !driveFileId && !providerTaskId && !taskId) {
+      throw new Error('缺少 output_id / Google Drive file_id，无法通过代理拉取视频');
+    }
+
+    const token = await getAccessToken();
+    const params = new URLSearchParams();
+    if (outputId) params.set('output_id', outputId);
+    if (driveFileId) params.set('google_drive_file_id', driveFileId);
+    if (providerTaskId) params.set('provider_task_id', providerTaskId);
+    if (taskId) params.set('task_id', taskId);
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 120000);
+    let response;
+    try {
+      response = await fetch(`${SEEDANCE_VIDEO_PROXY_URL}?${params.toString()}`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
+      });
+    } catch (error) {
+      const wrapped = new Error(error?.name === 'AbortError' ? '视频代理加载超时' : errorMessage(error, '视频代理请求失败'));
+      wrapped.status = 0;
+      throw wrapped;
+    } finally {
+      clearTimeout(timer);
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!response.ok) {
+      let detail = '';
+      try {
+        const json = await response.json();
+        detail = json.message || json.error || JSON.stringify(json);
+      } catch {
+        detail = await response.text().catch(() => '');
+      }
+      const error = new Error(detail || `视频代理返回 HTTP ${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
+
+    if (!contentType.includes('video') && !contentType.includes('octet-stream')) {
+      let detail = '';
+      try {
+        const json = await response.json();
+        detail = json.message || json.error || JSON.stringify(json);
+      } catch {
+        detail = await response.text().catch(() => '');
+      }
+      const error = new Error(detail || '视频代理没有返回 MP4 文件');
+      error.status = response.status;
+      throw error;
+    }
+
+    const blob = await response.blob();
+    if (!blob.size) {
+      const error = new Error('代理返回了空视频文件');
+      error.status = response.status;
+      throw error;
+    }
+    return blob;
+  })();
+}
+
+function v47HydrateProxyVideoElements() {
+  return (async () => {
+    const videos = qsa('video[data-output-id], video[data-provider-task-id]');
+    const proxyFailureCache = hydrateProxyVideoElements.proxyFailureCache || new Map();
+    const proxyInflight = hydrateProxyVideoElements.proxyInflight || new Map();
+    hydrateProxyVideoElements.proxyFailureCache = proxyFailureCache;
+    hydrateProxyVideoElements.proxyInflight = proxyInflight;
+
+    for (const video of videos) {
+      if (video.dataset.proxyLoading === '1' || video.dataset.proxyLoaded === '1') continue;
+
+      const outputId = video.dataset.outputId || '';
+      const googleDriveFileId = video.dataset.googleDriveFileId || '';
+      const providerTaskId = video.dataset.providerTaskId || '';
+      const taskId = video.dataset.taskId || '';
+      const key = outputId || googleDriveFileId || providerTaskId || taskId || video.dataset.outputKey || '';
+      if (!key) continue;
+
+      const statusEl = document.querySelector(`[data-output-load-status="${CSS.escape(key)}"]`);
+      const downloadEl = document.querySelector(`[data-proxy-download="${CSS.escape(key)}"]`);
+
+      if (state.outputBlobUrls.has(key)) {
+        const cachedUrl = state.outputBlobUrls.get(key);
+        if (video.src !== cachedUrl) video.src = cachedUrl;
+        video.dataset.proxyLoaded = '1';
+        video.dataset.proxyLoading = '0';
+        if (downloadEl) {
+          downloadEl.href = cachedUrl;
+          downloadEl.download = `seedance-${providerTaskId || taskId || Date.now()}.mp4`;
+        }
+        if (statusEl) statusEl.textContent = '已通过 Google Drive 代理加载，可播放/下载';
+        continue;
+      }
+
+      const failed = proxyFailureCache.get(key);
+      if (failed && failed.retryAt > Date.now()) {
+        if (statusEl) statusEl.textContent = `暂不重试：${failed.message}`;
+        video.dataset.proxyLoading = '0';
+        continue;
+      }
+
+      const output = [...(state.outputs || []), ...(state.outputHistory || [])].find(o => {
+        return (outputId && (o.outputId === outputId || o.row?.id === outputId)) ||
+          (googleDriveFileId && o.googleDriveFileId === googleDriveFileId) ||
+          (providerTaskId && o.providerTaskId === providerTaskId) ||
+          (taskId && o.taskId === taskId) ||
+          outputKey(o) === key;
+      });
+      if (!output) continue;
+
+      video.dataset.proxyLoading = '1';
+      if (statusEl) statusEl.textContent = '正在通过 Google Drive 服务端代理拉取 MP4...';
+
+      try {
+        let request = proxyInflight.get(key);
+        if (!request) {
+          request = fetchVideoBlobThroughProxy(output).finally(() => proxyInflight.delete(key));
+          proxyInflight.set(key, request);
+        }
+        const blob = await request;
+        let objectUrl = state.outputBlobUrls.get(key);
+        if (!objectUrl) {
+          objectUrl = URL.createObjectURL(blob);
+          state.outputBlobs.set(key, blob);
+          state.outputBlobUrls.set(key, objectUrl);
+        }
+        proxyFailureCache.delete(key);
+
+        video.src = objectUrl;
+        video.dataset.proxyLoaded = '1';
+        video.dataset.proxyLoading = '0';
+        video.load();
+
+        if (downloadEl) {
+          downloadEl.href = objectUrl;
+          downloadEl.download = `seedance-${providerTaskId || taskId || Date.now()}.mp4`;
+        }
+        if (statusEl) statusEl.textContent = `已通过 Google Drive 代理加载：${formatBytes(blob.size)}`;
+      } catch (error) {
+        video.dataset.proxyLoading = '0';
+        const status = Number(error?.status || 0);
+        const msg = errorMessage(error, '视频代理加载失败');
+        const permanentLike = [404, 410, 502].includes(status) || /OUTPUT_HAS_NO_PLAYABLE_SOURCE|VIDEO_FETCH_FAILED|GOOGLE_DRIVE_FETCH_FAILED/i.test(msg);
+        const retryMs = permanentLike ? 10 * 60 * 1000 : 60 * 1000;
+        proxyFailureCache.set(key, { message: msg, retryAt: Date.now() + retryMs });
+        if (statusEl) statusEl.textContent = `加载失败：${msg}`;
+        console.warn('[Seedance Studio R4] proxy video load failed', { key, status, error });
+      }
+    }
+  })();
+}
+
+function v47RecoverLatestDriveOutputWhenEmpty(force = false) {
+  return (async () => {
+    if (state.driveFallbackLoading) return;
+    if (!state.user?.id || !state.draft?.id) return;
+    if ((state.outputs || []).length) return;
+
+    const recoveryKey = `${state.draft.id}:${state.draft.mode}`;
+    if (!force && state.driveFallbackDoneForDraftId === recoveryKey) return;
+    state.driveFallbackDoneForDraftId = recoveryKey;
+    state.driveFallbackLoading = true;
+
+    try {
+      await loadOutputs();
+      if ((state.outputs || []).length) {
+        renderJobs();
+        setTimeout(hydrateProxyVideoElements, 0);
+        toast('已恢复当前项目视频', '只从当前工作区对应的 Supabase 项目与 Google Drive 输出中恢复。');
+      } else if (force) {
+        toast('当前项目暂无可播放视频', '没有找到属于当前工作区且已成功保存到 Google Drive 的视频。');
+      }
+    } catch (error) {
+      console.warn('[Seedance Studio R4] strict drive recover failed', error);
+      if (force) toast('拉取失败', errorMessage(error));
+    } finally {
+      state.driveFallbackLoading = false;
+    }
+  })();
+}
+
+function v47RenderJobs() {
+  if (!state.draft) return;
+  keepOnlyCurrentProjectOutputs();
+
+  const strictProjectId = state.draft.remoteProjectId || getWorkspace()?.remoteProjectId || null;
+  const belongsToStrictProject = output => {
+    const rowProjectId = output?.row?.project_id || output?.projectId || null;
+    return !strictProjectId || !rowProjectId || rowProjectId === strictProjectId;
+  };
+  state.outputs = (state.outputs || []).filter(belongsToStrictProject);
+  state.outputHistory = (state.outputHistory || []).filter(belongsToStrictProject);
+
+  const segments = state.draft.segments || [];
+  $('jobs-list').innerHTML = segments.length ? segments.map(s => `
+    <article class="job-card">
+      <div class="job-head">
+        <strong>Segment ${String(s.index + 1).padStart(2, '0')}</strong>
+        <span>${statusText(s.status)}</span>
       </div>
-      <div class="sidebar-actions">
-        <button class="ghost-btn full" id="back-home">← 返回排号大厅</button>
-        <button class="primary-btn full" id="new-project">＋ 新建视频项目</button>
+      <p>${escapeHtml(s.prompt || '未填写提示词')}</p>
+      ${jobStageMarkup(s)}
+      ${s.providerTaskId ? '<p class="task-id">后台任务已记录</p>' : ''}
+      ${s.error ? `<p style="color:#ff8090;white-space:pre-wrap">${escapeHtml(s.error)}</p>` : ''}
+      <div class="job-actions">
+        <button data-sync-output="${s.id}">刷新结果</button>
+        <button data-edit-from-job="${s.id}">重新编辑</button>
       </div>
-      <div class="sidebar-section-title">本地项目草稿</div>
-      <div id="project-list" class="project-list"></div>
-      <div class="sidebar-footer">
-        <div class="user">
-          <div id="sidebar-avatar" class="avatar">?</div>
-          <div class="user-copy"><strong id="sidebar-name">加载中...</strong><span id="sidebar-role">系统成员</span></div>
-        </div>
-        <button id="logout" class="icon-btn" title="退出登录">↗</button>
+    </article>`).join('') : '<div class="empty-state">暂无生成任务</div>';
+
+  const activeMarkup = renderActiveGenerationCards();
+  const visibleOutputs = currentOutputRows();
+  const historyOutputs = historicalOutputRows();
+  const outputMarkup = [
+    activeMarkup,
+    visibleOutputs.map(o => outputCardMarkup(o, false)).join(''),
+    historyOutputs.length ? `<div class="history-title">当前项目历史输出</div>${historyOutputs.map(o => outputCardMarkup(o, true)).join('')}` : '',
+  ].filter(Boolean).join('');
+  const nextMarkup = outputMarkup || '<div class="empty-state">暂无当前项目视频输出。正在检查 Google Drive 记录...</div>';
+  const outputsList = $('outputs-list');
+
+  if (renderJobs.lastOutputMarkup !== nextMarkup || !outputsList.childNodes.length) {
+    outputsList.innerHTML = nextMarkup;
+    renderJobs.lastOutputMarkup = nextMarkup;
+  }
+  setTimeout(hydrateProxyVideoElements, 0);
+  if (!outputMarkup) setTimeout(() => recoverLatestDriveOutputWhenEmpty(false), 0);
+
+  qsa('[data-sync-output]').forEach(btn => btn.onclick = async () => {
+    const segmentId = btn.dataset.syncOutput;
+    const oldText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '刷新中...';
+    try {
+      await refreshJobs();
+      await recoverSegmentOutput(segmentId);
+      await loadOutputs();
+      saveCurrentWorkspaceSelection();
+      renderAll();
+    } finally {
+      btn.disabled = false;
+      btn.textContent = oldText || '刷新结果';
+    }
+  });
+  qsa('[data-edit-from-job]').forEach(btn => btn.onclick = () => reEditSegment(btn.dataset.editFromJob));
+  qsa('[data-edit-output-segment]').forEach(btn => btn.onclick = () => reEditSegment(btn.dataset.editOutputSegment || findSegmentIdByOutputIndex(btn.dataset.outputIndex)));
+  qsa('[data-download-output]').forEach(link => link.onclick = event => {
+    if (!link.href || link.getAttribute('href') === '#' || link.href.endsWith('#')) {
+      event.preventDefault();
+      toast('视频还没加载完成', '等右侧显示“已通过 Google Drive 代理加载：xx MB”后，再点下载到本地。');
+      return;
+    }
+    const set = downloadedSet();
+    set.add(link.dataset.downloadOutput);
+    saveDownloadedSet(set);
+  });
+}
+
+function v47LoadOutputs() {
+  return (async () => {
+    if (!state.user?.id || !state.draft) {
+      state.outputs = [];
+      state.outputHistory = [];
+      return;
+    }
+
+    const segments = state.draft.segments || [];
+    const workspace = getWorkspace();
+    const providerIds = [...new Set(segments.map(s => s.providerTaskId).filter(Boolean))];
+    const taskIds = [...new Set(segments.map(s => s.remoteTaskId).filter(Boolean))];
+    const segmentIds = [...new Set(segments.map(s => s.remoteSegmentId).filter(Boolean))];
+    const taskRowsById = new Map();
+
+    async function collectTasks(column, values) {
+      if (!values.length) return;
+      const { data, error } = await supabase
+        .from('video_tasks')
+        .select('id, segment_id, project_id, provider_task_id, status, progress, error_message, created_at, updated_at')
+        .eq('owner_id', state.user.id)
+        .in(column, values)
+        .order('created_at', { ascending: false });
+      if (error) {
+        console.warn(`[Seedance Studio R4] video_tasks ${column} lookup failed`, error);
+        return;
+      }
+      for (const row of data || []) taskRowsById.set(row.id, row);
+    }
+
+    await collectTasks('provider_task_id', providerIds);
+    await collectTasks('id', taskIds);
+    await collectTasks('segment_id', segmentIds);
+    const taskRows = [...taskRowsById.values()];
+
+    for (const task of taskRows) {
+      const local = segments.find(s =>
+        (task.provider_task_id && s.providerTaskId === task.provider_task_id) ||
+        (task.id && s.remoteTaskId === task.id) ||
+        (task.segment_id && s.remoteSegmentId === task.segment_id)
+      ) || (segments.length === 1 ? segments[0] : null);
+      if (!local) continue;
+      if (task.provider_task_id) local.providerTaskId = task.provider_task_id;
+      if (task.id) local.remoteTaskId = task.id;
+      if (task.segment_id) local.remoteSegmentId = task.segment_id;
+      if (task.status) local.status = task.status;
+      if (task.progress !== null && task.progress !== undefined) local.progress = Number(task.progress || 0);
+      local.error = task.error_message || null;
+    }
+
+    let currentProjectId = null;
+    if (taskRows.length) {
+      const projectScore = new Map();
+      for (const task of taskRows) {
+        if (!task.project_id) continue;
+        let score = 1;
+        if (providerIds.includes(task.provider_task_id)) score += 100;
+        if (taskIds.includes(task.id)) score += 100;
+        if (segmentIds.includes(task.segment_id)) score += 50;
+        projectScore.set(task.project_id, (projectScore.get(task.project_id) || 0) + score);
+      }
+      currentProjectId = [...projectScore.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+    }
+
+    const localProjectId = workspace.remoteProjectId || state.draft.remoteProjectId || null;
+    if (!currentProjectId && localProjectId) {
+      const { data: project } = await supabase
+        .from('video_projects')
+        .select('id, name, mode, created_at')
+        .eq('owner_id', state.user.id)
+        .eq('id', localProjectId)
+        .maybeSingle();
+      if (project && project.mode === state.draft.mode) currentProjectId = project.id;
+    }
+
+    if (!currentProjectId) {
+      const { data: projects, error } = await supabase
+        .from('video_projects')
+        .select('id, name, mode, created_at')
+        .eq('owner_id', state.user.id)
+        .eq('mode', state.draft.mode)
+        .order('created_at', { ascending: false })
+        .limit(30);
+      if (error) console.warn('[Seedance Studio R4] project recovery lookup failed', error);
+      const all = projects || [];
+      const sameName = all.filter(project => project.name === state.draft.name);
+      const candidates = sameName.length ? sameName : all;
+      const targetTime = Number(state.draft.createdAt || state.draft.updatedAt || Date.now());
+      candidates.sort((a, b) => {
+        const da = Math.abs((new Date(a.created_at || 0).getTime() || 0) - targetTime);
+        const db = Math.abs((new Date(b.created_at || 0).getTime() || 0) - targetTime);
+        return da - db;
+      });
+      currentProjectId = candidates[0]?.id || null;
+    }
+
+    if (!currentProjectId) {
+      state.outputs = [];
+      state.outputHistory = [];
+      workspace.outputs = [];
+      workspace.outputHistory = [];
+      saveCurrentWorkspaceSelection();
+      return;
+    }
+
+    workspace.remoteProjectId = currentProjectId;
+    state.draft.remoteProjectId = currentProjectId;
+
+    const { data: rows, error: outputError } = await supabase
+      .from('video_outputs')
+      .select('*')
+      .eq('owner_id', state.user.id)
+      .eq('project_id', currentProjectId)
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (outputError) {
+      console.warn('[Seedance Studio R4] current-project output query failed', outputError);
+      state.outputs = [];
+      state.outputHistory = [];
+      return;
+    }
+
+    const candidatesBySegment = new Map();
+    const now = Date.now();
+
+    for (const row of rows || []) {
+      const meta = row.metadata || {};
+      const providerTaskId = providerTaskIdFromOutputRow(row, meta);
+      const googleDriveFileId = meta.google_drive_file_id || meta.googleDriveFileId || meta.drive_file_id || meta.driveFileId || null;
+      const driveStatus = String(meta.google_drive_backup_status || '').toLowerCase();
+      const providerUrl = outputVideoUrlFromMetadata(meta);
+      const providerExpiry = Date.parse(meta.provider_video_url_expires_at || '');
+      const providerStillValid = Boolean(providerUrl) && (!Number.isFinite(providerExpiry) || providerExpiry > now + 60000);
+
+      let url = '';
+      let storageMode = '';
+      if (googleDriveFileId && driveStatus !== 'failed') {
+        url = `seedance-proxy://${row.id || googleDriveFileId}`;
+        storageMode = 'google-drive-proxy';
+      } else if (providerStillValid) {
+        url = `seedance-proxy://${row.id || providerTaskId}`;
+        storageMode = 'ark-proxy';
+      } else if (row.storage_path && row.bucket_id && row.bucket_id !== 'ark-url') {
+        const signed = await supabase.storage.from(row.bucket_id).createSignedUrl(row.storage_path, 3600);
+        if (!signed.error && signed.data?.signedUrl) {
+          url = signed.data.signedUrl;
+          storageMode = 'supabase';
+        }
+      }
+      if (!url) continue;
+
+      let segmentIndex = segments.findIndex(s =>
+        (row.segment_id && s.remoteSegmentId === row.segment_id) ||
+        (row.task_id && s.remoteTaskId === row.task_id) ||
+        (providerTaskId && s.providerTaskId === providerTaskId)
+      );
+      if (segmentIndex < 0 && segments.length === 1) segmentIndex = 0;
+      if (segmentIndex < 0) continue;
+
+      const segment = segments[segmentIndex];
+      let matchScore = 0;
+      if (segment?.providerTaskId && providerTaskId === segment.providerTaskId) matchScore += 1000;
+      if (segment?.remoteTaskId && row.task_id === segment.remoteTaskId) matchScore += 1000;
+      if (segment?.remoteSegmentId && row.segment_id === segment.remoteSegmentId) matchScore += 500;
+      if (googleDriveFileId) matchScore += 100;
+
+      const output = {
+        row,
+        url,
+        storageMode,
+        providerTaskId,
+        taskId: row.task_id || null,
+        segmentId: segment?.id || null,
+        remoteSegmentId: row.segment_id || null,
+        index: segmentIndex,
+        promptSnapshot: segment?.prompt || '',
+        forceRecovered: false,
+        googleDriveFileId,
+        outputId: row.id || null,
+        matchScore,
+      };
+      if (!candidatesBySegment.has(segmentIndex)) candidatesBySegment.set(segmentIndex, []);
+      candidatesBySegment.get(segmentIndex).push(output);
+    }
+
+    const current = [];
+    const history = [];
+    for (const [segmentIndex, list] of candidatesBySegment.entries()) {
+      list.sort((a, b) => {
+        if (b.matchScore !== a.matchScore) return b.matchScore - a.matchScore;
+        return new Date(b.row?.created_at || 0) - new Date(a.row?.created_at || 0);
+      });
+      const chosen = list[0];
+      if (!chosen) continue;
+      current.push(chosen);
+      for (const old of list.slice(1)) {
+        history.push({
+          ...old,
+          historical: true,
+          historyId: `${old.outputId || old.providerTaskId || old.taskId}-v47`,
+          reason: '当前项目历史生成版本',
+          index: segmentIndex,
+        });
+      }
+
+      const segment = segments[segmentIndex];
+      if (segment) {
+        segment.status = 'succeeded';
+        segment.progress = 100;
+        segment.error = null;
+        if (chosen.providerTaskId) segment.providerTaskId = chosen.providerTaskId;
+        if (chosen.taskId) segment.remoteTaskId = chosen.taskId;
+        if (chosen.remoteSegmentId) segment.remoteSegmentId = chosen.remoteSegmentId;
+      }
+    }
+
+    state.outputs = current.sort((a, b) => a.index - b.index);
+    state.outputHistory = history
+      .sort((a, b) => new Date(b.row?.created_at || 0) - new Date(a.row?.created_at || 0))
+      .slice(0, 30);
+    workspace.outputs = state.outputs;
+    workspace.outputHistory = state.outputHistory;
+    saveCurrentWorkspaceSelection();
+  })();
+}
+
+function r4ModeKey(mode) {
+  return mode === 'first_last' ? 'first_last' : (mode === 'text_only' ? 'text_only' : 'multi_frame');
+}
+
+function r4NormalizeName(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ');
+}
+
+function r4ChooseProject(projects, options = {}) {
+  const mode = r4ModeKey(options.mode);
+  const draftName = r4NormalizeName(options.name);
+  const workspaceProjectId = options.workspaceProjectId || null;
+  const taskProjectIds = new Set(options.taskProjectIds || []);
+  const targetTime = Number(options.targetTime || Date.now());
+  const modeProjects = (projects || []).filter(project => r4ModeKey(project?.mode) === mode);
+  if (!modeProjects.length) return null;
+
+  const sameName = draftName
+    ? modeProjects.filter(project => r4NormalizeName(project?.name) === draftName)
+    : [];
+
+  let pool = sameName;
+  if (!pool.length) {
+    const preferred = modeProjects.filter(project =>
+      project.id === workspaceProjectId || taskProjectIds.has(project.id)
+    );
+    if (preferred.length) {
+      pool = preferred;
+    } else if (modeProjects.length === 1) {
+      pool = modeProjects;
+    } else {
+      const ordered = [...modeProjects].sort((a, b) => {
+        const da = Math.abs((new Date(a?.created_at || 0).getTime() || 0) - targetTime);
+        const db = Math.abs((new Date(b?.created_at || 0).getTime() || 0) - targetTime);
+        return da - db;
+      });
+      const nearestDistance = Math.abs((new Date(ordered[0]?.created_at || 0).getTime() || 0) - targetTime);
+      // 没有同名、没有明确绑定时宁可不显示，也不跨项目猜测。
+      if (nearestDistance > 15 * 60 * 1000) return null;
+      pool = [ordered[0]];
+    }
+  }
+
+  return [...pool].sort((a, b) => {
+    const aTask = taskProjectIds.has(a.id) ? 1 : 0;
+    const bTask = taskProjectIds.has(b.id) ? 1 : 0;
+    if (aTask !== bTask) return bTask - aTask;
+    const da = Math.abs((new Date(a?.created_at || 0).getTime() || 0) - targetTime);
+    const db = Math.abs((new Date(b?.created_at || 0).getTime() || 0) - targetTime);
+    if (da !== db) return da - db;
+    const aWorkspace = a.id === workspaceProjectId ? 1 : 0;
+    const bWorkspace = b.id === workspaceProjectId ? 1 : 0;
+    if (aWorkspace !== bWorkspace) return bWorkspace - aWorkspace;
+    return new Date(b?.created_at || 0) - new Date(a?.created_at || 0);
+  })[0] || null;
+}
+
+function r4ContextSnapshot() {
+  return {
+    draftId: state.draft?.id || null,
+    mode: r4ModeKey(state.draft?.mode),
+    epoch: Number(state.r4ContextEpoch || 0),
+  };
+}
+
+function r4ContextIsCurrent(snapshot) {
+  return Boolean(
+    snapshot &&
+    state.draft?.id === snapshot.draftId &&
+    r4ModeKey(state.draft?.mode) === snapshot.mode &&
+    Number(state.r4ContextEpoch || 0) === Number(snapshot.epoch || 0)
+  );
+}
+
+function r4MigrateDraftWorkspaces(draft) {
+  if (!draft) return draft;
+  const activeMode = r4ModeKey(draft.mode);
+  const hadWorkspaces = Boolean(draft.workspaces);
+  const oldFrames = Array.isArray(draft.frames) ? draft.frames : [];
+  const oldSegments = Array.isArray(draft.segments) ? draft.segments : [];
+  const oldRemoteProjectId = draft.remoteProjectId || null;
+  const oldSelectedSegmentId = draft.selectedSegmentId || null;
+
+  if (!draft.workspaces) {
+    draft.workspaces = {
+      first_last: createWorkspaceState(),
+      multi_frame: createWorkspaceState(),
+      text_only: createWorkspaceState(),
+    };
+  }
+
+  for (const mode of ['first_last', 'multi_frame', 'text_only']) {
+    if (!draft.workspaces[mode]) draft.workspaces[mode] = createWorkspaceState();
+    const workspace = draft.workspaces[mode];
+    if (!Array.isArray(workspace.frames)) workspace.frames = [];
+    if (!Array.isArray(workspace.segments)) workspace.segments = [];
+    if (!Array.isArray(workspace.outputs)) workspace.outputs = [];
+    if (!Array.isArray(workspace.outputHistory)) workspace.outputHistory = [];
+    if (!Array.isArray(workspace.jobs)) workspace.jobs = [];
+    if (!Array.isArray(workspace.referenceAssets)) {
+      workspace.referenceAssets = workspace.referenceVideo ? [workspace.referenceVideo] : [];
+    }
+    if (!('referenceVideo' in workspace)) workspace.referenceVideo = null;
+    if (!('remoteProjectId' in workspace)) workspace.remoteProjectId = null;
+  }
+
+  const activeWorkspace = draft.workspaces[activeMode];
+  if (!hadWorkspaces) {
+    activeWorkspace.frames = oldFrames;
+    activeWorkspace.segments = oldSegments;
+    activeWorkspace.remoteProjectId = oldRemoteProjectId;
+    activeWorkspace.selectedSegmentId = oldSelectedSegmentId;
+  }
+  // 已经存在 workspaces 时，绝不再把顶层 remoteProjectId 灌进另一个模式。
+
+  draft.mode = activeMode;
+  draft.frames = activeWorkspace.frames;
+  draft.segments = activeWorkspace.segments;
+  draft.remoteProjectId = activeWorkspace.remoteProjectId || null;
+  draft.selectedSegmentId = activeWorkspace.selectedSegmentId || activeWorkspace.segments[0]?.id || null;
+  return draft;
+}
+
+function r4BindCurrentWorkspace() {
+  if (!state.draft) return;
+  migrateDraftWorkspaces(state.draft);
+  const mode = r4ModeKey(state.draft.mode);
+  const workspace = state.draft.workspaces[mode];
+
+  state.r4ContextEpoch = Number(state.r4ContextEpoch || 0) + 1;
+  state.r4VerifiedContextKey = null;
+  state.r4VerifiedProjectId = null;
+  state.driveFallbackDoneForDraftId = null;
+
+  state.draft.frames = workspace.frames;
+  state.draft.segments = workspace.segments;
+  state.draft.remoteProjectId = workspace.remoteProjectId || null;
+  state.referenceAssets = Array.isArray(workspace.referenceAssets)
+    ? workspace.referenceAssets
+    : (workspace.referenceVideo ? [workspace.referenceVideo] : []);
+  state.referenceVideo = workspace.referenceVideo || state.referenceAssets[0] || null;
+  state.selectedSegmentId = workspace.selectedSegmentId || workspace.segments[0]?.id || null;
+
+  // 云端是输出真源。切换项目/模式时不渲染本地旧缓存，避免一闪而过或串出其他模式视频。
+  state.outputs = [];
+  state.outputHistory = [];
+  state.jobs = [];
+  workspace.outputs = [];
+  workspace.outputHistory = [];
+  workspace.jobs = [];
+
+  if (typeof renderJobs === 'function') {
+    renderJobs.lastOutputMarkup = null;
+    renderJobs.lastContextKey = null;
+  }
+}
+
+function r4SaveCurrentWorkspaceSelection() {
+  if (!state.draft) return;
+  const mode = r4ModeKey(state.draft.mode);
+  if (!state.draft.workspaces) migrateDraftWorkspaces(state.draft);
+  const workspace = state.draft.workspaces[mode] || createWorkspaceState();
+  state.draft.workspaces[mode] = workspace;
+
+  workspace.frames = state.draft.frames || [];
+  workspace.segments = state.draft.segments || [];
+  workspace.outputs = state.outputs || [];
+  workspace.outputHistory = state.outputHistory || [];
+  workspace.jobs = state.jobs || [];
+  workspace.selectedSegmentId = state.selectedSegmentId || null;
+
+  const verifiedKey = `${state.draft.id}:${mode}`;
+  if (state.r4VerifiedContextKey === verifiedKey && state.r4VerifiedProjectId) {
+    workspace.remoteProjectId = state.r4VerifiedProjectId;
+  }
+  // ensureRemoteProject / loadOutputs 会直接写 workspace.remoteProjectId；这里不从顶层反灌。
+  workspace.remoteProjectId = workspace.remoteProjectId || null;
+
+  if (mode === 'text_only') {
+    workspace.referenceAssets = state.referenceAssets || [];
+    workspace.referenceVideo = state.referenceVideo || workspace.referenceAssets[0] || null;
+  }
+
+  state.draft.remoteProjectId = workspace.remoteProjectId;
+  state.draft.selectedSegmentId = workspace.selectedSegmentId;
+}
+
+async function r4ResolveCurrentProject(snapshot) {
+  if (!state.user?.id || !state.draft || !r4ContextIsCurrent(snapshot)) return null;
+  const mode = snapshot.mode;
+  const workspace = getWorkspace(state.draft, mode);
+  const localSegments = Array.isArray(workspace.segments) ? workspace.segments : [];
+  const providerIds = [...new Set(localSegments.map(item => item.providerTaskId).filter(Boolean))];
+  const taskIds = [...new Set(localSegments.map(item => item.remoteTaskId).filter(Boolean))];
+  const segmentIds = [...new Set(localSegments.map(item => item.remoteSegmentId).filter(Boolean))];
+  const taskProjectIds = new Set();
+
+  async function collectTaskProjects(column, values) {
+    if (!values.length || !r4ContextIsCurrent(snapshot)) return;
+    const { data, error } = await supabase
+      .from('video_tasks')
+      .select('project_id')
+      .eq('owner_id', state.user.id)
+      .in(column, values);
+    if (!r4ContextIsCurrent(snapshot)) return;
+    if (error) {
+      console.warn(`[Seedance Studio R4] task project lookup failed: ${column}`, error);
+      return;
+    }
+    for (const row of data || []) if (row.project_id) taskProjectIds.add(row.project_id);
+  }
+
+  await collectTaskProjects('provider_task_id', providerIds);
+  await collectTaskProjects('id', taskIds);
+  await collectTaskProjects('segment_id', segmentIds);
+  if (!r4ContextIsCurrent(snapshot)) return null;
+
+  const projectsById = new Map();
+  const preferredIds = [...new Set([workspace.remoteProjectId, ...taskProjectIds].filter(Boolean))];
+  if (preferredIds.length) {
+    const { data, error } = await supabase
+      .from('video_projects')
+      .select('id,name,mode,status,created_at,updated_at')
+      .eq('owner_id', state.user.id)
+      .in('id', preferredIds);
+    if (!r4ContextIsCurrent(snapshot)) return null;
+    if (!error) for (const project of data || []) projectsById.set(project.id, project);
+  }
+
+  const { data: modeProjects, error: modeError } = await supabase
+    .from('video_projects')
+    .select('id,name,mode,status,created_at,updated_at')
+    .eq('owner_id', state.user.id)
+    .eq('mode', mode)
+    .order('created_at', { ascending: false })
+    .limit(100);
+  if (!r4ContextIsCurrent(snapshot)) return null;
+  if (modeError) throw new Error(`读取 ${mode} 项目失败：${errorMessage(modeError)}`);
+  for (const project of modeProjects || []) projectsById.set(project.id, project);
+
+  return r4ChooseProject([...projectsById.values()], {
+    mode,
+    name: state.draft.name,
+    workspaceProjectId: workspace.remoteProjectId || null,
+    taskProjectIds: [...taskProjectIds],
+    targetTime: Number(state.draft.createdAt || state.draft.updatedAt || Date.now()),
+  });
+}
+
+function r4TaskScore(task, outputTaskIds, exactIds) {
+  const status = String(task?.status || '').toLowerCase();
+  let score = new Date(task?.created_at || 0).getTime() || 0;
+  if (outputTaskIds.has(task.id)) score += 10_000_000_000_000;
+  if (['succeeded', 'completed', 'success'].includes(status)) score += 1_000_000_000_000;
+  if (['running', 'processing', 'queued', 'submitted', 'submitting'].includes(status)) score += 10_000_000_000;
+  if (exactIds.has(task.id) || exactIds.has(task.provider_task_id) || exactIds.has(task.segment_id)) score += 1_000_000_000;
+  if (['failed', 'error', 'cancelled'].includes(status)) score -= 1_000_000_000_000;
+  return score;
+}
+
+async function r4SyncRemoteTasks() {
+  await loadOutputs();
+}
+
+function r4LoadOutputs() {
+  return (async () => {
+    if (!state.user?.id || !state.draft) {
+      state.outputs = [];
+      state.outputHistory = [];
+      return;
+    }
+
+    migrateDraftWorkspaces(state.draft);
+    normalizeSegments(state.draft);
+    const snapshot = r4ContextSnapshot();
+    state.r4OutputRequestSeq = Number(state.r4OutputRequestSeq || 0) + 1;
+    const requestId = state.r4OutputRequestSeq;
+    const isCurrent = () => r4ContextIsCurrent(snapshot) && Number(state.r4OutputRequestSeq || 0) === requestId;
+    const workspace = getWorkspace(state.draft, snapshot.mode);
+
+    const project = await r4ResolveCurrentProject(snapshot);
+    if (!isCurrent()) return;
+
+    if (!project) {
+      state.outputs = [];
+      state.outputHistory = [];
+      workspace.outputs = [];
+      workspace.outputHistory = [];
+      workspace.remoteProjectId = null;
+      state.draft.remoteProjectId = null;
+      state.r4VerifiedContextKey = `${snapshot.draftId}:${snapshot.mode}`;
+      state.r4VerifiedProjectId = null;
+      saveCurrentWorkspaceSelection();
+      return;
+    }
+
+    const projectId = project.id;
+    const [segmentResult, taskResult, outputResult] = await Promise.all([
+      supabase.from('video_segments')
+        .select('id,project_id,position,status,created_at,updated_at')
+        .eq('owner_id', state.user.id)
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false }),
+      supabase.from('video_tasks')
+        .select('id,segment_id,project_id,provider_task_id,status,progress,error_message,created_at,updated_at')
+        .eq('owner_id', state.user.id)
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false }),
+      supabase.from('video_outputs')
+        .select('*')
+        .eq('owner_id', state.user.id)
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false })
+        .limit(100),
+    ]);
+    if (!isCurrent()) return;
+
+    if (segmentResult.error) throw new Error(`读取当前模式片段失败：${errorMessage(segmentResult.error)}`);
+    if (taskResult.error) throw new Error(`读取当前模式任务失败：${errorMessage(taskResult.error)}`);
+    if (outputResult.error) throw new Error(`读取当前模式输出失败：${errorMessage(outputResult.error)}`);
+
+    const localSegments = state.draft.segments || [];
+    const remoteSegments = segmentResult.data || [];
+    const tasks = taskResult.data || [];
+    const rows = outputResult.data || [];
+    const remotePosition = new Map(remoteSegments.map(item => [item.id, Number(item.position || 0)]));
+    const remoteIdsByPosition = new Map();
+    for (const item of remoteSegments) {
+      const position = Number(item.position || 0);
+      if (!remoteIdsByPosition.has(position)) remoteIdsByPosition.set(position, new Set());
+      remoteIdsByPosition.get(position).add(item.id);
+    }
+    const outputTaskIds = new Set(rows.map(row => row.task_id).filter(Boolean));
+
+    for (const local of localSegments) {
+      const position = Number(local.index || 0);
+      const candidateSegmentIds = remoteIdsByPosition.get(position) || new Set();
+      const exactIds = new Set([local.remoteTaskId, local.providerTaskId, local.remoteSegmentId].filter(Boolean));
+      const candidates = tasks.filter(task =>
+        candidateSegmentIds.has(task.segment_id) ||
+        exactIds.has(task.id) || exactIds.has(task.provider_task_id) || exactIds.has(task.segment_id)
+      );
+      candidates.sort((a, b) => r4TaskScore(b, outputTaskIds, exactIds) - r4TaskScore(a, outputTaskIds, exactIds));
+      const chosenTask = candidates[0];
+      if (!chosenTask) continue;
+      local.remoteSegmentId = chosenTask.segment_id || local.remoteSegmentId;
+      local.remoteTaskId = chosenTask.id || local.remoteTaskId;
+      local.providerTaskId = chosenTask.provider_task_id || local.providerTaskId;
+      local.status = chosenTask.status || local.status;
+      local.progress = Number(chosenTask.progress ?? local.progress ?? 0);
+      local.error = chosenTask.error_message || null;
+    }
+
+    const now = Date.now();
+    const candidatesBySegment = new Map();
+    for (const row of rows) {
+      if (row.project_id !== projectId) continue;
+      const meta = row.metadata || {};
+      const providerTaskId = providerTaskIdFromOutputRow(row, meta);
+      const googleDriveFileId = meta.google_drive_file_id || meta.googleDriveFileId || meta.drive_file_id || meta.driveFileId || null;
+      const driveStatus = String(meta.google_drive_backup_status || '').toLowerCase();
+      const providerUrl = outputVideoUrlFromMetadata(meta);
+      const providerExpiry = Date.parse(meta.provider_video_url_expires_at || '');
+      const providerStillValid = Boolean(providerUrl) && (!Number.isFinite(providerExpiry) || providerExpiry > now + 60_000);
+
+      let url = '';
+      let storageMode = '';
+      if (googleDriveFileId && driveStatus !== 'failed') {
+        url = `seedance-proxy://${row.id || googleDriveFileId}`;
+        storageMode = 'google-drive-proxy';
+      } else if (providerStillValid) {
+        url = `seedance-proxy://${row.id || providerTaskId}`;
+        storageMode = 'ark-proxy';
+      } else if (row.storage_path && row.bucket_id && row.bucket_id !== 'ark-url') {
+        const signed = await supabase.storage.from(row.bucket_id).createSignedUrl(row.storage_path, 3600);
+        if (!isCurrent()) return;
+        if (!signed.error && signed.data?.signedUrl) {
+          url = signed.data.signedUrl;
+          storageMode = 'supabase';
+        }
+      }
+      if (!url) continue;
+
+      let segmentIndex = localSegments.findIndex(local =>
+        (row.segment_id && local.remoteSegmentId === row.segment_id) ||
+        (row.task_id && local.remoteTaskId === row.task_id) ||
+        (providerTaskId && local.providerTaskId === providerTaskId)
+      );
+      if (segmentIndex < 0 && row.segment_id && remotePosition.has(row.segment_id)) {
+        const position = remotePosition.get(row.segment_id);
+        segmentIndex = localSegments.findIndex(local => Number(local.index || 0) === position);
+      }
+      if (segmentIndex < 0 && localSegments.length === 1) segmentIndex = 0;
+      if (segmentIndex < 0) continue;
+
+      const local = localSegments[segmentIndex];
+      let matchScore = new Date(row.created_at || 0).getTime() || 0;
+      if (row.task_id && local?.remoteTaskId === row.task_id) matchScore += 10_000_000_000_000;
+      if (providerTaskId && local?.providerTaskId === providerTaskId) matchScore += 10_000_000_000_000;
+      if (googleDriveFileId) matchScore += 1_000_000_000_000;
+
+      const output = {
+        row,
+        projectId,
+        mode: snapshot.mode,
+        url,
+        storageMode,
+        providerTaskId,
+        taskId: row.task_id || null,
+        segmentId: local?.id || null,
+        remoteSegmentId: row.segment_id || null,
+        index: segmentIndex,
+        promptSnapshot: local?.prompt || '',
+        googleDriveFileId,
+        outputId: row.id || null,
+        matchScore,
+      };
+      if (!candidatesBySegment.has(segmentIndex)) candidatesBySegment.set(segmentIndex, []);
+      candidatesBySegment.get(segmentIndex).push(output);
+    }
+    if (!isCurrent()) return;
+
+    const current = [];
+    const history = [];
+    for (const [segmentIndex, list] of candidatesBySegment.entries()) {
+      list.sort((a, b) => b.matchScore - a.matchScore);
+      const chosen = list[0];
+      if (!chosen) continue;
+      current.push(chosen);
+      for (const old of list.slice(1)) {
+        history.push({
+          ...old,
+          historical: true,
+          historyId: `${old.outputId || old.providerTaskId || old.taskId}-r4`,
+          reason: `${workspaceLabel(snapshot.mode)}历史生成版本`,
+        });
+      }
+      const local = localSegments[segmentIndex];
+      if (local) {
+        local.status = 'succeeded';
+        local.progress = 100;
+        local.error = null;
+        if (chosen.providerTaskId) local.providerTaskId = chosen.providerTaskId;
+        if (chosen.taskId) local.remoteTaskId = chosen.taskId;
+        if (chosen.remoteSegmentId) local.remoteSegmentId = chosen.remoteSegmentId;
+      }
+    }
+
+    if (!isCurrent()) return;
+    state.outputs = current.sort((a, b) => a.index - b.index);
+    state.outputHistory = history
+      .sort((a, b) => new Date(b.row?.created_at || 0) - new Date(a.row?.created_at || 0))
+      .slice(0, 50);
+    workspace.remoteProjectId = projectId;
+    workspace.outputs = state.outputs;
+    workspace.outputHistory = state.outputHistory;
+    workspace.segments = localSegments;
+    state.draft.remoteProjectId = projectId;
+    state.r4VerifiedContextKey = `${snapshot.draftId}:${snapshot.mode}`;
+    state.r4VerifiedProjectId = projectId;
+    saveCurrentWorkspaceSelection();
+  })();
+}
+
+function r4RecoverLatestDriveOutputWhenEmpty(force = false) {
+  return (async () => {
+    if (!state.user?.id || !state.draft?.id) return;
+    const snapshot = r4ContextSnapshot();
+    const contextKey = `${snapshot.draftId}:${snapshot.mode}`;
+    state.r4RecoveryInflight = state.r4RecoveryInflight || new Map();
+    state.r4RecoveryCooldown = state.r4RecoveryCooldown || new Map();
+
+    if ((state.outputs || []).length) return;
+    if (state.r4RecoveryInflight.has(contextKey)) return state.r4RecoveryInflight.get(contextKey);
+    const cooldownUntil = Number(state.r4RecoveryCooldown.get(contextKey) || 0);
+    if (!force && cooldownUntil > Date.now()) return;
+
+    const request = (async () => {
+      try {
+        await loadOutputs();
+        if (!r4ContextIsCurrent(snapshot)) return;
+        renderJobs();
+        if ((state.outputs || []).length) {
+          setTimeout(hydrateProxyVideoElements, 0);
+          if (force) toast('已恢复当前项目视频', '已按当前项目和当前模式从 Google Drive 输出记录恢复。');
+        } else {
+          state.r4RecoveryCooldown.set(contextKey, Date.now() + 10_000);
+          if (force) toast('当前项目暂无可播放视频', '没有找到与当前项目名称、当前模式匹配的 Google Drive 视频。');
+        }
+      } catch (error) {
+        state.r4RecoveryCooldown.set(contextKey, Date.now() + 10_000);
+        console.warn('[Seedance Studio R4] strict drive recover failed', error);
+        if (force && r4ContextIsCurrent(snapshot)) toast('拉取失败', errorMessage(error));
+      }
+    })().finally(() => state.r4RecoveryInflight.delete(contextKey));
+
+    state.r4RecoveryInflight.set(contextKey, request);
+    return request;
+  })();
+}
+
+function r4RenderJobs() {
+  if (!state.draft) return;
+  const mode = r4ModeKey(state.draft.mode);
+  const workspace = getWorkspace(state.draft, mode);
+  const strictProjectId = workspace.remoteProjectId || state.draft.remoteProjectId || null;
+  const contextKey = `${state.draft.id}:${mode}:${strictProjectId || 'unbound'}`;
+  const outputsList = $('outputs-list');
+
+  if (renderJobs.lastContextKey !== contextKey) {
+    renderJobs.lastContextKey = contextKey;
+    renderJobs.lastOutputMarkup = null;
+    if (outputsList) outputsList.innerHTML = '';
+  }
+
+  const belongs = output => Boolean(
+    strictProjectId &&
+    (output?.projectId || output?.row?.project_id) === strictProjectId &&
+    (!output?.mode || r4ModeKey(output.mode) === mode)
+  );
+  state.outputs = (state.outputs || []).filter(belongs);
+  state.outputHistory = (state.outputHistory || []).filter(belongs);
+
+  const segments = state.draft.segments || [];
+  $('jobs-list').innerHTML = segments.length ? segments.map(s => `
+    <article class="job-card">
+      <div class="job-head">
+        <strong>Segment ${String(s.index + 1).padStart(2, '0')}</strong>
+        <span>${statusText(s.status)}</span>
       </div>
-    </aside>
-
-    <main class="main">
-      <header class="topbar">
-        <div>
-          <h1>Seedance 视频生成中心</h1>
-          <p>图片先保存在浏览器本地；纯文字模式无需上传图片，直接填写描述。只有点击生成后才上传到 Supabase 并提交真实任务。</p>
-        </div>
-        <div class="topbar-actions">
-          <button class="ghost-btn" id="open-jobs">任务与输出</button>
-          <button class="danger-btn" id="delete-project">删除项目</button>
-        </div>
-      </header>
-
-      <nav class="view-tabs">
-        <button class="view-tab active" data-view="quick">快速生成</button>
-        <button class="view-tab" data-view="editor">高级 Storyboard</button>
-        <button class="view-tab" data-view="jobs">任务与输出</button>
-      </nav>
-
-      <section id="view-quick" class="view active">
-        <div class="quick-layout">
-          <div class="quick-main">
-            <section class="panel hero-panel">
-              <div class="panel-heading">
-                <div><h2>创建视频</h2><p>像即梦一样直接上传图片、编辑镜头段落，再一次性生成。</p></div>
-                <div class="mode-lock-card" id="mode-lock-card" data-mode="multi_frame">
-                  <span>当前项目模式</span>
-                  <strong id="locked-mode-label">多帧 Storyboard</strong>
-                  <small>创建后永久锁定；使用其他模式请新建项目</small>
-                </div>
-              </div>
-
-              <div id="text-mode-panel" class="text-mode-panel" hidden>
-                <div class="text-mode-copy">
-                  <strong>纯文字描述生成</strong>
-                  <span>可以直接文字生成，也可以上传多个参考内容。上传后用 @视频1、@音频1、@图片1 在描述里自由指定参考什么。</span>
-                </div>
-                <label class="text-prompt-box">
-                  <div class="ai-prompt-heading">
-                    <span>视频描述</span>
-                    <button class="ghost-btn ai-prompt-button" id="ai-optimize-text-prompt" type="button">✨ AI 优化提示词</button>
-                  </div>
-                  <textarea id="text-mode-prompt" rows="5" placeholder="例如：生成一段冰岛旅行宣传片，@视频1 参考镜头推进，@视频2 参考人物动作，@音频1 参考节奏和情绪，@图片1 参考画面色调。"></textarea>
-                </label>
-                <div class="reference-video-card reference-pool-card" id="reference-video-card">
-                  <input id="reference-video-input" type="file" accept="video/mp4,video/quicktime,video/webm,audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/aac,audio/mp4,audio/ogg,image/png,image/jpeg,image/webp" multiple hidden />
-                  <button class="reference-video-trigger" id="reference-video-trigger" type="button"><b>＋</b><span>添加参考内容</span><small>可多选：视频 / 音频 / 图片；上传后在文字中用 @ 引用</small></button>
-                  <div class="reference-pool-toolbar"><strong>参考内容池</strong><span>文字里可写：@视频1 参考人物动作，@视频2 参考运镜，@音频1 参考节奏，@图片1 参考画面风格。</span></div>
-                  <div id="reference-video-preview" class="reference-video-preview reference-pool-list" hidden></div>
-                </div>
-              </div>
-
-              <div id="upload-zone" class="upload-zone">
-                <input id="file-input" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden />
-                <div class="upload-icon">＋</div><strong>点击或拖拽上传图片</strong><span>首尾帧 / 多帧模式使用；纯文字模式不用上传图片</span>
-              </div>
-              <div id="quick-timeline" class="quick-timeline"></div>
-            </section>
-
-            <section class="panel">
-              <div class="panel-heading compact"><div><h2>项目输出规格</h2><p>项目只统一视频比例与最终尺寸；每段模型、时长和清晰度可不同。</p></div></div>
-              <div class="settings-grid">
-                <label><span>项目比例</span><select id="project-ratio"><option value="adaptive">智能比例</option><option value="21:9">21:9</option><option value="16:9">16:9</option><option value="4:3">4:3</option><option value="1:1">1:1</option><option value="3:4">3:4</option><option value="9:16">9:16</option><option value="follow">跟随首帧</option><option value="3:1">3:1 超宽</option><option value="custom">自定义比例</option></select></label>
-                <label><span>最终宽度</span><input id="final-width" type="number" min="256" step="2" value="1920" /></label>
-                <label><span>最终高度</span><input id="final-height" type="number" min="256" step="2" value="1080" /></label>
-                <label><span>适配方式</span><select id="fit-mode"><option value="contain">完整显示 contain</option><option value="cover">铺满裁切 cover</option><option value="expand">智能扩展 expand</option></select></label>
-              </div>
-              <div id="ratio-tip" class="ratio-tip"></div>
-            </section>
-          </div>
-
-          <aside class="quick-side">
-            <section class="panel sticky-panel">
-              <div class="project-name-row"><input id="project-name" value="未命名 Seedance 项目" /><span id="draft-status">本地草稿</span></div>
-              <div class="summary"><div><span>图片</span><strong id="summary-frames">0</strong></div><div><span>片段</span><strong id="summary-segments">0</strong></div><div><span>总时长</span><strong id="summary-duration">0 秒</strong></div></div>
-              <button class="ghost-btn full" id="go-editor">进入高级 Storyboard</button>
-              <button class="primary-btn full large" id="generate-all">全部生成</button>
-              <p class="cost-note">提交后可能产生 Ark API 费用。默认最多同时生成 2 段。</p>
-            </section>
-          </aside>
-        </div>
-      </section>
-
-      <section id="view-editor" class="view">
-        <div class="editor-layout">
-          <div class="editor-main">
-            <section class="panel">
-              <div class="panel-heading compact"><div><h2>Storyboard Timeline</h2><p>图片可替换、删除和调整顺序。点击片段在当前位置展开，同时同步右侧参数。</p></div><button class="ghost-btn" id="editor-add-image">＋ 添加图片</button></div>
-              <div id="editor-timeline" class="editor-timeline"></div>
-            </section>
-            <section class="panel"><div class="panel-heading compact"><div><h2>片段列表</h2><p>每两帧之间是一段独立视频。</p></div></div><div id="segment-list" class="segment-list"></div></section>
-          </div>
-
-          <aside class="inspector panel">
-            <div id="inspector-empty" class="empty-inspector"><div>↗</div><strong>请选择一个片段</strong><span>点击时间轴中的 Segment 卡片开始编辑。</span></div>
-            <div id="inspector-form" hidden>
-              <div class="inspector-title"><div><span id="inspector-index">SEGMENT 01</span><h3 id="inspector-name">图 1 → 图 2</h3></div><span id="inspector-status" class="status-pill">草稿</span></div>
-              <label>
-                <div class="ai-prompt-heading">
-                  <span>片段提示词</span>
-                  <button class="ghost-btn ai-prompt-button" id="ai-optimize-segment-prompt" type="button">✨ AI 优化提示词</button>
-                </div>
-                <textarea id="segment-prompt" rows="7" placeholder="描述这两帧之间的动作、镜头、节奏和画面变化。"></textarea>
-              </label>
-              <div class="prompt-tools"><button data-prompt="镜头缓慢向前推进">镜头推进</button><button data-prompt="保持人物身份、五官、服装和构图一致">锁定人物</button><button data-prompt="动作自然流畅，避免画面抖动和变形">动作稳定</button></div>
-              <div class="settings-grid two">
-                <label><span>时长</span><select id="segment-duration"><option value="4">4 秒</option><option value="5">5 秒</option><option value="6">6 秒</option><option value="7">7 秒</option><option value="8">8 秒</option><option value="9">9 秒</option><option value="10">10 秒</option></select></label>
-                <label><span>模型</span><select id="segment-model"><option value="mini">Seedance Mini</option><option value="fast">Seedance Fast</option></select></label>
-                <label><span>清晰度</span><select id="segment-resolution"><option value="720p">720p</option><option value="480p">480p</option></select></label>
-                <label><span>声音输出</span><select id="segment-audio"><option value="false">关</option><option value="true">开</option></select></label>
-                <label><span>项目比例</span><input id="segment-ratio" disabled /></label>
-              </div>
-              <div class="inspector-actions"><button class="ghost-btn full" id="preview-segment">预检当前段</button><button class="primary-btn full" id="generate-segment">真实生成当前段</button></div>
-            </div>
-          </aside>
-        </div>
-      </section>
-
-      <section id="view-jobs" class="view">
-        <div class="jobs-layout">
-          <section class="panel"><div class="panel-heading compact"><div><h2>生成任务</h2><p>最多并发 2 段；失败片段可以单独重试。</p></div><button class="ghost-btn" id="refresh-jobs">刷新状态</button></div><div id="jobs-list" class="jobs-list"></div></section>
-          <section class="panel"><div class="panel-heading compact"><div><h2>视频输出</h2><p>所有片段完成后，可以在浏览器内统一尺寸并自动拼接。</p></div><button class="primary-btn" id="merge-all">合并长视频</button></div><div id="outputs-list" class="outputs-list"></div></section>
-        </div>
-      </section>
-    </main>
-  </div>
-
-  <div id="toast" class="toast" hidden><strong id="toast-title"></strong><span id="toast-message"></span></div>
-  <div id="confirm-modal" class="modal" hidden><div class="modal-card"><h3 id="confirm-title"></h3><p id="confirm-message"></p><div class="modal-actions"><button class="ghost-btn" id="confirm-cancel">取消</button><button class="primary-btn" id="confirm-ok">确认</button></div></div></div>
-
-
-  <div id="project-mode-modal" class="project-mode-modal" hidden>
-    <div class="project-mode-dialog">
-      <h2>新建视频生成项目</h2>
-      <p>每个项目只能使用一种生成模式，创建后不可切换。这样任务、输出与 Google Drive 视频会永久点对点绑定。</p>
-      <label class="project-name-create"><span>项目名称</span><input id="new-project-name" placeholder="例如：冰岛路线动画－纯文字" /></label>
-      <div class="project-mode-options">
-        <button type="button" class="project-mode-option" data-create-project-mode="first_last"><b>首尾帧生成</b><span>一个项目只使用首帧与尾帧生成单段视频</span></button>
-        <button type="button" class="project-mode-option" data-create-project-mode="multi_frame"><b>多帧 Storyboard</b><span>一个项目使用多张图片生成连续多个片段</span></button>
-        <button type="button" class="project-mode-option" data-create-project-mode="text_only"><b>纯文字生成</b><span>一个项目只使用文字与可选参考素材生成视频</span></button>
+      <p>${escapeHtml(s.prompt || '未填写提示词')}</p>
+      ${jobStageMarkup(s)}
+      ${s.providerTaskId ? '<p class="task-id">后台任务已记录</p>' : ''}
+      ${s.error ? `<p style="color:#ff8090;white-space:pre-wrap">${escapeHtml(s.error)}</p>` : ''}
+      <div class="job-actions">
+        <button data-sync-output="${s.id}">刷新结果</button>
+        <button data-edit-from-job="${s.id}">重新编辑</button>
       </div>
-      <div class="project-mode-footer"><button id="project-mode-cancel" type="button" class="ghost-btn">取消</button></div>
-    </div>
-  </div>
+    </article>`).join('') : '<div class="empty-state">暂无生成任务</div>';
 
-  <script type="module" src="./seedance/app.js?v=20260723-single-project-single-mode-r5"></script>
-  <script type="module" src="./seedance/prompt-optimizer.js?v=20260723-deepseek-v1"></script>
-</body>
-</html>
+  const activeMarkup = renderActiveGenerationCards();
+  const visibleOutputs = currentOutputRows();
+  const historyOutputs = historicalOutputRows();
+  const outputMarkup = [
+    activeMarkup,
+    visibleOutputs.map(o => outputCardMarkup(o, false)).join(''),
+    historyOutputs.length ? `<div class="history-title">当前项目历史输出</div>${historyOutputs.map(o => outputCardMarkup(o, true)).join('')}` : '',
+  ].filter(Boolean).join('');
+  const nextMarkup = outputMarkup || '<div class="empty-state">暂无当前项目视频输出。正在按项目与模式检查 Google Drive 记录...</div>';
+
+  if (renderJobs.lastOutputMarkup !== nextMarkup || !outputsList.childNodes.length) {
+    outputsList.innerHTML = nextMarkup;
+    renderJobs.lastOutputMarkup = nextMarkup;
+  }
+  setTimeout(hydrateProxyVideoElements, 0);
+  if (!outputMarkup) setTimeout(() => recoverLatestDriveOutputWhenEmpty(false), 0);
+
+  qsa('[data-sync-output]').forEach(btn => btn.onclick = async () => {
+    const segmentId = btn.dataset.syncOutput;
+    const oldText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '刷新中...';
+    try {
+      await refreshJobs();
+      if (!r4ContextIsCurrent(r4ContextSnapshot())) return;
+      await recoverSegmentOutput(segmentId);
+      await loadOutputs();
+      saveCurrentWorkspaceSelection();
+      renderAll();
+    } finally {
+      btn.disabled = false;
+      btn.textContent = oldText || '刷新结果';
+    }
+  });
+  qsa('[data-edit-from-job]').forEach(btn => btn.onclick = () => reEditSegment(btn.dataset.editFromJob));
+  qsa('[data-edit-output-segment]').forEach(btn => btn.onclick = () => reEditSegment(btn.dataset.editOutputSegment || findSegmentIdByOutputIndex(btn.dataset.outputIndex)));
+  qsa('[data-download-output]').forEach(link => link.onclick = event => {
+    if (!link.href || link.getAttribute('href') === '#' || link.href.endsWith('#')) {
+      event.preventDefault();
+      toast('视频还没加载完成', '等右侧显示“已通过 Google Drive 代理加载：xx MB”后，再点下载到本地。');
+      return;
+    }
+    const set = downloadedSet();
+    set.add(link.dataset.downloadOutput);
+    saveDownloadedSet(set);
+  });
+}
+
+function renamedFunction(fn, targetName) {
+  const source = fn.toString();
+  return source.replace(/^(async\s+)?function\s+[^(]+/, (_, asyncPrefix = '') => `${asyncPrefix}function ${targetName}`);
+}
+
+function replaceSection(source, startMarker, endMarker, replacement) {
+  const start = source.indexOf(startMarker);
+  const end = source.indexOf(endMarker, start + startMarker.length);
+  if (start < 0 || end < 0 || end <= start) {
+    throw new Error(`正式补丁无法定位代码区段：${startMarker} → ${endMarker}`);
+  }
+  return `${source.slice(0, start)}${replacement}\n\n${source.slice(end)}`;
+}
+
+export function patchV46Source(source, { supabaseUrl, dbUrl }) {
+  let patched = String(source || '');
+  if (!patched.includes(ORIGINAL_BUILD)) {
+    throw new Error(`只支持 ${ORIGINAL_BUILD}，当前 app-v46.js 版本不匹配`);
+  }
+
+  patched = patched
+    .replace("from '../supabase-config.js'", `from '${supabaseUrl}'`)
+    .replace("from './db.js'", `from '${dbUrl}'`)
+    .replace(ORIGINAL_BUILD, PRODUCTION_BUILD);
+
+  patched = replaceSection(
+    patched,
+    'async function fetchVideoBlobThroughProxy(output) {',
+    'async function hydrateProxyVideoElements() {',
+    renamedFunction(v47FetchVideoBlobThroughProxy, 'fetchVideoBlobThroughProxy'),
+  );
+  patched = replaceSection(
+    patched,
+    'async function hydrateProxyVideoElements() {',
+    'function outputCardMarkup(',
+    renamedFunction(v47HydrateProxyVideoElements, 'hydrateProxyVideoElements'),
+  );
+  patched = replaceSection(
+    patched,
+    'async function recoverLatestDriveOutputWhenEmpty(force = false) {',
+    'function renderJobs() {',
+    renamedFunction(r4RecoverLatestDriveOutputWhenEmpty, 'recoverLatestDriveOutputWhenEmpty'),
+  );
+  patched = replaceSection(
+    patched,
+    'function renderJobs() {',
+    'function findSegmentIdByOutputIndex(',
+    renamedFunction(r4RenderJobs, 'renderJobs'),
+  );
+  patched = replaceSection(
+    patched,
+    'async function loadOutputs() {',
+    'function startPolling() {',
+    renamedFunction(r4LoadOutputs, 'loadOutputs'),
+  );
+
+  const r4Support = [
+    r4ModeKey,
+    r4NormalizeName,
+    r4ChooseProject,
+    r4ContextSnapshot,
+    r4ContextIsCurrent,
+    r4ResolveCurrentProject,
+    r4TaskScore,
+  ].map(fn => fn.toString()).join('\n\n');
+
+  patched = replaceSection(
+    patched,
+    'function migrateDraftWorkspaces(draft) {',
+    'function getWorkspace(',
+    `${r4Support}\n\n${renamedFunction(r4MigrateDraftWorkspaces, 'migrateDraftWorkspaces')}`,
+  );
+  patched = replaceSection(
+    patched,
+    'function bindCurrentWorkspace() {',
+    'function saveCurrentWorkspaceSelection() {',
+    renamedFunction(r4BindCurrentWorkspace, 'bindCurrentWorkspace'),
+  );
+  patched = replaceSection(
+    patched,
+    'function saveCurrentWorkspaceSelection() {',
+    'function workspaceLabel(',
+    renamedFunction(r4SaveCurrentWorkspaceSelection, 'saveCurrentWorkspaceSelection'),
+  );
+  patched = replaceSection(
+    patched,
+    'async function syncRemoteTasks() {',
+    'async function bindProviderTaskAndRecover(',
+    renamedFunction(r4SyncRemoteTasks, 'syncRemoteTasks'),
+  );
+
+  const originalGenerateSignature = 'async function generateSegments(segmentIds) {';
+  if (!patched.includes(originalGenerateSignature)) throw new Error('无法定位 generateSegments');
+  patched = patched.replace(originalGenerateSignature, 'async function generateSegments(segmentIds, options = {}) {');
+
+  const automaticResetBlock = `  let resetCount = 0;
+  segments.forEach(segment => {
+    if (prepareSegmentForEditorSubmit(segment)) resetCount += 1;
+  });
+  if (resetCount) {
+    state.outputs = (state.outputs || []).filter(isOutputCurrentForSegment);
+    saveCurrentWorkspaceSelection();
+    renderAll();
+    await persist();
+  }
+`;
+  const duplicateGuardBlock = `  if (!options.allowResubmit) {
+    try {
+      await loadOutputs();
+      renderAll();
+    } catch (error) {
+      console.warn('[Seedance Studio R4] pre-submit strict sync failed', error);
+    }
+    const existingTasks = segments.filter(segment =>
+      segmentHasExistingTask(segment) ||
+      (state.outputs || []).some(output => Number(output.index) === Number(segment.index))
+    );
+    if (existingTasks.length) {
+      const labels = existingTasks.map(segment => \`Segment \${Number(segment.index || 0) + 1}\`).join('、');
+      return toast('已阻止重复提交', \`\${labels} 已存在任务或视频。普通生成不会再次扣费提交；只有明确重新提交才允许创建新任务。\`);
+    }
+  }
+`;
+  if (!patched.includes(automaticResetBlock)) throw new Error('无法定位自动重置任务代码');
+  patched = patched.replace(automaticResetBlock, duplicateGuardBlock);
+
+  const prepareLine = "    segments.forEach(s => { s.status = 'preparing'; s.progress = 1; s.error = null; s.remoteTaskId = null; s.providerTaskId = null; s.remoteSegmentId = null; s.outputPath = null; });";
+  const safePrepareLine = "    segments.forEach(s => { s.status = 'preparing'; s.progress = 1; s.error = null; if (options.allowResubmit) { s.remoteTaskId = null; s.providerTaskId = null; s.remoteSegmentId = null; s.outputPath = null; } });";
+  if (!patched.includes(prepareLine)) throw new Error('无法定位提交前任务清空代码');
+  patched = patched.replace(prepareLine, safePrepareLine);
+
+  const resubmitCall = '  await generateSegments([segment.id]);';
+  if (!patched.includes(resubmitCall)) throw new Error('无法定位明确重新提交入口');
+  patched = patched.replace(resubmitCall, '  await generateSegments([segment.id], { allowResubmit: true });');
+
+  return `${patched}\n//# sourceURL=seedance/app-production-runtime.js\n`;
+}
+
+export async function bootProduction() {
+  const originalUrl = new URL(`${ORIGINAL_FILE}?v=${ORIGINAL_BUILD}`, import.meta.url);
+  const supabaseUrl = new URL('../supabase-config.js', import.meta.url).href;
+  const dbUrl = new URL('./db.js', import.meta.url).href;
+  const response = await fetch(originalUrl, { cache: 'no-store' });
+  if (!response.ok) throw new Error(`读取 app-v46.js 失败：HTTP ${response.status}`);
+  const source = await response.text();
+  const patched = patchV46Source(source, { supabaseUrl, dbUrl });
+  const blobUrl = URL.createObjectURL(new Blob([patched], { type: 'text/javascript' }));
+  try {
+    await import(blobUrl);
+    document.body.dataset.seedanceLoaderBuild = PRODUCTION_BUILD;
+    console.log('[Seedance Studio loader]', PRODUCTION_BUILD);
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+  }
+}
+
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  bootProduction().catch(error => {
+    console.error('[Seedance Studio R4] boot failed', error);
+    const box = document.createElement('div');
+    box.style.cssText = 'position:fixed;inset:20px;z-index:99999;background:#220b12;color:#fff;border:1px solid #ff6075;border-radius:14px;padding:20px;font:14px/1.6 system-ui;overflow:auto';
+    box.innerHTML = `<strong>Seedance 正式修复版启动失败</strong><br>${String(error?.message || error).replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]))}<br><br>请确认 seedance/app-v46.js 仍保留原文件，并且 ai-assistant.html 加载的是 seedance/app.js。`;
+    document.body.appendChild(box);
+  });
+}
