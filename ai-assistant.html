@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Seedance 视频生成中心 - Davis Design System</title>
+  <title>Davis Video 视频生成中心 - Davis Design System</title>
   <link rel="stylesheet" href="./seedance/style.css?v=20260724-unified-studio-system-v4" />
   <style>[hidden]{display:none!important}</style>
 </head>
@@ -12,7 +12,7 @@
     <aside class="sidebar">
       <div class="brand">
         <div class="brand-icon">▶</div>
-        <div><strong>Seedance Studio</strong><span>Davis Design System</span></div>
+        <div><strong>Davis Video Studio</strong><span>Davis Design System</span></div>
       </div>
       <div class="sidebar-actions">
         <button class="ghost-btn full" id="back-home">← 返回排号大厅</button>
@@ -32,7 +32,7 @@
     <main class="main">
       <header class="topbar">
         <div>
-          <h1>Seedance 视频生成中心</h1>
+          <h1>Davis Video 视频生成中心</h1>
           <p>图片先保存在浏览器本地；纯文字模式无需上传图片，直接填写描述。只有点击生成后才上传到 Supabase 并提交真实任务。</p>
         </div>
         <div class="topbar-actions">
@@ -101,7 +101,7 @@
 
           <aside class="quick-side">
             <section class="panel sticky-panel">
-              <div class="project-name-row"><input id="project-name" value="未命名 Seedance 项目" /><span id="draft-status">本地草稿</span></div>
+              <div class="project-name-row"><input id="project-name" value="未命名 Davis Video 项目" /><span id="draft-status">本地草稿</span></div>
               <div class="summary"><div><span>图片</span><strong id="summary-frames">0</strong></div><div><span>片段</span><strong id="summary-segments">0</strong></div><div><span>总时长</span><strong id="summary-duration">0 秒</strong></div></div>
               <button class="ghost-btn full" id="go-editor">进入高级 Storyboard</button>
               <button class="primary-btn full large" id="generate-all">全部生成</button>
@@ -135,7 +135,7 @@
               <div class="prompt-tools"><button data-prompt="镜头缓慢向前推进">镜头推进</button><button data-prompt="保持人物身份、五官、服装和构图一致">锁定人物</button><button data-prompt="动作自然流畅，避免画面抖动和变形">动作稳定</button></div>
               <div class="settings-grid two">
                 <label><span>时长</span><select id="segment-duration"><option value="4">4 秒</option><option value="5">5 秒</option><option value="6">6 秒</option><option value="7">7 秒</option><option value="8">8 秒</option><option value="9">9 秒</option><option value="10">10 秒</option></select></label>
-                <label><span>模型</span><select id="segment-model"><option value="mini">Seedance Mini</option><option value="fast">Seedance Fast</option></select></label>
+                <label><span>模型</span><select id="segment-model"><option value="mini">Davis Video Mini</option><option value="fast">Davis Video Fast</option></select></label>
                 <label><span>清晰度</span><select id="segment-resolution"><option value="720p">720p</option><option value="480p">480p</option></select></label>
                 <label><span>声音输出</span><select id="segment-audio"><option value="false">关</option><option value="true">开</option></select></label>
                 <label><span>项目比例</span><input id="segment-ratio" disabled /></label>
@@ -173,7 +173,36 @@
     </div>
   </div>
 
+
+  <div id="quick-segment-modal" class="quick-segment-modal" hidden>
+    <div class="quick-segment-dialog" role="dialog" aria-modal="true" aria-labelledby="quick-segment-title">
+      <header class="quick-segment-header">
+        <div>
+          <span id="quick-segment-index">SEGMENT 01</span>
+          <h2 id="quick-segment-title">编辑片段提示词</h2>
+          <p id="quick-segment-context">图 1 → 图 2</p>
+        </div>
+        <button id="quick-segment-close" type="button" aria-label="关闭">×</button>
+      </header>
+      <div class="quick-segment-body">
+        <label>
+          <div class="ai-prompt-heading">
+            <span>片段提示词</span>
+            <button class="ai-prompt-button" id="ai-optimize-quick-segment-prompt" type="button">✨ AI 优化提示词</button>
+          </div>
+          <textarea id="quick-segment-prompt" rows="9" placeholder="描述两张画面之间的动作、镜头、节奏和画面变化。"></textarea>
+        </label>
+        <div class="quick-segment-hint">保存后会立即写回当前项目，不会跳转到高级 Storyboard。</div>
+      </div>
+      <footer class="quick-segment-actions">
+        <button id="quick-segment-cancel" type="button" class="ghost-btn">取消</button>
+        <button id="quick-segment-save" type="button" class="primary-btn">保存提示词</button>
+      </footer>
+    </div>
+  </div>
+
   <script type="module" src="./seedance/app.js?v=20260724-single-project-single-mode-r5-4-output-render-fix"></script>
-  <script type="module" src="./seedance/prompt-optimizer.js?v=20260724-fast-optional-vision-v3"></script>
+  <script type="module" src="./seedance/prompt-optimizer.js?v=20260724-davis-video-optimizer-v4"></script>
+  <script type="module" src="./seedance/ui-patches.js?v=20260724-davis-video-ui-v1"></script>
 </body>
 </html>
