@@ -6,6 +6,18 @@
   <title>Seedance 视频生成中心 - Davis Design System</title>
   <link rel="stylesheet" href="./seedance/style.css?v=20260722-lock-current-project-v30" />
   <style>[hidden]{display:none!important}</style>
+  <style>
+    .mode-lock-card{display:flex;flex-direction:column;align-items:flex-end;gap:3px;padding:10px 14px;border:1px solid rgba(139,113,255,.32);border-radius:12px;background:rgba(116,86,255,.08);min-width:190px}
+    .mode-lock-card span,.mode-lock-card small{font-size:11px;color:#8f95a8}.mode-lock-card strong{font-size:14px;color:#fff}
+    .project-mode-tag{display:inline-flex;padding:2px 6px;border-radius:999px;background:rgba(124,92,255,.14);color:#a99aff;font-size:10px;font-weight:700}
+    .project-mode-modal{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:rgba(0,0,0,.68);backdrop-filter:blur(12px)}
+    .project-mode-modal[hidden]{display:none!important}.project-mode-dialog{width:min(720px,calc(100vw - 32px));padding:26px;border:1px solid rgba(255,255,255,.12);border-radius:22px;background:#12141c;box-shadow:0 30px 90px rgba(0,0,0,.55)}
+    .project-mode-dialog h2{margin:0 0 8px;font-size:23px}.project-mode-dialog>p{margin:0 0 20px;color:#9298aa}
+    .project-name-create{display:grid;gap:8px;margin-bottom:18px}.project-name-create span{font-size:12px;color:#a3a8b7}.project-name-create input{width:100%;box-sizing:border-box;padding:12px 14px;border-radius:11px;border:1px solid rgba(255,255,255,.12);background:#0b0d13;color:#fff}
+    .project-mode-options{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.project-mode-option{padding:18px;text-align:left;border:1px solid rgba(255,255,255,.1);border-radius:16px;background:#0d0f16;color:#fff;cursor:pointer}.project-mode-option:hover{border-color:#8064ff;background:rgba(116,86,255,.1);transform:translateY(-1px)}
+    .project-mode-option b{display:block;margin-bottom:7px;font-size:15px}.project-mode-option span{display:block;color:#8f95a8;font-size:11px;line-height:1.5}.project-mode-footer{display:flex;justify-content:flex-end;margin-top:16px}
+    @media(max-width:760px){.project-mode-options{grid-template-columns:1fr}.mode-lock-card{align-items:flex-start;width:100%}}
+  </style>
 </head>
 <body>
   <div id="app-shell">
@@ -53,10 +65,10 @@
             <section class="panel hero-panel">
               <div class="panel-heading">
                 <div><h2>创建视频</h2><p>像即梦一样直接上传图片、编辑镜头段落，再一次性生成。</p></div>
-                <div class="mode-switch" id="mode-switch">
-                  <button data-mode="first_last">首尾帧</button>
-                  <button data-mode="multi_frame" class="active">多帧 Storyboard</button>
-                  <button data-mode="text_only">纯文字</button>
+                <div class="mode-lock-card" id="mode-lock-card" data-mode="multi_frame">
+                  <span>当前项目模式</span>
+                  <strong id="locked-mode-label">多帧 Storyboard</strong>
+                  <small>创建后永久锁定；使用其他模式请新建项目</small>
                 </div>
               </div>
 
@@ -158,7 +170,22 @@
   <div id="toast" class="toast" hidden><strong id="toast-title"></strong><span id="toast-message"></span></div>
   <div id="confirm-modal" class="modal" hidden><div class="modal-card"><h3 id="confirm-title"></h3><p id="confirm-message"></p><div class="modal-actions"><button class="ghost-btn" id="confirm-cancel">取消</button><button class="primary-btn" id="confirm-ok">确认</button></div></div></div>
 
-  <script type="module" src="./seedance/app.js?v=20260723-text-mode-isolation-r4"></script>
+
+  <div id="project-mode-modal" class="project-mode-modal" hidden>
+    <div class="project-mode-dialog">
+      <h2>新建视频生成项目</h2>
+      <p>每个项目只能使用一种生成模式，创建后不可切换。这样任务、输出与 Google Drive 视频会永久点对点绑定。</p>
+      <label class="project-name-create"><span>项目名称</span><input id="new-project-name" placeholder="例如：冰岛路线动画－纯文字" /></label>
+      <div class="project-mode-options">
+        <button type="button" class="project-mode-option" data-create-project-mode="first_last"><b>首尾帧生成</b><span>一个项目只使用首帧与尾帧生成单段视频</span></button>
+        <button type="button" class="project-mode-option" data-create-project-mode="multi_frame"><b>多帧 Storyboard</b><span>一个项目使用多张图片生成连续多个片段</span></button>
+        <button type="button" class="project-mode-option" data-create-project-mode="text_only"><b>纯文字生成</b><span>一个项目只使用文字与可选参考素材生成视频</span></button>
+      </div>
+      <div class="project-mode-footer"><button id="project-mode-cancel" type="button" class="ghost-btn">取消</button></div>
+    </div>
+  </div>
+
+  <script type="module" src="./seedance/app.js?v=20260723-single-project-single-mode-r5"></script>
   <script type="module" src="./seedance/prompt-optimizer.js?v=20260723-deepseek-v1"></script>
 </body>
 </html>
