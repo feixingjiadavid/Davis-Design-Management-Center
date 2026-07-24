@@ -602,7 +602,7 @@ async function r5ReadPersistentVideo(key) {
     const blob = await response.blob();
     return blob?.size ? blob : null;
   } catch (error) {
-    console.warn('[Seedance Studio R5] read persistent video cache failed', error);
+    console.warn('[Davis Video Studio R5] read persistent video cache failed', error);
     return null;
   }
 }
@@ -633,7 +633,7 @@ async function r5WritePersistentVideo(key, blob) {
     }));
     await r5PrunePersistentVideoCache(cache, 36);
   } catch (error) {
-    console.warn('[Seedance Studio R5] write persistent video cache failed', error);
+    console.warn('[Davis Video Studio R5] write persistent video cache failed', error);
   }
 }
 
@@ -1018,7 +1018,7 @@ function r5LoadOutputs(force = false) {
 }
 
 async function r5RefreshJobs() {
-  try { await loadOutputs(true); } catch (error) { console.warn('[Seedance Studio R5] refresh failed', error); }
+  try { await loadOutputs(true); } catch (error) { console.warn('[Davis Video Studio R5] refresh failed', error); }
   renderJobs();
 }
 
@@ -1120,7 +1120,7 @@ function r5SetView(view) {
     state.outputHistory = workspace.outputHistory || state.outputHistory || [];
     renderJobs();
     if (!Number(workspace.cloudSyncedAt || 0) || Date.now() - Number(workspace.cloudSyncedAt || 0) > 5 * 60_000) {
-      loadOutputs(false).then(() => renderJobs()).catch(error => console.warn('[Seedance Studio R5] background sync failed', error));
+      loadOutputs(false).then(() => renderJobs()).catch(error => console.warn('[Davis Video Studio R5] background sync failed', error));
     }
   }
 }
@@ -1173,7 +1173,7 @@ async function r5SelectDraft(id) {
   const workspace = getWorkspace();
   try {
     if (!Number(workspace.cloudSyncedAt || 0) || Date.now() - Number(workspace.cloudSyncedAt || 0) > 5 * 60_000) await loadOutputs(false);
-  } catch (error) { console.warn('[Seedance Studio R5] project sync failed', error); }
+  } catch (error) { console.warn('[Davis Video Studio R5] project sync failed', error); }
   renderAll();
   const active = state.draft.segments.some(s => ['submitting','submitted','queued','running','processing'].includes(String(s.status || '').toLowerCase()));
   if (active) startPolling();
@@ -1313,13 +1313,13 @@ export async function bootProduction() {
   try {
     await import(blobUrl);
     document.body.dataset.seedanceLoaderBuild = PRODUCTION_BUILD;
-    console.log('[Seedance Studio loader]', PRODUCTION_BUILD);
+    console.log('[Davis Video Studio loader]', PRODUCTION_BUILD);
   } finally { setTimeout(() => URL.revokeObjectURL(blobUrl), 30000); }
 }
 
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   bootProduction().catch(error => {
-    console.error('[Seedance Studio R5] boot failed', error);
+    console.error('[Davis Video Studio R5] boot failed', error);
     const box = document.createElement('div');
     box.style.cssText = 'position:fixed;inset:20px;z-index:99999;background:#220b12;color:#fff;border:1px solid #ff6075;border-radius:14px;padding:20px;font:14px/1.6 system-ui;overflow:auto';
     box.innerHTML = `<strong>Seedance 单项目单模式版启动失败</strong><br>${String(error?.message || error).replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]))}<br><br>请确认 seedance/app-v46.js 保留，并上传本包中的 ai-assistant.html 与 seedance/app.js。`;
