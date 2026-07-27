@@ -1426,7 +1426,28 @@ async function fetchTaskData() {
         }
 
         function getRequesterAttachmentPayload(task) {
-            return task.file_data || task.file_url || task.attachment_url || task.attachment_data || task.source_file_link || '';
+            const rawPayload = task.file_data || task.file_url || task.attachment_url || task.attachment_data || task.source_file_link || '';
+            if (!rawPayload) return '';
+
+            if (Array.isArray(rawPayload)) {
+                const firstFile = rawPayload[0];
+                return firstFile?.data || firstFile?.url || firstFile?.payload || '';
+            }
+            if (typeof rawPayload === 'object') {
+                return rawPayload.data || rawPayload.url || rawPayload.payload || '';
+            }
+
+            const raw = String(rawPayload).trim();
+            if (raw.startsWith('[') || raw.startsWith('{')) {
+                try {
+                    const parsed = JSON.parse(raw);
+                    const firstFile = Array.isArray(parsed) ? parsed[0] : parsed;
+                    return firstFile?.data || firstFile?.url || firstFile?.payload || raw;
+                } catch (err) {
+                    console.error('甲方附件 JSON 解析失败:', err);
+                }
+            }
+            return raw;
         }
 
         function normalizeAttachmentHref(name, payload) {
@@ -1485,22 +1506,59 @@ async function fetchTaskData() {
             window.open(href, '_blank', 'noopener,noreferrer');
         }
 
-        window.downloadAttachment = function(name, payload) {
-            const href = normalizeAttachmentHref(name, payload);
-            if (!href) return showToast('下载失败', '没有读取到甲方上传的附件数据。', 'error');
+        async function parseAttachmentBlob(name, payload) {
+            if (!payload) throw new Error('附件数据为空');
+            const raw = String(payload).trim();
+
+            if (/^(https?:)?\/\//i.test(raw) || raw.startsWith('blob:')) {
+                const response = await fetch(raw);
+                if (!response.ok) throw new Error(`附件请求失败: ${response.status}`);
+                return response.blob();
+            }
+
+            let mimeType = getMimeByFileName(name);
+            let base64 = raw;
+            if (raw.startsWith('data:')) {
+                const commaIndex = raw.indexOf(',');
+                if (commaIndex < 0) throw new Error('Data URI 格式无效');
+                const metadata = raw.slice(5, commaIndex);
+                const declaredMime = metadata.split(';')[0];
+                if (declaredMime) mimeType = declaredMime;
+                const encodedData = raw.slice(commaIndex + 1);
+                if (!/;base64(?:;|$)/i.test(metadata)) {
+                    return new Blob([decodeURIComponent(encodedData)], { type: mimeType });
+                }
+                base64 = encodedData;
+            }
+
+            const normalized = base64.replace(/\s/g, '').replace(/-/g, '+').replace(/_/g, '/');
+            if (!normalized || normalized.length % 4 === 1 || !/^[A-Za-z0-9+/]*={0,2}$/.test(normalized)) {
+                throw new Error('Base64 数据无效');
+            }
+            const padded = normalized + '='.repeat((4 - normalized.length % 4) % 4);
+            const binary = atob(padded);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            return new Blob([bytes], { type: mimeType });
+        }
+
+        window.downloadAttachment = async function(name, payload) {
+            let objectUrl = '';
             try {
+                const blob = await parseAttachmentBlob(name, payload);
+                objectUrl = URL.createObjectURL(blob);
                 const a = document.createElement('a');
-                a.href = href;
+                a.href = objectUrl;
                 a.download = name || '甲方上传附件';
-                a.target = '_blank';
-                a.rel = 'noopener noreferrer';
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
-                showToast('附件已打开', '如果浏览器没有自动下载，请检查是否被拦截。', 'success');
+                showToast('附件下载成功', name || '甲方上传附件', 'success');
             } catch (err) {
-                console.error(err);
-                window.open(href, '_blank', 'noopener,noreferrer');
+                console.error('甲方附件解析或下载失败:', err);
+                showToast('附件解析失败，请重新上传', '', 'error');
+            } finally {
+                if (objectUrl) setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
             }
         }
 
