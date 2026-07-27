@@ -1,8 +1,12 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { syncTaskFromArk } from "../_shared/seedance-task-sync.mjs";
 import { mapWithConcurrency } from "../_shared/seedance-worker-batch.mjs";
+import {
+  STALE_UNBOUND_AFTER_MS,
+  staleUnboundFailurePayload,
+} from "../_shared/seedance-submit-policy.mjs";
 
-const BUILD = "20260727-worker-v3-atomic";
+const BUILD = "20260727-worker-v4-unbound-timeout";
 const ACTIVE_STATUSES = ["queued", "running", "processing", "submitting", "submitted"];
 const MAX_BATCH = 25;
 
@@ -136,6 +140,41 @@ Deno.serve(async (req: Request) => {
   const requestedLimit = Number(body.limit || 10);
   const limit = Math.max(1, Math.min(MAX_BATCH, Number.isFinite(requestedLimit) ? requestedLimit : 10));
   const requestedProviderTaskId = String(body.provider_task_id || "").trim();
+  const adapter = databaseAdapter(admin);
+
+  let staleTasks: any[] = [];
+  if (!requestedProviderTaskId) {
+    const staleCutoff = new Date(Date.now() - STALE_UNBOUND_AFTER_MS).toISOString();
+    const { data, error } = await admin.from("video_tasks").select("*")
+      .in("status", ACTIVE_STATUSES)
+      .is("provider_task_id", null)
+      .lt("updated_at", staleCutoff)
+      .order("updated_at", { ascending: true })
+      .limit(limit);
+    if (error) return json({ error: "STALE_TASK_SCAN_FAILED", detail: error.message }, 500);
+    staleTasks = data || [];
+  }
+
+  const staleResults = await mapWithConcurrency(staleTasks, 3, async (task: any) => {
+    try {
+      const result = await syncTaskFromArk(task, staleUnboundFailurePayload(), adapter);
+      return {
+        task_id: task.id,
+        provider_task_id: null,
+        status: result.status,
+        progress: result.progress,
+        error_message: result.errorMessage || null,
+        recovered_stale_submission: true,
+      };
+    } catch (error) {
+      return {
+        task_id: task.id,
+        provider_task_id: null,
+        status: task.status,
+        retryable_error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  });
 
   let taskQuery = admin.from("video_tasks").select("*")
     .in("status", ACTIVE_STATUSES)
@@ -149,7 +188,6 @@ Deno.serve(async (req: Request) => {
   const { data: tasks, error: taskError } = await taskQuery;
   if (taskError) return json({ error: "TASK_SCAN_FAILED", detail: taskError.message }, 500);
 
-  const adapter = databaseAdapter(admin);
   const results = await mapWithConcurrency(tasks || [], 3, async (task: any) => {
     try {
       const arkPayload = await queryArk(String(task.provider_task_id), arkKey);
@@ -173,10 +211,12 @@ Deno.serve(async (req: Request) => {
     }
   });
 
+  const allResults = [...staleResults, ...results];
   return json({
     ok: true,
-    scanned: (tasks || []).length,
-    updated: results.filter(item => !item.retryable_error).length,
-    results,
+    scanned: staleTasks.length + (tasks || []).length,
+    updated: allResults.filter(item => !item.retryable_error).length,
+    stale_recovered: staleResults.filter(item => !item.retryable_error).length,
+    results: allResults,
   });
 });
