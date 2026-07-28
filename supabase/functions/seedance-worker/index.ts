@@ -1,12 +1,13 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { syncTaskFromArk } from "../_shared/seedance-task-sync.mjs";
+import { syncOutputToGoogleDrive, providerVideoUrlFromPayload, googleDriveConfigStatus } from "../_shared/seedance-drive.mjs";
 import { mapWithConcurrency } from "../_shared/seedance-worker-batch.mjs";
 import {
   STALE_UNBOUND_AFTER_MS,
   staleUnboundFailurePayload,
 } from "../_shared/seedance-submit-policy.mjs";
 
-const BUILD = "20260727-worker-v4-unbound-timeout";
+const BUILD = "20260728-worker-google-drive-v5";
 const ACTIVE_STATUSES = ["queued", "running", "processing", "submitting", "submitted"];
 const MAX_BATCH = 25;
 
@@ -103,6 +104,9 @@ function databaseAdapter(admin: any) {
         .eq("id", id).select("*").single();
       if (error) throw new Error("video_outputs update failed: " + error.message);
       return data;
+    },
+    async syncOutputToDrive(outputId: string, context: Record<string, unknown>) {
+      return await syncOutputToGoogleDrive(admin, outputId, context);
     },
   };
 }
@@ -211,12 +215,59 @@ Deno.serve(async (req: Request) => {
     }
   });
 
+  const nowMs = Date.now();
+  const { data: driveRows, error: driveScanError } = await admin.from("video_outputs").select("*")
+    .in("storage_status", ["pending", "failed", "uploading"])
+    .order("storage_updated_at", { ascending: true })
+    .limit(Math.min(limit * 3, 50));
+  const driveCandidates = (driveRows || []).filter((row: any) => {
+    const status = String(row.storage_status || "pending").toLowerCase();
+    if (status === "pending") return true;
+    if (status === "failed") {
+      const retryAt = Date.parse(row.storage_next_retry_at || "");
+      return !Number.isFinite(retryAt) || retryAt <= nowMs;
+    }
+    const updatedAt = Date.parse(row.storage_updated_at || row.created_at || "");
+    return status === "uploading" && (!Number.isFinite(updatedAt) || nowMs - updatedAt >= 15 * 60 * 1000);
+  }).slice(0, Math.min(limit, 3));
+
+  const driveResults = driveScanError ? [{
+    storage_status: "scan_failed",
+    storage_error: driveScanError.message,
+  }] : await mapWithConcurrency(driveCandidates, 1, async (output: any) => {
+    try {
+      const { data: task } = await admin.from("video_tasks").select("*").eq("id", output.task_id).maybeSingle();
+      const providerTaskId = String(task?.provider_task_id || output.metadata?.provider_task_id || "").trim();
+      let arkPayload = task?.provider_response || output.metadata?.ark_response || {};
+      if (providerTaskId) arkPayload = await queryArk(providerTaskId, arkKey);
+      const videoUrl = providerVideoUrlFromPayload(arkPayload) || String(output.metadata?.provider_video_url || "");
+      const drive = await syncOutputToGoogleDrive(admin, output.id, {
+        force: true,
+        providerTaskId,
+        videoUrl,
+        arkPayload,
+      });
+      return { output_id: output.id, task_id: output.task_id, provider_task_id: providerTaskId, ...drive };
+    } catch (error) {
+      return {
+        output_id: output.id,
+        task_id: output.task_id,
+        storage_status: "failed",
+        storage_error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  });
+
   const allResults = [...staleResults, ...results];
   return json({
     ok: true,
     scanned: staleTasks.length + (tasks || []).length,
     updated: allResults.filter(item => !item.retryable_error).length,
     stale_recovered: staleResults.filter(item => !item.retryable_error).length,
+    drive_scanned: driveCandidates.length,
+    drive_completed: driveResults.filter((item: any) => item.storage_status === "completed").length,
+    google_drive_config: googleDriveConfigStatus(),
+    drive_results: driveResults,
     results: allResults,
   });
 });
