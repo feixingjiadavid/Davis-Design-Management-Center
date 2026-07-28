@@ -2,7 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { syncTaskFromArk } from "../_shared/seedance-task-sync.mjs";
 import { syncOutputToGoogleDrive, googleDriveConfigStatus } from "../_shared/seedance-drive.mjs";
 
-const BUILD = "20260728-status-google-drive-v45";
+const BUILD = "20260728-status-async-ark-drive-v46";
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -167,7 +167,22 @@ Deno.serve(async (req: Request) => {
   if (!task) return json({ error: "TASK_NOT_FOUND_OR_NOT_OWNED" }, 404);
 
   providerTaskId = providerTaskId || String(task.provider_task_id || "").trim();
-  if (!providerTaskId) return json({ error: "PROVIDER_TASK_ID_MISSING" }, 400);
+  if (!providerTaskId) {
+    return json({
+      ok: true,
+      task_id: task.id,
+      provider_task_id: null,
+      status: task.status || "queued",
+      progress: Number(task.progress || 10),
+      error_message: task.error_message || null,
+      submission_pending: true,
+      video_url_ready: false,
+      output_id: null,
+      storage_status: null,
+      google_drive_file_id: null,
+      google_drive_url: null,
+    });
+  }
 
   try {
     const arkPayload = await queryArk(providerTaskId, arkKey);

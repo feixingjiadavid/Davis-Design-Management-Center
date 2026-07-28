@@ -60,3 +60,38 @@ test('writes one idempotent video output containing the Ark URL', async () => {
   assert.equal(adapter.state.outputs[0].metadata.provider_video_url, 'https://ark.example/video.mp4');
   assert.equal(adapter.state.taskUpdates.at(-1).patch.status, 'succeeded');
 });
+
+
+test('keeps task processing while Google Drive upload is pending or failed', async () => {
+  const adapter = memoryAdapter();
+  adapter.syncOutputToDrive = async () => ({
+    storage_status: 'failed',
+    storage_error: 'temporary Drive error',
+  });
+  const result = await syncTaskFromArk(task, {
+    status: 'succeeded',
+    content: { video_url: 'https://ark.example/video.mp4' },
+  }, adapter, '2026-07-27T00:02:00.000Z');
+
+  assert.equal(result.status, 'processing');
+  assert.equal(result.progress, 99);
+  assert.equal(result.output.storage_status, 'failed');
+  assert.equal(adapter.state.taskUpdates.at(-1).patch.status, 'processing');
+  assert.equal(adapter.state.segmentUpdates.at(-1).patch.status, 'processing');
+});
+
+test('reports success only after Google Drive returns completed', async () => {
+  const adapter = memoryAdapter();
+  adapter.syncOutputToDrive = async () => ({
+    storage_status: 'completed',
+    google_drive_file_id: 'drive-file-1',
+  });
+  const result = await syncTaskFromArk(task, {
+    status: 'succeeded',
+    content: { video_url: 'https://ark.example/video.mp4' },
+  }, adapter, '2026-07-27T00:03:00.000Z');
+
+  assert.equal(result.status, 'succeeded');
+  assert.equal(result.output.storage_status, 'completed');
+  assert.equal(result.output.google_drive_file_id, 'drive-file-1');
+});

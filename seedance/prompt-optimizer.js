@@ -4,11 +4,11 @@ import {
   missingReferenceTokens,
 } from './prompt-optimizer-core.js';
 
-const BUILD = '20260724-davis-video-optimizer-v4';
+const BUILD = '20260728-davis-video-optimizer-v5';
 const FUNCTION_NAME = 'seedance-prompt-optimize';
 const VISION_FUNCTION_NAME = 'seedance-vision-analyze';
 const MAX_VISION_IMAGES = 3;
-const VISION_TIMEOUT_MS = 15000;
+const VISION_TIMEOUT_MS = 45000;
 const OPTIMIZE_TIMEOUT_MS = 30000;
 
 let activeTextarea = null;
@@ -487,7 +487,7 @@ async function analyzeSingleImage(candidate, index) {
       },
     }),
     VISION_TIMEOUT_MS,
-    `图片 ${index + 1} 视觉理解超过 15 秒`,
+    `图片 ${index + 1} 视觉理解超过 45 秒`,
   );
 
   const { data, error } = response || {};
@@ -530,7 +530,7 @@ async function analyzeImagesForPrompt(serial) {
 
   let completed = 0;
   setVisionState(
-    `千问正在并行理解 ${candidates.length} 张代表图片，单张最长等待 15 秒。`,
+    `千问正在并行理解 ${candidates.length} 张代表图片，单张最长等待 45 秒。`,
     'running',
     `0/${candidates.length}`,
   );

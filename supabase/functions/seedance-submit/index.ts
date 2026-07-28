@@ -4,7 +4,7 @@ import {
   existingSubmissionResult,
 } from "../_shared/seedance-submit-policy.mjs";
 
-const BUILD = "20260728-submit-timeout-diagnostics-v43";
+const BUILD = "20260728-submit-async-queue-v44";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -283,70 +283,10 @@ Deno.serve(async (req: Request) => {
   const duration = normalizeDuration(segment.duration || requestBody.duration || 4);
   const resolution = normalizeResolution(segment.resolution || requestBody.resolution || "720p");
 
-  const requestPayloadForRecord = {
-    client_submit_nonce: clientSubmitNonce,
-    note: isTextOnly ? "fix_reference_video_role_v34" : "strict_frame_lock_v14_keep",
-    model,
-    model_alias: modelAlias,
-    ratio,
-    duration,
-    resolution,
-    original_prompt: originalPromptText,
-    effective_prompt: promptText,
-    api_shape: "ark.content_generation.tasks.create",
-    image_roles: isTextOnly ? [] : ["first_frame", "last_frame"],
-    reference_roles: referenceSignedItems.map((item) => item.mime_type.startsWith("audio/") ? "reference_audio" : item.mime_type.startsWith("image/") ? "reference_image" : "reference_video"),
-    reference_directions: referenceSignedItems.map((item) => ({ name: item.name, mime_type: item.mime_type, direction: item.direction })),
-    generation_mode: isTextOnly ? (referenceSignedItems.length ? "text_plus_multi_reference" : "text_only") : "image_reference",
-    generate_audio: Boolean(requestBody.generate_audio),
-    prompt_mode: safeString(requestBody.prompt_mode || 'fix_reference_video_role_v34'),
-  };
-
-  const { data: localTask, error: taskInsertError } = await admin
-    .from("video_tasks")
-    .insert({
-      owner_id: user.id,
-      project_id: segment.project_id,
-      segment_id: segment.id,
-      provider_task_id: null,
-      status: "submitting",
-      progress: 12,
-      model_alias: modelAlias,
-      request_payload: requestPayloadForRecord,
-    })
-    .select()
-    .single();
-
-  if (taskInsertError || !localTask) {
-    if (taskInsertError?.code === "23505") {
-      try {
-        const racedSubmission = await findExistingSubmission(
-          admin,
-          user.id,
-          segment.id,
-          clientSubmitNonce,
-        );
-        if (racedSubmission) return respond(existingSubmissionResult(racedSubmission));
-      } catch (error) {
-        return respond({
-          error: error instanceof Error ? error.message : String(error),
-          retryable: false,
-        }, 500);
-      }
-    }
-    return respond({ error: "创建 video_tasks 失败", detail: taskInsertError?.message || null }, 500);
-  }
-
-  await admin.from("video_segments").update({ status: "submitting", updated_at: new Date().toISOString() })
-    .eq("id", segment.id).eq("owner_id", user.id);
-
-  await admin.from("video_projects").update({ status: "generating", updated_at: new Date().toISOString() })
-    .eq("id", segment.project_id).eq("owner_id", user.id);
-
   const content = isTextOnly
     ? [
       { type: "text", text: promptText },
-      ...referenceSignedItems.map((item, index) => {
+      ...referenceSignedItems.map((item) => {
         const directionText = item.direction === "audio_rhythm"
           ? "参考声音、节奏、音色、氛围"
           : item.direction === "visual_style"
@@ -380,103 +320,83 @@ Deno.serve(async (req: Request) => {
     return_last_frame: false,
   };
 
-  const arkStartedAt = Date.now();
+  const requestPayloadForRecord = {
+    client_submit_nonce: clientSubmitNonce,
+    note: isTextOnly ? "fix_reference_video_role_v34" : "strict_frame_lock_v14_keep",
+    model,
+    model_alias: modelAlias,
+    ratio,
+    duration,
+    resolution,
+    original_prompt: originalPromptText,
+    effective_prompt: promptText,
+    api_shape: "ark.content_generation.tasks.create",
+    image_roles: isTextOnly ? [] : ["first_frame", "last_frame"],
+    reference_roles: referenceSignedItems.map((item) => item.mime_type.startsWith("audio/") ? "reference_audio" : item.mime_type.startsWith("image/") ? "reference_image" : "reference_video"),
+    reference_directions: referenceSignedItems.map((item) => ({ name: item.name, mime_type: item.mime_type, direction: item.direction })),
+    generation_mode: isTextOnly ? (referenceSignedItems.length ? "text_plus_multi_reference" : "text_only") : "image_reference",
+    generate_audio: Boolean(requestBody.generate_audio),
+    prompt_mode: safeString(requestBody.prompt_mode || "fix_reference_video_role_v34"),
+    ark_payload: arkPayload,
+  };
+
+  const { data: localTask, error: taskInsertError } = await admin
+    .from("video_tasks")
+    .insert({
+      owner_id: user.id,
+      project_id: segment.project_id,
+      segment_id: segment.id,
+      provider_task_id: null,
+      status: "queued",
+      progress: 10,
+      model_alias: modelAlias,
+      request_payload: requestPayloadForRecord,
+      provider_response: { ark_submit_attempts: 0, submission_phase: "queued_for_worker" },
+    })
+    .select()
+    .single();
+
+  if (taskInsertError || !localTask) {
+    if (taskInsertError?.code === "23505") {
+      try {
+        const racedSubmission = await findExistingSubmission(
+          admin,
+          user.id,
+          segment.id,
+          clientSubmitNonce,
+        );
+        if (racedSubmission) return respond(existingSubmissionResult(racedSubmission));
+      } catch (error) {
+        return respond({
+          error: error instanceof Error ? error.message : String(error),
+          retryable: false,
+        }, 500);
+      }
+    }
+    return respond({ error: "创建 video_tasks 失败", detail: taskInsertError?.message || null }, 500);
+  }
+
+  const nowIso = new Date().toISOString();
+  await admin.from("video_segments").update({ status: "queued", updated_at: nowIso })
+    .eq("id", segment.id).eq("owner_id", user.id);
+  await admin.from("video_projects").update({ status: "generating", updated_at: nowIso })
+    .eq("id", segment.project_id).eq("owner_id", user.id);
+
   console.info(JSON.stringify({
-    event: "ark_submit_started",
+    event: "ark_submit_queued",
     task_id: localTask.id,
     model,
     generation_mode: requestPayloadForRecord.generation_mode,
-    asset_count: content.filter((item: any) => item.type !== "text").length,
-    timeout_ms: ARK_CREATE_TIMEOUT_MS,
+    asset_count: content.filter((item) => item.type !== "text").length,
   }));
-
-  let arkResponse: Response;
-  try {
-    arkResponse = await fetchArkCreateTask(arkApiKey, arkPayload);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    const failure = arkSubmitFailureDetails(error, Date.now() - arkStartedAt);
-    console.error(JSON.stringify({
-      event: "ark_submit_failed",
-      task_id: localTask.id,
-      ...failure,
-      error: message,
-    }));
-    await admin.from("video_tasks").update({
-      status: "failed",
-      progress: 0,
-      error_message: message,
-      provider_response: { ...failure, error: message },
-      updated_at: new Date().toISOString(),
-    }).eq("id", localTask.id);
-    await admin.from("video_segments").update({ status: "failed", updated_at: new Date().toISOString() })
-      .eq("id", segment.id).eq("owner_id", user.id);
-    return respond({ error: message, task_id: localTask.id, ...failure }, 200);
-  }
-
-  const arkElapsedMs = Date.now() - arkStartedAt;
-  const arkData = await parseJsonSafe(arkResponse);
-  console.info(JSON.stringify({
-    event: "ark_submit_response",
-    task_id: localTask.id,
-    ark_http_status: arkResponse.status,
-    elapsed_ms: arkElapsedMs,
-    provider_task_id: arkData?.id || null,
-  }));
-
-  if (!arkResponse.ok || !arkData?.id) {
-    const arkMessage = parseArkMessage(arkData);
-    console.error(JSON.stringify({
-      event: "ark_submit_rejected",
-      task_id: localTask.id,
-      ark_error_code: "ARK_SUBMIT_HTTP_ERROR",
-      ark_phase: "ark_create_task",
-      ark_http_status: arkResponse.status,
-      elapsed_ms: arkElapsedMs,
-      error: arkMessage,
-    }));
-    await admin.from("video_tasks").update({
-      status: "failed",
-      progress: 0,
-      error_message: arkMessage,
-      provider_response: arkData,
-      updated_at: new Date().toISOString(),
-    }).eq("id", localTask.id);
-
-    await admin.from("video_segments").update({ status: "failed", updated_at: new Date().toISOString() })
-      .eq("id", segment.id).eq("owner_id", user.id);
-
-    return respond({
-      error: `Ark提交失败：${arkMessage}`,
-      task_id: localTask.id,
-      ark_http_status: arkResponse.status,
-      ark_response: arkData,
-      ark_error_code: "ARK_SUBMIT_HTTP_ERROR",
-      ark_phase: "ark_create_task",
-      elapsed_ms: arkElapsedMs,
-      retryable: false,
-    }, 200);
-  }
-
-  const providerTaskId = String(arkData.id);
-
-  await admin.from("video_tasks").update({
-    provider_task_id: providerTaskId,
-    status: "queued",
-    progress: 20,
-    provider_response: arkData,
-    updated_at: new Date().toISOString(),
-  }).eq("id", localTask.id);
-
-  await admin.from("video_segments").update({ status: "queued", updated_at: new Date().toISOString() })
-    .eq("id", segment.id).eq("owner_id", user.id);
 
   return respond({
     success: true,
+    submission_pending: true,
     status: "queued",
-    progress: 20,
+    progress: 10,
     task_id: localTask.id,
-    provider_task_id: providerTaskId,
+    provider_task_id: null,
     project_id: segment.project_id,
     segment_id: segment.id,
   });

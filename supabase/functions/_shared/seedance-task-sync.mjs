@@ -2,6 +2,31 @@ import { normalizeArkResult } from './seedance-status-core.mjs';
 
 const ACTIVE = new Set(['submitting', 'submitted', 'queued', 'running', 'processing']);
 
+async function holdCompletionUntilDrive(task, output, adapter, nowIso) {
+  if (!output || output.storage_status === 'completed') return null;
+  const storageStatus = String(output.storage_status || 'pending').toLowerCase();
+  const patch = {
+    status: 'processing',
+    progress: 99,
+    error_message: null,
+    completed_at: null,
+    updated_at: nowIso,
+  };
+  if (typeof adapter.updateTask === 'function') await adapter.updateTask(task.id, patch);
+  if (task.segment_id && typeof adapter.updateSegment === 'function') {
+    await adapter.updateSegment(task.segment_id, task.owner_id, {
+      status: 'processing',
+      updated_at: nowIso,
+    });
+  }
+  return {
+    status: 'processing',
+    progress: 99,
+    errorMessage: '',
+    output: { ...output, storage_status: storageStatus },
+  };
+}
+
 export async function syncTaskFromArk(task, arkPayload, adapter, nowIso = new Date().toISOString()) {
   const result = normalizeArkResult(arkPayload, task.progress);
   if (result.status === 'unknown' && ACTIVE.has(String(task.status || '').toLowerCase())) {
@@ -22,6 +47,10 @@ export async function syncTaskFromArk(task, arkPayload, adapter, nowIso = new Da
       });
       output = { ...output, ...(drive || {}) };
     }
+    const driveGate = result.status === 'succeeded'
+      ? await holdCompletionUntilDrive(task, output, adapter, nowIso)
+      : null;
+    if (driveGate) return { ...result, ...driveGate };
     return {
       ...result,
       status: persisted.status,
@@ -103,5 +132,9 @@ export async function syncTaskFromArk(task, arkPayload, adapter, nowIso = new Da
     output = { ...output, ...(drive || {}) };
   }
 
+  const driveGate = result.status === 'succeeded'
+    ? await holdCompletionUntilDrive(task, output, adapter, nowIso)
+    : null;
+  if (driveGate) return { ...result, ...driveGate };
   return { ...result, output };
 }

@@ -1,5 +1,6 @@
-export const ARK_CREATE_TIMEOUT_MS = 90_000;
+export const ARK_CREATE_TIMEOUT_MS = 120_000;
 export const STALE_UNBOUND_AFTER_MS = 10 * 60_000;
+export const MAX_ARK_SUBMIT_ATTEMPTS = 4;
 
 const ACTIVE_STATUSES = new Set([
   'submitting',
@@ -19,6 +20,20 @@ export function isStaleUnboundTask(task, nowMs = Date.now()) {
     nowMs - updatedAtMs > STALE_UNBOUND_AFTER_MS;
 }
 
+export function hasQueuedArkPayload(task) {
+  const payload = task?.request_payload?.ark_payload;
+  return Boolean(payload && typeof payload === 'object' && !Array.isArray(payload));
+}
+
+export function arkSubmitAttemptCount(task) {
+  const n = Number(task?.provider_response?.ark_submit_attempts || 0);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+}
+
+export function shouldRetryArkSubmit(task, retryable) {
+  return Boolean(retryable) && arkSubmitAttemptCount(task) < MAX_ARK_SUBMIT_ATTEMPTS;
+}
+
 export function staleUnboundFailurePayload() {
   return {
     status: 'failed',
@@ -36,7 +51,7 @@ export function existingSubmissionResult(task) {
     provider_task_id: providerTaskId || null,
     project_id: task?.project_id || null,
     segment_id: task?.segment_id || null,
-    status: task?.status || 'submitting',
+    status: task?.status || 'queued',
     progress: Number(task?.progress || 0),
     retryable: false,
     idempotent_replay: true,
@@ -44,7 +59,7 @@ export function existingSubmissionResult(task) {
   if (providerTaskId) return { ...base, success: true };
   return {
     ...base,
-    success: false,
-    error: 'Submission already accepted; provider_task_id binding is pending or failed. Ark create request was not repeated.',
+    success: true,
+    submission_pending: true,
   };
 }

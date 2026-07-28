@@ -4,10 +4,14 @@ import { syncOutputToGoogleDrive, providerVideoUrlFromPayload, googleDriveConfig
 import { mapWithConcurrency } from "../_shared/seedance-worker-batch.mjs";
 import {
   STALE_UNBOUND_AFTER_MS,
+  arkSubmitAttemptCount,
+  hasQueuedArkPayload,
+  shouldRetryArkSubmit,
   staleUnboundFailurePayload,
 } from "../_shared/seedance-submit-policy.mjs";
+import { createArkTask } from "../_shared/seedance-ark-submit.mjs";
 
-const BUILD = "20260728-worker-google-drive-v5";
+const BUILD = "20260728-worker-async-ark-drive-v7";
 const ACTIVE_STATUSES = ["queued", "running", "processing", "submitting", "submitted"];
 const MAX_BATCH = 25;
 
@@ -111,6 +115,103 @@ function databaseAdapter(admin: any) {
   };
 }
 
+async function processQueuedArkSubmission(admin: any, task: any, arkKey: string) {
+  const arkPayload = task?.request_payload?.ark_payload;
+  if (!hasQueuedArkPayload(task)) {
+    return { task_id: task.id, status: task.status, skipped: "ARK_PAYLOAD_MISSING" };
+  }
+
+  const attempt = arkSubmitAttemptCount(task) + 1;
+  const nowIso = new Date().toISOString();
+  const { data: claimed, error: claimError } = await admin.from("video_tasks").update({
+    status: "submitting",
+    progress: 12,
+    error_message: null,
+    provider_response: {
+      ...(task.provider_response || {}),
+      ark_submit_attempts: attempt,
+      submission_phase: "ark_create_task",
+      ark_submit_started_at: nowIso,
+    },
+    updated_at: nowIso,
+  }).eq("id", task.id)
+    .eq("status", "queued")
+    .is("provider_task_id", null)
+    .select("*")
+    .maybeSingle();
+
+  if (claimError) throw new Error("ARK_SUBMIT_CLAIM_FAILED: " + claimError.message);
+  if (!claimed) return { task_id: task.id, status: task.status, skipped: "ALREADY_CLAIMED" };
+
+  try {
+    const created = await createArkTask(arkKey, arkPayload);
+    const providerResponse = {
+      ...(created.data || {}),
+      ark_submit_attempts: attempt,
+      submission_phase: "provider_task_bound",
+      ark_http_status: created.httpStatus,
+      ark_submit_elapsed_ms: created.elapsedMs,
+    };
+    const updatedAt = new Date().toISOString();
+    const { error: taskError } = await admin.from("video_tasks").update({
+      provider_task_id: created.providerTaskId,
+      status: "queued",
+      progress: 20,
+      error_message: null,
+      provider_response: providerResponse,
+      updated_at: updatedAt,
+    }).eq("id", task.id).is("provider_task_id", null);
+    if (taskError) throw new Error("ARK_PROVIDER_BIND_FAILED: " + taskError.message);
+
+    if (task.segment_id) {
+      await admin.from("video_segments").update({ status: "queued", updated_at: updatedAt })
+        .eq("id", task.segment_id).eq("owner_id", task.owner_id);
+    }
+    return {
+      task_id: task.id,
+      provider_task_id: created.providerTaskId,
+      status: "queued",
+      progress: 20,
+      ark_submit_attempts: attempt,
+      elapsed_ms: created.elapsedMs,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const retry = shouldRetryArkSubmit(
+      { ...task, provider_response: { ...(task.provider_response || {}), ark_submit_attempts: attempt } },
+      error?.retryable !== false,
+    );
+    const nextStatus = retry ? "queued" : "failed";
+    const updatedAt = new Date().toISOString();
+    await admin.from("video_tasks").update({
+      status: nextStatus,
+      progress: retry ? 10 : 0,
+      error_message: retry ? null : message,
+      provider_response: {
+        ...(task.provider_response || {}),
+        ark_submit_attempts: attempt,
+        submission_phase: retry ? "retry_queued" : "failed",
+        ark_submit_last_error: message,
+        ark_http_status: Number(error?.httpStatus || 0),
+        ark_submit_last_at: updatedAt,
+      },
+      updated_at: updatedAt,
+    }).eq("id", task.id).is("provider_task_id", null);
+    if (task.segment_id) {
+      await admin.from("video_segments").update({ status: nextStatus, updated_at: updatedAt })
+        .eq("id", task.segment_id).eq("owner_id", task.owner_id);
+    }
+    return {
+      task_id: task.id,
+      provider_task_id: null,
+      status: nextStatus,
+      retryable: retry,
+      ark_submit_attempts: attempt,
+      error_message: message,
+    };
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return json({ error: "METHOD_NOT_ALLOWED" }, 405);
 
@@ -161,6 +262,16 @@ Deno.serve(async (req: Request) => {
 
   const staleResults = await mapWithConcurrency(staleTasks, 3, async (task: any) => {
     try {
+      if (hasQueuedArkPayload(task)) {
+        const { error } = await admin.from("video_tasks").update({
+          status: "queued",
+          progress: 10,
+          error_message: null,
+          updated_at: new Date().toISOString(),
+        }).eq("id", task.id).is("provider_task_id", null);
+        if (error) throw new Error(error.message);
+        return { task_id: task.id, status: "queued", recovered_stale_submission: true };
+      }
       const result = await syncTaskFromArk(task, staleUnboundFailurePayload(), adapter);
       return {
         task_id: task.id,
@@ -179,6 +290,27 @@ Deno.serve(async (req: Request) => {
       };
     }
   });
+
+  let submitResults: any[] = [];
+  if (!requestedProviderTaskId) {
+    const { data: queuedTasks, error: queuedError } = await admin.from("video_tasks").select("*")
+      .eq("status", "queued")
+      .is("provider_task_id", null)
+      .order("created_at", { ascending: true })
+      .limit(Math.min(limit, 3));
+    if (queuedError) return json({ error: "QUEUED_SUBMISSION_SCAN_FAILED", detail: queuedError.message }, 500);
+    submitResults = await mapWithConcurrency(queuedTasks || [], 1, async (task: any) => {
+      try {
+        return await processQueuedArkSubmission(admin, task, arkKey);
+      } catch (error) {
+        return {
+          task_id: task.id,
+          status: task.status,
+          retryable_error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    });
+  }
 
   let taskQuery = admin.from("video_tasks").select("*")
     .in("status", ACTIVE_STATUSES)
@@ -258,12 +390,13 @@ Deno.serve(async (req: Request) => {
     }
   });
 
-  const allResults = [...staleResults, ...results];
+  const allResults = [...staleResults, ...submitResults, ...results];
   return json({
     ok: true,
-    scanned: staleTasks.length + (tasks || []).length,
+    scanned: staleTasks.length + submitResults.length + (tasks || []).length,
     updated: allResults.filter(item => !item.retryable_error).length,
     stale_recovered: staleResults.filter(item => !item.retryable_error).length,
+    ark_submissions: submitResults,
     drive_scanned: driveCandidates.length,
     drive_completed: driveResults.filter((item: any) => item.storage_status === "completed").length,
     google_drive_config: googleDriveConfigStatus(),

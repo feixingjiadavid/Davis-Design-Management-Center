@@ -1,5 +1,5 @@
-const PRODUCTION_BUILD = '20260728-failed-resubmit-r7';
-const ORIGINAL_BUILD = '20260728-failed-resubmit-r7';
+const PRODUCTION_BUILD = '20260728-async-ark-drive-consistency-r8';
+const ORIGINAL_BUILD = '20260728-async-ark-drive-consistency-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
 function r5FetchVideoBlobThroughProxy(output) {
@@ -1253,6 +1253,15 @@ export function patchV46Source(source, { supabaseUrl, dbUrl }) {
 `;
   if (!patched.includes(modeSwitchBlock)) throw new Error('无法定位旧模式切换事件');
   patched = patched.replace(modeSwitchBlock, '');
+
+  patched = patched.replace(
+    "      if (!data.task_id || !data.provider_task_id) throw new Error(data.error || 'Seedance 提交接口没有返回 task_id / provider_task_id');",
+    "      if (!data.task_id) throw new Error(data.error || 'Seedance 提交接口没有返回 task_id');"
+  );
+  patched = patched.replace(
+    "      segment.providerTaskId = data.provider_task_id;",
+    "      segment.providerTaskId = data.provider_task_id || null;"
+  );
 
   const generateSignature = 'async function generateSegments(segmentIds) {';
   patched = patched.replace(generateSignature, 'async function generateSegments(segmentIds, options = {}) {');
