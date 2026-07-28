@@ -5,11 +5,13 @@ import {
 } from './prompt-optimizer-core.js';
 import { analyzeAllImages } from './vision-analysis-policy.mjs';
 
-const BUILD = '20260728-davis-video-optimizer-v6';
+const BUILD = '20260728-davis-video-optimizer-v7';
 const FUNCTION_NAME = 'seedance-prompt-optimize';
 const VISION_FUNCTION_NAME = 'seedance-vision-analyze';
 const VISION_TIMEOUT_MS = 45000;
 const OPTIMIZE_TIMEOUT_MS = 30000;
+const MAX_VISION_IMAGE_EDGE = 1800;
+const MAX_VISION_PAYLOAD_BYTES = 1800000;
 
 let activeTextarea = null;
 let currentResult = null;
@@ -431,16 +433,84 @@ function blobToDataUrl(blob) {
   });
 }
 
-async function imageSourceForVision(src) {
-  if (src.startsWith('data:image/')) return src;
-  if (src.startsWith('http://') || src.startsWith('https://')) return src;
-  if (!src.startsWith('blob:')) throw new Error('图片地址格式不受支持');
+function dataUrlByteLength(dataUrl) {
+  const base64 = String(dataUrl || '').split(',')[1] || '';
+  return Math.floor((base64.length * 3) / 4);
+}
 
-  const response = await withTimeout(fetch(src), 8000, '读取本地图片超时');
+function blobToImageElement(blob) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('读取视觉分析图片失败'));
+    };
+    image.src = url;
+  });
+}
+
+function canvasToVisionBlob(canvas, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      blob => blob ? resolve(blob) : reject(new Error('压缩视觉分析图片失败')),
+      'image/jpeg',
+      quality,
+    );
+  });
+}
+
+async function compactVisionImage(blob) {
+  if (!(blob instanceof Blob) || !blob.type.startsWith('image/')) {
+    throw new Error('当前素材不是图片');
+  }
+
+  const direct = await blobToDataUrl(blob);
+  if (dataUrlByteLength(direct) <= MAX_VISION_PAYLOAD_BYTES) return direct;
+
+  const image = await blobToImageElement(blob);
+  const sourceWidth = image.naturalWidth || image.width;
+  const sourceHeight = image.naturalHeight || image.height;
+  if (!sourceWidth || !sourceHeight) throw new Error('无法读取视觉分析图片尺寸');
+
+  let maxEdge = MAX_VISION_IMAGE_EDGE;
+  let quality = 0.88;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const scale = Math.min(1, maxEdge / Math.max(sourceWidth, sourceHeight));
+    const width = Math.max(1, Math.round(sourceWidth * scale));
+    const height = Math.max(1, Math.round(sourceHeight * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('浏览器无法创建图片压缩画布');
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, width, height);
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
+    context.drawImage(image, 0, 0, width, height);
+    const compactBlob = await canvasToVisionBlob(canvas, quality);
+    const dataUrl = await blobToDataUrl(compactBlob);
+    if (dataUrlByteLength(dataUrl) <= MAX_VISION_PAYLOAD_BYTES) return dataUrl;
+    maxEdge = Math.max(900, Math.round(maxEdge * 0.82));
+    quality = Math.max(0.62, quality - 0.08);
+  }
+  throw new Error('图片分析副本仍然过大，请重新选择图片');
+}
+
+async function imageSourceForVision(src) {
+  if (src.startsWith('http://') || src.startsWith('https://')) return src;
+  if (!src.startsWith('blob:') && !src.startsWith('data:image/')) {
+    throw new Error('图片地址格式不受支持');
+  }
+
+  const response = await withTimeout(fetch(src), 12000, '读取本地图片超时');
   if (!response.ok) throw new Error(`读取本地图片失败：HTTP ${response.status}`);
-  const blob = await response.blob();
-  if (!blob.type.startsWith('image/')) throw new Error('当前素材不是图片');
-  return blobToDataUrl(blob);
+  return compactVisionImage(await response.blob());
 }
 
 function withTimeout(promise, timeoutMs, message) {
