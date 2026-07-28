@@ -3,18 +3,17 @@ import {
   buildOptimizationPayload,
   missingReferenceTokens,
 } from './prompt-optimizer-core.js';
+import { analyzeAllImages } from './vision-analysis-policy.mjs';
 
-const BUILD = '20260728-davis-video-optimizer-v5';
+const BUILD = '20260728-davis-video-optimizer-v6';
 const FUNCTION_NAME = 'seedance-prompt-optimize';
 const VISION_FUNCTION_NAME = 'seedance-vision-analyze';
-const MAX_VISION_IMAGES = 3;
 const VISION_TIMEOUT_MS = 45000;
 const OPTIMIZE_TIMEOUT_MS = 30000;
 
 let activeTextarea = null;
 let currentResult = null;
 let requestSerial = 0;
-let visionSkipResolver = null;
 const visionCache = new Map();
 
 function byId(id) {
@@ -155,7 +154,7 @@ function ensureModal() {
             <label class="ai-prompt-mode-card" data-optimizer-mode-card="vision">
               <input type="radio" name="ai-prompt-mode" id="ai-prompt-mode-vision" value="vision">
               <strong>图片精细优化</strong>
-              <span>先由千问并行理解最多 3 张代表图片，再由 DeepSeek 结合文字精细优化。</span>
+              <span>先由千问分批理解当前项目的全部图片，全部成功后再由 DeepSeek 结合文字精细优化。</span>
               <em>画面理解</em>
             </label>
           </div>
@@ -208,7 +207,6 @@ function ensureModal() {
           <div class="ai-prompt-progress"><i id="ai-prompt-progress-fill"></i></div>
           <div class="ai-prompt-status" id="ai-prompt-status">请选择优化方式。</div>
         </div>
-        <button type="button" class="ai-prompt-skip" id="ai-prompt-skip-vision" hidden>跳过图片理解</button>
       </div>
 
       <footer class="ai-prompt-actions">
@@ -224,7 +222,6 @@ function ensureModal() {
   byId('ai-prompt-cancel').onclick = closeModal;
   byId('ai-prompt-run').onclick = () => runOptimization();
   byId('ai-prompt-use').onclick = applyResult;
-  byId('ai-prompt-skip-vision').onclick = requestVisionSkip;
 
   modal.querySelectorAll('input[name="ai-prompt-mode"]').forEach(input => {
     input.addEventListener('change', handleOptimizationModeChange);
@@ -400,19 +397,17 @@ function currentReferences() {
 
 function visibleImageCandidates() {
   const mode = activeMode();
+  const activeViewId = document.querySelector('.view.active')?.id || '';
   const selectors = mode === 'text_only'
     ? ['#reference-video-preview img']
-    : ['#quick-timeline img', '#editor-timeline img'];
+    : [activeViewId === 'view-quick' ? '#quick-timeline img' : '#editor-timeline img'];
 
-  const seen = new Set();
   const images = [];
-
   selectors.forEach(selector => {
     document.querySelectorAll(selector).forEach((img, index) => {
       const src = String(img.currentSrc || img.src || '').trim();
-      if (!src || seen.has(src)) return;
+      if (!src) return;
       if (src.startsWith('data:video/') || src.startsWith('data:audio/')) return;
-      seen.add(src);
       images.push({
         src,
         label: String(
@@ -424,17 +419,7 @@ function visibleImageCandidates() {
       });
     });
   });
-
-  return representativeImages(images, MAX_VISION_IMAGES);
-}
-
-function representativeImages(images, maxCount) {
-  if (!Array.isArray(images) || images.length <= maxCount) return images || [];
-  if (maxCount <= 1) return [images[0]];
-  if (maxCount === 2) return [images[0], images[images.length - 1]];
-
-  const indexes = new Set([0, Math.floor((images.length - 1) / 2), images.length - 1]);
-  return [...indexes].sort((a, b) => a - b).map(index => images[index]);
+  return images;
 }
 
 function blobToDataUrl(blob) {
@@ -506,118 +491,77 @@ async function analyzeSingleImage(candidate, index) {
   return result;
 }
 
-function requestVisionSkip() {
-  if (!visionSkipResolver) return;
-  visionSkipResolver();
-  visionSkipResolver = null;
-  setStatus('已跳过图片理解，正在改用文字快速优化…');
-  setProgress(55);
-}
-
 async function analyzeImagesForPrompt(serial) {
   const candidates = visibleImageCandidates();
   if (!candidates.length) {
     setVisionState(
-      '没有找到可用于视觉理解的图片，已自动降级为文字快速优化。',
-      'warning',
+      '当前项目没有可用于视觉理解的图片，无法执行图片精细优化。',
+      'error',
       '0/0',
     );
-    return {
-      context: null,
-      warnings: ['当前项目没有可用于视觉理解的图片，已按文字快速优化。'],
-    };
+    throw new Error('没有找到可理解的图片，请先确认项目图片已正常加载');
   }
 
-  let completed = 0;
   setVisionState(
-    `千问正在并行理解 ${candidates.length} 张代表图片，单张最长等待 45 秒。`,
+    `千问将理解全部 ${candidates.length} 张图片；并发 3 张，每张最多尝试 3 次。`,
     'running',
     `0/${candidates.length}`,
   );
   setStatus(`千问视觉理解进行中：0/${candidates.length}`);
   setProgress(18);
 
-  const skipButton = byId('ai-prompt-skip-vision');
-  if (skipButton) skipButton.hidden = false;
+  let completed = 0;
+  try {
+    const results = await analyzeAllImages(
+      candidates,
+      async (candidate, index) => analyzeSingleImage(candidate, index),
+      {
+        concurrency: 3,
+        attempts: 3,
+        retryDelay: ({ attempt }) => attempt * 600,
+        onProgress: ({ completed: done, total }) => {
+          completed = done;
+          if (serial !== requestSerial) return;
+          setVisionState(
+            '千问正在理解全部画面的主体、构图、光影和镜头信息。',
+            'running',
+            `${done}/${total}`,
+          );
+          setStatus(`千问视觉理解进行中：${done}/${total}`);
+          setProgress(18 + Math.round((done / total) * 34));
+        },
+      },
+    );
 
-  const tasks = candidates.map((candidate, index) => (
-    analyzeSingleImage(candidate, index).finally(() => {
-      completed += 1;
-      if (serial !== requestSerial) return;
-      setVisionState(
-        `千问正在理解画面主体、构图、光影和镜头信息。`,
-        'running',
-        `${completed}/${candidates.length}`,
-      );
-      setStatus(`千问视觉理解进行中：${completed}/${candidates.length}`);
-      setProgress(18 + Math.round((completed / candidates.length) * 34));
-    })
-  ));
-
-  const analysisPromise = Promise.allSettled(tasks);
-  const skipPromise = new Promise(resolve => {
-    visionSkipResolver = () => resolve({ skipped: true });
-  });
-
-  const outcome = await Promise.race([analysisPromise, skipPromise]);
-  visionSkipResolver = null;
-  if (skipButton) skipButton.hidden = true;
-
-  if (serial !== requestSerial) return { cancelled: true, context: null, warnings: [] };
-  if (outcome?.skipped) {
+    if (serial !== requestSerial) return { cancelled: true, context: null, warnings: [] };
     setVisionState(
-      '已跳过千问视觉理解，正在改用文字快速优化。',
-      'warning',
-      `${completed}/${candidates.length}`,
+      `千问已完成全部 ${results.length} 张图片理解，正在交给 DeepSeek 精细优化。`,
+      'ok',
+      `${results.length}/${candidates.length}`,
     );
     return {
-      context: null,
-      warnings: ['用户已跳过图片视觉理解，本次按文字快速优化。'],
-      skipped: true,
+      context: {
+        source: 'qwen-vl-plus',
+        image_count: results.length,
+        images: results,
+      },
+      warnings: [],
     };
-  }
-
-  const successful = [];
-  const failures = [];
-  outcome.forEach((result, index) => {
-    if (result.status === 'fulfilled' && result.value?.analysis) {
-      successful.push(result.value);
-    } else {
-      failures.push(
-        result.reason?.message ||
-        `${candidates[index]?.label || `图片${index + 1}`}视觉理解失败`,
-      );
-    }
-  });
-
-  const warnings = failures.length
-    ? [`${failures.length} 张图片未能完成视觉理解，已自动跳过，不影响文字优化。`]
-    : [];
-
-  if (!successful.length) {
-    warnings.push('图片视觉理解不可用，本次已自动降级为文字快速优化。');
+  } catch (error) {
+    if (serial !== requestSerial) return { cancelled: true, context: null, warnings: [] };
+    const failures = Array.isArray(error?.failures) ? error.failures : [];
+    const detail = failures.length
+      ? failures.map(item => `${item.name}（已尝试 ${item.attempts} 次）：${item.reason}`).join('；')
+      : (error?.message || '图片视觉理解失败');
     setVisionState(
-      '千问视觉理解未返回有效结果，已自动降级为文字优化。',
-      'warning',
-      `0/${candidates.length}`,
+      `图片理解未全部完成：${detail}`,
+      'error',
+      `${completed}/${candidates.length}`,
     );
-    return { context: null, warnings };
+    const strictError = new Error(`图片理解失败，未进入 DeepSeek：${detail}`);
+    strictError.failures = failures;
+    throw strictError;
   }
-
-  setVisionState(
-    `千问已完成 ${successful.length} 张图片理解，正在交给 DeepSeek 精细优化。`,
-    'ok',
-    `${successful.length}/${candidates.length}`,
-  );
-
-  return {
-    context: {
-      source: 'qwen-vl-plus',
-      image_count: successful.length,
-      images: successful,
-    },
-    warnings,
-  };
 }
 
 function contextFor(textarea) {
@@ -689,8 +633,6 @@ async function runOptimization() {
       if (visionResult?.context) payload.vision_context = visionResult.context;
       if (Array.isArray(visionResult?.warnings)) extraWarnings.push(...visionResult.warnings);
     } else {
-      const skipButton = byId('ai-prompt-skip-vision');
-      if (skipButton) skipButton.hidden = true;
       setVisionState('', '', '');
       setStatus('正在根据文字、项目参数和素材引用快速优化…');
     }
@@ -742,15 +684,15 @@ async function runOptimization() {
     setProgress(100);
     setStatus(error?.message || String(error), 'error');
     renderList('ai-prompt-changes', [], '本次优化未完成');
+    const failureWarnings = Array.isArray(error?.failures)
+      ? error.failures.map(item => `${item.name}：${item.reason}（${item.attempts} 次均失败）`)
+      : extraWarnings;
     renderList(
       'ai-prompt-warnings',
-      extraWarnings,
+      failureWarnings,
       '请检查 DeepSeek API Key、余额、网络或 Edge Function 状态后重试',
     );
   } finally {
-    visionSkipResolver = null;
-    const skipButton = byId('ai-prompt-skip-vision');
-    if (skipButton) skipButton.hidden = true;
     setBusy(false);
   }
 }
@@ -775,8 +717,6 @@ function applyResult() {
 
 function closeModal() {
   requestSerial += 1;
-  if (visionSkipResolver) visionSkipResolver();
-  visionSkipResolver = null;
   const modal = byId('ai-prompt-modal');
   if (modal) modal.hidden = true;
   document.body.classList.remove('ai-prompt-open');

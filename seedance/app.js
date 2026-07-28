@@ -1,6 +1,87 @@
-const PRODUCTION_BUILD = '20260728-async-ark-drive-consistency-r8';
-const ORIGINAL_BUILD = '20260728-async-ark-drive-consistency-r8';
+const PRODUCTION_BUILD = '20260728-full-vision-versioned-resubmit-r9';
+const ORIGINAL_BUILD = '20260728-failed-resubmit-r7';
 const ORIGINAL_FILE = './app-v46.js';
+
+async function r6ExistingProjectNames() {
+  if (!state.user?.id) throw new Error('用户会话已失效，无法分配新版本名称');
+  const { data, error } = await supabase
+    .from('video_projects')
+    .select('name')
+    .eq('owner_id', state.user.id)
+    .limit(2000);
+  if (error) throw new Error(`读取云端项目版本失败：${errorMessage(error)}`);
+  return (data || []).map(row => String(row?.name || '').trim()).filter(Boolean);
+}
+
+async function r6ForkCurrentDraftForSubmit(segmentIds) {
+  const source = state.draft;
+  const marker = source?.pendingVersionFork;
+  if (!source || !marker || marker.sourceDraftId !== source.id) return null;
+
+  const remoteNames = await r6ExistingProjectNames();
+  const localNames = (state.drafts || []).map(draft => draft?.name).filter(Boolean);
+  const nextName = nextProjectVersionName(source.name, [...localNames, ...remoteNames]);
+  const fork = migrateDraftWorkspaces(cloneDraftAsVersion(source, nextName, uid, Date.now()));
+  const original = marker.sourceSnapshot
+    ? migrateDraftWorkspaces(r5Clone(marker.sourceSnapshot))
+    : source;
+  original.pendingVersionFork = null;
+  await saveDraft(original);
+  const sourceIndex = state.drafts.findIndex(item => item.id === source.id);
+  if (sourceIndex >= 0) state.drafts[sourceIndex] = original;
+
+  await saveDraft(fork);
+  state.drafts = [fork, ...state.drafts.filter(item => item.id !== fork.id)];
+  state.draft = fork;
+  bindCurrentWorkspace();
+  normalizeSegments(state.draft);
+
+  const requestedIds = Array.isArray(segmentIds) ? segmentIds : [];
+  const selectedIds = requestedIds.filter(id => state.draft.segments.some(segment => segment.id === id));
+  const fallbackId = marker.segmentId && state.draft.segments.some(segment => segment.id === marker.segmentId)
+    ? marker.segmentId
+    : state.draft.segments[0]?.id;
+  state.selectedSegmentId = selectedIds[0] || fallbackId || null;
+  saveCurrentWorkspaceSelection();
+  localStorage.setItem(LAST_SELECTED_DRAFT_KEY, fork.id);
+  await persist();
+  renderAll();
+  toast('已创建新版本', `${nextName} 已作为独立项目创建，原项目及历史视频保持不变。`);
+
+  return {
+    name: nextName,
+    segmentIds: selectedIds.length ? selectedIds : (fallbackId ? [fallbackId] : []),
+  };
+}
+
+async function r6ReEditSegment(segmentId) {
+  if (!segmentId) {
+    toast('无法定位片段', '这个输出没有找到对应片段，请在高级 Storyboard 中手动选择。');
+    setView('editor');
+    return;
+  }
+  const segment = state.draft.segments.find(item => item.id === segmentId || item.remoteTaskId === segmentId);
+  if (!segment) {
+    toast('无法定位片段', '当前工作区没有找到对应片段，请确认是否切换到了正确模式。');
+    setView('editor');
+    return;
+  }
+
+  const sourceSnapshot = r5Clone(state.draft);
+  sourceSnapshot.pendingVersionFork = null;
+  state.draft.pendingVersionFork = {
+    sourceDraftId: state.draft.id,
+    segmentId: segment.id,
+    requestedAt: Date.now(),
+    sourceSnapshot,
+  };
+  state.selectedSegmentId = segment.id;
+  saveCurrentWorkspaceSelection();
+  await persist();
+  setView('editor');
+  renderEditor();
+  toast('已回到编辑页', `调整完成后提交将自动创建 ${parseProjectVersion(state.draft.name).baseName} 的下一个 V-N 独立项目。`);
+}
 
 function r5FetchVideoBlobThroughProxy(output) {
   return (async () => {
@@ -1205,17 +1286,19 @@ function replaceSection(source, startMarker, endMarker, replacement) {
 ${source.slice(end)}`;
 }
 
-export function patchV46Source(source, { supabaseUrl, dbUrl }) {
+export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl }) {
   let patched = String(source || '');
   if (!patched.includes(ORIGINAL_BUILD)) throw new Error(`只支持 ${ORIGINAL_BUILD}，当前 app-v46.js 版本不匹配`);
   patched = patched.replace("from '../supabase-config.js'", `from '${supabaseUrl}'`)
-    .replace("from './db.js'", `from '${dbUrl}'`).replace(ORIGINAL_BUILD, PRODUCTION_BUILD);
+    .replace("from './db.js'", `from '${dbUrl}';\nimport { parseProjectVersion, nextProjectVersionName, cloneDraftAsVersion } from '${projectVersionUrl}'`)
+    .replace(ORIGINAL_BUILD, PRODUCTION_BUILD);
 
   const support = [r5ModeKey,r5ModeLabel,r5ModeSuffix,r5BaseProjectName,r5Clone,r5WorkspaceHasContent,r5CreateWorkspaceClone,
     r5BuildSplitDraft,r5MigrateDraftCollection,r5ContextSnapshot,r5ContextIsCurrent,r5ExactTaskIds,
     r53IsGenericProjectName,r53NormalizePrompt,r53PromptOverlap,r53ProjectCandidateScore,r5VerifyProjectId,
     r5ResolveFixedProject,r5TaskScore,r5OutputStableKey,r5CacheRequestUrl,r5ReadPersistentVideo,r5PrunePersistentVideoCache,
-    r5WritePersistentVideo,r5OpenCreateModal,r5CloseCreateModal,r5CreateProjectFromMode,r5WireCreateModal].map(fn => fn.toString()).join('\n\n');
+    r5WritePersistentVideo,r5OpenCreateModal,r5CloseCreateModal,r5CreateProjectFromMode,r5WireCreateModal,
+    r6ExistingProjectNames,r6ForkCurrentDraftForSubmit].map(fn => fn.toString()).join('\n\n');
 
   patched = patched.replace("const LAST_SELECTED_DRAFT_KEY = 'seedance_last_selected_draft_id_v1';",
     "const LAST_SELECTED_DRAFT_KEY = 'seedance_last_selected_draft_id_v1';\n\n" + support);
@@ -1234,6 +1317,7 @@ export function patchV46Source(source, { supabaseUrl, dbUrl }) {
   patched = replaceSection(patched, 'async function hydrateProxyVideoElements() {', 'function outputCardMarkup(', renamedFunction(r5HydrateProxyVideoElements, 'hydrateProxyVideoElements'));
   patched = replaceSection(patched, 'async function recoverLatestDriveOutputWhenEmpty(force = false) {', 'function renderJobs() {', renamedFunction(r5RecoverLatestDriveOutputWhenEmpty, 'recoverLatestDriveOutputWhenEmpty'));
   patched = replaceSection(patched, 'function renderJobs() {', 'function findSegmentIdByOutputIndex(', renamedFunction(r5RenderJobs, 'renderJobs'));
+  patched = replaceSection(patched, 'function reEditSegment(segmentId) {', 'function renderAll() {', renamedFunction(r6ReEditSegment, 'reEditSegment'));
   patched = replaceSection(patched, 'async function syncRemoteTasks() {', 'async function bindProviderTaskAndRecover(', renamedFunction(r5SyncRemoteTasks, 'syncRemoteTasks'));
   patched = replaceSection(patched, 'async function refreshJobs() {', 'async function loadOutputs() {', renamedFunction(r5RefreshJobs, 'refreshJobs'));
   patched = replaceSection(patched, 'async function loadOutputs() {', 'function startPolling() {', renamedFunction(r5LoadOutputs, 'loadOutputs'));
@@ -1265,6 +1349,13 @@ export function patchV46Source(source, { supabaseUrl, dbUrl }) {
 
   const generateSignature = 'async function generateSegments(segmentIds) {';
   patched = patched.replace(generateSignature, 'async function generateSegments(segmentIds, options = {}) {');
+  const generateStart = patched.indexOf('async function generateSegments(segmentIds, options = {}) {');
+  const generateEnd = patched.indexOf('\nasync function refreshSingleSegment(', generateStart);
+  if (generateStart < 0 || generateEnd < 0) throw new Error('无法定位 generateSegments 完整区段');
+  const generateSource = patched.slice(generateStart, generateEnd)
+    .replace('  const segments = state.draft.segments.filter(s => segmentIds.includes(s.id));',
+      '  let segments = state.draft.segments.filter(s => segmentIds.includes(s.id));');
+  patched = patched.slice(0, generateStart) + generateSource + patched.slice(generateEnd);
   const autoReset = `  let resetCount = 0;
   segments.forEach(segment => {
     if (prepareSegmentForEditorSubmit(segment)) resetCount += 1;
@@ -1276,7 +1367,7 @@ export function patchV46Source(source, { supabaseUrl, dbUrl }) {
     await persist();
   }
 `;
-  const guard = `  if (!options.allowResubmit) {
+  const guard = `  if (!options.allowResubmit && !state.draft?.pendingVersionFork) {
     await loadOutputs(false).catch(() => {});
     const retryableStatuses = new Set(['failed', 'cancelled', 'canceled']);
     const retryable = segments.filter(segment => {
@@ -1304,6 +1395,9 @@ export function patchV46Source(source, { supabaseUrl, dbUrl }) {
 `;
   if (!patched.includes(autoReset)) throw new Error('无法定位旧自动重置代码');
   patched = patched.replace(autoReset, guard);
+  const versionForkMarker = "  if (!await confirmBox('确认提交真实任务', `将提交 ${segments.length} 个视频片段。为避免 Ark 连接超时，多帧会逐段提交，可能产生 Ark API 费用。`)) return;";
+  if (!patched.includes(versionForkMarker)) throw new Error('无法定位版本分叉提交点');
+  patched = patched.replace(versionForkMarker, versionForkMarker + '\n' + "  if (state.draft?.pendingVersionFork) {\n    try {\n      const versionFork = await r6ForkCurrentDraftForSubmit(segmentIds);\n      if (versionFork) {\n        segmentIds = versionFork.segmentIds;\n        segments = state.draft.segments.filter(segment => segmentIds.includes(segment.id));\n        options = { ...options, allowResubmit: false, versionForked: true };\n        if (!segments.length) return toast('无法创建新版本任务', '新版本中没有找到要提交的片段。');\n      }\n    } catch (error) {\n      console.error('[Davis Video Studio] version fork failed', error);\n      return toast('新版本创建失败', errorMessage(error, '无法创建独立版本，请稍后重试'));\n    }\n  }");
   patched = patched.replace("    segments.forEach(s => { s.status = 'preparing'; s.progress = 1; s.error = null; s.remoteTaskId = null; s.providerTaskId = null; s.remoteSegmentId = null; s.outputPath = null; });",
     "    segments.forEach(s => { s.status = 'preparing'; s.progress = 1; s.error = null; if (options.allowResubmit) { s.remoteTaskId = null; s.providerTaskId = null; s.remoteSegmentId = null; s.outputPath = null; } });");
   patched = patched.replace('  await generateSegments([segment.id]);', '  await generateSegments([segment.id], { allowResubmit: true });');
@@ -1316,10 +1410,11 @@ export async function bootProduction() {
   const originalUrl = new URL(`${ORIGINAL_FILE}?v=${ORIGINAL_BUILD}`, import.meta.url);
   const supabaseUrl = new URL('../supabase-config.js', import.meta.url).href;
   const dbUrl = new URL('./db.js', import.meta.url).href;
+  const projectVersionUrl = new URL('./project-version-policy.mjs', import.meta.url).href;
   const response = await fetch(originalUrl, { cache: 'no-store' });
   if (!response.ok) throw new Error(`读取 app-v46.js 失败：HTTP ${response.status}`);
   const source = await response.text();
-  const patched = patchV46Source(source, { supabaseUrl, dbUrl });
+  const patched = patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl });
   const blobUrl = URL.createObjectURL(new Blob([patched], { type: 'text/javascript' }));
   try {
     await import(blobUrl);
