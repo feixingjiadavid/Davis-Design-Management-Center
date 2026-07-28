@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260728-version-sync-r11';
+const PRODUCTION_BUILD = '20260728-cloud-history-recovery-r12';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -1258,13 +1258,73 @@ async function r5RemoveProject() {
   else { renderProjects(); r5OpenCreateModal(); }
 }
 
+async function r11RestoreCloudDrafts(localDrafts) {
+  const drafts = Array.isArray(localDrafts) ? [...localDrafts] : [];
+  if (!state.user?.id) return drafts;
+
+  const { data, error } = await supabase
+    .from('video_projects')
+    .select('id,name,mode,created_at,updated_at')
+    .eq('owner_id', state.user.id)
+    .order('created_at', { ascending: false })
+    .limit(1000);
+
+  if (error) {
+    console.warn('[Davis Video R12] cloud project recovery skipped', error);
+    return drafts;
+  }
+
+  const boundProjectIds = new Set();
+  for (const draft of drafts) {
+    if (draft?.remoteProjectId) boundProjectIds.add(draft.remoteProjectId);
+    for (const workspace of Object.values(draft?.workspaces || {})) {
+      if (workspace?.remoteProjectId) boundProjectIds.add(workspace.remoteProjectId);
+      if (workspace?.bindingCandidateProjectId) boundProjectIds.add(workspace.bindingCandidateProjectId);
+    }
+  }
+
+  for (const project of data || []) {
+    if (!project?.id || boundProjectIds.has(project.id)) continue;
+    const mode = r5ModeKey(project.mode);
+    const draft = newDraft(mode, project.name || `云端 ${r5ModeLabel(mode)}项目`);
+    const workspace = draft.workspaces[mode];
+
+    draft.id = `cloud-${project.id}`;
+    draft.remoteProjectId = project.id;
+    draft.remoteProjectName = project.name || draft.name;
+    draft.createdAt = new Date(project.created_at || Date.now()).getTime();
+    draft.updatedAt = new Date(project.updated_at || project.created_at || Date.now()).getTime();
+    draft.cloudRecoveredProject = true;
+
+    workspace.remoteProjectId = project.id;
+    workspace.bindingCandidateProjectId = project.id;
+    workspace.remoteBindingSchema = 'r5.3';
+    workspace.remoteBindingVersion = 'r5.3';
+    workspace.remoteBindingLocked = true;
+    workspace.cloudSyncedAt = 0;
+    workspace.lastEmptySyncAt = 0;
+
+    try {
+      await saveDraft(draft);
+      drafts.push(draft);
+      boundProjectIds.add(project.id);
+    } catch (saveError) {
+      console.warn('[Davis Video R12] failed to cache cloud project', project.id, saveError);
+    }
+  }
+
+  return drafts.sort((a, b) =>
+    Number(b.createdAt || b.updatedAt || 0) - Number(a.createdAt || a.updatedAt || 0)
+  );
+}
+
 async function r5Init() {
   if (!await initSession()) return;
   wireEvents();
   r5WireCreateModal();
   enhanceCustomSelects();
   document.body.dataset.seedanceBuild = APP_BUILD;
-  state.drafts = await r5MigrateDraftCollection(await listDrafts());
+  state.drafts = await r11RestoreCloudDrafts(await r5MigrateDraftCollection(await listDrafts()));
   if (!state.drafts.length) { renderProjects(); r5OpenCreateModal(); return; }
   const last = localStorage.getItem(LAST_SELECTED_DRAFT_KEY);
   const initial = state.drafts.find(d => d.id === last) || orderedDrafts()[0];
@@ -1435,7 +1495,7 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl }
     r5ResolveFixedProject,r5TaskScore,r5OutputStableKey,r5CacheRequestUrl,r5ReadPersistentVideo,r5PrunePersistentVideoCache,
     r5WritePersistentVideo,r5OpenCreateModal,r5CloseCreateModal,r5CreateProjectFromMode,r5WireCreateModal,
     r6ExistingProjectNames,r6ForkCurrentDraftForSubmit,r10StableUploadPlan,r10ApplyFrameBinding,
-    r10SubmissionContext,r10AssertContext,r10RecoverFrameBindings,r10RecoverOrphan].map(fn => fn.toString()).join('\n\n');
+    r10SubmissionContext,r10AssertContext,r10RecoverFrameBindings,r10RecoverOrphan,r11RestoreCloudDrafts].map(fn => fn.toString()).join('\n\n');
 
   patched = patched.replace("const LAST_SELECTED_DRAFT_KEY = 'seedance_last_selected_draft_id_v1';",
     "const LAST_SELECTED_DRAFT_KEY = 'seedance_last_selected_draft_id_v1';\n\n" + support);
