@@ -1433,6 +1433,24 @@
             return '';
         }
 
+        function getLatestSubmissionImageUrl(historyArr = globalHistoryArr, fallbackUrl = globalTaskData?.design_img_url) {
+            for (let i = (historyArr || []).length - 1; i >= 0; i--) {
+                const candidate = String(historyArr[i]?.img_url || '').trim();
+                if (candidate) return candidate;
+            }
+            return String(fallbackUrl || '').trim();
+        }
+
+        function getSubmissionImageUrl(sub) {
+            const directUrl = String(sub?.img_url || '').trim();
+            if (directUrl) return directUrl;
+
+            const history = globalHistoryArr || [];
+            const currentIndex = history.indexOf(sub);
+            const earlierHistory = history.slice(0, currentIndex >= 0 ? currentIndex : history.length);
+            return getLatestSubmissionImageUrl(earlierHistory, globalTaskData?.design_img_url);
+        }
+
         async function resolveDesignImageUrl(imgUrl, filePath) {
             const fallbackUrl = String(imgUrl || '').trim();
             const path = String(filePath || '').trim() || extractDesignFilePath(fallbackUrl);
@@ -1879,7 +1897,7 @@
                     `;
                 }
 
-                const imgPublicUrl = sub.img_url || '';
+                const imgPublicUrl = getSubmissionImageUrl(sub);
                 const imgFilePath = sub.img_file_path || sub.design_file_path || extractDesignFilePath(imgPublicUrl);
                 const safeImgPublicUrl = escapeAttr(imgPublicUrl);
                 const safeImgFilePath = escapeAttr(imgFilePath);
