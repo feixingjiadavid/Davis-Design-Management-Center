@@ -1,6 +1,27 @@
-const PRODUCTION_BUILD = '20260728-cloud-history-recovery-r12';
+const PRODUCTION_BUILD = '20260728-versioned-submit-r13';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
+
+function r13MarkVersionForkForSubmit(segmentIds) {
+  const draft = state.draft;
+  if (!draft) return false;
+  const requestedIds = Array.isArray(segmentIds) ? segmentIds.filter(Boolean) : [];
+  const sourceSnapshot = r5Clone(draft);
+  sourceSnapshot.pendingVersionFork = null;
+  const segmentId = requestedIds.find(id => draft.segments?.some(segment => segment.id === id))
+    || draft.segments?.[0]?.id
+    || null;
+
+  draft.pendingVersionFork = {
+    sourceDraftId: draft.id,
+    segmentId,
+    requestedSegmentIds: requestedIds,
+    requestedAt: Date.now(),
+    initiatedBy: 'generate-submit',
+    sourceSnapshot,
+  };
+  return true;
+}
 
 async function r6ExistingProjectNames() {
   if (!state.user?.id) throw new Error('用户会话已失效，无法分配新版本名称');
@@ -1495,7 +1516,7 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl }
     r5ResolveFixedProject,r5TaskScore,r5OutputStableKey,r5CacheRequestUrl,r5ReadPersistentVideo,r5PrunePersistentVideoCache,
     r5WritePersistentVideo,r5OpenCreateModal,r5CloseCreateModal,r5CreateProjectFromMode,r5WireCreateModal,
     r6ExistingProjectNames,r6ForkCurrentDraftForSubmit,r10StableUploadPlan,r10ApplyFrameBinding,
-    r10SubmissionContext,r10AssertContext,r10RecoverFrameBindings,r10RecoverOrphan,r11RestoreCloudDrafts].map(fn => fn.toString()).join('\n\n');
+    r10SubmissionContext,r10AssertContext,r10RecoverFrameBindings,r10RecoverOrphan,r11RestoreCloudDrafts,r13MarkVersionForkForSubmit].map(fn => fn.toString()).join('\n\n');
 
   patched = patched.replace("const LAST_SELECTED_DRAFT_KEY = 'seedance_last_selected_draft_id_v1';",
     "const LAST_SELECTED_DRAFT_KEY = 'seedance_last_selected_draft_id_v1';\n\n" + support);
@@ -1583,8 +1604,11 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl }
       segmentHasExistingTask(segment)
       || (state.outputs || []).some(output => Number(output.index) === Number(segment.index))
     ));
-    if (existing.length) return toast('已阻止重复提交', '当前独立项目已经存在任务或视频。需要新版本时，请明确点击重新提交。');
-    if (retryable.length) {
+    if (existing.length) {
+      r13MarkVersionForkForSubmit(segmentIds);
+      toast('将创建新版本', '当前项目已有任务或视频；确认提交后会自动创建新的 V-N 独立项目，原历史保持不变。');
+    }
+    if (!existing.length && retryable.length) {
       retryable.forEach(resetSegmentForNewSubmit);
       state.outputs = (state.outputs || []).filter(isOutputCurrentForSegment);
       saveCurrentWorkspaceSelection();
