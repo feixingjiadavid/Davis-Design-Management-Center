@@ -1,7 +1,7 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260723-google-drive-only-output-v46';
+const APP_BUILD = '20260728-google-drive-only-r6';
 const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v5-blackbar-2p49-force-reupload';
 const SEEDANCE_VIDEO_PROXY_URL = 'https://supffjeeouibhqdfqosk.supabase.co/functions/v1/seedance-video-proxy';
 console.log('[Seedance Studio]', APP_BUILD);
