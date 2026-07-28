@@ -426,6 +426,15 @@ Deno.serve(async (req: Request) => {
 
   if (!arkResponse.ok || !arkData?.id) {
     const arkMessage = parseArkMessage(arkData);
+    console.error(JSON.stringify({
+      event: "ark_submit_rejected",
+      task_id: localTask.id,
+      ark_error_code: "ARK_SUBMIT_HTTP_ERROR",
+      ark_phase: "ark_create_task",
+      ark_http_status: arkResponse.status,
+      elapsed_ms: arkElapsedMs,
+      error: arkMessage,
+    }));
     await admin.from("video_tasks").update({
       status: "failed",
       progress: 0,
