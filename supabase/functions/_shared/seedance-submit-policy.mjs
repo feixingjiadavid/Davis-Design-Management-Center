@@ -1,5 +1,5 @@
 export const ARK_CREATE_TIMEOUT_MS = 120_000;
-export const STALE_UNBOUND_AFTER_MS = 10 * 60_000;
+export const STALE_UNBOUND_AFTER_MS = 2 * 60_000;
 export const MAX_ARK_SUBMIT_ATTEMPTS = 4;
 
 const ACTIVE_STATUSES = new Set([
