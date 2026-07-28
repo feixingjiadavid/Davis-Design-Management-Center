@@ -1011,11 +1011,12 @@
             if(!initRBAC()) return;
             try {
                 // 1. 获取所有纯净的底层账号列表 (users 表)
-                const { data: baseUsers, error: uErr } = await window.supabase.from(window.DB_USERS_TABLE).select('email');
+                const { data: baseUsers, error: uErr } = await window.supabase.from(window.DB_USERS_TABLE).select('email, disabled');
                 if(uErr) throw uErr;
                 
                 // 2. 获取所有的权限花名册配置 (org_members 表)
                 const { data: orgData, error: oErr } = await window.supabase.from(window.DB_ORG_TABLE).select('*');
+                if(oErr) throw oErr;
                 
                 let orgMap = {};
                 if (orgData) {
@@ -1028,6 +1029,10 @@
                     if (!email) return;
                     const enNameKey = email.split('@')[0].toLowerCase();
                     if (!enNameKey) return;
+
+                    const orgMember = orgMap[enNameKey];
+                    if (row.disabled || orgMember?.disabled) return;
+
 
                     // A. 基础兜底设定
                     let finalName = enNameKey;
@@ -1232,35 +1237,30 @@
                 return customAlert('系统保护', '您不能在后台注销正在使用的超管账号卡片！', null, false, 'warning');
             }
 
-            customConfirm('业务隔离移除', `确定要在系统后台注销成员 <span class="text-rose-500 font-bold">[ ${displayName} ]</span> 的卡片吗？<br><br><b>此操作将移除该人在 org_members 中的配置，并尝试隐藏他的登录。</b>`, async () => {
-                
+            customConfirm('业务隔离移除', `确定要注销成员 <span class="text-rose-500 font-bold">[ ${displayName} ]</span> 的系统权限吗？<br><br><b>确认后将封禁登录账号、清空模块权限，并从成员列表隐藏。</b>`, async () => {
                 try {
-                    // 安全版：不再前端 delete 用户/成员，改为“软移除”
-                    // RLS 会禁止前端 delete，避免被攻击者批量删成员。
-                    const { error: disableErr } = await window.supabase
-                        .from(window.DB_ORG_TABLE)
-                        .update({
-                            display_name: `${displayName}（已停用）`,
-                            perms: [],
-                            disabled: true
-                        })
-                        .eq('en_name', enName);
+                    const { data, error } = await window.supabase.functions.invoke('admin-disable-user', {
+                        body: { en_name: enName }
+                    });
 
-                    if (disableErr) {
-                        // 如果表里还没有 disabled 字段，则退化为只清空权限，不影响现有系统。
-                        const { error: fallbackErr } = await window.supabase
-                            .from(window.DB_ORG_TABLE)
-                            .update({
-                                display_name: `${displayName}（已停用）`,
-                                perms: []
-                            })
-                            .eq('en_name', enName);
-                        if (fallbackErr) throw fallbackErr;
+                    if (error) {
+                        let message = error.message || '服务端注销失败';
+                        try {
+                            const detail = await error.context?.json();
+                            message = detail?.error || detail?.message || message;
+                        } catch (_) {}
+                        throw new Error(message);
+                    }
+                    if (!data?.ok || data?.disabled !== true) {
+                        throw new Error(data?.error || '服务端未确认账号已停用');
                     }
 
-                    showToast('已软移除', '该成员权限已清空，不再直接删除数据库记录。', 'success');
-                    window.loadUsersFromCloud();
-                } catch(e) { customAlert('注销失败', e.message, null, false, 'error'); }
+                    showToast('注销成功', `${displayName} 的登录与系统权限已停用。`, 'success');
+                    await window.loadUsersFromCloud();
+                } catch(e) {
+                    console.error('[admin-disable-user]', e);
+                    customAlert('注销失败', e.message, null, false, 'error');
+                }
             });
         }
 
