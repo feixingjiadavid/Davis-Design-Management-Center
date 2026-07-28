@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260728-unique-project-name-r14';
+const PRODUCTION_BUILD = '20260729-file-drop-upload-r15';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -10,6 +10,53 @@ function r14ProjectNameExists(name, existingNames) {
   const normalized = r14NormalizeProjectName(name);
   if (!normalized) return false;
   return (existingNames || []).some(existing => r14NormalizeProjectName(existing) === normalized);
+}
+
+function r15HasFilePayload(event) {
+  const transfer = event?.dataTransfer;
+  if (!transfer) return false;
+  const types = Array.from(transfer.types || []);
+  if (types.includes('Files')) return true;
+  return Array.from(transfer.items || []).some(item => item?.kind === 'file');
+}
+
+function r15WireFileDropzone(zone, onFiles) {
+  if (!zone || typeof onFiles !== 'function') return;
+
+  const hold = event => {
+    if (!r15HasFilePayload(event)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+    zone.classList.add('drag');
+  };
+  const release = event => {
+    if (!r15HasFilePayload(event)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    zone.classList.remove('drag');
+  };
+
+  zone.addEventListener('dragenter', hold);
+  zone.addEventListener('dragover', hold);
+  zone.addEventListener('dragleave', event => {
+    if (event.relatedTarget && zone.contains(event.relatedTarget)) return;
+    release(event);
+  });
+  zone.addEventListener('drop', event => {
+    release(event);
+    const files = Array.from(event.dataTransfer?.files || []);
+    if (files.length) void onFiles(files);
+  });
+}
+
+function r15PreventDocumentFileNavigation() {
+  const prevent = event => {
+    if (!r15HasFilePayload(event)) return;
+    event.preventDefault();
+  };
+  document.addEventListener('dragover', prevent);
+  document.addEventListener('drop', prevent);
 }
 
 function r13MarkVersionForkForSubmit(segmentIds) {
@@ -1543,7 +1590,7 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl }
     r5ResolveFixedProject,r5TaskScore,r5OutputStableKey,r5CacheRequestUrl,r5ReadPersistentVideo,r5PrunePersistentVideoCache,
     r5WritePersistentVideo,r5OpenCreateModal,r5CloseCreateModal,r5CreateProjectFromMode,r5WireCreateModal,
     r6ExistingProjectNames,r6ForkCurrentDraftForSubmit,r10StableUploadPlan,r10ApplyFrameBinding,
-    r10SubmissionContext,r10AssertContext,r10RecoverFrameBindings,r10RecoverOrphan,r11RestoreCloudDrafts,r13MarkVersionForkForSubmit,r14NormalizeProjectName,r14ProjectNameExists].map(fn => fn.toString()).join('\n\n');
+    r10SubmissionContext,r10AssertContext,r10RecoverFrameBindings,r10RecoverOrphan,r11RestoreCloudDrafts,r13MarkVersionForkForSubmit,r14NormalizeProjectName,r14ProjectNameExists,r15HasFilePayload,r15WireFileDropzone,r15PreventDocumentFileNavigation].map(fn => fn.toString()).join('\n\n');
 
   patched = patched.replace("const LAST_SELECTED_DRAFT_KEY = 'seedance_last_selected_draft_id_v1';",
     "const LAST_SELECTED_DRAFT_KEY = 'seedance_last_selected_draft_id_v1';\n\n" + support);
@@ -1651,6 +1698,15 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl }
   patched = patched.replace(versionForkMarker, versionForkMarker + '\n' + "  if (state.draft?.pendingVersionFork) {\n    try {\n      const versionFork = await r6ForkCurrentDraftForSubmit(segmentIds);\n      if (versionFork) {\n        segmentIds = versionFork.segmentIds;\n        segments = state.draft.segments.filter(segment => segmentIds.includes(segment.id));\n        options = { ...options, allowResubmit: false, versionForked: true };\n        if (!segments.length) return toast('无法创建新版本任务', '新版本中没有找到要提交的片段。');\n      }\n    } catch (error) {\n      console.error('[Davis Video Studio] version fork failed', error);\n      return toast('新版本创建失败', errorMessage(error, '无法创建独立版本，请稍后重试'));\n    }\n  }");
   patched = patched.replace("    segments.forEach(s => { s.status = 'preparing'; s.progress = 1; s.error = null; s.remoteTaskId = null; s.providerTaskId = null; s.remoteSegmentId = null; s.outputPath = null; });",
     "    segments.forEach(s => { s.status = 'preparing'; s.progress = 1; s.error = null; s.submissionStartedAt = Date.now(); if (options.allowResubmit) { s.remoteTaskId = null; s.providerTaskId = null; s.remoteSegmentId = null; s.outputPath = null; } });");
+  const fileDropEvents = `  const zone = $('upload-zone');
+  ['dragenter','dragover'].forEach(type => zone.addEventListener(type, event => { event.preventDefault(); zone.classList.add('drag'); }));
+  ['dragleave','drop'].forEach(type => zone.addEventListener(type, event => { event.preventDefault(); zone.classList.remove('drag'); }));
+  zone.addEventListener('drop', event => addFiles(event.dataTransfer.files));`;
+  if (!patched.includes(fileDropEvents)) throw new Error('无法定位文件拖放事件绑定');
+  patched = patched.replace(fileDropEvents, `  const zone = $('upload-zone');
+  r15WireFileDropzone(zone, addFiles);
+  r15WireFileDropzone($('reference-video-card'), addReferenceVideo);
+  r15PreventDocumentFileNavigation();`);
   patched = patched.replace('  await generateSegments([segment.id]);', '  await generateSegments([segment.id], { allowResubmit: true });');
   return `${patched}
 //# sourceURL=seedance/app-production-runtime.js
