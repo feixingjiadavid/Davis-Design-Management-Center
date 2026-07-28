@@ -1,5 +1,5 @@
-const PRODUCTION_BUILD = '20260728-submit-recovery-r10';
-const ORIGINAL_BUILD = '20260728-failed-resubmit-r7';
+const PRODUCTION_BUILD = '20260728-version-sync-r11';
+const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
 async function r6ExistingProjectNames() {
