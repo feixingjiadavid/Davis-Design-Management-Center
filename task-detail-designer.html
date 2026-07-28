@@ -1140,6 +1140,24 @@
             return '';
         }
 
+        function getLatestSubmissionImageUrl(historyArr = globalHistoryArr, fallbackUrl = globalTaskData?.design_img_url) {
+            for (let i = (historyArr || []).length - 1; i >= 0; i--) {
+                const candidate = String(historyArr[i]?.img_url || '').trim();
+                if (candidate) return candidate;
+            }
+            return String(fallbackUrl || '').trim();
+        }
+
+        function getSubmissionImageUrl(sub) {
+            const directUrl = String(sub?.img_url || '').trim();
+            if (directUrl) return directUrl;
+
+            const history = globalHistoryArr || [];
+            const currentIndex = history.indexOf(sub);
+            const earlierHistory = history.slice(0, currentIndex >= 0 ? currentIndex : history.length);
+            return getLatestSubmissionImageUrl(earlierHistory, globalTaskData?.design_img_url);
+        }
+
         async function resolveDesignImageUrl(imgUrl, filePath) {
             const fallbackUrl = String(imgUrl || '').trim();
             const path = String(filePath || '').trim() || extractDesignFilePath(fallbackUrl);
@@ -1645,11 +1663,12 @@ async function fetchTaskData() {
                     let href = sub.source_link.trim(); if(!href.match(/^https?:\/\//i) && !href.startsWith('//')) href = 'http://' + href;
                     sourceLinkHtml = `<a href="${href}" target="_blank" class="mt-3 inline-flex items-center gap-1.5 text-[11px] text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1.5 rounded-lg hover:bg-indigo-500/20 transition-colors w-fit btn-press"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg> 提取提交的源文件</a>`;
                 }
+                const effectiveImgUrl = getSubmissionImageUrl(sub);
                 html += `
                     <div class="bg-[#16161d] border border-white/5 rounded-2xl p-5 relative overflow-hidden flex gap-6 hover:border-${badgeCol}-500/30 transition-colors group shadow-md">
                         <div class="absolute right-0 top-0 bg-${badgeCol}-500/10 text-${badgeCol}-500 text-[10px] font-bold px-3 py-1 rounded-bl-xl border-b border-l border-${badgeCol}-500/20">${badgeTxt}</div>
-                        <div class="w-[280px] aspect-video bg-[#09090b] rounded-xl border border-white/10 overflow-hidden relative shadow-inner p-1 flex items-center justify-center shrink-0 cursor-pointer" data-design-public-url="${escapeAttr(sub.img_url || '')}" data-design-file-path="${escapeAttr(sub.img_file_path || sub.design_file_path || '')}" onclick="openPreviewSigned(this)">
-                            <img src="${escapeAttr(sub.img_url || '')}" data-design-public-url="${escapeAttr(sub.img_url || '')}" data-design-file-path="${escapeAttr(sub.img_file_path || sub.design_file_path || '')}" onerror="this.style.display='none'; this.parentElement.querySelector('.img-broken-tip')?.classList.remove('hidden');" class="max-w-full max-h-full object-contain group-hover:scale-[1.02] transition-transform">
+                        <div class="w-[280px] aspect-video bg-[#09090b] rounded-xl border border-white/10 overflow-hidden relative shadow-inner p-1 flex items-center justify-center shrink-0 cursor-pointer" data-design-public-url="${escapeAttr(effectiveImgUrl)}" data-design-file-path="${escapeAttr(sub.img_file_path || sub.design_file_path || '')}" onclick="openPreviewSigned(this)">
+                            <img src="${escapeAttr(effectiveImgUrl)}" data-design-public-url="${escapeAttr(effectiveImgUrl)}" data-design-file-path="${escapeAttr(sub.img_file_path || sub.design_file_path || '')}" onerror="this.style.display='none'; this.parentElement.querySelector('.img-broken-tip')?.classList.remove('hidden');" class="max-w-full max-h-full object-contain group-hover:scale-[1.02] transition-transform">
                             <div class="img-broken-tip hidden text-center text-zinc-500 text-[12px] px-4">
                                 <div class="text-2xl mb-2">🖼️</div>
                                 <div class="font-bold text-zinc-400 mb-1">预览图加载失败</div>
@@ -2180,7 +2199,7 @@ async function fetchTaskData() {
             const btn = document.getElementById('btn-submit-design'); const btnOriginalText = btn.innerHTML;
             btn.disabled = true; btn.innerText = "🚀 压缩并同步到云端...";
 
-            let finalCloudUrl = '';
+            let finalCloudUrl = currentUploadPhase === 'draft' ? getLatestSubmissionImageUrl() : '';
             if (tempFileBlob) {
                 let fileToUpload = tempFileBlob;
                 try { fileToUpload = await compressImage(tempFileBlob, 1600, 0.7); } catch(e) {}
