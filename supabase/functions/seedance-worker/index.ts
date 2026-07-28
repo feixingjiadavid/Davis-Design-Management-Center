@@ -218,7 +218,7 @@ Deno.serve(async (req: Request) => {
   const nowMs = Date.now();
   const { data: driveRows, error: driveScanError } = await admin.from("video_outputs").select("*")
     .in("storage_status", ["pending", "failed", "uploading"])
-    .order("storage_updated_at", { ascending: true })
+    .order("created_at", { ascending: false })
     .limit(Math.min(limit * 3, 50));
   const driveCandidates = (driveRows || []).filter((row: any) => {
     const status = String(row.storage_status || "pending").toLowerCase();
