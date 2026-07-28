@@ -1996,9 +1996,36 @@ async function ensureRemoteProject() {
   return result.data.id;
 }
 
+async function recoverRemoteFrameAsset(frame, projectId, order) {
+  const existing = await withTimeout(
+    supabase.from('video_assets')
+      .select('id,object_path,mime_type,file_size,width,height')
+      .eq('owner_id', state.user.id)
+      .eq('project_id', projectId)
+      .eq('kind', 'frame')
+      .eq('sort_order', order)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    TIMEOUTS.database,
+    `查找已上传图片 ${order + 1}`,
+  );
+  if (existing.error) throw new Error(`查找已上传图片 ${order + 1} 失败：${errorMessage(existing.error)}`);
+  if (!existing.data?.id || !existing.data?.object_path) return false;
+  frame.remoteAssetId = existing.data.id;
+  frame.remotePath = existing.data.object_path;
+  frame.type = frame.type || existing.data.mime_type || 'image/png';
+  frame.size = frame.size || existing.data.file_size || 0;
+  frame.uploadWidth = existing.data.width || frame.width || null;
+  frame.uploadHeight = existing.data.height || frame.height || null;
+  frame.arkSafeVersion = IMAGE_SAFE_VERSION;
+  return true;
+}
+
 async function uploadFrame(frame, projectId, order) {
   if (frame.remoteAssetId && frame.remotePath && frame.arkSafeVersion === IMAGE_SAFE_VERSION) return frame;
-  if (!(frame.blob instanceof Blob)) throw new Error(`图片“${frame.name}”的本地文件已丢失，请重新上传`);
+  if (await recoverRemoteFrameAsset(frame, projectId, order)) return frame;
+  await restoreRemoteFrameBlob(frame);
 
   const safeFrame = await makeArkSafeFrameBlob(frame);
   const safeNameBase = String(frame.name || 'frame.png').replace(/\.[^.]+$/, '').replace(/[^\w.\-]+/g,'_').slice(-90) || 'frame';
