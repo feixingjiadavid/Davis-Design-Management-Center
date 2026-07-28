@@ -4,7 +4,7 @@ import {
   existingSubmissionResult,
 } from "../_shared/seedance-submit-policy.mjs";
 
-const BUILD = "20260727-submit-idempotent-v36";
+const BUILD = "20260728-submit-timeout-diagnostics-v43";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -54,6 +54,19 @@ function parseArkMessage(payload: any): string {
     payload?.error ||
     JSON.stringify(payload),
   );
+}
+
+function arkSubmitFailureDetails(error: unknown, elapsedMs: number) {
+  const message = error instanceof Error ? error.message : String(error);
+  const isTimeout = message.includes("ark-submit-timeout") ||
+    message.toLowerCase().includes("operation timed out") ||
+    message.toLowerCase().includes("timed out");
+  return {
+    ark_error_code: isTimeout ? "ARK_SUBMIT_TIMEOUT" : "ARK_SUBMIT_NETWORK_ERROR",
+    ark_phase: "ark_create_task",
+    elapsed_ms: Math.max(0, Math.round(elapsedMs)),
+    retryable: true,
+  };
 }
 
 async function parseJsonSafe(response: Response): Promise<any> {
@@ -367,19 +380,49 @@ Deno.serve(async (req: Request) => {
     return_last_frame: false,
   };
 
+  const arkStartedAt = Date.now();
+  console.info(JSON.stringify({
+    event: "ark_submit_started",
+    task_id: localTask.id,
+    model,
+    generation_mode: requestPayloadForRecord.generation_mode,
+    asset_count: content.filter((item: any) => item.type !== "text").length,
+    timeout_ms: ARK_CREATE_TIMEOUT_MS,
+  }));
+
   let arkResponse: Response;
   try {
     arkResponse = await fetchArkCreateTask(arkApiKey, arkPayload);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    await admin.from("video_tasks").update({ status: "failed", progress: 0, error_message: message, updated_at: new Date().toISOString() })
-      .eq("id", localTask.id);
+    const failure = arkSubmitFailureDetails(error, Date.now() - arkStartedAt);
+    console.error(JSON.stringify({
+      event: "ark_submit_failed",
+      task_id: localTask.id,
+      ...failure,
+      error: message,
+    }));
+    await admin.from("video_tasks").update({
+      status: "failed",
+      progress: 0,
+      error_message: message,
+      provider_response: { ...failure, error: message },
+      updated_at: new Date().toISOString(),
+    }).eq("id", localTask.id);
     await admin.from("video_segments").update({ status: "failed", updated_at: new Date().toISOString() })
       .eq("id", segment.id).eq("owner_id", user.id);
-    return respond({ error: message, task_id: localTask.id, retryable: true }, 200);
+    return respond({ error: message, task_id: localTask.id, ...failure }, 200);
   }
 
+  const arkElapsedMs = Date.now() - arkStartedAt;
   const arkData = await parseJsonSafe(arkResponse);
+  console.info(JSON.stringify({
+    event: "ark_submit_response",
+    task_id: localTask.id,
+    ark_http_status: arkResponse.status,
+    elapsed_ms: arkElapsedMs,
+    provider_task_id: arkData?.id || null,
+  }));
 
   if (!arkResponse.ok || !arkData?.id) {
     const arkMessage = parseArkMessage(arkData);
@@ -399,6 +442,9 @@ Deno.serve(async (req: Request) => {
       task_id: localTask.id,
       ark_http_status: arkResponse.status,
       ark_response: arkData,
+      ark_error_code: "ARK_SUBMIT_HTTP_ERROR",
+      ark_phase: "ark_create_task",
+      elapsed_ms: arkElapsedMs,
       retryable: false,
     }, 200);
   }
