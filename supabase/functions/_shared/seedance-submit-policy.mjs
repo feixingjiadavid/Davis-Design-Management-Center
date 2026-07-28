@@ -1,4 +1,4 @@
-export const ARK_CREATE_TIMEOUT_MS = 45_000;
+export const ARK_CREATE_TIMEOUT_MS = 90_000;
 export const STALE_UNBOUND_AFTER_MS = 10 * 60_000;
 
 const ACTIVE_STATUSES = new Set([
