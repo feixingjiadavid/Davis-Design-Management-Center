@@ -122,7 +122,23 @@
             const { data, error } = await window.supabase.auth.signInWithPassword({ email: realEmail, password: pwd });
 
             if (error) {
-                alert("账号或密码错误！");
+                const errorText = String(error.message || '').toLowerCase();
+                const isDisabled = error.code === 'user_banned' || errorText.includes('banned');
+                alert(isDisabled ? "账号已停用，请联系系统管理员。" : "账号或密码错误！");
+                btn.innerText = "进入控制台";
+                btn.disabled = false;
+                return;
+            }
+
+            const { data: accountState, error: accountStateError } = await window.supabase
+                .from('users')
+                .select('disabled')
+                .eq('id', data.user.id)
+                .maybeSingle();
+
+            if (accountStateError || accountState?.disabled) {
+                await window.supabase.auth.signOut({ scope: 'local' });
+                alert(accountStateError ? "无法验证账号状态，请稍后重试。" : "账号已停用，请联系系统管理员。");
                 btn.innerText = "进入控制台";
                 btn.disabled = false;
                 return;
