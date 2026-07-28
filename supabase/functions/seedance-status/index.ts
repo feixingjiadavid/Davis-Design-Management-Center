@@ -1,7 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { syncTaskFromArk } from "../_shared/seedance-task-sync.mjs";
+import { syncOutputToGoogleDrive, googleDriveConfigStatus } from "../_shared/seedance-drive.mjs";
 
-const BUILD = "20260727-status-terminal-mapping-v43";
+const BUILD = "20260728-status-google-drive-v45";
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -104,6 +105,9 @@ function databaseAdapter(admin: any, ownerId: string) {
       if (error) throw new Error("video_outputs update failed: " + error.message);
       return data;
     },
+    async syncOutputToDrive(outputId: string, context: Record<string, unknown>) {
+      return await syncOutputToGoogleDrive(admin, outputId, { ...context, ownerId });
+    },
   };
 }
 
@@ -180,9 +184,12 @@ Deno.serve(async (req: Request) => {
       status: result.status,
       progress: result.progress,
       error_message: result.errorMessage || null,
-      video_url_ready: Boolean(result.videoUrl),
-      video_url: result.videoUrl || null,
+      video_url_ready: result.output?.storage_status === "completed",
       output_id: result.output?.id || null,
+      storage_status: result.output?.storage_status || (result.status === "succeeded" ? "pending" : null),
+      google_drive_file_id: result.output?.google_drive_file_id || null,
+      google_drive_url: result.output?.google_drive_url || null,
+      google_drive_config: googleDriveConfigStatus(),
     });
   } catch (error) {
     return json({
