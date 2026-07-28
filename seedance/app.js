@@ -1,15 +1,13 @@
-const PRODUCTION_BUILD = '20260724-single-project-single-mode-r5-4-output-render-fix';
-const ORIGINAL_BUILD = '20260723-google-drive-only-output-v46';
+const PRODUCTION_BUILD = '20260728-google-drive-only-r6';
+const ORIGINAL_BUILD = '20260728-google-drive-only-r6';
 const ORIGINAL_FILE = './app-v46.js';
 
 function r5FetchVideoBlobThroughProxy(output) {
   return (async () => {
     const outputId = output?.outputId || output?.row?.id || '';
-    const providerTaskId = output?.providerTaskId || '';
-    const taskId = output?.taskId || '';
-    const driveFileId = output?.row?.metadata?.google_drive_file_id || output?.googleDriveFileId || '';
+    const driveFileId = output?.row?.google_drive_file_id || output?.row?.metadata?.google_drive_file_id || output?.googleDriveFileId || '';
 
-    if (!outputId && !driveFileId && !providerTaskId && !taskId) {
+    if (!outputId && !driveFileId) {
       throw new Error('缺少 output_id / Google Drive file_id，无法通过代理拉取视频');
     }
 
@@ -17,8 +15,6 @@ function r5FetchVideoBlobThroughProxy(output) {
     const params = new URLSearchParams();
     if (outputId) params.set('output_id', outputId);
     if (driveFileId) params.set('google_drive_file_id', driveFileId);
-    if (providerTaskId) params.set('provider_task_id', providerTaskId);
-    if (taskId) params.set('task_id', taskId);
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 120000);
@@ -503,7 +499,7 @@ async function r5ResolveFixedProject(snapshot) {
       .eq('owner_id', state.user.id)
       .in('project_id', candidateIds),
     supabase.from('video_outputs')
-      .select('id,project_id,task_id,segment_id,metadata,created_at')
+      .select('id,project_id,task_id,segment_id,metadata,google_drive_file_id,google_drive_url,google_drive_thumbnail_url,storage_status,status,created_at')
       .eq('owner_id', state.user.id)
       .in('project_id', candidateIds),
   ]);
@@ -901,34 +897,20 @@ function r5LoadOutputs(force = false) {
     }
     workspace.selectedSegmentId = state.selectedSegmentId;
 
-    const currentTime = Date.now();
     const bySegment = new Map();
 
     for (const row of rows) {
       if (row.project_id !== projectId) continue;
       const meta = row.metadata || {};
       const providerTaskId = providerTaskIdFromOutputRow(row, meta);
-      const googleDriveFileId = meta.google_drive_file_id || meta.googleDriveFileId || meta.drive_file_id || meta.driveFileId || null;
-      const driveStatus = String(meta.google_drive_backup_status || '').toLowerCase();
-      const providerUrl = outputVideoUrlFromMetadata(meta);
-      const providerExpiry = Date.parse(meta.provider_video_url_expires_at || '');
-      const providerValid = Boolean(providerUrl) && (!Number.isFinite(providerExpiry) || providerExpiry > currentTime + 60_000);
+      const googleDriveFileId = row.google_drive_file_id || meta.google_drive_file_id || meta.googleDriveFileId || meta.drive_file_id || meta.driveFileId || null;
+      const driveStatus = String(row.storage_status || row.status || meta.google_drive_backup_status || '').toLowerCase();
 
       let url = '';
       let storageMode = '';
-      if (googleDriveFileId && driveStatus !== 'failed') {
+      if (googleDriveFileId && driveStatus === 'completed') {
         url = `seedance-proxy://${row.id || googleDriveFileId}`;
         storageMode = 'google-drive-proxy';
-      } else if (providerValid) {
-        url = `seedance-proxy://${row.id || providerTaskId}`;
-        storageMode = 'ark-proxy';
-      } else if (row.storage_path && row.bucket_id && row.bucket_id !== 'ark-url') {
-        const signed = await supabase.storage.from(row.bucket_id).createSignedUrl(row.storage_path, 3600);
-        if (!current()) return;
-        if (!signed.error && signed.data?.signedUrl) {
-          url = signed.data.signedUrl;
-          storageMode = 'supabase';
-        }
       }
       if (!url) continue;
 
@@ -947,7 +929,7 @@ function r5LoadOutputs(force = false) {
 
       const chosenTask = chosenTaskByPosition.get(Number(position));
       let score = new Date(row.created_at || 0).getTime() || 0;
-      if (googleDriveFileId && driveStatus !== 'failed') score += 1_000_000_000_000;
+      if (googleDriveFileId && driveStatus === 'completed') score += 1_000_000_000_000;
       if (row.task_id && chosenTask?.id === row.task_id) score += 10_000_000_000_000;
       if (providerTaskId && chosenTask?.provider_task_id === providerTaskId) score += 10_000_000_000_000;
 
