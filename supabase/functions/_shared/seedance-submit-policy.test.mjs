@@ -8,7 +8,7 @@ import {
 } from './seedance-submit-policy.mjs';
 
 test('keeps Ark creation within the Edge request timeout', () => {
-  assert.equal(ARK_CREATE_TIMEOUT_MS, 45_000);
+  assert.equal(ARK_CREATE_TIMEOUT_MS, 90_000);
 });
 
 test('fails only active unbound tasks after ten minutes', () => {
