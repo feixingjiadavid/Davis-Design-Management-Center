@@ -1,5 +1,5 @@
-const PRODUCTION_BUILD = '20260728-google-drive-only-r6';
-const ORIGINAL_BUILD = '20260728-google-drive-only-r6';
+const PRODUCTION_BUILD = '20260728-failed-resubmit-r7';
+const ORIGINAL_BUILD = '20260728-failed-resubmit-r7';
 const ORIGINAL_FILE = './app-v46.js';
 
 function r5FetchVideoBlobThroughProxy(output) {
@@ -1269,8 +1269,28 @@ export function patchV46Source(source, { supabaseUrl, dbUrl }) {
 `;
   const guard = `  if (!options.allowResubmit) {
     await loadOutputs(false).catch(() => {});
-    const existing = segments.filter(segment => segmentHasExistingTask(segment) || (state.outputs || []).some(output => Number(output.index) === Number(segment.index)));
+    const retryableStatuses = new Set(['failed', 'cancelled', 'canceled']);
+    const retryable = segments.filter(segment => {
+      const status = String(segment?.status || '').toLowerCase();
+      const hasOutput = Boolean(
+        segment?.outputPath
+        || segment?.outputUrl
+        || (state.outputs || []).some(output => Number(output.index) === Number(segment.index))
+      );
+      return retryableStatuses.has(status) && !hasOutput;
+    });
+    const existing = segments.filter(segment => !retryable.includes(segment) && (
+      segmentHasExistingTask(segment)
+      || (state.outputs || []).some(output => Number(output.index) === Number(segment.index))
+    ));
     if (existing.length) return toast('已阻止重复提交', '当前独立项目已经存在任务或视频。需要新版本时，请明确点击重新提交。');
+    if (retryable.length) {
+      retryable.forEach(resetSegmentForNewSubmit);
+      state.outputs = (state.outputs || []).filter(isOutputCurrentForSegment);
+      saveCurrentWorkspaceSelection();
+      renderAll();
+      await persist();
+    }
   }
 `;
   if (!patched.includes(autoReset)) throw new Error('无法定位旧自动重置代码');
