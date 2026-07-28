@@ -11,7 +11,7 @@ import {
 } from "../_shared/seedance-submit-policy.mjs";
 import { createArkTask } from "../_shared/seedance-ark-submit.mjs";
 
-const BUILD = "20260728-worker-async-ark-drive-v7";
+const BUILD = "20260728-worker-submit-lease-v8";
 const ACTIVE_STATUSES = ["queued", "running", "processing", "submitting", "submitted"];
 const MAX_BATCH = 25;
 
@@ -144,7 +144,7 @@ async function processQueuedArkSubmission(admin: any, task: any, arkKey: string)
   if (!claimed) return { task_id: task.id, status: task.status, skipped: "ALREADY_CLAIMED" };
 
   try {
-    const created = await createArkTask(arkKey, arkPayload);
+    const created = await createArkTask(arkKey, arkPayload, { timeoutMs: 45_000 });
     const providerResponse = {
       ...(created.data || {}),
       ark_submit_attempts: attempt,
