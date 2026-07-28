@@ -1,6 +1,16 @@
-const PRODUCTION_BUILD = '20260728-versioned-submit-r13';
+const PRODUCTION_BUILD = '20260728-unique-project-name-r14';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
+
+function r14NormalizeProjectName(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim().toLocaleLowerCase('zh-CN');
+}
+
+function r14ProjectNameExists(name, existingNames) {
+  const normalized = r14NormalizeProjectName(name);
+  if (!normalized) return false;
+  return (existingNames || []).some(existing => r14NormalizeProjectName(existing) === normalized);
+}
 
 function r13MarkVersionForkForSubmit(segmentIds) {
   const draft = state.draft;
@@ -1227,7 +1237,24 @@ function r5CloseCreateModal() {
 async function r5CreateProjectFromMode(mode) {
   const key = r5ModeKey(mode);
   const inputName = String($('new-project-name')?.value || '').trim();
-  const draft = newDraft(key, inputName || `未命名 ${r5ModeSuffix(key)}项目`);
+  const displayName = inputName || `未命名 ${r5ModeSuffix(key)}项目`;
+
+  let remoteNames;
+  try {
+    remoteNames = await r6ExistingProjectNames();
+  } catch (error) {
+    toast('无法校验项目名称', errorMessage(error, '读取云端项目名称失败，请检查网络后重试'));
+    return;
+  }
+
+  const localNames = (state.drafts || []).map(draft => draft?.name).filter(Boolean);
+  if (r14ProjectNameExists(displayName, [...localNames, ...remoteNames])) {
+    toast('项目名称已存在', `“${displayName}”已经存在，请修改名称后再创建。`);
+    $('new-project-name')?.focus();
+    return;
+  }
+
+  const draft = newDraft(key, displayName);
   await saveDraft(draft);
   state.drafts.unshift(draft);
   r5CloseCreateModal();
@@ -1516,7 +1543,7 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl }
     r5ResolveFixedProject,r5TaskScore,r5OutputStableKey,r5CacheRequestUrl,r5ReadPersistentVideo,r5PrunePersistentVideoCache,
     r5WritePersistentVideo,r5OpenCreateModal,r5CloseCreateModal,r5CreateProjectFromMode,r5WireCreateModal,
     r6ExistingProjectNames,r6ForkCurrentDraftForSubmit,r10StableUploadPlan,r10ApplyFrameBinding,
-    r10SubmissionContext,r10AssertContext,r10RecoverFrameBindings,r10RecoverOrphan,r11RestoreCloudDrafts,r13MarkVersionForkForSubmit].map(fn => fn.toString()).join('\n\n');
+    r10SubmissionContext,r10AssertContext,r10RecoverFrameBindings,r10RecoverOrphan,r11RestoreCloudDrafts,r13MarkVersionForkForSubmit,r14NormalizeProjectName,r14ProjectNameExists].map(fn => fn.toString()).join('\n\n');
 
   patched = patched.replace("const LAST_SELECTED_DRAFT_KEY = 'seedance_last_selected_draft_id_v1';",
     "const LAST_SELECTED_DRAFT_KEY = 'seedance_last_selected_draft_id_v1';\n\n" + support);
