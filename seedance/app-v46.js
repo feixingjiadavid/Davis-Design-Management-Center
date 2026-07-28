@@ -1060,58 +1060,9 @@ function updateRatioTip() {
 
 
 
-function deepFindVideoUrl(value) {
-  if (!value) return '';
-  if (typeof value === 'string') {
-    const isHttp = /^https?:\/\//i.test(value);
-    const looksVideo = /\.(mp4|mov|webm)(\?|#|$)/i.test(value) || /video/i.test(value);
-    return isHttp && looksVideo ? value : '';
-  }
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      const found = deepFindVideoUrl(item);
-      if (found) return found;
-    }
-    return '';
-  }
-  if (typeof value === 'object') {
-    const priorityKeys = [
-      'video_url',
-      'file_url',
-      'output_url',
-      'download_url',
-      'url',
-      'signed_url',
-      'provider_video_url',
-    ];
-    for (const key of priorityKeys) {
-      if (key in value) {
-        const found = deepFindVideoUrl(value[key]);
-        if (found) return found;
-      }
-    }
-    for (const item of Object.values(value)) {
-      const found = deepFindVideoUrl(item);
-      if (found) return found;
-    }
-  }
-  return '';
-}
+function deepFindVideoUrl() { return ''; }
 
-function outputVideoUrlFromMetadata(meta = {}) {
-  return (
-    meta.provider_video_url ||
-    meta.video_url ||
-    meta.output_url ||
-    meta.download_url ||
-    meta.provider_url ||
-    meta.ark_response?.content?.video_url ||
-    meta.ark_response?.content?.file_url ||
-    meta.ark_response?.data?.content?.video_url ||
-    meta.ark_response?.data?.content?.file_url ||
-    deepFindVideoUrl(meta)
-  );
-}
+function outputVideoUrlFromMetadata() { return ''; }
 
 function providerTaskIdFromOutputRow(row, meta = {}) {
   return (
@@ -1210,11 +1161,9 @@ function outputKey(o) {
 
 async function fetchVideoBlobThroughProxy(output) {
   const outputId = output?.outputId || output?.row?.id || '';
-  const providerTaskId = output?.providerTaskId || '';
-  const taskId = output?.taskId || '';
-  const driveFileId = output?.row?.metadata?.google_drive_file_id || output?.googleDriveFileId || '';
+  const driveFileId = output?.row?.google_drive_file_id || output?.row?.metadata?.google_drive_file_id || output?.googleDriveFileId || '';
 
-  if (!outputId && !driveFileId && !providerTaskId && !taskId) {
+  if (!outputId && !driveFileId) {
     throw new Error('缺少 output_id / Google Drive file_id，无法通过代理拉取视频');
   }
 
@@ -1222,8 +1171,6 @@ async function fetchVideoBlobThroughProxy(output) {
   const params = new URLSearchParams();
   if (outputId) params.set('output_id', outputId);
   if (driveFileId) params.set('google_drive_file_id', driveFileId);
-  if (providerTaskId) params.set('provider_task_id', providerTaskId);
-  if (taskId) params.set('task_id', taskId);
 
   const response = await fetch(`${SEEDANCE_VIDEO_PROXY_URL}?${params.toString()}`, {
     method: 'GET',
@@ -1432,10 +1379,9 @@ async function recoverLatestDriveOutputWhenEmpty(force = false) {
     const rows = (data || []).filter(item => {
       const meta = item.metadata || {};
       const providerTaskId = providerTaskIdFromOutputRow(item, meta);
-      const driveFileId = meta.google_drive_file_id || meta.googleDriveFileId || meta.drive_file_id || meta.driveFileId || null;
-      const hasUrl = Boolean(outputVideoUrlFromMetadata(meta));
-      const isArkPath = String(item.storage_path || '').startsWith('ark://') || item.bucket_id === 'ark-url';
-      return driveFileId || hasUrl || providerTaskId || isArkPath;
+      const driveFileId = item.google_drive_file_id || meta.google_drive_file_id || meta.googleDriveFileId || meta.drive_file_id || meta.driveFileId || null;
+      const storageStatus = String(item.storage_status || item.status || meta.google_drive_backup_status || '').toLowerCase();
+      return Boolean(driveFileId) && storageStatus === 'completed';
     });
 
     if (!rows.length) {
@@ -1467,14 +1413,13 @@ async function recoverLatestDriveOutputWhenEmpty(force = false) {
 
     const meta = row.metadata || {};
     const providerTaskId = providerTaskIdFromOutputRow(row, meta);
-    const googleDriveFileId = meta.google_drive_file_id || meta.googleDriveFileId || meta.drive_file_id || meta.driveFileId || null;
-    const providerUrl = outputVideoUrlFromMetadata(meta);
+    const googleDriveFileId = row.google_drive_file_id || meta.google_drive_file_id || meta.googleDriveFileId || meta.drive_file_id || meta.driveFileId || null;
 
     const output = {
       row,
       outputId: row.id || null,
-      url: providerUrl || `seedance-proxy://${row.id || providerTaskId || googleDriveFileId}`,
-      storageMode: googleDriveFileId ? 'google-drive-proxy' : (providerUrl ? 'ark-temp' : 'ark-proxy'),
+      url: `seedance-proxy://${row.id || googleDriveFileId}`,
+      storageMode: 'google-drive-proxy',
       providerTaskId,
       taskId: row.task_id || null,
       segmentId: segment.id,
@@ -2611,43 +2556,12 @@ async function recoverSegmentOutput(segmentId) {
     if (result.task_id) segment.remoteTaskId = result.task_id;
     if (result.error) segment.error = result.error;
 
-    const recoveredVideoUrl = result.video_url || result.provider_video_url || result.output_url || result.download_url || null;
-
-    if (recoveredVideoUrl) {
-      state.outputs = state.outputs || [];
-      const exists = state.outputs.some(output => output.url === recoveredVideoUrl || output.providerTaskId === segment.providerTaskId);
-      if (!exists) {
-        state.outputs.unshift({
-          url: recoveredVideoUrl,
-          storageMode: 'ark-temp-recovered',
-          providerTaskId: segment.providerTaskId || result.provider_task_id,
-          taskId: segment.remoteTaskId || result.task_id || null,
-          segmentId: segment.id,
-          index: segment.index,
-          row: { created_at: new Date().toISOString(), task_id: segment.remoteTaskId || null },
-        });
-      }
+    if (result.storage_status === 'completed' && result.google_drive_file_id) {
       segment.status = 'completed';
       segment.progress = 100;
     }
 
     await loadOutputs();
-
-    if (recoveredVideoUrl) {
-      state.outputs = state.outputs || [];
-      const existsAfterLoad = state.outputs.some(output => output.url === recoveredVideoUrl || output.providerTaskId === (segment.providerTaskId || result.provider_task_id));
-      if (!existsAfterLoad) {
-        state.outputs.unshift({
-          url: recoveredVideoUrl,
-          storageMode: 'ark-temp-recovered',
-          providerTaskId: segment.providerTaskId || result.provider_task_id,
-          taskId: segment.remoteTaskId || result.task_id || null,
-          segmentId: segment.id,
-          index: segment.index,
-          row: { created_at: new Date().toISOString(), task_id: segment.remoteTaskId || null },
-        });
-      }
-    }
 
     saveCurrentWorkspaceSelection();
     renderAll();
@@ -2843,30 +2757,13 @@ async function loadOutputs() {
 
   for (const row of rows) {
     const meta = row.metadata || {};
-    const providerUrl = outputVideoUrlFromMetadata(meta);
-
     const providerTaskId = providerTaskIdFromOutputRow(row, meta);
-    const googleDriveFileId = meta.google_drive_file_id || meta.googleDriveFileId || meta.drive_file_id || meta.driveFileId || null;
+    const googleDriveFileId = row.google_drive_file_id || meta.google_drive_file_id || meta.googleDriveFileId || meta.drive_file_id || meta.driveFileId || null;
+    const storageStatus = String(row.storage_status || row.status || meta.google_drive_backup_status || '').toLowerCase();
+    if (!googleDriveFileId || storageStatus !== 'completed') continue;
 
-    let url = providerUrl;
-    let storageMode = providerUrl ? 'ark-temp' : 'supabase';
-
-    if (!url && row.storage_path && row.bucket_id !== 'ark-url') {
-      const signed = await supabase.storage
-        .from(row.bucket_id || 'seedance-outputs')
-        .createSignedUrl(row.storage_path, 3600);
-      if (signed.error) continue;
-      url = signed.data.signedUrl;
-    }
-
-    // v41：Google Drive 已备份 / ark-url 输出也要允许渲染视频模块。
-    // 这里先放一个内部占位 URL，真正播放时 hydrateVideoElements 会通过 seedance-video-proxy 拉 Blob。
-    if (!url && (providerTaskId || googleDriveFileId || row.bucket_id === 'ark-url' || String(row.storage_path || '').startsWith('ark://'))) {
-      url = `seedance-proxy://${providerTaskId || googleDriveFileId || row.id}`;
-      storageMode = googleDriveFileId ? 'google-drive-proxy' : 'ark-proxy';
-    }
-
-    if (!url) continue;
+    const url = `seedance-proxy://${row.id || googleDriveFileId}`;
+    const storageMode = 'google-drive-proxy';
     let segmentIndex = segments.findIndex(
       s =>
         (row.segment_id && s.remoteSegmentId === row.segment_id) ||
