@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260728-full-vision-versioned-resubmit-r9';
+const PRODUCTION_BUILD = '20260728-submit-recovery-r10';
 const ORIGINAL_BUILD = '20260728-failed-resubmit-r7';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -1135,7 +1135,7 @@ function r5RenderJobs() {
 
   qsa('[data-sync-output]').forEach(btn => btn.onclick = async () => {
     btn.disabled = true; const old = btn.textContent; btn.textContent = '刷新中...';
-    try { await loadOutputs(true); renderAll(); } finally { btn.disabled = false; btn.textContent = old || '刷新结果'; }
+    try { await refreshJobs(true); renderAll(); } finally { btn.disabled = false; btn.textContent = old || '刷新结果'; }
   });
   qsa('[data-edit-from-job]').forEach(btn => btn.onclick = () => reEditSegment(btn.dataset.editFromJob));
   qsa('[data-edit-output-segment]').forEach(btn => btn.onclick = () => reEditSegment(btn.dataset.editOutputSegment || findSegmentIdByOutputIndex(btn.dataset.outputIndex)));
@@ -1182,7 +1182,7 @@ function r5SetView(view) {
     state.outputs = workspace.outputs || state.outputs || [];
     state.outputHistory = workspace.outputHistory || state.outputHistory || [];
     renderJobs();
-    if (!Number(workspace.cloudSyncedAt || 0) || Date.now() - Number(workspace.cloudSyncedAt || 0) > 5 * 60_000) {
+    if (!state.isGenerating && (!Number(workspace.cloudSyncedAt || 0) || Date.now() - Number(workspace.cloudSyncedAt || 0) > 5 * 60_000)) {
       loadOutputs(false).then(() => renderJobs()).catch(error => console.warn('[Davis Video Studio R5] background sync failed', error));
     }
   }
@@ -1286,6 +1286,142 @@ function replaceSection(source, startMarker, endMarker, replacement) {
 ${source.slice(end)}`;
 }
 
+
+function r10StableUploadPlan(frames, neededIds) {
+  const needed = neededIds instanceof Set ? neededIds : new Set(neededIds || []);
+  const plan = (frames || []).map((frame, order) => ({ id: frame?.id, order }))
+    .filter(item => item.id && needed.has(item.id));
+  if (plan.length !== needed.size) throw new Error('提交所需图片已变化，请重新确认首尾帧后再提交');
+  return plan;
+}
+function r10ApplyFrameBinding(frames, frameId, uploaded) {
+  const target = (frames || []).find(frame => frame?.id === frameId);
+  if (!target) throw new Error('图片工作区在上传时发生变化，已安全中止本次提交，请重试');
+  ['remoteAssetId','remotePath','arkSafeVersion','uploadWidth','uploadHeight','wasAspectPadded',
+   'aspectPadMode','uploadSafeRatio','originalRatio'].forEach(key => {
+    if (uploaded && Object.prototype.hasOwnProperty.call(uploaded, key)) target[key] = uploaded[key];
+  });
+  return target;
+}
+function r10SubmissionContext() {
+  return { draftId: state.draft?.id || null, mode: r5ModeKey(state.draft?.lockedMode || state.draft?.mode) };
+}
+function r10AssertContext(context) {
+  if (state.draft?.id !== context?.draftId ||
+      r5ModeKey(state.draft?.lockedMode || state.draft?.mode) !== context?.mode) {
+    throw new Error('提交期间项目已切换，已安全中止，避免素材写入错误项目');
+  }
+}
+async function r10RecoverFrameBindings(projectId, plan) {
+  const result = await supabase.from('video_assets')
+    .select('id,object_path,sort_order,width,height,created_at')
+    .eq('owner_id', state.user.id).eq('project_id', projectId).eq('kind', 'frame')
+    .order('created_at', { ascending: false }).limit(100);
+  if (result.error) { console.warn('[Davis Video R10] frame recovery skipped', result.error); return; }
+  for (const item of plan) {
+    const frame = state.draft.frames.find(candidate => candidate.id === item.id);
+    if (!frame || frame.remoteAssetId) continue;
+    const row = (result.data || []).find(candidate => String(candidate.object_path || '').includes('-' + item.id + '-'));
+    if (!row) continue;
+    r10ApplyFrameBinding(state.draft.frames, item.id, {
+      remoteAssetId: row.id, remotePath: row.object_path, arkSafeVersion: IMAGE_SAFE_VERSION,
+      uploadWidth: row.width || null, uploadHeight: row.height || null
+    });
+    if (Number(row.sort_order) !== item.order) {
+      supabase.from('video_assets').update({ sort_order: item.order })
+        .eq('id', row.id).eq('owner_id', state.user.id)
+        .then(({ error }) => { if (error) console.warn('[Davis Video R10] order repair failed', error); });
+    }
+  }
+}
+async function r10UploadNeededFrames(segmentIds) {
+  const context = r10SubmissionContext();
+  const projectId = await ensureRemoteProject();
+  r10AssertContext(context);
+  if (state.draft.mode === 'text_only') {
+    const current = () => state.draft.segments.filter(segment => segmentIds.includes(segment.id));
+    const assets = commitTextReferenceAssets();
+    current().forEach(segment => {
+      validatePromptReferenceTokens(segment, assets);
+      segment.status = 'uploading'; segment.progress = assets.length ? 3 : 12;
+      segment.error = assets.length ? '准备上传 ' + assets.length + ' 个参考素材...' : null;
+    });
+    renderJobs(); await persist(); r10AssertContext(context);
+    const ids = await uploadReferenceAssets(projectId, current());
+    r10AssertContext(context);
+    const uploaded = commitTextReferenceAssets();
+    current().forEach(segment => {
+      segment.referenceAssetId = ids[0] || null; segment.referenceAssetIds = ids;
+      segment.referenceDirections = uploaded.map((item, index) => ({
+        asset_id: item.remoteAssetId || null, token: referenceToken(item, index),
+        name: item.name, mime_type: item.type, usage: 'free_prompt_reference'
+      }));
+      segment.status = 'submitting'; segment.progress = 13; segment.error = null;
+    });
+    renderAll(); await persist(); return projectId;
+  }
+  const selected = state.draft.segments.filter(segment => segmentIds.includes(segment.id));
+  const needed = new Set(selected.flatMap(segment => [segment.fromFrameId, segment.toFrameId]));
+  const plan = r10StableUploadPlan(state.draft.frames, needed);
+  await r10RecoverFrameBindings(projectId, plan);
+  r10AssertContext(context);
+  for (let index = 0; index < plan.length; index += 1) {
+    const item = plan[index];
+    const currentSegments = state.draft.segments.filter(segment => segmentIds.includes(segment.id));
+    currentSegments.forEach(segment => {
+      if ([segment.fromFrameId, segment.toFrameId].includes(item.id)) {
+        segment.status = 'uploading';
+        segment.progress = Math.max(3, Math.round(((index + 0.2) / Math.max(plan.length, 1)) * 12));
+        segment.error = null;
+      }
+    });
+    renderAll(); await persist(); r10AssertContext(context);
+    const frame = state.draft.frames.find(candidate => candidate.id === item.id);
+    if (!frame) throw new Error('图片工作区在上传时发生变化，已安全中止本次提交，请重试');
+    const uploaded = await uploadFrame(frame, projectId, item.order);
+    r10AssertContext(context);
+    r10ApplyFrameBinding(state.draft.frames, item.id, uploaded);
+    await persist();
+  }
+  const incomplete = [];
+  state.draft.segments.filter(segment => segmentIds.includes(segment.id)).forEach(segment => {
+    const from = state.draft.frames.find(frame => frame.id === segment.fromFrameId);
+    const to = state.draft.frames.find(frame => frame.id === segment.toFrameId);
+    if (!from?.remoteAssetId || !to?.remoteAssetId) incomplete.push(segment.index + 1);
+    else { segment.status = 'submitting'; segment.progress = 13; segment.error = null; }
+  });
+  if (incomplete.length) throw new Error('素材绑定不完整，请重新提交 Segment ' + incomplete.join('、'));
+  renderAll(); await persist(); return projectId;
+}
+async function r10RecoverOrphan(force) {
+  if (!state.draft || state.isGenerating) return false;
+  const active = new Set(['preparing','uploading','submitting','retrying']);
+  const candidates = state.draft.segments.filter(segment =>
+    active.has(String(segment.status || '').toLowerCase()) &&
+    !segment.remoteSegmentId && !segment.remoteTaskId && !segment.providerTaskId);
+  const projectId = state.draft.remoteProjectId || getWorkspace().remoteProjectId || null;
+  if (!candidates.length || !projectId) return false;
+  const result = await supabase.from('video_segments').select('id')
+    .eq('owner_id', state.user.id).eq('project_id', projectId).limit(1);
+  if (result.error) throw new Error('检查中断提交失败：' + errorMessage(result.error));
+  if ((result.data || []).length) return false;
+  const needed = new Set(candidates.flatMap(segment => [segment.fromFrameId, segment.toFrameId]).filter(Boolean));
+  if (needed.size) await r10RecoverFrameBindings(projectId, r10StableUploadPlan(state.draft.frames, needed));
+  candidates.forEach(segment => {
+    segment.status = 'failed'; segment.progress = 0; segment.submissionStartedAt = null;
+    segment.error = '上次提交在素材上传后中断，未创建 Ark 任务。已解除卡住状态；点击“重新编辑”后可再次提交。';
+  });
+  saveCurrentWorkspaceSelection(); await persist();
+  if (force) toast('已解除卡住状态', '未创建 Ark 任务。请点击“重新编辑”后再次提交。');
+  return true;
+}
+async function r10RefreshJobs(force = false) {
+  try { await loadOutputs(true); } catch (error) { console.warn('[Davis Video R10] refresh failed', error); }
+  try { await r10RecoverOrphan(Boolean(force)); }
+  catch (error) { console.warn('[Davis Video R10] orphan recovery failed', error); if (force) toast('状态检查失败', errorMessage(error)); }
+  renderJobs();
+}
+
 export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl }) {
   let patched = String(source || '');
   if (!patched.includes(ORIGINAL_BUILD)) throw new Error(`只支持 ${ORIGINAL_BUILD}，当前 app-v46.js 版本不匹配`);
@@ -1298,10 +1434,13 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl }
     r53IsGenericProjectName,r53NormalizePrompt,r53PromptOverlap,r53ProjectCandidateScore,r5VerifyProjectId,
     r5ResolveFixedProject,r5TaskScore,r5OutputStableKey,r5CacheRequestUrl,r5ReadPersistentVideo,r5PrunePersistentVideoCache,
     r5WritePersistentVideo,r5OpenCreateModal,r5CloseCreateModal,r5CreateProjectFromMode,r5WireCreateModal,
-    r6ExistingProjectNames,r6ForkCurrentDraftForSubmit].map(fn => fn.toString()).join('\n\n');
+    r6ExistingProjectNames,r6ForkCurrentDraftForSubmit,r10StableUploadPlan,r10ApplyFrameBinding,
+    r10SubmissionContext,r10AssertContext,r10RecoverFrameBindings,r10RecoverOrphan].map(fn => fn.toString()).join('\n\n');
 
   patched = patched.replace("const LAST_SELECTED_DRAFT_KEY = 'seedance_last_selected_draft_id_v1';",
     "const LAST_SELECTED_DRAFT_KEY = 'seedance_last_selected_draft_id_v1';\n\n" + support);
+  if (!patched.includes('.map((segment, index) => ({ ...segment, index }));')) throw new Error('无法定位 Segment 身份稳定修复点');
+  patched = patched.replace('.map((segment, index) => ({ ...segment, index }));', '.map((segment, index) => { segment.index = index; return segment; });');
   patched = replaceSection(patched, 'function newDraft() {', 'function createWorkspaceState() {', renamedFunction(r5NewDraft, 'newDraft'));
   patched = replaceSection(patched, 'function migrateDraftWorkspaces(draft) {', 'function getWorkspace(', renamedFunction(r5MigrateDraftWorkspaces, 'migrateDraftWorkspaces'));
   patched = replaceSection(patched, 'function getWorkspace(', 'function bindCurrentWorkspace() {', renamedFunction(r5GetWorkspace, 'getWorkspace'));
@@ -1319,7 +1458,8 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl }
   patched = replaceSection(patched, 'function renderJobs() {', 'function findSegmentIdByOutputIndex(', renamedFunction(r5RenderJobs, 'renderJobs'));
   patched = replaceSection(patched, 'function reEditSegment(segmentId) {', 'function renderAll() {', renamedFunction(r6ReEditSegment, 'reEditSegment'));
   patched = replaceSection(patched, 'async function syncRemoteTasks() {', 'async function bindProviderTaskAndRecover(', renamedFunction(r5SyncRemoteTasks, 'syncRemoteTasks'));
-  patched = replaceSection(patched, 'async function refreshJobs() {', 'async function loadOutputs() {', renamedFunction(r5RefreshJobs, 'refreshJobs'));
+  patched = replaceSection(patched, 'async function uploadNeededFrames(', 'async function submitOne(', renamedFunction(r10UploadNeededFrames, 'uploadNeededFrames'));
+  patched = replaceSection(patched, 'async function refreshJobs() {', 'async function loadOutputs() {', renamedFunction(r10RefreshJobs, 'refreshJobs'));
   patched = replaceSection(patched, 'async function loadOutputs() {', 'function startPolling() {', renamedFunction(r5LoadOutputs, 'loadOutputs'));
   patched = replaceSection(patched, 'async function init() {', 'init().catch(', renamedFunction(r5Init, 'init'));
 
@@ -1399,7 +1539,7 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl }
   if (!patched.includes(versionForkMarker)) throw new Error('无法定位版本分叉提交点');
   patched = patched.replace(versionForkMarker, versionForkMarker + '\n' + "  if (state.draft?.pendingVersionFork) {\n    try {\n      const versionFork = await r6ForkCurrentDraftForSubmit(segmentIds);\n      if (versionFork) {\n        segmentIds = versionFork.segmentIds;\n        segments = state.draft.segments.filter(segment => segmentIds.includes(segment.id));\n        options = { ...options, allowResubmit: false, versionForked: true };\n        if (!segments.length) return toast('无法创建新版本任务', '新版本中没有找到要提交的片段。');\n      }\n    } catch (error) {\n      console.error('[Davis Video Studio] version fork failed', error);\n      return toast('新版本创建失败', errorMessage(error, '无法创建独立版本，请稍后重试'));\n    }\n  }");
   patched = patched.replace("    segments.forEach(s => { s.status = 'preparing'; s.progress = 1; s.error = null; s.remoteTaskId = null; s.providerTaskId = null; s.remoteSegmentId = null; s.outputPath = null; });",
-    "    segments.forEach(s => { s.status = 'preparing'; s.progress = 1; s.error = null; if (options.allowResubmit) { s.remoteTaskId = null; s.providerTaskId = null; s.remoteSegmentId = null; s.outputPath = null; } });");
+    "    segments.forEach(s => { s.status = 'preparing'; s.progress = 1; s.error = null; s.submissionStartedAt = Date.now(); if (options.allowResubmit) { s.remoteTaskId = null; s.providerTaskId = null; s.remoteSegmentId = null; s.outputPath = null; } });");
   patched = patched.replace('  await generateSegments([segment.id]);', '  await generateSegments([segment.id], { allowResubmit: true });');
   return `${patched}
 //# sourceURL=seedance/app-production-runtime.js
