@@ -1,7 +1,7 @@
 import { supabase } from '../supabase-config.js';
 import { listDrafts, getDraft, saveDraft, deleteDraft } from './db.js';
 
-const APP_BUILD = '20260728-failed-resubmit-r7';
+const APP_BUILD = '20260728-blob-persistence-recovery-r8';
 const IMAGE_SAFE_VERSION = 'ark-image-aspect-safe-v5-blackbar-2p49-force-reupload';
 const SEEDANCE_VIDEO_PROXY_URL = 'https://supffjeeouibhqdfqosk.supabase.co/functions/v1/seedance-video-proxy';
 console.log('[Seedance Studio]', APP_BUILD);
@@ -77,8 +77,48 @@ function canvasToBlob(canvas, type = 'image/png', quality = 0.95) {
   });
 }
 
+async function restoreRemoteFrameBlob(frame) {
+  if (frame?.blob instanceof Blob) return frame.blob;
+  if (!frame?.remotePath) throw new Error(`图片“${frame?.name || ''}”的本地文件已丢失，请重新上传`);
+  const download = await withTimeout(
+    supabase.storage.from('seedance-inputs').download(frame.remotePath),
+    TIMEOUTS.upload,
+    `恢复图片 ${frame.name || ''}`,
+  );
+  if (download.error || !(download.data instanceof Blob)) {
+    throw new Error(`恢复图片“${frame.name || ''}”失败：${errorMessage(download.error)}`);
+  }
+  frame.blob = download.data;
+  frame.type = frame.type || download.data.type || 'image/png';
+  frame.size = frame.size || download.data.size;
+  return frame.blob;
+}
+
+async function hydrateRemoteFramePreviews(draft) {
+  const frames = [];
+  const seen = new Set();
+  Object.values(draft?.workspaces || {}).forEach(workspace => {
+    (workspace?.frames || []).forEach(frame => {
+      if (!frame?.id || seen.has(frame.id)) return;
+      seen.add(frame.id);
+      frames.push(frame);
+    });
+  });
+  (draft?.frames || []).forEach(frame => {
+    if (!frame?.id || seen.has(frame.id)) return;
+    seen.add(frame.id);
+    frames.push(frame);
+  });
+
+  await Promise.all(frames.map(async frame => {
+    if (frame.blob instanceof Blob || !frame.remotePath) return;
+    const signed = await supabase.storage.from('seedance-inputs').createSignedUrl(frame.remotePath, 3600);
+    if (!signed.error && signed.data?.signedUrl) frame.remotePreviewUrl = signed.data.signedUrl;
+  }));
+}
+
 async function makeArkSafeFrameBlob(frame) {
-  if (!(frame.blob instanceof Blob)) throw new Error(`图片“${frame.name}”的本地文件已丢失，请重新上传`);
+  await restoreRemoteFrameBlob(frame);
   const img = await blobToImage(frame.blob);
   const srcW = img.naturalWidth || frame.width;
   const srcH = img.naturalHeight || frame.height;
@@ -344,7 +384,7 @@ function workspaceLabel(mode = state.draft?.mode) {
 }
 
 function getFrameUrl(frame) {
-  if (!frame?.blob) return '';
+  if (!frame?.blob) return frame?.remotePreviewUrl || '';
   if (!state.objectUrls.has(frame.id)) state.objectUrls.set(frame.id, URL.createObjectURL(frame.blob));
   return state.objectUrls.get(frame.id);
 }
@@ -767,12 +807,48 @@ function normalizeSegments(draft) {
   workspace.selectedSegmentId = state.selectedSegmentId;
 }
 
+function isBlobPersistenceError(error) {
+  const message = String(error?.message || error || '').toLowerCase();
+  return message.includes('failed to write blobs') ||
+    message.includes('ioerror') ||
+    message.includes('blob') && message.includes('write');
+}
+
+function compactDraftForPersistence(value, owner = null, seen = new WeakMap()) {
+  if (value instanceof Blob) {
+    if (owner?.remoteAssetId && owner?.remotePath) return null;
+    return value;
+  }
+  if (!value || typeof value !== 'object') return value;
+  if (seen.has(value)) return seen.get(value);
+  if (Array.isArray(value)) {
+    const result = [];
+    seen.set(value, result);
+    value.forEach(item => result.push(compactDraftForPersistence(item, null, seen)));
+    return result;
+  }
+  const result = {};
+  seen.set(value, result);
+  Object.entries(value).forEach(([key, child]) => {
+    if (key === 'blob' && child instanceof Blob && value.remoteAssetId && value.remotePath) return;
+    result[key] = compactDraftForPersistence(child, value, seen);
+  });
+  return result;
+}
+
 async function persist(render = false) {
   if (!state.draft) return;
   bindCurrentWorkspace();
   normalizeSegments(state.draft);
   saveCurrentWorkspaceSelection();
-  await saveDraft(state.draft);
+  try {
+    await saveDraft(state.draft);
+  } catch (error) {
+    if (!isBlobPersistenceError(error)) throw error;
+    const compactDraft = compactDraftForPersistence(state.draft);
+    await saveDraft(compactDraft);
+    console.warn('[Seedance Studio] IndexedDB blob persistence degraded to remote metadata', error);
+  }
   const idx = state.drafts.findIndex(d => d.id === state.draft.id);
   const snapshot = { ...state.draft, frames: state.draft.frames.map(f => ({ ...f })) };
   if (idx === -1) state.drafts.unshift(snapshot); else state.drafts[idx] = snapshot;
@@ -1801,6 +1877,7 @@ function readDimensions(file) {
 async function selectDraft(id) {
   const draft = migrateDraftWorkspaces(await getDraft(id));
   if (!draft) return;
+  await hydrateRemoteFramePreviews(draft);
 
   clearInterval(state.pollTimer);
   state.pollTimer = null;
