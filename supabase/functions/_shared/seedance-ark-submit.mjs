@@ -15,7 +15,7 @@ export function isRetryableArkStatus(status) {
 export async function createArkTask(
   arkApiKey,
   payload,
-  { fetchImpl = fetch, timeoutMs = 120_000 } = {},
+  { fetchImpl = fetch, timeoutMs = 45_000 } = {},
 ) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort("ark-submit-timeout"), timeoutMs);
