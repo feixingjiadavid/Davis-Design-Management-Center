@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260729-file-drop-upload-r15';
+const PRODUCTION_BUILD = '20260729-user-isolation-r16';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -57,6 +57,95 @@ function r15PreventDocumentFileNavigation() {
   };
   document.addEventListener('dragover', prevent);
   document.addEventListener('drop', prevent);
+}
+
+
+
+function r16ProjectOwnerId(draft = state.draft) {
+  if (!draft) return '';
+  const mode = r5ModeKey(draft.lockedMode || draft.mode);
+  const workspace = draft.workspaces?.[mode] || draft;
+  return String(workspace.remoteOwnerId || draft.remoteOwnerId || draft.ownerId || '').trim();
+}
+
+function r16ScopeProjectRead(query, draft = state.draft) {
+  const ownerId = r16ProjectOwnerId(draft);
+  return ownerId ? query.eq('owner_id', ownerId) : scopeVideoRead(query, state.user);
+}
+
+function r16CurrentProjectWritable(draft = state.draft) {
+  return canMutateVideoOwner(state.user, r16ProjectOwnerId(draft));
+}
+
+function r16AssertCurrentProjectWritable(actionLabel = '修改这个项目') {
+  if (r16CurrentProjectWritable()) return true;
+  toast('只读项目', `这是其他用户的项目，不能${actionLabel}。`);
+  return false;
+}
+
+function r16ApplyReadOnlyControls() {
+  const readOnly = Boolean(state.draft) && !r16CurrentProjectWritable();
+  document.body.dataset.videoProjectReadonly = readOnly ? 'true' : 'false';
+  const selectors = [
+    '#delete-project',
+    '#ai-optimize-text-prompt',
+    '#text-mode-prompt',
+    '#reference-video-input',
+    '#reference-video-trigger',
+    '#file-input',
+    '#project-ratio',
+    '#final-width',
+    '#final-height',
+    '#fit-mode',
+    '#project-name',
+    '#generate-all',
+    '#editor-add-image',
+    '#ai-optimize-segment-prompt',
+    '#segment-prompt',
+    '#segment-duration',
+    '#segment-model',
+    '#segment-resolution',
+    '#segment-audio',
+    '#segment-ratio',
+    '#generate-segment',
+    '#refresh-jobs',
+    '#merge-all',
+    '#ai-optimize-quick-segment-prompt',
+    '#quick-segment-prompt',
+    '#quick-segment-save',
+    '[data-sync-output]',
+    '[data-edit-from-job]',
+    '[data-edit-output-segment]'
+  ];
+  document.querySelectorAll(selectors.join(',')).forEach(element => {
+    if (readOnly) {
+      element.dataset.videoReadonlyDisabled = '1';
+      element.disabled = true;
+      element.setAttribute('aria-disabled', 'true');
+      element.title = '其他用户的项目仅允许查看';
+    } else if (element.dataset.videoReadonlyDisabled === '1') {
+      delete element.dataset.videoReadonlyDisabled;
+      element.disabled = false;
+      element.removeAttribute('aria-disabled');
+      if (element.title === '其他用户的项目仅允许查看') element.removeAttribute('title');
+    }
+  });
+  for (const id of ['upload-zone', 'reference-video-card']) {
+    const zone = document.getElementById(id);
+    if (!zone) continue;
+    zone.dataset.videoReadonly = readOnly ? '1' : '0';
+    zone.style.pointerEvents = readOnly ? 'none' : '';
+    zone.setAttribute('aria-disabled', readOnly ? 'true' : 'false');
+  }
+}
+
+function r16GuardPatchedFunction(source, functionName, actionLabel, throwOnDeny = false) {
+  const expression = new RegExp(`((?:async\\s+)?function\\s+${functionName}\\s*\\([^)]*\\)\\s*\\{)`);
+  if (!expression.test(source)) throw new Error(`无法定位只读守卫函数：${functionName}`);
+  const denied = throwOnDeny
+    ? `throw new Error('只读项目：不能${actionLabel}')`
+    : 'return';
+  return source.replace(expression, `$1\\n  if (!r16AssertCurrentProjectWritable('${actionLabel}')) ${denied};`);
 }
 
 function r13MarkVersionForkForSubmit(segmentIds) {
@@ -133,6 +222,7 @@ async function r6ForkCurrentDraftForSubmit(segmentIds) {
 }
 
 async function r6ReEditSegment(segmentId) {
+  if (!r16AssertCurrentProjectWritable('重新编辑或创建新版本')) return;
   if (!segmentId) {
     toast('无法定位片段', '这个输出没有找到对应片段，请在高级 Storyboard 中手动选择。');
     setView('editor');
@@ -290,6 +380,8 @@ function r5NewDraft(mode = 'multi_frame', name = '') {
   const key = r5ModeKey(mode);
   const id = uid();
   const workspace = createWorkspaceState();
+  workspace.ownerId = state.user?.id || null;
+  workspace.remoteOwnerId = null;
   const displayName = String(name || '').trim() || `未命名 ${r5ModeSuffix(key)}项目`;
   return {
     id,
@@ -305,6 +397,8 @@ function r5NewDraft(mode = 'multi_frame', name = '') {
     fitMode: 'contain',
     createdAt: Date.now(),
     updatedAt: Date.now(),
+    ownerId: state.user?.id || null,
+    remoteOwnerId: null,
     remoteProjectId: null,
     workspaces: { [key]: workspace },
     frames: workspace.frames,
@@ -346,6 +440,10 @@ function r5MigrateDraftWorkspaces(draft) {
   draft.segments = workspace.segments;
   draft.remoteProjectId = workspace.remoteProjectId || draft.remoteProjectId || null;
   workspace.remoteProjectId = draft.remoteProjectId || workspace.remoteProjectId || null;
+  draft.remoteOwnerId = workspace.remoteOwnerId || draft.remoteOwnerId || null;
+  workspace.remoteOwnerId = draft.remoteOwnerId || workspace.remoteOwnerId || null;
+  draft.ownerId = draft.remoteOwnerId || draft.ownerId || state.user?.id || null;
+  workspace.ownerId = draft.ownerId;
   draft.selectedSegmentId = workspace.selectedSegmentId || draft.selectedSegmentId || workspace.segments[0]?.id || null;
   workspace.selectedSegmentId = draft.selectedSegmentId;
 
@@ -564,8 +662,8 @@ function r53ProjectCandidateScore(project, stats, context) {
 async function r5VerifyProjectId(projectId, mode, snapshot) {
   if (!projectId || !r5ContextIsCurrent(snapshot)) return null;
   const { data, error } = await supabase.from('video_projects')
-    .select('id,name,mode,created_at,updated_at')
-    .eq('owner_id', state.user.id)
+    .select('id,name,mode,owner_id,created_at,updated_at')
+    .eq('owner_id', r16ProjectOwnerId())
     .eq('id', projectId)
     .maybeSingle();
   if (!r5ContextIsCurrent(snapshot)) return null;
@@ -592,7 +690,7 @@ async function r5ResolveFixedProject(snapshot) {
     if (!values.length || !r5ContextIsCurrent(snapshot)) return;
     const { data, error } = await supabase.from('video_tasks')
       .select('project_id')
-      .eq('owner_id', state.user.id)
+      .eq('owner_id', r16ProjectOwnerId())
       .in(column, values);
     if (!r5ContextIsCurrent(snapshot) || error) return;
     for (const row of data || []) if (row.project_id) exactProjectIds.add(row.project_id);
@@ -608,8 +706,8 @@ async function r5ResolveFixedProject(snapshot) {
     const list = [...new Set((ids || []).filter(Boolean))];
     if (!list.length || !r5ContextIsCurrent(snapshot)) return;
     const { data, error } = await supabase.from('video_projects')
-      .select('id,name,mode,created_at,updated_at,status')
-      .eq('owner_id', state.user.id)
+      .select('id,name,mode,owner_id,created_at,updated_at,status')
+      .eq('owner_id', r16ProjectOwnerId())
       .in('id', list);
     if (!r5ContextIsCurrent(snapshot) || error) return;
     for (const project of data || []) {
@@ -621,8 +719,8 @@ async function r5ResolveFixedProject(snapshot) {
 
   if (baseName) {
     const { data, error } = await supabase.from('video_projects')
-      .select('id,name,mode,created_at,updated_at,status')
-      .eq('owner_id', state.user.id)
+      .select('id,name,mode,owner_id,created_at,updated_at,status')
+      .eq('owner_id', r16ProjectOwnerId())
       .eq('mode', mode)
       .eq('name', baseName)
       .order('created_at', { ascending: false });
@@ -634,8 +732,8 @@ async function r5ResolveFixedProject(snapshot) {
     const fallbackName = String(state.draft.remoteProjectName || '').trim();
     if (fallbackName && fallbackName !== baseName) {
       const { data, error } = await supabase.from('video_projects')
-        .select('id,name,mode,created_at,updated_at,status')
-        .eq('owner_id', state.user.id)
+        .select('id,name,mode,owner_id,created_at,updated_at,status')
+        .eq('owner_id', r16ProjectOwnerId())
         .eq('mode', mode)
         .eq('name', fallbackName)
         .order('created_at', { ascending: false });
@@ -651,15 +749,15 @@ async function r5ResolveFixedProject(snapshot) {
   const [segmentResult, taskResult, outputResult] = await Promise.all([
     supabase.from('video_segments')
       .select('id,project_id,position,prompt,status,created_at')
-      .eq('owner_id', state.user.id)
+      .eq('owner_id', r16ProjectOwnerId())
       .in('project_id', candidateIds),
     supabase.from('video_tasks')
       .select('id,project_id,segment_id,provider_task_id,status,created_at')
-      .eq('owner_id', state.user.id)
+      .eq('owner_id', r16ProjectOwnerId())
       .in('project_id', candidateIds),
     supabase.from('video_outputs')
       .select('id,project_id,task_id,segment_id,metadata,google_drive_file_id,google_drive_url,google_drive_thumbnail_url,storage_status,status,created_at')
-      .eq('owner_id', state.user.id)
+      .eq('owner_id', r16ProjectOwnerId())
       .in('project_id', candidateIds),
   ]);
   if (!r5ContextIsCurrent(snapshot)) return null;
@@ -723,6 +821,8 @@ async function r5ResolveFixedProject(snapshot) {
   workspace.cloudSyncedAt = 0;
   workspace.lastEmptySyncAt = 0;
   state.draft.remoteProjectId = project.id;
+  state.draft.remoteOwnerId = project.owner_id || r16ProjectOwnerId();
+  state.draft.ownerId = state.draft.remoteOwnerId || state.draft.ownerId;
   state.draft.remoteProjectName = project.name || baseName || state.draft.remoteProjectName;
 
   if (changed) await saveDraft(state.draft);
@@ -916,26 +1016,29 @@ function r5LoadOutputs(force = false) {
     }
 
     workspace.remoteProjectId = project.id;
+    workspace.remoteOwnerId = project.owner_id || r16ProjectOwnerId();
     workspace.remoteBindingSchema = 'r5.3';
     workspace.remoteBindingVersion = 'r5.3';
     workspace.remoteBindingLocked = true;
     state.draft.remoteProjectId = project.id;
+    state.draft.remoteOwnerId = project.owner_id || r16ProjectOwnerId();
+    state.draft.ownerId = state.draft.remoteOwnerId || state.draft.ownerId;
     const projectId = project.id;
 
     const [segmentResult, taskResult, outputResult] = await Promise.all([
       supabase.from('video_segments')
         .select('id,project_id,position,prompt,model_alias,duration,resolution,ratio,status,mode,generate_audio,created_at,updated_at')
-        .eq('owner_id', state.user.id)
+        .eq('owner_id', r16ProjectOwnerId())
         .eq('project_id', projectId)
         .order('created_at', { ascending: false }),
       supabase.from('video_tasks')
         .select('id,segment_id,project_id,provider_task_id,status,progress,error_message,model_alias,created_at,updated_at')
-        .eq('owner_id', state.user.id)
+        .eq('owner_id', r16ProjectOwnerId())
         .eq('project_id', projectId)
         .order('created_at', { ascending: false }),
       supabase.from('video_outputs')
         .select('*')
-        .eq('owner_id', state.user.id)
+        .eq('owner_id', r16ProjectOwnerId())
         .eq('project_id', projectId)
         .order('created_at', { ascending: false })
         .limit(100),
@@ -1220,6 +1323,7 @@ function r5RenderJobs() {
   qsa('[data-download-output]').forEach(link => link.onclick = event => {
     if (!link.href || link.getAttribute('href') === '#' || link.href.endsWith('#')) { event.preventDefault(); toast('视频还没加载完成', '首次读取完成后会自动写入浏览器缓存。'); }
   });
+  setTimeout(r16ApplyReadOnlyControls, 0);
 }
 
 function r5RenderProjects() {
@@ -1228,9 +1332,10 @@ function r5RenderProjects() {
     const mode = r5ModeKey(d.lockedMode || d.mode);
     const workspace = d.workspaces?.[mode] || d;
     const count = mode === 'text_only' ? '纯文字' : `${workspace.frames?.length || d.frames?.length || 0} 张图`;
+    const readOnly = isVideoSuperAdmin(state.user) && isForeignVideoOwner(state.user, r16ProjectOwnerId(d));
     return `<button class="project-item ${state.draft?.id === d.id ? 'active' : ''}" data-project="${d.id}">
       <strong>${escapeHtml(d.name)}</strong>
-      <span><b class="project-mode-tag">${escapeHtml(r5ModeLabel(mode))}</b> · ${count} · ${new Date(d.createdAt || d.updatedAt || Date.now()).toLocaleString('zh-CN')}</span>
+      <span><b class="project-mode-tag">${escapeHtml(r5ModeLabel(mode))}</b>${readOnly ? ' · 只读' : ''} · ${count} · ${new Date(d.createdAt || d.updatedAt || Date.now()).toLocaleString('zh-CN')}</span>
     </button>`;
   }).join('') : '<div class="empty-state">还没有视频项目，请点击“新建视频项目”并选择模式。</div>';
   qsa('[data-project]').forEach(btn => btn.onclick = () => selectDraft(btn.dataset.project));
@@ -1333,13 +1438,15 @@ async function r5SelectDraft(id) {
     if (!Number(workspace.cloudSyncedAt || 0) || Date.now() - Number(workspace.cloudSyncedAt || 0) > 5 * 60_000) await loadOutputs(false);
   } catch (error) { console.warn('[Davis Video Studio R5] project sync failed', error); }
   renderAll();
+  r16ApplyReadOnlyControls();
   const active = state.draft.segments.some(s => ['submitting','submitted','queued','running','processing'].includes(String(s.status || '').toLowerCase()));
-  if (active) startPolling();
+  if (active && r16CurrentProjectWritable()) startPolling();
 }
 
 async function r5CreateProject() { r5OpenCreateModal(); }
 
 async function r5RemoveProject() {
+  if (!r16AssertCurrentProjectWritable('删除项目')) return;
   if (!state.draft || !await confirmBox('删除项目', `确定删除“${state.draft.name}”及其本地草稿吗？云端生成记录不会自动删除。`)) return;
   const id = state.draft.id;
   const workspace = getWorkspace();
@@ -1354,20 +1461,51 @@ async function r5RemoveProject() {
 }
 
 async function r11RestoreCloudDrafts(localDrafts) {
-  const drafts = Array.isArray(localDrafts) ? [...localDrafts] : [];
-  if (!state.user?.id) return drafts;
+  const local = Array.isArray(localDrafts) ? [...localDrafts] : [];
+  if (!state.user?.id) return [];
 
-  const { data, error } = await supabase
+  let projectQuery = supabase
     .from('video_projects')
-    .select('id,name,mode,created_at,updated_at')
-    .eq('owner_id', state.user.id)
+    .select('id,name,mode,owner_id,created_at,updated_at');
+  projectQuery = scopeVideoRead(projectQuery, state.user);
+  const { data, error } = await projectQuery
     .order('created_at', { ascending: false })
     .limit(1000);
 
   if (error) {
-    console.warn('[Davis Video R12] cloud project recovery skipped', error);
-    return drafts;
+    console.warn('[Davis Video R16] cloud project recovery skipped', error);
+    return local.filter(draft => {
+      const ownerId = r16ProjectOwnerId(draft);
+      return ownerId ? ownerId === state.user.id : true;
+    });
   }
+
+  const projects = data || [];
+  const projectById = new Map(projects.map(project => [project.id, project]));
+
+  for (const draft of local) {
+    const mode = r5ModeKey(draft.lockedMode || draft.mode);
+    const workspace = draft.workspaces?.[mode] || draft;
+    const projectId = workspace.remoteProjectId || draft.remoteProjectId || workspace.bindingCandidateProjectId || null;
+    const project = projectId ? projectById.get(projectId) : null;
+    if (project?.owner_id) {
+      draft.remoteOwnerId = project.owner_id;
+      draft.ownerId = project.owner_id;
+      workspace.remoteOwnerId = project.owner_id;
+      workspace.ownerId = project.owner_id;
+      try { await saveDraft(draft); } catch (saveError) {
+        console.warn('[Davis Video R16] failed to persist project owner', projectId, saveError);
+      }
+    } else if (!r16ProjectOwnerId(draft)) {
+      draft.ownerId = state.user.id;
+      workspace.ownerId = state.user.id;
+    }
+  }
+
+  const drafts = local.filter(draft => {
+    const ownerId = r16ProjectOwnerId(draft);
+    return isVideoSuperAdmin(state.user) || ownerId === state.user.id;
+  });
 
   const boundProjectIds = new Set();
   for (const draft of drafts) {
@@ -1378,19 +1516,23 @@ async function r11RestoreCloudDrafts(localDrafts) {
     }
   }
 
-  for (const project of data || []) {
+  for (const project of projects) {
     if (!project?.id || boundProjectIds.has(project.id)) continue;
     const mode = r5ModeKey(project.mode);
     const draft = newDraft(mode, project.name || `云端 ${r5ModeLabel(mode)}项目`);
     const workspace = draft.workspaces[mode];
 
     draft.id = `cloud-${project.id}`;
+    draft.ownerId = project.owner_id;
+    draft.remoteOwnerId = project.owner_id;
     draft.remoteProjectId = project.id;
     draft.remoteProjectName = project.name || draft.name;
     draft.createdAt = new Date(project.created_at || Date.now()).getTime();
     draft.updatedAt = new Date(project.updated_at || project.created_at || Date.now()).getTime();
     draft.cloudRecoveredProject = true;
 
+    workspace.ownerId = project.owner_id;
+    workspace.remoteOwnerId = project.owner_id;
     workspace.remoteProjectId = project.id;
     workspace.bindingCandidateProjectId = project.id;
     workspace.remoteBindingSchema = 'r5.3';
@@ -1404,7 +1546,7 @@ async function r11RestoreCloudDrafts(localDrafts) {
       drafts.push(draft);
       boundProjectIds.add(project.id);
     } catch (saveError) {
-      console.warn('[Davis Video R12] failed to cache cloud project', project.id, saveError);
+      console.warn('[Davis Video R16] failed to cache cloud project', project.id, saveError);
     }
   }
 
@@ -1470,7 +1612,7 @@ function r10AssertContext(context) {
 async function r10RecoverFrameBindings(projectId, plan) {
   const result = await supabase.from('video_assets')
     .select('id,object_path,sort_order,width,height,created_at')
-    .eq('owner_id', state.user.id).eq('project_id', projectId).eq('kind', 'frame')
+    .eq('owner_id', r16ProjectOwnerId()).eq('project_id', projectId).eq('kind', 'frame')
     .order('created_at', { ascending: false }).limit(100);
   if (result.error) { console.warn('[Davis Video R10] frame recovery skipped', result.error); return; }
   for (const item of plan) {
@@ -1484,12 +1626,13 @@ async function r10RecoverFrameBindings(projectId, plan) {
     });
     if (Number(row.sort_order) !== item.order) {
       supabase.from('video_assets').update({ sort_order: item.order })
-        .eq('id', row.id).eq('owner_id', state.user.id)
+        .eq('id', row.id).eq('owner_id', r16ProjectOwnerId())
         .then(({ error }) => { if (error) console.warn('[Davis Video R10] order repair failed', error); });
     }
   }
 }
 async function r10UploadNeededFrames(segmentIds) {
+  if (!r16AssertCurrentProjectWritable('上传素材')) throw new Error('只读项目不能上传素材');
   const context = r10SubmissionContext();
   const projectId = await ensureRemoteProject();
   r10AssertContext(context);
@@ -1557,7 +1700,7 @@ async function r10RecoverOrphan(force) {
   const projectId = state.draft.remoteProjectId || getWorkspace().remoteProjectId || null;
   if (!candidates.length || !projectId) return false;
   const result = await supabase.from('video_segments').select('id')
-    .eq('owner_id', state.user.id).eq('project_id', projectId).limit(1);
+    .eq('owner_id', r16ProjectOwnerId()).eq('project_id', projectId).limit(1);
   if (result.error) throw new Error('检查中断提交失败：' + errorMessage(result.error));
   if ((result.data || []).length) return false;
   const needed = new Set(candidates.flatMap(segment => [segment.fromFrameId, segment.toFrameId]).filter(Boolean));
@@ -1571,26 +1714,33 @@ async function r10RecoverOrphan(force) {
   return true;
 }
 async function r10RefreshJobs(force = false) {
+  if (!r16CurrentProjectWritable()) {
+    try { await loadOutputs(true); } catch (error) { console.warn('[Davis Video R16] read-only refresh failed', error); }
+    renderJobs();
+    return;
+  }
   try { await loadOutputs(true); } catch (error) { console.warn('[Davis Video R10] refresh failed', error); }
   try { await r10RecoverOrphan(Boolean(force)); }
   catch (error) { console.warn('[Davis Video R10] orphan recovery failed', error); if (force) toast('状态检查失败', errorMessage(error)); }
   renderJobs();
 }
 
-export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl }) {
+export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, accessControlSource }) {
   let patched = String(source || '');
   if (!patched.includes(ORIGINAL_BUILD)) throw new Error(`只支持 ${ORIGINAL_BUILD}，当前 app-v46.js 版本不匹配`);
   patched = patched.replace("from '../supabase-config.js'", `from '${supabaseUrl}'`)
     .replace("from './db.js'", `from '${dbUrl}';\nimport { parseProjectVersion, nextProjectVersionName, cloneDraftAsVersion } from '${projectVersionUrl}'`)
     .replace(ORIGINAL_BUILD, PRODUCTION_BUILD);
 
-  const support = [r5ModeKey,r5ModeLabel,r5ModeSuffix,r5BaseProjectName,r5Clone,r5WorkspaceHasContent,r5CreateWorkspaceClone,
+  const accessControlSupport = String(accessControlSource || '').replace(/\bexport\s+/g, '');
+  const support = accessControlSupport + '\n\n' + [r5ModeKey,r5ModeLabel,r5ModeSuffix,r5BaseProjectName,r5Clone,r5WorkspaceHasContent,r5CreateWorkspaceClone,
     r5BuildSplitDraft,r5MigrateDraftCollection,r5ContextSnapshot,r5ContextIsCurrent,r5ExactTaskIds,
     r53IsGenericProjectName,r53NormalizePrompt,r53PromptOverlap,r53ProjectCandidateScore,r5VerifyProjectId,
     r5ResolveFixedProject,r5TaskScore,r5OutputStableKey,r5CacheRequestUrl,r5ReadPersistentVideo,r5PrunePersistentVideoCache,
     r5WritePersistentVideo,r5OpenCreateModal,r5CloseCreateModal,r5CreateProjectFromMode,r5WireCreateModal,
     r6ExistingProjectNames,r6ForkCurrentDraftForSubmit,r10StableUploadPlan,r10ApplyFrameBinding,
-    r10SubmissionContext,r10AssertContext,r10RecoverFrameBindings,r10RecoverOrphan,r11RestoreCloudDrafts,r13MarkVersionForkForSubmit,r14NormalizeProjectName,r14ProjectNameExists,r15HasFilePayload,r15WireFileDropzone,r15PreventDocumentFileNavigation].map(fn => fn.toString()).join('\n\n');
+    r10SubmissionContext,r10AssertContext,r10RecoverFrameBindings,r10RecoverOrphan,r11RestoreCloudDrafts,r13MarkVersionForkForSubmit,r14NormalizeProjectName,r14ProjectNameExists,r15HasFilePayload,r15WireFileDropzone,r15PreventDocumentFileNavigation,
+    r16ProjectOwnerId,r16ScopeProjectRead,r16CurrentProjectWritable,r16AssertCurrentProjectWritable,r16ApplyReadOnlyControls].map(fn => fn.toString()).join('\n\n');
 
   patched = patched.replace("const LAST_SELECTED_DRAFT_KEY = 'seedance_last_selected_draft_id_v1';",
     "const LAST_SELECTED_DRAFT_KEY = 'seedance_last_selected_draft_id_v1';\n\n" + support);
@@ -1617,6 +1767,24 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl }
   patched = replaceSection(patched, 'async function refreshJobs() {', 'async function loadOutputs() {', renamedFunction(r10RefreshJobs, 'refreshJobs'));
   patched = replaceSection(patched, 'async function loadOutputs() {', 'function startPolling() {', renamedFunction(r5LoadOutputs, 'loadOutputs'));
   patched = replaceSection(patched, 'async function init() {', 'init().catch(', renamedFunction(r5Init, 'init'));
+
+  for (const [functionName, actionLabel, throwOnDeny] of [
+    ['removeFrame', '删除图片', false],
+    ['moveFrame', '调整图片顺序', false],
+    ['addReferenceVideo', '添加参考视频', false],
+    ['addReferenceAssets', '添加参考素材', false],
+    ['addFiles', '上传图片', false],
+    ['ensureRemoteProject', '创建或修改云端项目', true],
+    ['uploadFrame', '上传图片', true],
+    ['uploadReferenceVideo', '上传参考视频', true],
+    ['uploadReferenceAssets', '上传参考素材', true],
+    ['submitOne', '提交 Seedance 任务', true],
+    ['resubmitSegment', '重新提交视频', false],
+    ['generateSegments', '生成视频', false],
+    ['mergeAll', '合并他人项目视频', false]
+  ]) {
+    patched = r16GuardPatchedFunction(patched, functionName, actionLabel, throwOnDeny);
+  }
 
   patched = patched.replace("  $('new-project').onclick = createProject;", "  $('new-project').onclick = r5OpenCreateModal;");
   const modeSwitchBlock = `  qsa('#mode-switch button').forEach(btn => btn.onclick = async () => {
@@ -1718,10 +1886,15 @@ export async function bootProduction() {
   const supabaseUrl = new URL('../supabase-config.js', import.meta.url).href;
   const dbUrl = new URL('./db.js', import.meta.url).href;
   const projectVersionUrl = new URL('./project-version-policy.mjs', import.meta.url).href;
-  const response = await fetch(originalUrl, { cache: 'no-store' });
+  const accessControlUrl = new URL('./access-control.mjs?v=20260729-user-isolation-r16', import.meta.url);
+  const [response, accessControlResponse] = await Promise.all([
+    fetch(originalUrl, { cache: 'no-store' }),
+    fetch(accessControlUrl, { cache: 'no-store' })
+  ]);
   if (!response.ok) throw new Error(`读取 app-v46.js 失败：HTTP ${response.status}`);
-  const source = await response.text();
-  const patched = patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl });
+  if (!accessControlResponse.ok) throw new Error(`读取 access-control.mjs 失败：HTTP ${accessControlResponse.status}`);
+  const [source, accessControlSource] = await Promise.all([response.text(), accessControlResponse.text()]);
+  const patched = patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, accessControlSource });
   const blobUrl = URL.createObjectURL(new Blob([patched], { type: 'text/javascript' }));
   try {
     await import(blobUrl);
