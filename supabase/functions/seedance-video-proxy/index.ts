@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const BUILD = "20260728-drive-only-proxy-v22";
+const BUILD = "20260729-admin-read-proxy-r16";
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, range",
@@ -90,7 +90,8 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!supabaseUrl || !serviceKey) return json({ error: "SUPABASE_ENV_MISSING" }, 500);
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  if (!supabaseUrl || !serviceKey || !anonKey) return json({ error: "SUPABASE_ENV_MISSING" }, 500);
 
   const auth = req.headers.get("Authorization") || "";
   const token = auth.replace(/^Bearer\s+/i, "").trim();
@@ -101,6 +102,14 @@ Deno.serve(async (req) => {
   const user = userResult?.user;
   if (userError || !user) return json({ error: "INVALID_AUTH_TOKEN", detail: userError?.message || null }, 401);
 
+  // Use the caller JWT for output lookup so video_outputs RLS remains the single
+  // authorization boundary: owners can read their own rows, while approved
+  // super administrators receive read-only access to every owner's rows.
+  const userClient = createClient(supabaseUrl, anonKey, {
+    auth: { persistSession: false },
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+
   const url = new URL(req.url);
   const outputId = (url.searchParams.get("output_id") || url.searchParams.get("outputId") || "").trim();
   const providerTaskId = (url.searchParams.get("provider_task_id") || url.searchParams.get("providerTaskId") || "").trim();
@@ -109,22 +118,22 @@ Deno.serve(async (req) => {
   let outputRow: any = null;
 
   if (outputId) {
-    const { data, error } = await admin.from("video_outputs").select("*").eq("id", outputId).eq("owner_id", user.id).maybeSingle();
+    const { data, error } = await userClient.from("video_outputs").select("*").eq("id", outputId).maybeSingle();
     if (error) return json({ error: "OUTPUT_LOOKUP_FAILED", detail: error.message }, 500);
     outputRow = data;
   }
 
   if (!outputRow && taskId) {
-    const { data } = await admin.from("video_outputs").select("*").eq("owner_id", user.id).eq("task_id", taskId).order("created_at", { ascending: false }).limit(1);
+    const { data } = await userClient.from("video_outputs").select("*").eq("task_id", taskId).order("created_at", { ascending: false }).limit(1);
     outputRow = data?.[0] || null;
   }
 
   if (!outputRow && providerTaskId) {
-    const { data } = await admin.from("video_outputs").select("*").eq("owner_id", user.id).eq("storage_path", `ark://${providerTaskId}.mp4`).order("created_at", { ascending: false }).limit(1);
+    const { data } = await userClient.from("video_outputs").select("*").eq("storage_path", `ark://${providerTaskId}.mp4`).order("created_at", { ascending: false }).limit(1);
     outputRow = data?.[0] || null;
   }
 
-  // 安全：只有当查到当前用户自己的 output 才使用 file_id；避免随便传 Drive file_id 越权拉文件。
+  // 安全：只有通过 video_outputs RLS 的 output 才使用 file_id；禁止直接传 Drive file_id 越权拉文件。
   if (!outputRow) return json({ error: "OUTPUT_NOT_FOUND_OR_NOT_OWNED" }, 404);
 
   const driveFileId = googleDriveFileIdFromOutput(outputRow);
