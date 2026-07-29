@@ -145,7 +145,7 @@ function r16GuardPatchedFunction(source, functionName, actionLabel, throwOnDeny 
   const denied = throwOnDeny
     ? `throw new Error('只读项目：不能${actionLabel}')`
     : 'return';
-  return source.replace(expression, `$1\\n  if (!r16AssertCurrentProjectWritable('${actionLabel}')) ${denied};`);
+  return source.replace(expression, `$1\n  if (!r16AssertCurrentProjectWritable('${actionLabel}')) ${denied};`);
 }
 
 function r13MarkVersionForkForSubmit(segmentIds) {
