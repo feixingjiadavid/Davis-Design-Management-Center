@@ -15,7 +15,7 @@ import {
   redactArkPayload,
 } from "../_shared/seedance-request-shape.mjs";
 
-const BUILD = "20260730-worker-task-shapes-drive-v10";
+const BUILD = "20260730-worker-drive-recovery-v11";
 const ACTIVE_STATUSES = ["queued", "running", "processing", "submitting", "submitted"];
 const MAX_BATCH = 25;
 
@@ -391,6 +391,7 @@ Deno.serve(async (req: Request) => {
     body = {};
   }
 
+  const recoverDriveFailures = Boolean(body.recover_drive_failed);
   const requestedLimit = Number(body.limit || 10);
   const limit = Math.max(1, Math.min(MAX_BATCH, Number.isFinite(requestedLimit) ? requestedLimit : 10));
   const requestedProviderTaskId = String(body.provider_task_id || "").trim();
@@ -506,7 +507,7 @@ Deno.serve(async (req: Request) => {
     if (status === "pending") return true;
     if (status === "failed") {
       if (row.metadata?.storage_terminal === true || String(row.status || "") === "drive_failed") {
-        return false;
+        return recoverDriveFailures;
       }
       const retryAt = Date.parse(row.storage_next_retry_at || "");
       return Number.isFinite(retryAt) && retryAt <= nowMs;
@@ -549,6 +550,7 @@ Deno.serve(async (req: Request) => {
     updated: allResults.filter(item => !item.retryable_error).length,
     stale_recovered: staleResults.filter(item => !item.retryable_error).length,
     ark_submissions: submitResults,
+    drive_recovery_requested: recoverDriveFailures,
     drive_scanned: driveCandidates.length,
     drive_completed: driveResults.filter((item: any) => item.storage_status === "completed").length,
     google_drive_config: googleDriveConfigStatus(),
