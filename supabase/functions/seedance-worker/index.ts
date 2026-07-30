@@ -9,9 +9,13 @@ import {
   shouldRetryArkSubmit,
   staleUnboundFailurePayload,
 } from "../_shared/seedance-submit-policy.mjs";
-import { createArkTask } from "../_shared/seedance-ark-submit.mjs";
+import { createArkTask, ARK_CREATE_URL } from "../_shared/seedance-ark-submit.mjs";
+import {
+  compatibilityPayloadForPrivacyRetry,
+  redactArkPayload,
+} from "../_shared/seedance-request-shape.mjs";
 
-const BUILD = "20260728-worker-submit-lease-v8";
+const BUILD = "20260730-worker-task-shapes-drive-v10";
 const ACTIVE_STATUSES = ["queued", "running", "processing", "submitting", "submitted"];
 const MAX_BATCH = 25;
 
@@ -115,6 +119,39 @@ function databaseAdapter(admin: any) {
   };
 }
 
+async function auditOperation(
+  admin: any,
+  task: any,
+  action: string,
+  detail: Record<string, unknown>,
+) {
+  const { error } = await admin.from("video_operation_logs").insert({
+    owner_id: task.owner_id,
+    action,
+    target_type: "video_task",
+    target_id: task.id,
+    detail,
+  });
+  if (error) {
+    console.error(JSON.stringify({
+      event: "seedance_audit_log_failed",
+      task_id: task.id,
+      action,
+      detail: error.message,
+    }));
+  }
+}
+
+function arkFailureForLog(error: any) {
+  return {
+    response_code: Number(error?.httpStatus || 0),
+    error_code: String(error?.code || error?.providerCode || "ARK_CREATE_FAILED"),
+    provider_code: String(error?.providerCode || ""),
+    request_id: error?.requestId || null,
+    response_body: error?.payload || { message: error instanceof Error ? error.message : String(error) },
+  };
+}
+
 async function processQueuedArkSubmission(admin: any, task: any, arkKey: string) {
   const arkPayload = task?.request_payload?.ark_payload;
   if (!hasQueuedArkPayload(task)) {
@@ -143,12 +180,84 @@ async function processQueuedArkSubmission(admin: any, task: any, arkKey: string)
   if (claimError) throw new Error("ARK_SUBMIT_CLAIM_FAILED: " + claimError.message);
   if (!claimed) return { task_id: task.id, status: task.status, skipped: "ALREADY_CLAIMED" };
 
+  const taskType = String(task?.request_payload?.task_type || task?.request_payload?.generation_mode || "");
+  const imageSubmissionMethod = String(task?.request_payload?.image_submission_method || "unknown");
+  let compatibilityRetryUsed = false;
+  let firstFailure: any = null;
+
   try {
-    const created = await createArkTask(arkKey, arkPayload, { timeoutMs: 45_000 });
+    let created: any;
+    try {
+      created = await createArkTask(arkKey, arkPayload, { timeoutMs: 45_000 });
+    } catch (initialError) {
+      const compatibilityAttempts = Number(
+        claimed?.provider_response?.compatibility_retry_attempts ||
+        task?.provider_response?.compatibility_retry_attempts ||
+        0,
+      );
+      const compatibilityPayload =
+        initialError?.code === "ARK_REAL_PERSON_AUTH_REQUIRED" &&
+        compatibilityAttempts < 1
+          ? compatibilityPayloadForPrivacyRetry(arkPayload, taskType)
+          : null;
+
+      if (!compatibilityPayload) throw initialError;
+
+      compatibilityRetryUsed = true;
+      firstFailure = arkFailureForLog(initialError);
+      const compatibilityStartedAt = new Date().toISOString();
+      const compatibilityProviderResponse = {
+        ...(claimed.provider_response || {}),
+        ark_submit_attempts: attempt,
+        compatibility_retry_attempts: 1,
+        compatibility_retry_reason: "ARK_REAL_PERSON_AUTH_REQUIRED",
+        compatibility_retry_started_at: compatibilityStartedAt,
+        first_request_id: firstFailure.request_id,
+        first_response_code: firstFailure.response_code,
+        first_provider_code: firstFailure.provider_code,
+        submission_phase: "ark_privacy_compatibility_retry",
+      };
+      await admin.from("video_tasks").update({
+        provider_response: compatibilityProviderResponse,
+        updated_at: compatibilityStartedAt,
+      }).eq("id", task.id).is("provider_task_id", null);
+
+      await auditOperation(admin, task, "seedance_ark_compatibility_retry", {
+        model: compatibilityPayload.model,
+        endpoint: ARK_CREATE_URL,
+        task_type: taskType,
+        image_submission_method: imageSubmissionMethod,
+        retry_number: 1,
+        retry_limit: 1,
+        first_failure: firstFailure,
+        request_payload: redactArkPayload(compatibilityPayload),
+        final_status: "generating",
+      });
+      console.warn(JSON.stringify({
+        event: "seedance_ark_compatibility_retry",
+        task_id: task.id,
+        task_type: taskType,
+        request_id: firstFailure.request_id,
+      }));
+
+      try {
+        created = await createArkTask(arkKey, compatibilityPayload, { timeoutMs: 45_000 });
+      } catch (compatibilityError) {
+        compatibilityError.compatibilityRetryUsed = true;
+        compatibilityError.firstFailure = firstFailure;
+        throw compatibilityError;
+      }
+    }
+
     const providerResponse = {
       ...(created.data || {}),
       ark_submit_attempts: attempt,
+      compatibility_retry_attempts: compatibilityRetryUsed ? 1 :
+        Number(claimed?.provider_response?.compatibility_retry_attempts || 0),
+      compatibility_retry_used: compatibilityRetryUsed,
+      first_failure: firstFailure,
       submission_phase: "provider_task_bound",
+      final_status: "generating",
       ark_http_status: created.httpStatus,
       ark_submit_elapsed_ms: created.elapsedMs,
     };
@@ -167,22 +276,39 @@ async function processQueuedArkSubmission(admin: any, task: any, arkKey: string)
       await admin.from("video_segments").update({ status: "queued", updated_at: updatedAt })
         .eq("id", task.segment_id).eq("owner_id", task.owner_id);
     }
+    await auditOperation(admin, task, "seedance_ark_submit_succeeded", {
+      model: arkPayload.model,
+      endpoint: ARK_CREATE_URL,
+      task_type: taskType,
+      image_submission_method: imageSubmissionMethod,
+      request_id: created.data?.request_id || null,
+      response_code: created.httpStatus,
+      response_body: created.data || {},
+      compatibility_retry_used: compatibilityRetryUsed,
+      final_status: "generating",
+    });
     return {
       task_id: task.id,
       provider_task_id: created.providerTaskId,
       status: "queued",
+      public_status: "generating",
       progress: 20,
       ark_submit_attempts: attempt,
+      compatibility_retry_used: compatibilityRetryUsed,
       elapsed_ms: created.elapsedMs,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    const retry = shouldRetryArkSubmit(
-      { ...task, provider_response: { ...(task.provider_response || {}), ark_submit_attempts: attempt } },
-      error?.retryable !== false,
-    );
+    const retry = error?.compatibilityRetryUsed
+      ? false
+      : shouldRetryArkSubmit(
+        { ...task, provider_response: { ...(task.provider_response || {}), ark_submit_attempts: attempt } },
+        error?.retryable !== false,
+      );
     const nextStatus = retry ? "queued" : "failed";
+    const finalStatus = retry ? "pending" : "provider_failed";
     const updatedAt = new Date().toISOString();
+    const failure = arkFailureForLog(error);
     await admin.from("video_tasks").update({
       status: nextStatus,
       progress: retry ? 10 : 0,
@@ -190,9 +316,18 @@ async function processQueuedArkSubmission(admin: any, task: any, arkKey: string)
       provider_response: {
         ...(task.provider_response || {}),
         ark_submit_attempts: attempt,
+        compatibility_retry_attempts: error?.compatibilityRetryUsed ? 1 :
+          Number(task?.provider_response?.compatibility_retry_attempts || 0),
+        compatibility_retry_used: Boolean(error?.compatibilityRetryUsed),
+        first_failure: error?.firstFailure || firstFailure,
         submission_phase: retry ? "retry_queued" : "failed",
+        final_status: finalStatus,
         ark_submit_last_error: message,
-        ark_http_status: Number(error?.httpStatus || 0),
+        ark_error_code: failure.error_code,
+        ark_provider_code: failure.provider_code,
+        ark_request_id: failure.request_id,
+        ark_http_status: failure.response_code,
+        ark_response_body: failure.response_body,
         ark_submit_last_at: updatedAt,
       },
       updated_at: updatedAt,
@@ -201,13 +336,27 @@ async function processQueuedArkSubmission(admin: any, task: any, arkKey: string)
       await admin.from("video_segments").update({ status: nextStatus, updated_at: updatedAt })
         .eq("id", task.segment_id).eq("owner_id", task.owner_id);
     }
+    await auditOperation(admin, task, "seedance_ark_submit_failed", {
+      model: arkPayload.model,
+      endpoint: ARK_CREATE_URL,
+      task_type: taskType,
+      image_submission_method: imageSubmissionMethod,
+      compatibility_retry_used: Boolean(error?.compatibilityRetryUsed),
+      first_failure: error?.firstFailure || firstFailure,
+      ...failure,
+      final_status: finalStatus,
+    });
     return {
       task_id: task.id,
       provider_task_id: null,
       status: nextStatus,
+      public_status: finalStatus,
       retryable: retry,
       ark_submit_attempts: attempt,
+      compatibility_retry_used: Boolean(error?.compatibilityRetryUsed),
       error_message: message,
+      error_code: failure.error_code,
+      request_id: failure.request_id,
     };
   }
 }
