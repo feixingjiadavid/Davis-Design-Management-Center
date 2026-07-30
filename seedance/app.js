@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260730-seedance-drive-state-r18';
+const PRODUCTION_BUILD = '20260730-original-image-state-r19';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -1991,6 +1991,16 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, 
   r15WireFileDropzone($('reference-video-card'), addReferenceVideo);
   r15PreventDocumentFileNavigation();`);
   patched = patched.replace('  await generateSegments([segment.id]);', '  await generateSegments([segment.id], { allowResubmit: true });');
+  const originalFrameUploadMarker = "  const safeFrame = await makeArkSafeFrameBlob(frame);";
+  const originalFrameUploadReplacement = `  if (!(frame.blob instanceof Blob)) throw new Error('原始图片文件已丢失，请重新上传');
+  const safeFrame = {
+    blob: frame.blob,
+    type: frame.blob.type || frame.type || 'image/png',
+    width: frame.width || frame.uploadWidth || null,
+    height: frame.height || frame.uploadHeight || null,
+  };`;
+  if (!patched.includes(originalFrameUploadMarker)) throw new Error('无法定位帧图片转码点');
+  patched = patched.replace(originalFrameUploadMarker, originalFrameUploadReplacement);
   const textReferencePromptMarker = "    return [\n      '【纯文字生成要求】',\n      '当前任务为纯文字描述生成模式，没有上传参考图。',";
   const textReferencePromptReplacement = "    const referenceCount = (state.referenceAssets || []).length;\n    return [\n      '【纯文字生成要求】',\n      referenceCount\n        ? `当前任务为纯文字描述生成模式，已上传 ${referenceCount} 张参考图；请结合参考图理解主体、构图与风格。`\n        : '当前任务为纯文字描述生成模式，没有上传参考图。',";
   if (!patched.includes(textReferencePromptMarker)) throw new Error('无法定位纯文字参考图提示包装');
