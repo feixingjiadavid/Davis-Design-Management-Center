@@ -3,8 +3,12 @@ import {
   ARK_CREATE_TIMEOUT_MS,
   existingSubmissionResult,
 } from "../_shared/seedance-submit-policy.mjs";
+import {
+  buildSeedanceRequestShape,
+  redactArkPayload,
+} from "../_shared/seedance-request-shape.mjs";
 
-const BUILD = "20260728-submit-async-queue-v44";
+const BUILD = "20260730-submit-task-shapes-v46";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -283,31 +287,14 @@ Deno.serve(async (req: Request) => {
   const duration = normalizeDuration(segment.duration || requestBody.duration || 4);
   const resolution = normalizeResolution(segment.resolution || requestBody.resolution || "720p");
 
-  const content = isTextOnly
-    ? [
-      { type: "text", text: promptText },
-      ...referenceSignedItems.map((item) => {
-        const directionText = item.direction === "audio_rhythm"
-          ? "参考声音、节奏、音色、氛围"
-          : item.direction === "visual_style"
-            ? "参考画面风格、构图、色彩、质感"
-            : item.direction === "visual_motion"
-              ? "参考动作、镜头、运镜、节奏"
-              : "综合参考";
-        if (item.mime_type.startsWith("audio/")) {
-          return { type: "audio_url", audio_url: { url: item.url }, role: "reference_audio", reference_direction: directionText };
-        }
-        if (item.mime_type.startsWith("image/")) {
-          return { type: "image_url", image_url: { url: item.url }, role: "reference_image", reference_direction: directionText };
-        }
-        return { type: "video_url", video_url: { url: item.url }, role: "reference_video", reference_direction: directionText };
-      }),
-    ]
-    : [
-      { type: "text", text: promptText },
-      { type: "image_url", image_url: { url: firstSignedUrl }, role: "first_frame" },
-      { type: "image_url", image_url: { url: lastSignedUrl }, role: "last_frame" },
-    ];
+  const requestShape = buildSeedanceRequestShape({
+    isTextOnly,
+    promptText,
+    referenceItems: referenceSignedItems,
+    firstFrameUrl: firstSignedUrl,
+    lastFrameUrl: lastSignedUrl,
+  });
+  const content = requestShape.content;
 
   const arkPayload = {
     model,
@@ -322,7 +309,8 @@ Deno.serve(async (req: Request) => {
 
   const requestPayloadForRecord = {
     client_submit_nonce: clientSubmitNonce,
-    note: isTextOnly ? "fix_reference_video_role_v34" : "strict_frame_lock_v14_keep",
+    note: "seedance_task_shape_v46",
+    endpoint: "https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks",
     model,
     model_alias: modelAlias,
     ratio,
@@ -331,12 +319,18 @@ Deno.serve(async (req: Request) => {
     original_prompt: originalPromptText,
     effective_prompt: promptText,
     api_shape: "ark.content_generation.tasks.create",
-    image_roles: isTextOnly ? [] : ["first_frame", "last_frame"],
+    task_type: requestShape.taskType,
+    image_submission_method: requestShape.imageSubmissionMethod,
+    image_transform: "none",
+    compatibility_retry_available: requestShape.compatibilityRetryAvailable,
+    compatibility_retry_limit: requestShape.compatibilityRetryAvailable ? 1 : 0,
+    image_roles: requestShape.imageRoles,
     reference_roles: referenceSignedItems.map((item) => item.mime_type.startsWith("audio/") ? "reference_audio" : item.mime_type.startsWith("image/") ? "reference_image" : "reference_video"),
     reference_directions: referenceSignedItems.map((item) => ({ name: item.name, mime_type: item.mime_type, direction: item.direction })),
-    generation_mode: isTextOnly ? (referenceSignedItems.length ? "text_plus_multi_reference" : "text_only") : "image_reference",
+    generation_mode: requestShape.taskType,
     generate_audio: Boolean(requestBody.generate_audio),
     prompt_mode: safeString(requestBody.prompt_mode || "fix_reference_video_role_v34"),
+    ark_payload_redacted: redactArkPayload(arkPayload),
     ark_payload: arkPayload,
   };
 
@@ -376,6 +370,30 @@ Deno.serve(async (req: Request) => {
     return respond({ error: "创建 video_tasks 失败", detail: taskInsertError?.message || null }, 500);
   }
 
+  const { error: auditError } = await admin.from("video_operation_logs").insert({
+    owner_id: user.id,
+    action: "seedance_submit_queued",
+    target_type: "video_task",
+    target_id: localTask.id,
+    detail: {
+      model,
+      endpoint: requestPayloadForRecord.endpoint,
+      task_type: requestShape.taskType,
+      image_submission_method: requestShape.imageSubmissionMethod,
+      image_transform: "none",
+      request_payload: requestPayloadForRecord.ark_payload_redacted,
+      compatibility_retry_limit: requestPayloadForRecord.compatibility_retry_limit,
+      final_status: "pending",
+    },
+  });
+  if (auditError) {
+    console.error(JSON.stringify({
+      event: "seedance_audit_log_failed",
+      task_id: localTask.id,
+      detail: auditError.message,
+    }));
+  }
+
   const nowIso = new Date().toISOString();
   await admin.from("video_segments").update({ status: "queued", updated_at: nowIso })
     .eq("id", segment.id).eq("owner_id", user.id);
@@ -386,7 +404,9 @@ Deno.serve(async (req: Request) => {
     event: "ark_submit_queued",
     task_id: localTask.id,
     model,
+    task_type: requestPayloadForRecord.task_type,
     generation_mode: requestPayloadForRecord.generation_mode,
+    image_submission_method: requestPayloadForRecord.image_submission_method,
     asset_count: content.filter((item) => item.type !== "text").length,
   }));
 
