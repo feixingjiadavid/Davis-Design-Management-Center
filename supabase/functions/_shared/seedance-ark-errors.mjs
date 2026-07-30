@@ -6,6 +6,14 @@ export function isRetryableArkStatus(status) {
   return code === 408 || code === 409 || code === 425 || code === 429 || code >= 500;
 }
 
+function providerRequestId(providerError, payload, message) {
+  const direct = providerError?.request_id || providerError?.requestId ||
+    payload?.request_id || payload?.requestId || "";
+  if (direct) return String(direct);
+  const match = String(message || "").match(/request\s*id\s*[:：]\s*([a-zA-Z0-9._-]+)/i);
+  return match ? match[1] : null;
+}
+
 function contentReferenceNumber(param) {
   const match = String(param || '').match(/content\[(\d+)\]/);
   if (!match) return null;
@@ -26,6 +34,7 @@ export function normalizeArkCreateFailure(payload, status) {
   const param = String(providerError.param || payload?.param || '');
   const referenceNumber = contentReferenceNumber(param) ??
     contentReferenceNumber(providerMessage);
+  const requestId = providerRequestId(providerError, payload, providerMessage);
 
   if (providerCode === REAL_PERSON_PRIVACY_CODE ||
       /may contain real person|PrivacyInformation/i.test(providerMessage)) {
@@ -38,6 +47,7 @@ export function normalizeArkCreateFailure(payload, status) {
       retryable: false,
       referenceNumber,
       providerCode,
+      requestId,
       message:
         `${target}被 Seedance 2.0 检测为可能包含真人肖像，普通图片链接无法直接用于真人视频生成。` +
         '请先在火山方舟“可信素材库 → 真人人像”完成本人授权，并使用授权后的 Asset ID；' +
@@ -51,6 +61,7 @@ export function normalizeArkCreateFailure(payload, status) {
     retryable: isRetryableArkStatus(httpStatus),
     referenceNumber,
     providerCode,
+    requestId,
     message: providerMessage || `Ark 创建任务失败（HTTP ${httpStatus || 'unknown'}）`,
   };
 }
