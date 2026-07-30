@@ -1,3 +1,8 @@
+import {
+  isRetryableArkStatus,
+  normalizeArkCreateFailure,
+} from './seedance-ark-errors.mjs';
+
 export const ARK_CREATE_URL =
   "https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks";
 
@@ -7,10 +12,7 @@ async function readJsonSafe(response) {
   try { return JSON.parse(text); } catch { return { raw: text }; }
 }
 
-export function isRetryableArkStatus(status) {
-  const code = Number(status || 0);
-  return code === 408 || code === 409 || code === 425 || code === 429 || code >= 500;
-}
+export { isRetryableArkStatus };
 
 export async function createArkTask(
   arkApiKey,
@@ -32,13 +34,14 @@ export async function createArkTask(
     });
     const data = await readJsonSafe(response);
     if (!response.ok || !data?.id) {
-      const error = new Error(
-        "Ark create rejected: HTTP " + response.status + " " +
-        JSON.stringify(data).slice(0, 800),
-      );
+      const normalized = normalizeArkCreateFailure(data, response.status);
+      const error = new Error(normalized.message);
+      error.code = normalized.code;
       error.httpStatus = response.status;
-      error.retryable = isRetryableArkStatus(response.status);
+      error.retryable = normalized.retryable;
       error.payload = data;
+      error.providerCode = normalized.providerCode;
+      error.referenceNumber = normalized.referenceNumber;
       throw error;
     }
     return {
