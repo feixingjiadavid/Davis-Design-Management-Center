@@ -69,7 +69,7 @@ export function buildSeedanceRequestShape({
       taskType: "single_image_i2v",
       imageSubmissionMethod: "supabase_signed_url_original",
       imageRoles: ["first_frame"],
-      compatibilityRetryAvailable: true,
+      compatibilityRetryAvailable: false,
       content: [
         text,
         {
@@ -89,20 +89,6 @@ export function buildSeedanceRequestShape({
     compatibilityRetryAvailable: false,
     content,
   };
-}
-
-export function compatibilityPayloadForPrivacyRetry(payload, taskType) {
-  if (taskType !== "single_image_i2v") return null;
-  const content = Array.isArray(payload?.content)
-    ? payload.content.map((item) => {
-      if (item?.type === "image_url" && item?.role === "first_frame") {
-        return { ...item, role: "reference_image" };
-      }
-      return item && typeof item === "object" ? { ...item } : item;
-    })
-    : [];
-  if (!content.some((item) => item?.role === "reference_image")) return null;
-  return { ...payload, content };
 }
 
 export function redactArkPayload(payload) {
