@@ -7,8 +7,9 @@ import {
   buildSeedanceRequestShape,
   redactArkPayload,
 } from "../_shared/seedance-request-shape.mjs";
+import { normalizePromptReferences } from "../_shared/seedance-prompt-references.mjs";
 
-const BUILD = "20260730-submit-task-shapes-v46";
+const BUILD = "20260730-reference-count-v47";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -180,13 +181,13 @@ Deno.serve(async (req: Request) => {
   const isTextOnly = safeString(requestBody.mode || segment.mode || "").toLowerCase() === "text_only" || (!segment.from_asset_id && !segment.to_asset_id);
   if (!isTextOnly && (!segment.from_asset_id || !segment.to_asset_id)) return respond({ error: "Segment 缺少首帧或尾帧素材" }, 400);
   const originalPromptText = safeString(segment.prompt).trim();
-  const promptText = safeString(requestBody.effective_prompt || originalPromptText).trim();
+  let promptText = safeString(requestBody.effective_prompt || originalPromptText).trim();
   if (!originalPromptText) return respond({ error: "Segment prompt 不能为空" }, 400);
   if (!promptText) return respond({ error: "effective_prompt 不能为空" }, 400);
 
   let firstSignedUrl = "";
   let lastSignedUrl = "";
-  const referenceSignedItems: Array<{ url: string; mime_type: string; direction: string; name: string }> = [];
+  const referenceSignedItems: Array<{ url: string; mime_type: string; direction: string; name: string; token: string }> = [];
 
   if (isTextOnly) {
     const ids = Array.isArray(requestBody.reference_asset_ids)
@@ -228,6 +229,7 @@ Deno.serve(async (req: Request) => {
         mime_type: mimeType,
         direction: safeString(directionItem?.direction || "overall"),
         name: safeString(referenceAsset.original_name || referenceAssetId),
+        token: safeString(directionItem?.token),
       });
     }
   } else {
@@ -287,6 +289,9 @@ Deno.serve(async (req: Request) => {
   const duration = normalizeDuration(segment.duration || requestBody.duration || 4);
   const resolution = normalizeResolution(segment.resolution || requestBody.resolution || "720p");
 
+  const promptReferenceNormalization = normalizePromptReferences(promptText, referenceSignedItems);
+  promptText = promptReferenceNormalization.prompt;
+
   const requestShape = buildSeedanceRequestShape({
     isTextOnly,
     promptText,
@@ -318,6 +323,7 @@ Deno.serve(async (req: Request) => {
     resolution,
     original_prompt: originalPromptText,
     effective_prompt: promptText,
+    prompt_reference_normalization: promptReferenceNormalization,
     api_shape: "ark.content_generation.tasks.create",
     task_type: requestShape.taskType,
     image_submission_method: requestShape.imageSubmissionMethod,
@@ -383,6 +389,7 @@ Deno.serve(async (req: Request) => {
       image_transform: "none",
       request_payload: requestPayloadForRecord.ark_payload_redacted,
       compatibility_retry_limit: requestPayloadForRecord.compatibility_retry_limit,
+      prompt_reference_normalization: promptReferenceNormalization,
       final_status: "pending",
     },
   });
