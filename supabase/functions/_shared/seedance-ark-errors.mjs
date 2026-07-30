@@ -49,9 +49,8 @@ export function normalizeArkCreateFailure(payload, status) {
       providerCode,
       requestId,
       message:
-        `${target}被 Seedance 2.0 检测为可能包含真人肖像，普通图片链接无法直接用于真人视频生成。` +
-        '请先在火山方舟“可信素材库 → 真人人像”完成本人授权，并使用授权后的 Asset ID；' +
-        '如果不需要保留该人物，请移除真人参考图后重新提交。',
+        `${target}触发了 Ark 的真人参考素材限制。当前账号需要额外权限或素材授权后才能继续生成。` +
+        '普通图片已按原方式提交，无需重复上传；请联系管理员确认火山方舟真人视频生成权限。',
     };
   }
 
