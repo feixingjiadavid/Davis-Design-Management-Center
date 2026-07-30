@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260730-original-image-state-r19';
+const PRODUCTION_BUILD = '20260730-privacy-status-r20';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -1757,10 +1757,24 @@ function r18PublicSegmentState(task, outputRows) {
   }
 
   const finalStatus = String(task.provider_response?.final_status || '').toLowerCase();
+  if (finalStatus === 'asset_auth_required') {
+    return {
+      status: 'asset_auth_required',
+      progress: 0,
+      error: task.error_message || '真人参考素材需要额外权限或授权。',
+    };
+  }
   if (finalStatus === 'provider_failed') {
     return { status: 'provider_failed', progress: 0, error: task.error_message || null };
   }
   const raw = String(task.status || '').toLowerCase();
+  if (raw === 'asset_auth_required') {
+    return {
+      status: 'asset_auth_required',
+      progress: 0,
+      error: task.error_message || '真人参考素材需要额外权限或授权。',
+    };
+  }
   if (raw === 'failed' || raw === 'error') {
     return { status: 'provider_failed', progress: 0, error: task.error_message || null };
   }
@@ -1794,6 +1808,7 @@ function r18StatusText(status) {
     succeeded:'完成',
     success:'完成',
     provider_failed:'模型拒绝',
+    asset_auth_required:'真人素材待授权',
     drive_failed:'云盘同步失败',
     failed:'失败',
     error:'失败',
