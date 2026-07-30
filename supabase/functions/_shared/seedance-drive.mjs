@@ -1,6 +1,6 @@
+import { classifyDriveFailure } from "./seedance-drive-policy.mjs";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const DRIVE_UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3/files";
-const RETRY_DELAY_MS = 5 * 60 * 1000;
 const UPLOAD_STALE_MS = 15 * 60 * 1000;
 
 function envFirst(names) {
@@ -187,7 +187,7 @@ export async function syncOutputToGoogleDrive(admin, outputId, options = {}) {
 
   const attempts = Number(current.storage_attempts || 0) + 1;
   const { data: claimed, error: claimError } = await admin.from("video_outputs").update({
-    status: "uploading",
+    status: "uploading_drive",
     storage_status: "uploading",
     storage_error: null,
     storage_attempts: attempts,
@@ -232,25 +232,81 @@ export async function syncOutputToGoogleDrive(admin, outputId, options = {}) {
       google_drive_synced_at: now.toISOString(),
     }).eq("id", claimed.id);
     if (updateError) throw new Error("VIDEO_OUTPUT_DRIVE_PERSIST_FAILED: " + updateError.message);
-    return { storage_status: "completed", google_drive_file_id: file.id, google_drive_url: driveUrl, google_drive_thumbnail_url: thumbnailUrl };
+    const { error: auditError } = await admin.from("video_operation_logs").insert({
+      owner_id: claimed.owner_id,
+      action: "seedance_drive_sync_completed",
+      target_type: "video_output",
+      target_id: claimed.id,
+      detail: {
+        project_id: claimed.project_id,
+        segment_id: claimed.segment_id,
+        provider_task_id: providerTaskId,
+        drive_file_id: file.id,
+        drive_url: driveUrl,
+        attempts,
+        final_status: "completed",
+      },
+    });
+    if (auditError) {
+      console.error(JSON.stringify({
+        event: "seedance_drive_audit_failed",
+        output_id: claimed.id,
+        detail: auditError.message,
+      }));
+    }
+    return { storage_status: "completed", public_status: "completed", google_drive_file_id: file.id, google_drive_url: driveUrl, google_drive_thumbnail_url: thumbnailUrl };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    const retryAt = new Date(Date.now() + RETRY_DELAY_MS).toISOString();
+    const failure = classifyDriveFailure(message, attempts, Date.now());
     const failedMetadata = {
       ...(claimed.metadata || {}),
       storage_backend: "google_drive_failed",
       google_drive_backup_status: "failed",
+      google_drive_failure_code: failure.code,
+      storage_terminal: failure.terminal,
       google_drive_last_error: message,
       google_drive_last_attempt_at: now.toISOString(),
     };
     await admin.from("video_outputs").update({
       metadata: failedMetadata,
-      status: "failed",
+      status: failure.publicStatus,
       storage_status: "failed",
-      storage_error: message,
+      storage_error: failure.code + ": " + message,
       storage_updated_at: now.toISOString(),
-      storage_next_retry_at: retryAt,
+      storage_next_retry_at: failure.nextRetryAt,
     }).eq("id", claimed.id);
-    return { storage_status: "failed", storage_error: message, retry_at: retryAt, google_drive_file_id: null };
+    const { error: auditError } = await admin.from("video_operation_logs").insert({
+      owner_id: claimed.owner_id,
+      action: "seedance_drive_sync_failed",
+      target_type: "video_output",
+      target_id: claimed.id,
+      detail: {
+        project_id: claimed.project_id,
+        segment_id: claimed.segment_id,
+        provider_task_id: providerTaskId,
+        drive_status: failure.publicStatus,
+        error_code: failure.code,
+        error_message: message,
+        attempts,
+        terminal: failure.terminal,
+        next_retry_at: failure.nextRetryAt,
+      },
+    });
+    if (auditError) {
+      console.error(JSON.stringify({
+        event: "seedance_drive_audit_failed",
+        output_id: claimed.id,
+        detail: auditError.message,
+      }));
+    }
+    return {
+      storage_status: "failed",
+      public_status: failure.publicStatus,
+      storage_error: failure.code + ": " + message,
+      retry_at: failure.nextRetryAt,
+      terminal: failure.terminal,
+      google_drive_file_id: null,
+    };
+
   }
 }
