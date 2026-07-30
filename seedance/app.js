@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260730-ark-privacy-guidance-r17';
+const PRODUCTION_BUILD = '20260730-seedance-drive-state-r18';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -1032,7 +1032,7 @@ function r5LoadOutputs(force = false) {
         .eq('project_id', projectId)
         .order('created_at', { ascending: false }),
       supabase.from('video_tasks')
-        .select('id,segment_id,project_id,provider_task_id,status,progress,error_message,model_alias,created_at,updated_at')
+        .select('id,segment_id,project_id,provider_task_id,status,progress,error_message,model_alias,provider_response,request_payload,created_at,updated_at')
         .eq('owner_id', r16ProjectOwnerId())
         .eq('project_id', projectId)
         .order('created_at', { ascending: false }),
@@ -1124,6 +1124,12 @@ function r5LoadOutputs(force = false) {
         referenceAssetIds: existing?.referenceAssetIds || [],
         previousTaskIds: existing?.previousTaskIds || [],
       };
+      const publicState = r18PublicSegmentState(chosenTask, rows);
+      if (publicState) {
+        segment.status = publicState.status;
+        segment.progress = publicState.progress;
+        segment.error = publicState.error;
+      }
       rebuiltSegments.push(segment);
     }
 
@@ -1725,6 +1731,111 @@ async function r10RefreshJobs(force = false) {
   renderJobs();
 }
 
+function r18PublicSegmentState(task, outputRows) {
+  if (!task) return null;
+  const output = (outputRows || []).find(row => row?.task_id === task.id) || null;
+  if (output) {
+    const metadata = output.metadata || {};
+    const storageStatus = String(output.storage_status || '').toLowerCase();
+    const publicStatus = String(output.status || '').toLowerCase();
+    const driveFileId = output.google_drive_file_id || metadata.google_drive_file_id || null;
+    if (driveFileId && storageStatus === 'completed') {
+      return { status: 'completed', progress: 100, error: null };
+    }
+    if (publicStatus === 'drive_failed' || metadata.storage_terminal === true) {
+      return {
+        status: 'drive_failed',
+        progress: 100,
+        error: output.storage_error || 'Google Drive 云盘同步失败',
+      };
+    }
+    return {
+      status: 'uploading_drive',
+      progress: Math.max(90, Number(task.progress || 0)),
+      error: null,
+    };
+  }
+
+  const finalStatus = String(task.provider_response?.final_status || '').toLowerCase();
+  if (finalStatus === 'provider_failed') {
+    return { status: 'provider_failed', progress: 0, error: task.error_message || null };
+  }
+  const raw = String(task.status || '').toLowerCase();
+  if (raw === 'failed' || raw === 'error') {
+    return { status: 'provider_failed', progress: 0, error: task.error_message || null };
+  }
+  if (['succeeded','completed','success'].includes(raw)) {
+    return { status: 'uploading_drive', progress: 90, error: null };
+  }
+  if (['running','processing','submitted'].includes(raw)) {
+    return { status: 'generating', progress: Math.max(20, Number(task.progress || 0)), error: null };
+  }
+  if (['queued','submitting'].includes(raw)) {
+    return { status: 'pending', progress: Math.max(10, Number(task.progress || 0)), error: null };
+  }
+  return null;
+}
+
+function r18StatusText(status) {
+  return ({
+    draft:'草稿',
+    preparing:'准备中',
+    uploading:'上传素材',
+    submitting:'正在提交',
+    retrying:'重试连接',
+    queued:'排队中',
+    pending:'排队中',
+    submitted:'生成中',
+    generating:'生成中',
+    running:'生成中',
+    processing:'生成中',
+    uploading_drive:'视频正在同步云端',
+    completed:'完成',
+    succeeded:'完成',
+    success:'完成',
+    provider_failed:'模型拒绝',
+    drive_failed:'云盘同步失败',
+    failed:'失败',
+    error:'失败',
+    recovering:'找回中',
+    charged_unknown:'疑似已扣费待确认'
+  })[String(status || '').toLowerCase()] || status || '草稿';
+}
+
+function r18JobStageMarkup(segment) {
+  const status = String(segment.status || 'draft').toLowerCase();
+  const progress = Number(segment.progress || (
+    status === 'pending' ? 15 :
+    status === 'generating' ? 60 :
+    status === 'uploading_drive' ? 92 :
+    status === 'completed' ? 100 : 0
+  ));
+  const uploaded = !['draft','preparing','uploading','provider_failed'].includes(status);
+  const submitted = ['pending','generating','uploading_drive','completed','drive_failed'].includes(status);
+  const generated = ['uploading_drive','completed','drive_failed'].includes(status);
+  const driveDone = status === 'completed';
+  const failed = ['provider_failed','drive_failed','failed','error'].includes(status);
+  const steps = [
+    ['素材上传', uploaded],
+    ['任务提交', submitted],
+    ['Seedance 生成', generated],
+    ['Google Drive 同步', driveDone],
+  ];
+  return `
+    <div class="job-progress" style="margin:12px 0">
+      <div style="height:6px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden">
+        <div style="height:100%;width:${Math.max(0,Math.min(100,progress))}%;background:linear-gradient(90deg,#6d5dfc,#9a8cff);transition:.3s"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:7px;font-size:10px;color:#8b91a3">
+        <span>${progress}%</span><span>${statusText(status)}</span>
+      </div>
+      <div style="display:grid;gap:5px;margin-top:10px;font-size:10px;color:#8c92a1">
+        ${steps.map(([label,done]) => `<span>${done ? '✓' : failed ? '×' : '○'} ${label}</span>`).join('')}
+      </div>
+      ${segment.providerTaskId ? '<div style="margin-top:9px;font-size:10px;color:#8b91a3">后台任务已记录，可自动刷新结果</div>' : ''}
+    </div>`;
+}
+
 export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, accessControlSource }) {
   let patched = String(source || '');
   if (!patched.includes(ORIGINAL_BUILD)) throw new Error(`只支持 ${ORIGINAL_BUILD}，当前 app-v46.js 版本不匹配`);
@@ -1740,7 +1851,8 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, 
     r5WritePersistentVideo,r5OpenCreateModal,r5CloseCreateModal,r5CreateProjectFromMode,r5WireCreateModal,
     r6ExistingProjectNames,r6ForkCurrentDraftForSubmit,r10StableUploadPlan,r10ApplyFrameBinding,
     r10SubmissionContext,r10AssertContext,r10RecoverFrameBindings,r10RecoverOrphan,r11RestoreCloudDrafts,r13MarkVersionForkForSubmit,r14NormalizeProjectName,r14ProjectNameExists,r15HasFilePayload,r15WireFileDropzone,r15PreventDocumentFileNavigation,
-    r16ProjectOwnerId,r16ScopeProjectRead,r16CurrentProjectWritable,r16AssertCurrentProjectWritable,r16ApplyReadOnlyControls].map(fn => fn.toString()).join('\n\n');
+    r16ProjectOwnerId,r16ScopeProjectRead,r16CurrentProjectWritable,r16AssertCurrentProjectWritable,r16ApplyReadOnlyControls,
+    r18PublicSegmentState,r18StatusText,r18JobStageMarkup].map(fn => fn.toString()).join('\n\n');
 
   patched = patched.replace("const LAST_SELECTED_DRAFT_KEY = 'seedance_last_selected_draft_id_v1';",
     "const LAST_SELECTED_DRAFT_KEY = 'seedance_last_selected_draft_id_v1';\n\n" + support);
@@ -1757,10 +1869,12 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, 
   patched = replaceSection(patched, 'async function selectDraft(id) {', 'async function createProject() {', renamedFunction(r5SelectDraft, 'selectDraft'));
   patched = replaceSection(patched, 'async function createProject() {', 'async function removeProject() {', renamedFunction(r5CreateProject, 'createProject'));
   patched = replaceSection(patched, 'async function removeProject() {', 'function statusText(', renamedFunction(r5RemoveProject, 'removeProject'));
+  patched = replaceSection(patched, 'function statusText(', 'async function ensureRemoteProject() {', renamedFunction(r18StatusText, 'statusText'));
   patched = replaceSection(patched, 'async function fetchVideoBlobThroughProxy(output) {', 'async function hydrateProxyVideoElements() {', renamedFunction(r5FetchVideoBlobThroughProxy, 'fetchVideoBlobThroughProxy'));
   patched = replaceSection(patched, 'async function hydrateProxyVideoElements() {', 'function outputCardMarkup(', renamedFunction(r5HydrateProxyVideoElements, 'hydrateProxyVideoElements'));
   patched = replaceSection(patched, 'async function recoverLatestDriveOutputWhenEmpty(force = false) {', 'function renderJobs() {', renamedFunction(r5RecoverLatestDriveOutputWhenEmpty, 'recoverLatestDriveOutputWhenEmpty'));
   patched = replaceSection(patched, 'function renderJobs() {', 'function findSegmentIdByOutputIndex(', renamedFunction(r5RenderJobs, 'renderJobs'));
+  patched = replaceSection(patched, 'function jobStageMarkup(', 'function frameCard(', renamedFunction(r18JobStageMarkup, 'jobStageMarkup'));
   patched = replaceSection(patched, 'function reEditSegment(segmentId) {', 'function renderAll() {', renamedFunction(r6ReEditSegment, 'reEditSegment'));
   patched = replaceSection(patched, 'async function syncRemoteTasks() {', 'async function bindProviderTaskAndRecover(', renamedFunction(r5SyncRemoteTasks, 'syncRemoteTasks'));
   patched = replaceSection(patched, 'async function uploadNeededFrames(', 'async function submitOne(', renamedFunction(r10UploadNeededFrames, 'uploadNeededFrames'));
@@ -1810,6 +1924,7 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, 
     "      segment.providerTaskId = data.provider_task_id || null;"
   );
 
+  patched = patched.replace("return new Set(['preparing','uploading','submitting','retrying','submitted','queued','running','processing']);", "return new Set(['preparing','uploading','submitting','retrying','submitted','queued','pending','generating','running','processing','uploading_drive']);");
   const generateSignature = 'async function generateSegments(segmentIds) {';
   patched = patched.replace(generateSignature, 'async function generateSegments(segmentIds, options = {}) {');
   const generateStart = patched.indexOf('async function generateSegments(segmentIds, options = {}) {');
