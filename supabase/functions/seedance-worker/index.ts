@@ -505,8 +505,11 @@ Deno.serve(async (req: Request) => {
     const status = String(row.storage_status || "pending").toLowerCase();
     if (status === "pending") return true;
     if (status === "failed") {
+      if (row.metadata?.storage_terminal === true || String(row.status || "") === "drive_failed") {
+        return false;
+      }
       const retryAt = Date.parse(row.storage_next_retry_at || "");
-      return !Number.isFinite(retryAt) || retryAt <= nowMs;
+      return Number.isFinite(retryAt) && retryAt <= nowMs;
     }
     const updatedAt = Date.parse(row.storage_updated_at || row.created_at || "");
     return status === "uploading" && (!Number.isFinite(updatedAt) || nowMs - updatedAt >= 15 * 60 * 1000);
