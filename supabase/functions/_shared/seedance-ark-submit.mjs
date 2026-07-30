@@ -42,6 +42,7 @@ export async function createArkTask(
       error.payload = data;
       error.providerCode = normalized.providerCode;
       error.referenceNumber = normalized.referenceNumber;
+      error.requestId = normalized.requestId;
       throw error;
     }
     return {
