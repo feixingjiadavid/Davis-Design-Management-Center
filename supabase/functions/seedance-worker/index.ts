@@ -13,7 +13,7 @@ import { createArkTask, ARK_CREATE_URL } from "../_shared/seedance-ark-submit.mj
 import { redactArkPayload } from "../_shared/seedance-request-shape.mjs";
 import { callbackSignature, safetyIdentifier } from "../_shared/seedance-callback-auth.mjs";
 
-const BUILD = "20260731-refresh-provider-drive-v19";
+const BUILD = "20260731-terminal-drive-recovery-v20";
 const ACTIVE_STATUSES = ["queued", "running", "processing", "submitting", "submitted"];
 const MAX_BATCH = 25;
 
@@ -495,6 +495,7 @@ Deno.serve(async (req: Request) => {
     .order("created_at", { ascending: false })
     .limit(Math.min(limit * 3, 50));
   const driveCandidates = (driveRows || []).filter((row: any) => {
+    if (recoverDriveFailures && row.metadata?.provider_recovery_terminal === true) return false;
     const status = String(row.storage_status || "pending").toLowerCase();
     if (status === "pending") return true;
     if (status === "failed") {
@@ -525,6 +526,14 @@ Deno.serve(async (req: Request) => {
         const refreshedArkPayload = await queryArk(providerTaskId, arkKey);
         const refreshedVideoUrl = providerVideoUrlFromPayload(refreshedArkPayload);
         if (!refreshedVideoUrl) {
+          await admin.from("video_outputs").update({
+            metadata: {
+              ...(output.metadata || {}),
+              provider_recovery_terminal: true,
+              provider_recovery_error: "PROVIDER_VIDEO_URL_REFRESH_FAILED",
+              provider_url_refreshed_at: new Date().toISOString(),
+            },
+          }).eq("id", output.id);
           throw new Error("PROVIDER_VIDEO_URL_REFRESH_FAILED");
         }
         arkPayload = refreshedArkPayload;
@@ -554,6 +563,22 @@ Deno.serve(async (req: Request) => {
         arkPayload,
       });
       const driveNow = new Date().toISOString();
+      if (
+        recoverDriveFailures &&
+        drive.storage_status === "failed" &&
+        /Request has expired|PROVIDER_VIDEO_URL_REFRESH_FAILED/i.test(String(drive.storage_error || ""))
+      ) {
+        const { data: failedOutput } = await admin.from("video_outputs")
+          .select("metadata").eq("id", output.id).maybeSingle();
+        await admin.from("video_outputs").update({
+          metadata: {
+            ...(failedOutput?.metadata || output.metadata || {}),
+            provider_recovery_terminal: true,
+            provider_recovery_error: String(drive.storage_error || "PROVIDER_VIDEO_URL_EXPIRED"),
+            provider_url_refreshed_at: driveNow,
+          },
+        }).eq("id", output.id);
+      }
       if (drive.storage_status === "completed") {
         await admin.from("video_tasks").update({
           status: "succeeded",
