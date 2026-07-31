@@ -8,8 +8,9 @@ import {
   redactArkPayload,
 } from "../_shared/seedance-request-shape.mjs";
 import { normalizePromptReferences } from "../_shared/seedance-prompt-references.mjs";
+import { buildGenerationRoute } from "../_shared/seedance-generation-router.mjs";
 
-const BUILD = "20260730-reference-count-v47";
+const BUILD = "20260731-multi-person-routing-v48";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -187,7 +188,7 @@ Deno.serve(async (req: Request) => {
 
   let firstSignedUrl = "";
   let lastSignedUrl = "";
-  const referenceSignedItems: Array<{ url: string; mime_type: string; direction: string; name: string; token: string }> = [];
+  const referenceSignedItems: Array<{ url: string; mime_type: string; direction: string; name: string; token: string; analysis: Record<string, unknown>; width: number | null; height: number | null }> = [];
 
   if (isTextOnly) {
     const ids = Array.isArray(requestBody.reference_asset_ids)
@@ -230,6 +231,9 @@ Deno.serve(async (req: Request) => {
         direction: safeString(directionItem?.direction || "overall"),
         name: safeString(referenceAsset.original_name || referenceAssetId),
         token: safeString(directionItem?.token),
+        analysis: (referenceAsset.analysis_metadata && typeof referenceAsset.analysis_metadata === "object") ? referenceAsset.analysis_metadata : {},
+        width: Number(referenceAsset.width || 0) || null,
+        height: Number(referenceAsset.height || 0) || null,
       });
     }
   } else {
@@ -292,14 +296,141 @@ Deno.serve(async (req: Request) => {
   const promptReferenceNormalization = normalizePromptReferences(promptText, referenceSignedItems);
   promptText = promptReferenceNormalization.prompt;
 
-  const requestShape = buildSeedanceRequestShape({
-    isTextOnly,
-    promptText,
-    referenceItems: referenceSignedItems,
-    firstFrameUrl: firstSignedUrl,
-    lastFrameUrl: lastSignedUrl,
-  });
+  const firstImageReference = referenceSignedItems.find((item) =>
+    String(item.mime_type || "").startsWith("image/")
+  ) || null;
+  const analysis = (firstImageReference?.analysis || {}) as Record<string, unknown>;
+  const realPersonCount = Math.max(0, Math.floor(Number(
+    analysis.real_person_count ?? requestBody.real_person_count ?? 0
+  )));
+  const containsRealPerson = analysis.contains_real_person === true ||
+    requestBody.contains_real_person === true || realPersonCount > 0;
+  const multiPersonDetected = analysis.multi_person_detected === true ||
+    analysis.is_group_photo === true ||
+    requestBody.multi_person_detected === true ||
+    realPersonCount >= 2;
+
+  const requestedSubmitMode = safeString(requestBody.submit_mode).trim();
+  const temporaryPersonMode = requestedSubmitMode === "temporary_reference_person" ||
+    (containsRealPerson && Boolean(firstImageReference));
+  const submitMode = temporaryPersonMode
+    ? "temporary_reference_person"
+    : (!referenceSignedItems.length && isTextOnly ? "text_to_video" :
+      (!isTextOnly ? "first_last_frame_video" : "reference_image_video"));
+
+  if (temporaryPersonMode &&
+      safeString(Deno.env.get("ENABLE_TEMP_PERSON_REFERENCE"), "true").toLowerCase() === "false") {
+    return respond({
+      error: "TEMP_PERSON_REFERENCE_DISABLED",
+      message: "当前真人参考生成功能暂时不可用，素材和项目已保存。",
+      retryable: false,
+    }, 409);
+  }
+
+  if (temporaryPersonMode) {
+    const { data: projectVersion, error: projectError } = await admin
+      .from("video_projects")
+      .select("id, version_root_id")
+      .eq("id", segment.project_id)
+      .eq("owner_id", user.id)
+      .maybeSingle();
+    if (projectError || !projectVersion) {
+      return respond({ error: "PROJECT_VERSION_NOT_FOUND" }, 404);
+    }
+    const { data: confirmation, error: confirmationError } = await admin
+      .from("video_material_rights_confirmations")
+      .select("id")
+      .eq("project_version_id", projectVersion.id)
+      .eq("project_id", projectVersion.version_root_id || projectVersion.id)
+      .eq("user_id", user.id)
+      .eq("terms_version", "2026-07-31-v1")
+      .eq("confirmation_type", "temporary_reference_person_material_rights")
+      .maybeSingle();
+    if (confirmationError) {
+      return respond({ error: "RIGHTS_CONFIRMATION_LOOKUP_FAILED", detail: confirmationError.message }, 500);
+    }
+    if (!confirmation) {
+      return respond({
+        error: "MATERIAL_RIGHTS_CONFIRMATION_REQUIRED",
+        project_id: projectVersion.version_root_id || projectVersion.id,
+        project_version_id: projectVersion.id,
+        terms_version: "2026-07-31-v1",
+        statement: "我确认已获得该图片/视频素材的合法使用权，并承担由此产生的责任。",
+        retryable: false,
+      }, 409);
+    }
+  }
+
+  const explicitImageRole = safeString(requestBody.image_role).trim();
+  const requestedTaskType = safeString(requestBody.task_type).trim();
+  let requestShape: any;
+  if (!isTextOnly) {
+    requestShape = buildSeedanceRequestShape({
+      isTextOnly: false,
+      promptText,
+      firstFrameUrl: firstSignedUrl,
+      lastFrameUrl: lastSignedUrl,
+    });
+  } else if (referenceSignedItems.length === 1 && firstImageReference) {
+    const route = buildGenerationRoute({
+      submitMode,
+      taskType: requestedTaskType || undefined,
+      imageRole: explicitImageRole || "reference_image",
+      prompt: promptText,
+      imageUrl: firstImageReference.url,
+      imageCount: 1,
+      containsRealPerson,
+      realPersonCount,
+      multiPersonDetected,
+      isGroupPhoto: analysis.is_group_photo === true,
+    });
+    requestShape = {
+      ...route,
+      imageSubmissionMethod: "supabase_signed_url_original",
+      imageRoles: route.content.slice(1).map((item: any) => item.role),
+      compatibilityRetryAvailable: false,
+    };
+  } else if (!referenceSignedItems.length) {
+    const route = buildGenerationRoute({
+      submitMode: "text_to_video",
+      taskType: "text_to_video",
+      prompt: promptText,
+    });
+    requestShape = {
+      ...route,
+      imageSubmissionMethod: "none",
+      imageRoles: [],
+      compatibilityRetryAvailable: false,
+    };
+  } else {
+    requestShape = buildSeedanceRequestShape({
+      isTextOnly: true,
+      promptText,
+      referenceItems: referenceSignedItems,
+    });
+  }
   const content = requestShape.content;
+
+  const endpoint = "https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks";
+  const diagnostics = {
+    image_count: content.filter((item: any) => item.type === "image_url").length,
+    contains_real_person: containsRealPerson,
+    multi_person_detected: multiPersonDetected,
+    submit_mode: submitMode,
+    task_type: requestShape.taskType,
+    image_role: requestShape.imageRoles?.[0] || null,
+    provider_request_id: null,
+    provider_error_code: null,
+    model,
+    endpoint,
+    real_person_count: realPersonCount,
+    is_group_photo: analysis.is_group_photo === true || multiPersonDetected,
+    is_lifestyle_photo: analysis.is_lifestyle_photo === true,
+    image_kind: safeString(analysis.image_kind || "unknown"),
+    image_width: firstImageReference?.width || null,
+    image_height: firstImageReference?.height || null,
+    analysis_confidence: Number(analysis.confidence || 0) || null,
+  };
 
   const arkPayload = {
     model,
@@ -315,7 +446,7 @@ Deno.serve(async (req: Request) => {
   const requestPayloadForRecord = {
     client_submit_nonce: clientSubmitNonce,
     note: "seedance_task_shape_v46",
-    endpoint: "https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks",
+    endpoint,
     model,
     model_alias: modelAlias,
     ratio,
@@ -334,6 +465,9 @@ Deno.serve(async (req: Request) => {
     reference_roles: referenceSignedItems.map((item) => item.mime_type.startsWith("audio/") ? "reference_audio" : item.mime_type.startsWith("image/") ? "reference_image" : "reference_video"),
     reference_directions: referenceSignedItems.map((item) => ({ name: item.name, mime_type: item.mime_type, direction: item.direction })),
     generation_mode: requestShape.taskType,
+    submit_mode: submitMode,
+    image_role: requestShape.imageRoles?.[0] || null,
+    diagnostics,
     generate_audio: Boolean(requestBody.generate_audio),
     prompt_mode: safeString(requestBody.prompt_mode || "fix_reference_video_role_v34"),
     ark_payload_redacted: redactArkPayload(arkPayload),
@@ -352,6 +486,7 @@ Deno.serve(async (req: Request) => {
       model_alias: modelAlias,
       request_payload: requestPayloadForRecord,
       provider_response: { ark_submit_attempts: 0, submission_phase: "queued_for_worker" },
+      metadata: diagnostics,
     })
     .select()
     .single();
@@ -374,6 +509,36 @@ Deno.serve(async (req: Request) => {
       }
     }
     return respond({ error: "创建 video_tasks 失败", detail: taskInsertError?.message || null }, 500);
+  }
+
+  const { error: policyEventError } = await admin.from("video_provider_policy_events").insert({
+    task_id: localTask.id,
+    owner_id: user.id,
+    provider: "ark",
+    model,
+    endpoint,
+    submit_mode: submitMode,
+    task_type: requestShape.taskType,
+    image_role: requestShape.imageRoles?.[0] || null,
+    image_count: diagnostics.image_count,
+    contains_real_person: containsRealPerson,
+    multi_person_detected: multiPersonDetected,
+    real_person_count: realPersonCount,
+    is_group_photo: diagnostics.is_group_photo,
+    is_lifestyle_photo: diagnostics.is_lifestyle_photo,
+    image_kind: diagnostics.image_kind,
+    image_width: diagnostics.image_width,
+    image_height: diagnostics.image_height,
+    analysis_confidence: diagnostics.analysis_confidence,
+    retry_count: 0,
+    outcome: "submitted",
+  });
+  if (policyEventError) {
+    console.error(JSON.stringify({
+      event: "seedance_policy_event_insert_failed",
+      task_id: localTask.id,
+      error: policyEventError.message,
+    }));
   }
 
   const { error: auditError } = await admin.from("video_operation_logs").insert({
