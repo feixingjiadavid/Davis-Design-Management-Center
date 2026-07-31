@@ -51,7 +51,6 @@
 - `supabase/functions/seedance-status/index.ts`: read database state instead of querying Ark on each browser refresh.
 - `seedance/project-version-policy.mjs`: preserve material/prompt/parameter history but clear rights-confirmation state on V-N clone.
 - `seedance/app.js`: one-time version confirmation, explicit submit mode/image role, public status copy, Drive-only output rendering.
-- `docs/superpowers/specs/2026-07-31-temporary-person-reference-design.md`: align final outcome names and project_version_id terminology.
 
 ### Task 1: Add Version, Confirmation, Task Metadata, and Policy Event Schema
 
