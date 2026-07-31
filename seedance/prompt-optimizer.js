@@ -674,6 +674,7 @@ function openFor(textarea) {
 
   activeTextarea = textarea;
   currentResult = null;
+  globalThis.__davisVisionDiagnostics = [];
   byId('ai-prompt-original').value = prompt;
   byId('ai-prompt-optimized').value = '';
   byId('ai-prompt-use').hidden = true;
