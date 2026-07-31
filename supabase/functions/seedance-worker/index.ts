@@ -11,8 +11,9 @@ import {
 } from "../_shared/seedance-submit-policy.mjs";
 import { createArkTask, ARK_CREATE_URL } from "../_shared/seedance-ark-submit.mjs";
 import { redactArkPayload } from "../_shared/seedance-request-shape.mjs";
+import { callbackSignature, safetyIdentifier } from "../_shared/seedance-callback-auth.mjs";
 
-const BUILD = "20260730-privacy-routing-v12";
+const BUILD = "20260731-callback-policy-drive-v13";
 const ACTIVE_STATUSES = ["queued", "running", "processing", "submitting", "submitted"];
 const MAX_BATCH = 25;
 
@@ -110,9 +111,6 @@ function databaseAdapter(admin: any) {
       if (error) throw new Error("video_outputs update failed: " + error.message);
       return data;
     },
-    async syncOutputToDrive(outputId: string, context: Record<string, unknown>) {
-      return await syncOutputToGoogleDrive(admin, outputId, context);
-    },
   };
 }
 
@@ -149,7 +147,7 @@ function arkFailureForLog(error: any) {
   };
 }
 
-async function processQueuedArkSubmission(admin: any, task: any, arkKey: string) {
+async function processQueuedArkSubmission(admin: any, task: any, arkKey: string, supabaseUrl: string) {
   const arkPayload = task?.request_payload?.ark_payload;
   if (!hasQueuedArkPayload(task)) {
     return { task_id: task.id, status: task.status, skipped: "ARK_PAYLOAD_MISSING" };
@@ -180,9 +178,19 @@ async function processQueuedArkSubmission(admin: any, task: any, arkKey: string)
   const taskType = String(task?.request_payload?.task_type || task?.request_payload?.generation_mode || "");
   const imageSubmissionMethod = String(task?.request_payload?.image_submission_method || "unknown");
   try {
-    // Submit the ordinary image once. Retrying the same image under another
-    // role does not relax Ark privacy policy and only adds latency/cost.
-    const created = await createArkTask(arkKey, arkPayload, { timeoutMs: 45_000 });
+    // Submit the ordinary image once. Retrying under another role is forbidden.
+    const providerPayload = { ...arkPayload };
+    const callbackSecret = Deno.env.get("SEEDANCE_CALLBACK_SECRET") || "";
+    const safetySecret = Deno.env.get("SEEDANCE_SAFETY_IDENTIFIER_SECRET") || "";
+    if (callbackSecret) {
+      const signature = await callbackSignature(task.id, callbackSecret);
+      providerPayload.callback_url =
+        `${supabaseUrl}/functions/v1/seedance-callback?task_id=${encodeURIComponent(task.id)}&signature=${signature}`;
+    }
+    if (safetySecret) {
+      providerPayload.safety_identifier = await safetyIdentifier(task.owner_id, safetySecret);
+    }
+    const created = await createArkTask(arkKey, providerPayload, { timeoutMs: 45_000 });
 
     const providerResponse = {
       ...(created.data || {}),
@@ -196,12 +204,21 @@ async function processQueuedArkSubmission(admin: any, task: any, arkKey: string)
       ark_submit_elapsed_ms: created.elapsedMs,
     };
     const updatedAt = new Date().toISOString();
+    const providerRequestId = created.data?.request_id || created.data?.requestId || null;
     const { error: taskError } = await admin.from("video_tasks").update({
       provider_task_id: created.providerTaskId,
       status: "queued",
       progress: 20,
       error_message: null,
       provider_response: providerResponse,
+      metadata: {
+        ...(task.metadata || {}),
+        provider_task_id: created.providerTaskId,
+        provider_request_id: providerRequestId,
+        provider_error_code: null,
+        callback_enabled: Boolean(providerPayload.callback_url),
+        safety_identifier_enabled: Boolean(providerPayload.safety_identifier),
+      },
       updated_at: updatedAt,
     }).eq("id", task.id).is("provider_task_id", null);
     if (taskError) throw new Error("ARK_PROVIDER_BIND_FAILED: " + taskError.message);
@@ -210,6 +227,11 @@ async function processQueuedArkSubmission(admin: any, task: any, arkKey: string)
       await admin.from("video_segments").update({ status: "queued", updated_at: updatedAt })
         .eq("id", task.segment_id).eq("owner_id", task.owner_id);
     }
+    await admin.from("video_provider_policy_events").update({
+      outcome: "provider_accepted",
+      provider_request_id: providerRequestId,
+      updated_at: updatedAt,
+    }).eq("task_id", task.id);
     await auditOperation(admin, task, "seedance_ark_submit_succeeded", {
       model: arkPayload.model,
       endpoint: ARK_CREATE_URL,
@@ -233,19 +255,31 @@ async function processQueuedArkSubmission(admin: any, task: any, arkKey: string)
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    const privacyAuthorizationRequired = error?.code === "ARK_REAL_PERSON_AUTH_REQUIRED";
-    const retry = privacyAuthorizationRequired ? false : shouldRetryArkSubmit(
+    const privacyPolicyBlocked =
+      error?.code === "PROVIDER_POLICY_BLOCKED" ||
+      error?.code === "ARK_REAL_PERSON_AUTH_REQUIRED" ||
+      error?.providerCode === "InputImageSensitiveContentDetected.PrivacyInformation";
+    const temporaryPersonTask =
+      String(task?.request_payload?.submit_mode || task?.metadata?.submit_mode || "") ===
+        "temporary_reference_person";
+    const retry = privacyPolicyBlocked || temporaryPersonTask ? false : shouldRetryArkSubmit(
       { ...task, provider_response: { ...(task.provider_response || {}), ark_submit_attempts: attempt } },
       error?.retryable !== false,
     );
-    const nextStatus = retry ? "queued" : (privacyAuthorizationRequired ? "asset_auth_required" : "failed");
-    const finalStatus = retry ? "pending" : (privacyAuthorizationRequired ? "asset_auth_required" : "provider_failed");
+    const nextStatus = retry ? "queued" : (privacyPolicyBlocked ? "provider_policy_blocked" : "failed");
+    const finalStatus = retry ? "pending" : (privacyPolicyBlocked ? "provider_policy_blocked" : "provider_failed");
     const updatedAt = new Date().toISOString();
     const failure = arkFailureForLog(error);
     await admin.from("video_tasks").update({
       status: nextStatus,
       progress: retry ? 10 : 0,
       error_message: retry ? null : message,
+      metadata: {
+        ...(task.metadata || {}),
+        provider_request_id: failure.request_id,
+        provider_error_code: failure.provider_code || failure.error_code,
+        retry_count: Math.max(0, attempt - 1),
+      },
       provider_response: {
         ...(task.provider_response || {}),
         ark_submit_attempts: attempt,
@@ -268,6 +302,14 @@ async function processQueuedArkSubmission(admin: any, task: any, arkKey: string)
       await admin.from("video_segments").update({ status: nextStatus, updated_at: updatedAt })
         .eq("id", task.segment_id).eq("owner_id", task.owner_id);
     }
+    await admin.from("video_provider_policy_events").update({
+      outcome: privacyPolicyBlocked ? "provider_policy_blocked" : "provider_error",
+      provider_request_id: failure.request_id,
+      provider_error_code: failure.provider_code || failure.error_code,
+      error_type: failure.provider_code || failure.error_code,
+      retry_count: Math.max(0, attempt - 1),
+      updated_at: updatedAt,
+    }).eq("task_id", task.id);
     await auditOperation(admin, task, "seedance_ark_submit_failed", {
       model: arkPayload.model,
       endpoint: ARK_CREATE_URL,
@@ -383,7 +425,7 @@ Deno.serve(async (req: Request) => {
     if (queuedError) return json({ error: "QUEUED_SUBMISSION_SCAN_FAILED", detail: queuedError.message }, 500);
     submitResults = await mapWithConcurrency(queuedTasks || [], 1, async (task: any) => {
       try {
-        return await processQueuedArkSubmission(admin, task, arkKey);
+        return await processQueuedArkSubmission(admin, task, arkKey, supabaseUrl);
       } catch (error) {
         return {
           task_id: task.id,
@@ -401,6 +443,15 @@ Deno.serve(async (req: Request) => {
     .limit(limit);
   if (requestedProviderTaskId) {
     taskQuery = taskQuery.eq("provider_task_id", requestedProviderTaskId);
+  } else {
+    const callbackWatchdogMs = Math.max(
+      60_000,
+      Number(Deno.env.get("SEEDANCE_CALLBACK_WATCHDOG_MS") || 180_000),
+    );
+    taskQuery = taskQuery.lt(
+      "updated_at",
+      new Date(Date.now() - callbackWatchdogMs).toISOString(),
+    );
   }
 
   const { data: tasks, error: taskError } = await taskQuery;
@@ -464,6 +515,39 @@ Deno.serve(async (req: Request) => {
         videoUrl,
         arkPayload,
       });
+      const driveNow = new Date().toISOString();
+      if (drive.storage_status === "completed") {
+        await admin.from("video_tasks").update({
+          status: "succeeded",
+          progress: 100,
+          error_message: null,
+          completed_at: driveNow,
+          updated_at: driveNow,
+        }).eq("id", output.task_id);
+        if (output.segment_id) {
+          await admin.from("video_segments").update({
+            status: "succeeded", updated_at: driveNow,
+          }).eq("id", output.segment_id).eq("owner_id", output.owner_id);
+        }
+        await admin.from("video_provider_policy_events").update({
+          outcome: "success", updated_at: driveNow,
+        }).eq("task_id", output.task_id);
+      } else if (drive.storage_status === "failed" && drive.terminal === true) {
+        await admin.from("video_tasks").update({
+          status: "drive_sync_failed",
+          progress: 99,
+          error_message: "视频已生成，但同步云端失败。系统将保留记录以便恢复。",
+          updated_at: driveNow,
+        }).eq("id", output.task_id);
+        if (output.segment_id) {
+          await admin.from("video_segments").update({
+            status: "drive_sync_failed", updated_at: driveNow,
+          }).eq("id", output.segment_id).eq("owner_id", output.owner_id);
+        }
+        await admin.from("video_provider_policy_events").update({
+          outcome: "drive_sync_failed", updated_at: driveNow,
+        }).eq("task_id", output.task_id);
+      }
       return { output_id: output.id, task_id: output.task_id, provider_task_id: providerTaskId, ...drive };
     } catch (error) {
       return {
