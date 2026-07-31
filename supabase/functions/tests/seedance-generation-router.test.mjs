@@ -65,10 +65,10 @@ test('one real person is a temporary person reference task', () => {
     realPersonCount: 1
   });
   assert.equal(route.taskType, 'temporary_person_reference_video');
-  assert.equal(route.content[1].role, 'first_frame');
+  assert.equal(route.content[1].role, 'reference_image');
 });
 
-test('first-frame intent is never inferred from image count', () => {
+test('temporary multi-person intent overrides stale first-frame clients', () => {
   const route = buildGenerationRoute({
     submitMode: 'temporary_reference_person',
     taskType: 'multi_person_reference_video',
@@ -76,7 +76,8 @@ test('first-frame intent is never inferred from image count', () => {
     prompt: '保持多人场景',
     imageUrl: 'https://example.test/group.png'
   });
-  assert.equal(route.content[1].role, 'first_frame');
+  assert.equal(route.content[1].role, 'reference_image');
+  assert.equal(route.diagnostics.image_role, 'reference_image');
 });
 
 test('missing role fails before provider submission', () => {
