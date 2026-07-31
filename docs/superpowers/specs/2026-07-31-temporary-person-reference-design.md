@@ -1,19 +1,19 @@
-# Davis Video 临时真人参考与版本级素材权利确认设计
+# Davis Video 多人真人场景参考与版本级素材权利确认设计
 
 日期：2026-07-31  
 状态：已确认设计，待实施计划
 
 ## 1. 目标
 
-让普通用户上传生活照、合影或活动照片时，获得尽可能接近即梦的单次视频生成体验，同时保留公开 Ark API 的真实安全边界和完整诊断能力。
+让普通用户上传多人合影、活动照片、旅游照片、自拍或普通生活照片时，获得尽可能接近即梦的单次视频生成体验，同时保留公开 Ark API 的真实安全边界和完整诊断能力。
 
 本设计不通过修改 prompt、修改图片、Base64 重传、切换 URL、在 `first_frame` 与 `reference_image` 间反复重试或自动转入 Asset 来规避安全策略。
 
 ## 2. 已确认的产品模式
 
-### 2.1 temporary_reference_person
+### 2.1 temporary_reference_person（本轮主路径）
 
-适用于普通生活照、合影、活动照片等一次性生成。
+适用于多人合影、活动照片、旅游照片、自拍和普通生活照片等一次性生成。多人图片使用 `submit_mode=temporary_reference_person` 与 `task_type=multi_person_reference_video`；单人生活照使用同一 submit_mode，但任务类型为 `temporary_person_reference_video`。
 
 流程：
 
@@ -31,11 +31,11 @@
 
 项目版本级权利声明不等于真人身份认证，也不保证 Ark 接受任务。
 
-### 2.2 real_person_asset_video
+### 2.2 real_person_asset_video（高级能力，本轮暂缓）
 
 仅适用于固定人物 IP、数字员工或需要长期复用的真人角色。
 
-流程使用官方授权后的 `asset://<asset_id>`，并以 `reference_image` 提交。该模式与 temporary_reference_person 完全独立，不自动互相转换。
+未来流程使用官方授权后的 `asset://<asset_id>`，并以 `reference_image` 提交。该模式与 temporary_reference_person 完全独立，不自动互相转换。本轮不新增 video_provider_assets、不建设 Asset 管理界面，也不把普通多人照片引导或转入该流程。
 
 ## 3. 项目版本与确认记录
 
@@ -77,7 +77,8 @@ RLS 只允许用户查看和创建自己的确认记录；服务端提交函数�
 - `first_last_frame_video`
 - `reference_image_video`
 - `temporary_reference_person`
-- `real_person_asset_video`
+- `multi_person_reference_video`
+- `real_person_asset_video`（接口保留，本轮不建设资产管理）
 - `multi_reference_storyboard`
 
 `temporary_reference_person` 还必须包含 `image_role`，枚举为 `first_frame` 或 `reference_image`。后端只按显式值构造一次请求。
@@ -96,7 +97,7 @@ RLS 只允许用户查看和创建自己的确认记录；服务端提交函数�
 
 “当前视频模型对该真人参考图片进行了安全限制。素材已保存，你可以：  
 ① 更换参考图片重新生成  
-② 使用真人素材授权模式获得更稳定效果”
+② 保留当前项目并更换参考图片后重试”
 
 前端不得暴露 Ark、请求 ID、模型名或原始响应。后台保留完整原始响应。
 
@@ -183,7 +184,6 @@ Ark 请求继续增加：
 - 权利确认只能由当前登录用户为自己的项目版本创建。
 - 服务端提交时验证确认记录、项目归属和版本匹配。
 - 超级管理员可查看调查统计，不可代替用户确认素材使用权。
-- `real_person_asset_video` 必须验证对应 Asset 映射处于官方可用状态。
 - callback 使用不可猜测的服务端令牌并保证幂等。
 
 ## 10. 测试与验收
@@ -193,14 +193,14 @@ Ark 请求继续增加：
 1. 纯文字任务无需权利确认。
 2. 非真人首帧按 `first_frame` 提交。
 3. 非真人参考图按 `reference_image` 提交。
-4. 真人生活照首次提交出现一次权利确认。
+4. 多人合影、活动照片、旅游照片、自拍和生活照首次提交出现一次项目版本级权利确认。
 5. 同版本修改 prompt、参数、失败重试不重复确认。
 6. V-2/V-3 必须重新确认。
 7. temporary_reference_person 不因分析结果而自动阻断。
 8. PrivacyInformation 映射为 `provider_policy_blocked`，只提交一次。
 9. 用户提示不包含 Ark 技术细节。
 10. 诊断 metadata 与调查事件字段完整。
-11. real_person_asset_video 使用 `asset://` 且不由临时模式自动进入。
+11. 普通多人照片不会进入或被引导进入 real_person_asset_video；该高级接口仅保留边界。
 12. callback 幂等处理成功、失败和重复投递。
 13. Seedance 成功后保存临时 URL 历史，Google Drive 上传完成后前端从 Drive 恢复播放。
 14. 页面刷新、换电脑后可从数据库和 Google Drive 恢复项目结果。
@@ -215,4 +215,4 @@ Ark 请求继续增加：
 
 采用方案：
 
-Davis 提供一次性 `temporary_reference_person` 产品模式，正常提交一次；官方接受则生成，官方拒绝则准确记录为 `provider_policy_blocked`。长期真人复用继续使用独立官方 Asset 模式。
+Davis 以 `temporary_reference_person` 作为普通真人场景主路径，并以 `multi_person_reference_video` 标识多人参考任务；正常提交一次，官方接受则生成，官方拒绝则准确记录为 `provider_policy_blocked`，且不阻断同项目其他片段。长期真人复用的 Asset 能力保持独立并暂缓实施。
