@@ -13,7 +13,7 @@ import { createArkTask, ARK_CREATE_URL } from "../_shared/seedance-ark-submit.mj
 import { redactArkPayload } from "../_shared/seedance-request-shape.mjs";
 import { callbackSignature, safetyIdentifier } from "../_shared/seedance-callback-auth.mjs";
 
-const BUILD = "20260731-callback-policy-drive-v17";
+const BUILD = "20260731-refresh-provider-drive-v19";
 const ACTIVE_STATUSES = ["queued", "running", "processing", "submitting", "submitted"];
 const MAX_BATCH = 25;
 
@@ -518,10 +518,35 @@ Deno.serve(async (req: Request) => {
       let arkPayload = task?.provider_response || output.metadata?.ark_response || {};
       let videoUrl = String(output.metadata?.provider_video_url || "") ||
         providerVideoUrlFromPayload(arkPayload);
-      if (!videoUrl && providerTaskId) {
-        arkPayload = await queryArk(providerTaskId, arkKey);
-        videoUrl = providerVideoUrlFromPayload(arkPayload);
+
+      // Provider URLs are temporary. Historical Drive recovery must refresh the
+      // Ark result before download instead of retrying an expired signed URL.
+      if (providerTaskId && (recoverDriveFailures || !videoUrl)) {
+        const refreshedArkPayload = await queryArk(providerTaskId, arkKey);
+        const refreshedVideoUrl = providerVideoUrlFromPayload(refreshedArkPayload);
+        if (!refreshedVideoUrl) {
+          throw new Error("PROVIDER_VIDEO_URL_REFRESH_FAILED");
+        }
+        arkPayload = refreshedArkPayload;
+        videoUrl = refreshedVideoUrl;
+        const refreshedAt = new Date().toISOString();
+        const { error: refreshPersistError } = await admin.from("video_outputs").update({
+          metadata: {
+            ...(output.metadata || {}),
+            provider_video_url: refreshedVideoUrl,
+            ark_response: refreshedArkPayload,
+            provider_url_refreshed_at: refreshedAt,
+          },
+          storage_attempts: recoverDriveFailures ? 0 : Number(output.storage_attempts || 0),
+          storage_error: null,
+          storage_next_retry_at: null,
+          storage_updated_at: refreshedAt,
+        }).eq("id", output.id);
+        if (refreshPersistError) {
+          throw new Error("PROVIDER_VIDEO_URL_REFRESH_PERSIST_FAILED: " + refreshPersistError.message);
+        }
       }
+
       const drive = await syncOutputToGoogleDrive(admin, output.id, {
         force: true,
         providerTaskId,
