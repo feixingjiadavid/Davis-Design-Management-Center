@@ -55,14 +55,14 @@
 
 - `id uuid`
 - `project_id uuid`：版本链根项目 ID
-- `version_id uuid`：当前 `video_projects.id`
+- `project_version_id uuid`：当前 `video_projects.id`
 - `user_id uuid`
 - `confirmed_at timestamptz`
 - `terms_version text`
 - `confirmation_type text`，固定为 `temporary_reference_person_material_rights`
 - `created_at timestamptz`
 
-唯一约束：`(version_id, user_id, terms_version, confirmation_type)`。
+唯一约束：`(project_version_id, user_id, terms_version, confirmation_type)`。
 
 RLS 只允许用户查看和创建自己的确认记录；服务端提交函数仍会再次验证项目归属。
 
@@ -142,7 +142,7 @@ RLS 只允许用户查看和创建自己的确认记录；服务端提交函数�
 - `submit_mode text`
 - `image_role text`
 - `error_type text`
-- `outcome text`，枚举为 `submitted`、`accepted`、`policy_blocked`、`provider_failed`、`succeeded`
+- `outcome text`，枚举包含 `submitted`、`provider_accepted`、`provider_success`、`success`、`provider_policy_blocked`、`asset_required`、`provider_error`、`drive_sync_failed`
 - `request_id text`
 - `retry_count integer`
 - `image_kind text`
