@@ -63,27 +63,13 @@ export function buildSeedanceRequestShape({
     };
   }
 
-  const onlyReference = referenceItems.length === 1 ? referenceItems[0] : null;
-  if (onlyReference && String(onlyReference.mime_type || "").startsWith("image/")) {
-    return {
-      taskType: "single_image_i2v",
-      imageSubmissionMethod: "supabase_signed_url_original",
-      imageRoles: ["first_frame"],
-      compatibilityRetryAvailable: false,
-      content: [
-        text,
-        {
-          type: "image_url",
-          image_url: { url: onlyReference.url },
-          role: "first_frame",
-        },
-      ],
-    };
-  }
-
+  // Reference count never implies first-frame semantics. Every caller that
+  // needs first_frame must use the explicit first/last branch or router.
   const content = [text, ...referenceItems.map(referenceContentItem)];
   return {
-    taskType: "multi_reference_storyboard",
+    taskType: referenceItems.length === 1
+      ? "reference_image_video"
+      : "multi_reference_storyboard",
     imageSubmissionMethod: "supabase_signed_url_original",
     imageRoles: content.slice(1).map((item) => item.role),
     compatibilityRetryAvailable: false,
