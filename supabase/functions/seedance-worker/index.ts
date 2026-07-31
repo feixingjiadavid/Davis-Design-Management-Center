@@ -147,7 +147,7 @@ function arkFailureForLog(error: any) {
   };
 }
 
-async function processQueuedArkSubmission(admin: any, task: any, arkKey: string, supabaseUrl: string) {
+async function processQueuedArkSubmission(admin: any, task: any, arkKey: string, supabaseUrl: string, serviceKey: string) {
   const arkPayload = task?.request_payload?.ark_payload;
   if (!hasQueuedArkPayload(task)) {
     return { task_id: task.id, status: task.status, skipped: "ARK_PAYLOAD_MISSING" };
@@ -434,7 +434,7 @@ Deno.serve(async (req: Request) => {
     if (queuedError) return json({ error: "QUEUED_SUBMISSION_SCAN_FAILED", detail: queuedError.message }, 500);
     submitResults = await mapWithConcurrency(queuedTasks || [], 1, async (task: any) => {
       try {
-        return await processQueuedArkSubmission(admin, task, arkKey, supabaseUrl);
+        return await processQueuedArkSubmission(admin, task, arkKey, supabaseUrl, serviceKey);
       } catch (error) {
         return {
           task_id: task.id,
