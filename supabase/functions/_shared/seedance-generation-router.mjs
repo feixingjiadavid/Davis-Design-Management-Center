@@ -59,7 +59,13 @@ export function buildGenerationRoute(input = {}) {
     };
   }
 
-  const imageRole = String(input.imageRole || '');
+  const requestedImageRole = String(input.imageRole || '');
+  const temporaryReferenceTask = taskType === 'multi_person_reference_video' ||
+    taskType === 'temporary_person_reference_video';
+  // Ordinary real-person photos are multimodal references, not timeline
+  // keyframes. Keep this server-authoritative so stale clients cannot route a
+  // group photo back through first_frame.
+  const imageRole = temporaryReferenceTask ? 'reference_image' : requestedImageRole;
   if (!VALID_IMAGE_ROLES.has(imageRole)) {
     throw new Error('IMAGE_ROLE_REQUIRED');
   }
