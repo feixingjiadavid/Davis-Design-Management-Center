@@ -13,7 +13,7 @@ import { createArkTask, ARK_CREATE_URL } from "../_shared/seedance-ark-submit.mj
 import { redactArkPayload } from "../_shared/seedance-request-shape.mjs";
 import { callbackSignature, safetyIdentifier } from "../_shared/seedance-callback-auth.mjs";
 
-const BUILD = "20260731-callback-policy-drive-v16";
+const BUILD = "20260731-callback-policy-drive-v17";
 const ACTIVE_STATUSES = ["queued", "running", "processing", "submitting", "submitted"];
 const MAX_BATCH = 25;
 
@@ -516,8 +516,12 @@ Deno.serve(async (req: Request) => {
       const { data: task } = await admin.from("video_tasks").select("*").eq("id", output.task_id).maybeSingle();
       const providerTaskId = String(task?.provider_task_id || output.metadata?.provider_task_id || "").trim();
       let arkPayload = task?.provider_response || output.metadata?.ark_response || {};
-      if (providerTaskId) arkPayload = await queryArk(providerTaskId, arkKey);
-      const videoUrl = providerVideoUrlFromPayload(arkPayload) || String(output.metadata?.provider_video_url || "");
+      let videoUrl = String(output.metadata?.provider_video_url || "") ||
+        providerVideoUrlFromPayload(arkPayload);
+      if (!videoUrl && providerTaskId) {
+        arkPayload = await queryArk(providerTaskId, arkKey);
+        videoUrl = providerVideoUrlFromPayload(arkPayload);
+      }
       const drive = await syncOutputToGoogleDrive(admin, output.id, {
         force: true,
         providerTaskId,
