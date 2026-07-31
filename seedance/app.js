@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260731-multi-person-rights-r21';
+const PRODUCTION_BUILD = '20260731-multi-person-diagnostics-r22';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -1932,7 +1932,7 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, 
 
   patched = patched.replace(
     "    mode: isTextOnly ? 'text_only' : state.draft.mode,\n  };",
-    "    submit_mode: isTextOnly && ((segment.referenceAssetIds || (state.referenceAssets || []).map(item => item.remoteAssetId).filter(Boolean)).length || segment.referenceAssetId) ? 'reference_image_video' : (isTextOnly ? 'text_to_video' : 'first_last_frame_video'),\n    task_type: '',\n    image_role: isTextOnly ? 'reference_image' : 'first_frame',\n    mode: isTextOnly ? 'text_only' : state.draft.mode,\n  };"
+    "    submit_mode: isTextOnly && ((segment.referenceAssetIds || (state.referenceAssets || []).map(item => item.remoteAssetId).filter(Boolean)).length || segment.referenceAssetId) ? 'reference_image_video' : (isTextOnly ? 'text_to_video' : 'first_last_frame_video'),\n    task_type: '',\n    image_role: isTextOnly ? 'reference_image' : 'first_frame',\n    image_count: isTextOnly ? (segment.referenceAssetIds || (state.referenceAssets || []).map(item => item.remoteAssetId).filter(Boolean)).length : 2,\n    contains_real_person: isTextOnly && Array.isArray(globalThis.__davisVisionDiagnostics) ? globalThis.__davisVisionDiagnostics.some(item => item?.contains_real_person === true) : false,\n    real_person_count: isTextOnly && Array.isArray(globalThis.__davisVisionDiagnostics) ? Math.max(0, ...globalThis.__davisVisionDiagnostics.map(item => Number(item?.real_person_count || 0))) : 0,\n    multi_person_detected: isTextOnly && Array.isArray(globalThis.__davisVisionDiagnostics) ? globalThis.__davisVisionDiagnostics.some(item => item?.multi_person_detected === true) : false,\n    mode: isTextOnly ? 'text_only' : state.draft.mode,\n  };"
   );
 
   patched = patched.replace(
