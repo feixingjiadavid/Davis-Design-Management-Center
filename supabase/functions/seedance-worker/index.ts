@@ -13,7 +13,7 @@ import { createArkTask, ARK_CREATE_URL } from "../_shared/seedance-ark-submit.mj
 import { redactArkPayload } from "../_shared/seedance-request-shape.mjs";
 import { callbackSignature, safetyIdentifier } from "../_shared/seedance-callback-auth.mjs";
 
-const BUILD = "20260731-terminal-drive-recovery-v20";
+const BUILD = "20260731-drive-recovery-backoff-v21";
 const ACTIVE_STATUSES = ["queued", "running", "processing", "submitting", "submitted"];
 const MAX_BATCH = 25;
 
@@ -34,9 +34,9 @@ async function readJsonSafe(response: Response) {
   }
 }
 
-async function queryArk(providerTaskId: string, arkKey: string) {
+async function queryArk(providerTaskId: string, arkKey: string, timeoutMs = 35000) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort("ark-status-timeout"), 35000);
+  const timer = setTimeout(() => controller.abort("ark-status-timeout"), timeoutMs);
   try {
     const response = await fetch(
       "https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks/" +
@@ -496,6 +496,8 @@ Deno.serve(async (req: Request) => {
     .limit(Math.min(limit * 3, 50));
   const driveCandidates = (driveRows || []).filter((row: any) => {
     if (recoverDriveFailures && row.metadata?.provider_recovery_terminal === true) return false;
+    const recoveryRetryAt = Date.parse(row.metadata?.provider_recovery_next_retry_at || "");
+    if (recoverDriveFailures && Number.isFinite(recoveryRetryAt) && recoveryRetryAt > nowMs) return false;
     const status = String(row.storage_status || "pending").toLowerCase();
     if (status === "pending") return true;
     if (status === "failed") {
@@ -523,7 +525,7 @@ Deno.serve(async (req: Request) => {
       // Provider URLs are temporary. Historical Drive recovery must refresh the
       // Ark result before download instead of retrying an expired signed URL.
       if (providerTaskId && (recoverDriveFailures || !videoUrl)) {
-        const refreshedArkPayload = await queryArk(providerTaskId, arkKey);
+        const refreshedArkPayload = await queryArk(providerTaskId, arkKey, 15000);
         const refreshedVideoUrl = providerVideoUrlFromPayload(refreshedArkPayload);
         if (!refreshedVideoUrl) {
           await admin.from("video_outputs").update({
@@ -613,11 +615,23 @@ Deno.serve(async (req: Request) => {
       }
       return { output_id: output.id, task_id: output.task_id, provider_task_id: providerTaskId, ...drive };
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (/ark-status-timeout/i.test(message)) {
+        const { data: retryOutput } = await admin.from("video_outputs")
+          .select("metadata").eq("id", output.id).maybeSingle();
+        await admin.from("video_outputs").update({
+          metadata: {
+            ...(retryOutput?.metadata || output.metadata || {}),
+            provider_recovery_error: message,
+            provider_recovery_next_retry_at: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(),
+          },
+        }).eq("id", output.id);
+      }
       return {
         output_id: output.id,
         task_id: output.task_id,
         storage_status: "failed",
-        storage_error: error instanceof Error ? error.message : String(error),
+        storage_error: message,
       };
     }
   });
