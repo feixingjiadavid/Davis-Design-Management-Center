@@ -42,15 +42,14 @@ export function normalizeArkCreateFailure(payload, status) {
       ? `第 ${referenceNumber} 张参考图`
       : '参考图';
     return {
-      code: 'ARK_REAL_PERSON_AUTH_REQUIRED',
+      code: 'PROVIDER_POLICY_BLOCKED',
       httpStatus,
       retryable: false,
       referenceNumber,
       providerCode,
       requestId,
       message:
-        `${target}触发了 Ark 的真人参考素材限制。当前账号需要额外权限或素材授权后才能继续生成。` +
-        '普通图片已按原方式提交，无需重复上传；请联系管理员确认火山方舟真人视频生成权限。',
+        `当前视频模型对${target}进行了安全限制。素材和项目已保存，你可以更换参考图片后重新生成。`,
     };
   }
 
