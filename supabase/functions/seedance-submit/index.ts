@@ -10,7 +10,7 @@ import {
 import { normalizePromptReferences } from "../_shared/seedance-prompt-references.mjs";
 import { buildGenerationRoute } from "../_shared/seedance-generation-router.mjs";
 
-const BUILD = "20260731-multi-person-routing-v48";
+const BUILD = "20260731-multi-person-reference-v50";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
