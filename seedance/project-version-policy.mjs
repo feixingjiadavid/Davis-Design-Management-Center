@@ -91,6 +91,10 @@ export function cloneDraftAsVersion(sourceDraft, nextName, idFactory, now = Date
   draft.versionSourceDraftId = sourceId;
   draft.versionNumber = version;
   draft.pendingVersionFork = null;
+  // A new project version may contain changed material, so rights confirmation
+  // is intentionally scoped to and reset for the new version.
+  draft.materialRightsConfirmation = null;
+  draft.materialRightsConfirmedAt = null;
   draft.outputs = [];
   draft.outputHistory = [];
   draft.jobs = [];
