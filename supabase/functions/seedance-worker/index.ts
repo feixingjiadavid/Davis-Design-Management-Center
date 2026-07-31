@@ -13,7 +13,7 @@ import { createArkTask, ARK_CREATE_URL } from "../_shared/seedance-ark-submit.mj
 import { redactArkPayload } from "../_shared/seedance-request-shape.mjs";
 import { callbackSignature, safetyIdentifier } from "../_shared/seedance-callback-auth.mjs";
 
-const BUILD = "20260731-callback-policy-drive-v13";
+const BUILD = "20260731-callback-policy-drive-v15";
 const ACTIVE_STATUSES = ["queued", "running", "processing", "submitting", "submitted"];
 const MAX_BATCH = 25;
 
@@ -345,6 +345,13 @@ Deno.serve(async (req: Request) => {
     return json({ error: "SERVER_ENV_MISSING" }, 500);
   }
 
+  const runtimeConfig = {
+    callback_enabled: Boolean(Deno.env.get("SEEDANCE_CALLBACK_SECRET")),
+    safety_identifier_enabled: Boolean(Deno.env.get("SEEDANCE_SAFETY_IDENTIFIER_SECRET")),
+    google_drive: googleDriveConfigStatus(),
+  };
+  console.log(JSON.stringify({ event: "seedance_worker_runtime_config", ...runtimeConfig }));
+
   const admin = createClient(supabaseUrl, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
@@ -569,6 +576,7 @@ Deno.serve(async (req: Request) => {
     drive_recovery_requested: recoverDriveFailures,
     drive_scanned: driveCandidates.length,
     drive_completed: driveResults.filter((item: any) => item.storage_status === "completed").length,
+    runtime_config: runtimeConfig,
     google_drive_config: googleDriveConfigStatus(),
     drive_results: driveResults,
     results: allResults,
