@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260730-privacy-status-r20';
+const PRODUCTION_BUILD = '20260731-multi-person-rights-r21';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -1742,9 +1742,9 @@ function r18PublicSegmentState(task, outputRows) {
     if (driveFileId && storageStatus === 'completed') {
       return { status: 'completed', progress: 100, error: null };
     }
-    if (publicStatus === 'drive_failed' || metadata.storage_terminal === true) {
+    if (publicStatus === 'drive_sync_failed' || metadata.storage_terminal === true) {
       return {
-        status: 'drive_failed',
+        status: 'drive_sync_failed',
         progress: 100,
         error: output.storage_error || 'Google Drive 云盘同步失败',
       };
@@ -1757,22 +1757,22 @@ function r18PublicSegmentState(task, outputRows) {
   }
 
   const finalStatus = String(task.provider_response?.final_status || '').toLowerCase();
-  if (finalStatus === 'asset_auth_required') {
+  if (finalStatus === 'provider_policy_blocked') {
     return {
-      status: 'asset_auth_required',
+      status: 'provider_policy_blocked',
       progress: 0,
-      error: task.error_message || '真人参考素材需要额外权限或授权。',
+      error: task.error_message || '当前视频模型对该真人参考图片进行了安全限制。素材和项目已保存，你可以更换参考图片后重新生成。',
     };
   }
   if (finalStatus === 'provider_failed') {
     return { status: 'provider_failed', progress: 0, error: task.error_message || null };
   }
   const raw = String(task.status || '').toLowerCase();
-  if (raw === 'asset_auth_required') {
+  if (raw === 'provider_policy_blocked') {
     return {
-      status: 'asset_auth_required',
+      status: 'provider_policy_blocked',
       progress: 0,
-      error: task.error_message || '真人参考素材需要额外权限或授权。',
+      error: task.error_message || '当前视频模型对该真人参考图片进行了安全限制。素材和项目已保存，你可以更换参考图片后重新生成。',
     };
   }
   if (raw === 'failed' || raw === 'error') {
@@ -1808,8 +1808,8 @@ function r18StatusText(status) {
     succeeded:'完成',
     success:'完成',
     provider_failed:'模型拒绝',
-    asset_auth_required:'真人素材待授权',
-    drive_failed:'云盘同步失败',
+    provider_policy_blocked:'参考图片受限',
+    drive_sync_failed:'云盘同步失败',
     failed:'失败',
     error:'失败',
     recovering:'找回中',
@@ -1826,10 +1826,10 @@ function r18JobStageMarkup(segment) {
     status === 'completed' ? 100 : 0
   ));
   const uploaded = !['draft','preparing','uploading','provider_failed'].includes(status);
-  const submitted = ['pending','generating','uploading_drive','completed','drive_failed'].includes(status);
-  const generated = ['uploading_drive','completed','drive_failed'].includes(status);
+  const submitted = ['pending','generating','uploading_drive','completed','drive_sync_failed'].includes(status);
+  const generated = ['uploading_drive','completed','drive_sync_failed'].includes(status);
   const driveDone = status === 'completed';
-  const failed = ['provider_failed','drive_failed','failed','error'].includes(status);
+  const failed = ['provider_failed','drive_sync_failed','failed','error'].includes(status);
   const steps = [
     ['素材上传', uploaded],
     ['任务提交', submitted],
@@ -1929,6 +1929,48 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, 
 `;
   if (!patched.includes(modeSwitchBlock)) throw new Error('无法定位旧模式切换事件');
   patched = patched.replace(modeSwitchBlock, '');
+
+  patched = patched.replace(
+    "    mode: isTextOnly ? 'text_only' : state.draft.mode,\n  };",
+    "    submit_mode: isTextOnly && ((segment.referenceAssetIds || (state.referenceAssets || []).map(item => item.remoteAssetId).filter(Boolean)).length || segment.referenceAssetId) ? 'reference_image_video' : (isTextOnly ? 'text_to_video' : 'first_last_frame_video'),\n    task_type: '',\n    image_role: isTextOnly ? 'reference_image' : 'first_frame',\n    mode: isTextOnly ? 'text_only' : state.draft.mode,\n  };"
+  );
+
+  patched = patched.replace(
+    "    if (data?.error && !data?.success) throw new Error(data.error);",
+    "    if (data?.error && !data?.success) { const wrapped = new Error(data.error); wrapped.payload = data; throw wrapped; }"
+  );
+  patched = patched.replace(
+    "        message = payload?.error || payload?.message || message;",
+    "        message = payload?.error || payload?.message || message; error.payload = payload;"
+  );
+
+  const rightsHelper = `
+async function r21ConfirmMaterialRights(error) {
+  if (String(error?.message || '') !== 'MATERIAL_RIGHTS_CONFIRMATION_REQUIRED') return false;
+  const payload = error?.payload || {};
+  const statement = payload.statement || '我确认已获得该图片/视频素材的合法使用权，并承担由此产生的责任。';
+  const accepted = await confirmBox('素材使用权确认', statement);
+  if (!accepted) throw new Error('已取消素材使用权确认');
+  const result = await invokeEdgeFunction('seedance-material-rights', {
+    project_id: payload.project_id || state.draft.remoteProjectId,
+    project_version_id: payload.project_version_id || state.draft.remoteProjectId,
+  });
+  state.draft.materialRightsConfirmation = {
+    confirmed: true,
+    projectVersionId: result.project_version_id,
+    termsVersion: result.terms_version,
+  };
+  state.draft.materialRightsConfirmedAt = result.confirmed_at || new Date().toISOString();
+  await persist();
+  return true;
+}
+
+`;
+  patched = patched.replace('async function submitOne(segment) {', rightsHelper + 'async function submitOne(segment) {');
+  patched = patched.replace(
+    "    } catch (error) {\n      lastError = error;",
+    "    } catch (error) {\n      if (await r21ConfirmMaterialRights(error)) { attempt -= 1; continue; }\n      lastError = error;"
+  );
 
   patched = patched.replace(
     "      if (!data.task_id || !data.provider_task_id) throw new Error(data.error || 'Seedance 提交接口没有返回 task_id / provider_task_id');",
