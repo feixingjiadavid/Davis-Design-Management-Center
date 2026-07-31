@@ -13,7 +13,7 @@ import { createArkTask, ARK_CREATE_URL } from "../_shared/seedance-ark-submit.mj
 import { redactArkPayload } from "../_shared/seedance-request-shape.mjs";
 import { callbackSignature, safetyIdentifier } from "../_shared/seedance-callback-auth.mjs";
 
-const BUILD = "20260731-callback-policy-drive-v15";
+const BUILD = "20260731-callback-policy-drive-v16";
 const ACTIVE_STATUSES = ["queued", "running", "processing", "submitting", "submitted"];
 const MAX_BATCH = 25;
 
@@ -180,8 +180,8 @@ async function processQueuedArkSubmission(admin: any, task: any, arkKey: string,
   try {
     // Submit the ordinary image once. Retrying under another role is forbidden.
     const providerPayload = { ...arkPayload };
-    const callbackSecret = Deno.env.get("SEEDANCE_CALLBACK_SECRET") || "";
-    const safetySecret = Deno.env.get("SEEDANCE_SAFETY_IDENTIFIER_SECRET") || "";
+    const callbackSecret = Deno.env.get("SEEDANCE_CALLBACK_SECRET") || serviceKey;
+    const safetySecret = Deno.env.get("SEEDANCE_SAFETY_IDENTIFIER_SECRET") || serviceKey;
     if (callbackSecret) {
       const signature = await callbackSignature(task.id, callbackSecret);
       providerPayload.callback_url =
@@ -346,8 +346,10 @@ Deno.serve(async (req: Request) => {
   }
 
   const runtimeConfig = {
-    callback_enabled: Boolean(Deno.env.get("SEEDANCE_CALLBACK_SECRET")),
-    safety_identifier_enabled: Boolean(Deno.env.get("SEEDANCE_SAFETY_IDENTIFIER_SECRET")),
+    callback_enabled: true,
+    callback_secret_source: Deno.env.get("SEEDANCE_CALLBACK_SECRET") ? "dedicated" : "service_key_fallback",
+    safety_identifier_enabled: true,
+    safety_identifier_secret_source: Deno.env.get("SEEDANCE_SAFETY_IDENTIFIER_SECRET") ? "dedicated" : "service_key_fallback",
     google_drive: googleDriveConfigStatus(),
   };
   console.log(JSON.stringify({ event: "seedance_worker_runtime_config", ...runtimeConfig }));
