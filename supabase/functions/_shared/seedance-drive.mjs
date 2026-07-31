@@ -51,10 +51,24 @@ export function googleDriveConfigStatus() {
   };
 }
 
-async function getGoogleAccessToken() {
+async function resolveGoogleRefreshToken(admin) {
+  if (admin?.rpc) {
+    const { data, error } = await admin.rpc("get_seedance_google_refresh_token");
+    if (!error && String(data || "").trim()) return String(data).trim();
+    if (error) {
+      console.error(JSON.stringify({
+        event: "seedance_google_refresh_token_vault_read_failed",
+        message: error.message,
+      }));
+    }
+  }
+  return envFirst(["GOOGLE_REFRESH_TOKEN"]);
+}
+
+async function getGoogleAccessToken(admin) {
   const clientId = envFirst(["GOOGLE_CLIENT_ID"]);
   const clientSecret = envFirst(["GOOGLE_CLIENT_SECRET"]);
-  const refreshToken = envFirst(["GOOGLE_REFRESH_TOKEN"]);
+  const refreshToken = await resolveGoogleRefreshToken(admin);
   if (!clientId || !clientSecret || !refreshToken) throw new Error("GOOGLE_OAUTH_SECRETS_MISSING");
 
   const body = new URLSearchParams({
@@ -81,7 +95,7 @@ function safeFileName(providerTaskId, outputId) {
 }
 
 async function uploadVideoToGoogleDrive(videoUrl, context) {
-  const accessToken = await getGoogleAccessToken();
+  const accessToken = await getGoogleAccessToken(context.admin);
   const folderId = envFirst(["GOOGLE_DRIVE_FOLDER_ID", "GDRIVE_FOLDER_ID", "GOOGLE_FOLDER_ID"]);
   if (!folderId) throw new Error("GOOGLE_DRIVE_FOLDER_ID_MISSING");
 
@@ -202,6 +216,7 @@ export async function syncOutputToGoogleDrive(admin, outputId, options = {}) {
   try {
     if (!videoUrl) throw new Error("SEEDANCE_VIDEO_URL_MISSING");
     const file = await uploadVideoToGoogleDrive(videoUrl, {
+      admin,
       outputId: claimed.id,
       providerTaskId,
     });
