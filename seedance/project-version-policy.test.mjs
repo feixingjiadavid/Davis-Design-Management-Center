@@ -28,6 +28,8 @@ test('clones editable content while clearing every remote task/output binding', 
     finalHeight: 1080,
     fitMode: 'contain',
     remoteProjectId: 'remote-old',
+    materialRightsConfirmation: { termsVersion: '2026-07-31-v1' },
+    materialRightsConfirmedAt: '2026-07-31T00:00:00Z',
     workspaces: {
       first_last: {
         remoteProjectId: 'remote-old',
@@ -58,6 +60,9 @@ test('clones editable content while clearing every remote task/output binding', 
   assert.equal(fork.versionSourceDraftId, 'old');
   assert.equal(fork.versionNumber, 2);
   assert.equal(fork.remoteProjectId, null);
+  assert.equal(fork.materialRightsConfirmation, null);
+  assert.equal(fork.materialRightsConfirmedAt, null);
+  assert.deepEqual(source.materialRightsConfirmation, { termsVersion: '2026-07-31-v1' });
   assert.equal(fork.workspaces.first_last.remoteProjectId, null);
   assert.equal(fork.frames[0].blob.size, blob.size);
   assert.equal(fork.frames[0].remoteAssetId, null);
