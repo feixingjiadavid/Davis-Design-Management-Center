@@ -2,7 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { verifyCallbackSignature } from "../_shared/seedance-callback-auth.mjs";
 import { normalizeArkResult } from "../_shared/seedance-status-core.mjs";
 
-const BUILD = "20260731-seedance-callback-v1";
+const BUILD = "20260731-seedance-callback-v2";
 
 function json(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify({ build: BUILD, ...body }), {
@@ -17,14 +17,14 @@ Deno.serve(async (req: Request) => {
   const url = new URL(req.url);
   const taskId = String(url.searchParams.get("task_id") || "").trim();
   const signature = String(url.searchParams.get("signature") || "").trim();
-  const secret = Deno.env.get("SEEDANCE_CALLBACK_SECRET") || "";
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+  const secret = Deno.env.get("SEEDANCE_CALLBACK_SECRET") || serviceRoleKey;
   if (!taskId || !signature || !secret ||
       !await verifyCallbackSignature(taskId, signature, secret)) {
     return json({ error: "INVALID_CALLBACK_SIGNATURE" }, 401);
   }
 
-  const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
   if (!supabaseUrl || !serviceRoleKey) return json({ error: "SERVER_ENV_MISSING" }, 500);
 
   let payload: Record<string, unknown> = {};
