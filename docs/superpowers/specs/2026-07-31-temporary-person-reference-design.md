@@ -47,7 +47,7 @@
 - `version_number integer`：V-1、V-2、V-3 的数字版本。
 - `version_source_project_id uuid`：新版本来源项目，可空。
 
-现有项目迁移为 `version_root_id=id`、`version_number=1`；后续 V-2/V-3 克隆时继承根项目并递增版本号。
+历史项目按 owner 和项目基础名称分组：解析已有 V-N 名称，将同组最早版本作为 `version_root_id`，保留解析出的 `version_number`；无法识别版本后缀的项目按 V-1 处理。后续 V-2/V-3 克隆时继承根项目并递增版本号。
 
 ### 3.2 权利确认表
 
@@ -142,6 +142,7 @@ RLS 只允许用户查看和创建自己的确认记录；服务端提交函数�
 - `submit_mode text`
 - `image_role text`
 - `error_type text`
+- `outcome text`，枚举为 `submitted`、`accepted`、`policy_blocked`、`provider_failed`、`succeeded`
 - `request_id text`
 - `retry_count integer`
 - `image_kind text`
