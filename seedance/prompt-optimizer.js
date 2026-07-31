@@ -5,7 +5,7 @@ import {
 } from './prompt-optimizer-core.js';
 import { analyzeAllImages } from './vision-analysis-policy.mjs';
 
-const BUILD = '20260728-davis-video-optimizer-v7';
+const BUILD = '20260731-multi-person-diagnostics-v8';
 const FUNCTION_NAME = 'seedance-prompt-optimize';
 const VISION_FUNCTION_NAME = 'seedance-vision-analyze';
 const VISION_TIMEOUT_MS = 45000;
@@ -604,6 +604,19 @@ async function analyzeImagesForPrompt(serial) {
     );
 
     if (serial !== requestSerial) return { cancelled: true, context: null, warnings: [] };
+    globalThis.__davisVisionDiagnostics = results.map((item) => ({
+      index: item.index,
+      label: item.label,
+      contains_real_person: item.analysis?.contains_real_person === true,
+      real_person_count: Math.max(0, Number(item.analysis?.real_person_count || 0)),
+      multi_person_detected: item.analysis?.multi_person_detected === true ||
+        item.analysis?.is_group_photo === true ||
+        Number(item.analysis?.real_person_count || 0) >= 2,
+      is_group_photo: item.analysis?.is_group_photo === true,
+      is_lifestyle_photo: item.analysis?.is_lifestyle_photo === true,
+      image_kind: String(item.analysis?.image_kind || 'unknown'),
+      confidence: Number(item.analysis?.confidence || 0),
+    }));
     setVisionState(
       `千问已完成全部 ${results.length} 张图片理解，正在交给 DeepSeek 精细优化。`,
       'ok',
