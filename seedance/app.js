@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260731-multi-person-diagnostics-r22';
+const PRODUCTION_BUILD = '20260731-multi-person-diagnostics-r23';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -189,6 +189,9 @@ async function r6ForkCurrentDraftForSubmit(segmentIds) {
   const localNames = (state.drafts || []).map(draft => draft?.name).filter(Boolean);
   const nextName = nextProjectVersionName(source.name, [...localNames, ...remoteNames]);
   const fork = migrateDraftWorkspaces(cloneDraftAsVersion(source, nextName, uid, Date.now()));
+  const sourceRemoteProjectId = source.remoteProjectId || getWorkspace(source)?.remoteProjectId || null;
+  fork.versionSourceProjectId = sourceRemoteProjectId;
+  fork.versionRootProjectId = source.versionRootProjectId || sourceRemoteProjectId || null;
   const original = marker.sourceSnapshot
     ? migrateDraftWorkspaces(r5Clone(marker.sourceSnapshot))
     : source;
@@ -2048,6 +2051,24 @@ async function r21ConfirmMaterialRights(error) {
   r15WireFileDropzone($('reference-video-card'), addReferenceVideo);
   r15PreventDocumentFileNavigation();`);
   patched = patched.replace('  await generateSegments([segment.id]);', '  await generateSegments([segment.id], { allowResubmit: true });');
+  const projectPayloadMarker = `    status: 'draft',
+  };`;
+  const projectPayloadReplacement = `    status: 'draft',
+    version_source_project_id: state.draft.versionSourceProjectId || null,
+    version_root_id: state.draft.versionRootProjectId || null,
+    version_number: Math.max(1, Number(state.draft.versionNumber) || 1),
+  };`;
+  if (!patched.includes(projectPayloadMarker)) throw new Error('无法定位远端项目版本字段');
+  patched = patched.replace(projectPayloadMarker, projectPayloadReplacement);
+  const projectBindingMarker = `  state.draft.remoteProjectId = result.data.id;
+  workspace.remoteProjectId = result.data.id;`;
+  const projectBindingReplacement = `  state.draft.remoteProjectId = result.data.id;
+  state.draft.versionSourceProjectId = result.data.version_source_project_id || state.draft.versionSourceProjectId || null;
+  state.draft.versionRootProjectId = result.data.version_root_id || state.draft.versionRootProjectId || result.data.id;
+  state.draft.versionNumber = Math.max(1, Number(result.data.version_number) || Number(state.draft.versionNumber) || 1);
+  workspace.remoteProjectId = result.data.id;`;
+  if (!patched.includes(projectBindingMarker)) throw new Error('无法定位远端项目绑定点');
+  patched = patched.replace(projectBindingMarker, projectBindingReplacement);
   const originalFrameUploadMarker = "  const safeFrame = await makeArkSafeFrameBlob(frame);";
   const originalFrameUploadReplacement = `  if (!(frame.blob instanceof Blob)) throw new Error('原始图片文件已丢失，请重新上传');
   const safeFrame = {
