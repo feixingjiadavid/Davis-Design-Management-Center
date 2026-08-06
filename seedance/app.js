@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260806-project-delete-fix-r24';
+const PRODUCTION_BUILD = '20260806-auto-pad-r25';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -1672,20 +1672,71 @@ async function r10RecoverFrameBindings(projectId, plan) {
     .select('id,object_path,sort_order,width,height,created_at')
     .eq('owner_id', r16ProjectOwnerId()).eq('project_id', projectId).eq('kind', 'frame')
     .order('created_at', { ascending: false }).limit(100);
-  if (result.error) { console.warn('[Davis Video R10] frame recovery skipped', result.error); return; }
+  if (result.error) { console.warn('[Davis Video R25] frame recovery skipped', result.error); return; }
+
   for (const item of plan) {
     const frame = state.draft.frames.find(candidate => candidate.id === item.id);
-    if (!frame || frame.remoteAssetId) continue;
-    const row = (result.data || []).find(candidate => String(candidate.object_path || '').includes('-' + item.id + '-'));
-    if (!row) continue;
-    r10ApplyFrameBinding(state.draft.frames, item.id, {
-      remoteAssetId: row.id, remotePath: row.object_path, arkSafeVersion: IMAGE_SAFE_VERSION,
-      uploadWidth: row.width || null, uploadHeight: row.height || null
+    if (!frame) continue;
+
+    const sourceW = Number(frame.width || 0);
+    const sourceH = Number(frame.height || 0);
+    const sourceRatio = sourceW > 0 && sourceH > 0 ? sourceW / sourceH : null;
+    const sourceNeedsPadding = sourceRatio != null && (sourceRatio > 2.49 || sourceRatio < 0.41);
+
+    const boundW = Number(frame.uploadWidth || 0);
+    const boundH = Number(frame.uploadHeight || 0);
+    const boundRatio = boundW > 0 && boundH > 0 ? boundW / boundH : null;
+    const boundUnsafe = boundRatio != null && (boundRatio > 2.49 || boundRatio < 0.41);
+    const staleUnsafeBinding = Boolean(frame.remoteAssetId && (
+      boundUnsafe || (sourceNeedsPadding && frame.wasAspectPadded !== true)
+    ));
+
+    // 旧版本可能把 3:1 / 1:3 原图直接标成“已上传”。强制解除旧绑定，重新走自动补边上传。
+    if (staleUnsafeBinding) {
+      frame.remoteAssetId = null;
+      frame.remotePath = null;
+      frame.arkSafeVersion = null;
+      frame.uploadWidth = null;
+      frame.uploadHeight = null;
+      frame.uploadSafeRatio = null;
+      frame.wasAspectPadded = false;
+      frame.aspectPadMode = 'none';
+    }
+
+    if (frame.remoteAssetId) continue;
+
+    const rows = (result.data || []).filter(candidate =>
+      String(candidate.object_path || '').includes('-' + item.id + '-')
+    );
+
+    // 只允许恢复已经满足 Seedance 0.40~2.50 比例要求的云端图片。
+    const row = rows.find(candidate => {
+      const w = Number(candidate.width || 0);
+      const h = Number(candidate.height || 0);
+      if (!(w > 0 && h > 0)) return false;
+      const ratio = w / h;
+      return ratio >= 0.41 && ratio <= 2.49;
     });
+
+    if (!row) continue;
+
+    const rowRatio = Number(row.width) / Number(row.height);
+    r10ApplyFrameBinding(state.draft.frames, item.id, {
+      remoteAssetId: row.id,
+      remotePath: row.object_path,
+      arkSafeVersion: IMAGE_SAFE_VERSION,
+      uploadWidth: row.width,
+      uploadHeight: row.height,
+      uploadSafeRatio: rowRatio,
+      wasAspectPadded: Boolean(sourceNeedsPadding),
+      aspectPadMode: sourceNeedsPadding ? (sourceRatio > 2.49 ? 'letterbox_vertical_black_bars' : 'pillarbox_horizontal_black_bars') : 'none',
+      originalRatio: sourceRatio,
+    });
+
     if (Number(row.sort_order) !== item.order) {
       supabase.from('video_assets').update({ sort_order: item.order })
         .eq('id', row.id).eq('owner_id', r16ProjectOwnerId())
-        .then(({ error }) => { if (error) console.warn('[Davis Video R10] order repair failed', error); });
+        .then(({ error }) => { if (error) console.warn('[Davis Video R25] order repair failed', error); });
     }
   }
 }
@@ -1903,6 +1954,136 @@ function r18JobStageMarkup(segment) {
     </div>`;
 }
 
+
+async function r25RecoverRemoteFrameAsset(frame, projectId, order) {
+  const existing = await withTimeout(
+    supabase.from('video_assets')
+      .select('id,object_path,mime_type,file_size,width,height')
+      .eq('owner_id', state.user.id)
+      .eq('project_id', projectId)
+      .eq('kind', 'frame')
+      .eq('sort_order', order)
+      .order('created_at', { ascending: false })
+      .limit(20),
+    TIMEOUTS.database,
+    `查找已上传图片 ${order + 1}`,
+  );
+  if (existing.error) throw new Error(`查找已上传图片 ${order + 1} 失败：${errorMessage(existing.error)}`);
+
+  const sourceW = Number(frame.width || 0);
+  const sourceH = Number(frame.height || 0);
+  const sourceRatio = sourceW > 0 && sourceH > 0 ? sourceW / sourceH : null;
+  const sourceNeedsPadding = sourceRatio != null && (sourceRatio > 2.49 || sourceRatio < 0.41);
+
+  const row = (existing.data || []).find(candidate => {
+    if (!candidate?.id || !candidate?.object_path) return false;
+    const w = Number(candidate.width || 0);
+    const h = Number(candidate.height || 0);
+    if (!(w > 0 && h > 0)) return false;
+    const ratio = w / h;
+    return ratio >= 0.41 && ratio <= 2.49;
+  });
+  if (!row) return false;
+
+  const rowRatio = Number(row.width) / Number(row.height);
+  frame.remoteAssetId = row.id;
+  frame.remotePath = row.object_path;
+  frame.type = frame.type || row.mime_type || 'image/png';
+  frame.size = frame.size || row.file_size || 0;
+  frame.uploadWidth = row.width;
+  frame.uploadHeight = row.height;
+  frame.arkSafeVersion = IMAGE_SAFE_VERSION;
+  frame.uploadSafeRatio = rowRatio;
+  frame.originalRatio = sourceRatio;
+  frame.wasAspectPadded = Boolean(sourceNeedsPadding);
+  frame.aspectPadMode = sourceNeedsPadding
+    ? (sourceRatio > 2.49 ? 'letterbox_vertical_black_bars' : 'pillarbox_horizontal_black_bars')
+    : 'none';
+  return true;
+}
+
+async function r25UploadFrame(frame, projectId, order) {
+  // 必须先读取真实像素并生成 Ark 安全图。不能再把原始 3:1 / 1:3 图片直接上传。
+  const safeFrame = await makeArkSafeFrameBlob(frame);
+
+  const safeW = Number(safeFrame.width || 0);
+  const safeH = Number(safeFrame.height || 0);
+  const safeRatio = safeW > 0 && safeH > 0 ? safeW / safeH : null;
+  if (safeRatio != null && (safeRatio < 0.40 || safeRatio > 2.50)) {
+    throw new Error(`图片 ${order + 1} 自动补边失败：处理后比例 ${safeRatio.toFixed(2)} 仍超出 Seedance 0.40-2.50 范围`);
+  }
+
+  const boundW = Number(frame.uploadWidth || 0);
+  const boundH = Number(frame.uploadHeight || 0);
+  const boundRatio = boundW > 0 && boundH > 0 ? boundW / boundH : null;
+  const currentBindingSafe = Boolean(
+    frame.remoteAssetId &&
+    frame.remotePath &&
+    frame.arkSafeVersion === IMAGE_SAFE_VERSION &&
+    boundRatio != null &&
+    boundRatio >= 0.41 &&
+    boundRatio <= 2.49 &&
+    (!safeFrame.normalized || frame.wasAspectPadded === true)
+  );
+  if (currentBindingSafe) return frame;
+
+  // 丢弃旧版本误标记的原图绑定。
+  frame.remoteAssetId = null;
+  frame.remotePath = null;
+  frame.arkSafeVersion = null;
+
+  // 只恢复数据库里已经是安全比例的历史补边图；3:1 原图不会再被恢复。
+  if (await recoverRemoteFrameAsset(frame, projectId, order)) return frame;
+
+  const safeNameBase = String(frame.name || 'frame.png').replace(/\.[^.]+$/, '').replace(/[^\w.\-]+/g,'_').slice(-90) || 'frame';
+  const ext = safeFrame.type === 'image/png' ? 'png' : 'jpg';
+  const path = `${state.user.id}/${projectId}/${String(order).padStart(3,'0')}-${frame.id}-${Date.now()}-${safeNameBase}.${ext}`;
+
+  const upload = await withTimeout(
+    supabase.storage.from('seedance-inputs').upload(path, safeFrame.blob, {
+      contentType: safeFrame.type || 'image/png',
+      upsert: false,
+      cacheControl: '3600',
+    }),
+    TIMEOUTS.upload,
+    `上传图片 ${order + 1}`,
+  );
+  if (upload.error) throw new Error(`图片 ${order + 1} 上传失败：${errorMessage(upload.error)}`);
+
+  const insert = await withTimeout(
+    supabase.from('video_assets').insert({
+      owner_id: state.user.id,
+      project_id: projectId,
+      bucket_id: 'seedance-inputs',
+      object_path: path,
+      original_name: safeFrame.normalized ? `${frame.name}（已自动补边适配 Davis Video）` : frame.name,
+      mime_type: safeFrame.type || 'image/png',
+      file_size: safeFrame.blob.size,
+      width: safeFrame.width,
+      height: safeFrame.height,
+      kind: 'frame',
+      sort_order: order,
+    }).select().single(),
+    TIMEOUTS.database,
+    `登记图片 ${order + 1}`,
+  );
+  if (insert.error) {
+    try { await supabase.storage.from('seedance-inputs').remove([path]); } catch {}
+    throw new Error(`图片 ${order + 1} 登记失败：${errorMessage(insert.error)}`);
+  }
+
+  frame.remoteAssetId = insert.data.id;
+  frame.remotePath = path;
+  frame.arkSafeVersion = IMAGE_SAFE_VERSION;
+  frame.uploadWidth = safeFrame.width;
+  frame.uploadHeight = safeFrame.height;
+  frame.wasAspectPadded = Boolean(safeFrame.normalized);
+  frame.aspectPadMode = safeFrame.padMode || 'none';
+  frame.uploadSafeRatio = safeFrame.safeRatio || safeRatio;
+  frame.originalRatio = safeFrame.originalRatio || (frame.width && frame.height ? frame.width / frame.height : null);
+  return frame;
+}
+
 export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, accessControlSource }) {
   let patched = String(source || '');
   if (!patched.includes(ORIGINAL_BUILD)) throw new Error(`只支持 ${ORIGINAL_BUILD}，当前 app-v46.js 版本不匹配`);
@@ -2118,16 +2299,19 @@ async function r21ConfirmMaterialRights(error) {
   workspace.remoteProjectId = result.data.id;`;
   if (!patched.includes(projectBindingMarker)) throw new Error('无法定位远端项目绑定点');
   patched = patched.replace(projectBindingMarker, projectBindingReplacement);
-  const originalFrameUploadMarker = "  const safeFrame = await makeArkSafeFrameBlob(frame);";
-  const originalFrameUploadReplacement = `  if (!(frame.blob instanceof Blob)) throw new Error('原始图片文件已丢失，请重新上传');
-  const safeFrame = {
-    blob: frame.blob,
-    type: frame.blob.type || frame.type || 'image/png',
-    width: frame.width || frame.uploadWidth || null,
-    height: frame.height || frame.uploadHeight || null,
-  };`;
-  if (!patched.includes(originalFrameUploadMarker)) throw new Error('无法定位帧图片转码点');
-  patched = patched.replace(originalFrameUploadMarker, originalFrameUploadReplacement);
+  patched = replaceSection(
+    patched,
+    'async function recoverRemoteFrameAsset(frame, projectId, order) {',
+    'async function uploadFrame(frame, projectId, order) {',
+    renamedFunction(r25RecoverRemoteFrameAsset, 'recoverRemoteFrameAsset')
+  );
+  patched = replaceSection(
+    patched,
+    'async function uploadFrame(frame, projectId, order) {',
+    'async function uploadNeededFrames(segmentIds) {',
+    renamedFunction(r25UploadFrame, 'uploadFrame')
+  );
+  // R25：保留 app-v46.js 的 makeArkSafeFrameBlob 自动补边，不再把原始超宽/超高图片绕过预处理直接上传。
   const textReferencePromptMarker = "    return [\n      '【纯文字生成要求】',\n      '当前任务为纯文字描述生成模式，没有上传参考图。',";
   const textReferencePromptReplacement = "    const referenceCount = (state.referenceAssets || []).length;\n    return [\n      '【纯文字生成要求】',\n      referenceCount\n        ? `当前任务为纯文字描述生成模式，已上传 ${referenceCount} 张参考图；请结合参考图理解主体、构图与风格。`\n        : '当前任务为纯文字描述生成模式，没有上传参考图。',";
   if (!patched.includes(textReferencePromptMarker)) throw new Error('无法定位纯文字参考图提示包装');
