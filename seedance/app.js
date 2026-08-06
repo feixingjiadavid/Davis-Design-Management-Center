@@ -1,6 +1,41 @@
-const PRODUCTION_BUILD = '20260806-merge-worker-fix-r31';
+const PRODUCTION_BUILD = '20260806-merge-worker-shim-r32';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
+
+/**
+ * R32 FFmpeg Worker 同源兼容层。
+ * 不再修改 app-v46.js 生成后的 mergeAll 源码。
+ */
+function r32ResolveWorkerUrl(scriptURL) {
+  const raw = String(scriptURL || '');
+  const isFfmpegClassWorker =
+    /https:\/\/esm\.sh\/.*@ffmpeg\/ffmpeg@0\.12\.10.*\/worker(?:\.m?js)?(?:[?#].*)?$/i.test(raw) ||
+    (/https:\/\/esm\.sh\//i.test(raw) && /@ffmpeg\/ffmpeg@0\.12\.10/i.test(raw) && /worker/i.test(raw));
+
+  if (!isFfmpegClassWorker) return scriptURL;
+  return new URL('./ffmpeg-class-worker.js?v=20260806-r32', import.meta.url);
+}
+
+function r32InstallFfmpegWorkerShim() {
+  if (typeof globalThis === 'undefined' || typeof globalThis.Worker !== 'function') return;
+  if (globalThis.__davisFfmpegWorkerShimR32) return;
+
+  const NativeWorker = globalThis.Worker;
+
+  class DavisWorkerR32 extends NativeWorker {
+    constructor(scriptURL, options) {
+      super(r32ResolveWorkerUrl(scriptURL), options);
+    }
+  }
+
+  try { Object.setPrototypeOf(DavisWorkerR32, NativeWorker); } catch {}
+  globalThis.Worker = DavisWorkerR32;
+  globalThis.__davisFfmpegWorkerShimR32 = true;
+  globalThis.__davisNativeWorkerR32 = NativeWorker;
+}
+
+r32InstallFfmpegWorkerShim();
+
 
 function r14NormalizeProjectName(value) {
   return String(value || '').replace(/\s+/g, ' ').trim().toLocaleLowerCase('zh-CN');
@@ -2272,40 +2307,6 @@ async function r21ConfirmMaterialRights(error) {
     "      segment.providerTaskId = data.provider_task_id || null;"
   );
 
-  // R30：修复 davis-design.cn 从 esm.sh 直接创建 FFmpeg Worker 被浏览器跨域策略拒绝。
-  // @ffmpeg/ffmpeg 本体仍可从 esm.sh 动态 import，但它的 class worker 必须显式指向本站同源脚本。
-  const mergeWorkerOld = `    const [{ FFmpeg }, { fetchFile, toBlobURL }] = await Promise.all([
-      import('https://esm.sh/@ffmpeg/ffmpeg@0.12.10'),
-      import('https://esm.sh/@ffmpeg/util@0.12.1'),
-    ]);
-    const ffmpeg = new FFmpeg();
-    const ffmpegBase = 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm';
-    const coreBase = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
-    await ffmpeg.load({
-      workerURL: await toBlobURL(\`\${ffmpegBase}/worker.js\`, 'text/javascript'),
-      coreURL: await toBlobURL(\`\${coreBase}/ffmpeg-core.js\`, 'text/javascript'),
-      wasmURL: await toBlobURL(\`\${coreBase}/ffmpeg-core.wasm\`, 'application/wasm'),
-    });`;
-
-  const mergeWorkerNew = `    const [{ FFmpeg }, { fetchFile, toBlobURL }] = await Promise.all([
-      import('https://esm.sh/@ffmpeg/ffmpeg@0.12.10'),
-      import('https://esm.sh/@ffmpeg/util@0.12.1'),
-    ]);
-    const ffmpeg = new FFmpeg();
-    const classWorkerURL = new URL(
-      './seedance/ffmpeg-class-worker.js?v=20260806-r30',
-      document.baseURI
-    ).href;
-    const coreBase = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm';
-    await ffmpeg.load({
-      classWorkerURL,
-      coreURL: await toBlobURL(\`\${coreBase}/ffmpeg-core.js\`, 'text/javascript'),
-      wasmURL: await toBlobURL(\`\${coreBase}/ffmpeg-core.wasm\`, 'application/wasm'),
-    });`;
-
-  if (!patched.includes(mergeWorkerOld)) throw new Error('无法定位 FFmpeg 合并引擎初始化块');
-  patched = patched.replace(mergeWorkerOld, mergeWorkerNew);
-
   patched = patched.replace("return new Set(['preparing','uploading','submitting','retrying','submitted','queued','running','processing']);", "return new Set(['preparing','uploading','submitting','retrying','submitted','queued','pending','generating','running','processing','uploading_drive']);");
   const generateSignature = 'async function generateSegments(segmentIds) {';
   patched = patched.replace(generateSignature, 'async function generateSegments(segmentIds, options = {}) {');
@@ -2465,7 +2466,7 @@ export async function bootProduction() {
 
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   bootProduction().catch(error => {
-    console.error('[Davis Video Studio R31] boot failed', error);
+    console.error('[Davis Video Studio R32] boot failed', error);
     const box = document.createElement('div');
     box.style.cssText = 'position:fixed;inset:20px;z-index:99999;background:#220b12;color:#fff;border:1px solid #ff6075;border-radius:14px;padding:20px;font:14px/1.6 system-ui;overflow:auto';
     box.innerHTML = `<strong>Seedance 单项目单模式版启动失败</strong><br>${String(error?.message || error).replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]))}<br><br>请保留 seedance/app-v46.js，并覆盖本包中的 seedance/app.js；随后 Ctrl+F5 强制刷新。`;
