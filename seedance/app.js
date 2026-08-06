@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260806-auto-pad-r25';
+const PRODUCTION_BUILD = '20260806-auto-pad-retry-r26';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -1105,6 +1105,12 @@ function r5LoadOutputs(force = false) {
         segmentCandidates.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))[0] ||
         null;
 
+      const existingStatusLower = String(existing?.status || '').toLowerCase();
+      const preserveLocalFailureOrSubmit = new Set([
+        'preparing','uploading','submitting','retrying',
+        'failed','error','charged_unknown','provider_failed','provider_policy_blocked'
+      ]).has(existingStatusLower);
+
       const segment = {
         ...(existing || {}),
         id: existing?.id || uid(),
@@ -1114,7 +1120,7 @@ function r5LoadOutputs(force = false) {
         duration: Number(existing?.duration || representative?.duration || 4),
         model: existing?.model || representative?.model_alias || chosenTask?.model_alias || 'mini',
         resolution: existing?.resolution || representative?.resolution || '720p',
-        status: chosenTask?.status || representative?.status || existing?.status || 'draft',
+        status: preserveLocalFailureOrSubmit ? existing.status : (chosenTask?.status || representative?.status || existing?.status || 'draft'),
         progress: Number(chosenTask?.progress ?? existing?.progress ?? (
           ['succeeded','completed','success'].includes(String(chosenTask?.status || representative?.status || '').toLowerCase()) ? 100 : 0
         )),
@@ -1694,7 +1700,7 @@ async function r10RecoverFrameBindings(projectId, plan) {
     // 旧版本可能把 3:1 / 1:3 原图直接标成“已上传”。强制解除旧绑定，重新走自动补边上传。
     if (staleUnsafeBinding) {
       frame.remoteAssetId = null;
-      frame.remotePath = null;
+      // 保留旧 remotePath：刷新后本地 Blob 可能已被压缩清理，自动补边必须能先从旧云端原图恢复 Blob。
       frame.arkSafeVersion = null;
       frame.uploadWidth = null;
       frame.uploadHeight = null;
@@ -2027,9 +2033,8 @@ async function r25UploadFrame(frame, projectId, order) {
   );
   if (currentBindingSafe) return frame;
 
-  // 丢弃旧版本误标记的原图绑定。
+  // 丢弃旧版本误标记的 asset 绑定，但保留旧 remotePath 作为失败重试/刷新后的原图恢复来源。
   frame.remoteAssetId = null;
-  frame.remotePath = null;
   frame.arkSafeVersion = null;
 
   // 只恢复数据库里已经是安全比例的历史补边图；3:1 原图不会再被恢复。
@@ -2224,6 +2229,36 @@ async function r21ConfirmMaterialRights(error) {
     .replace('  const segments = state.draft.segments.filter(s => segmentIds.includes(s.id));',
       '  let segments = state.draft.segments.filter(s => segmentIds.includes(s.id));');
   patched = patched.slice(0, generateStart) + generateSource + patched.slice(generateEnd);
+  const destructiveFrameReset = `        frame.remoteAssetId = null;
+        frame.remotePath = null;
+        frame.arkSafeVersion = null;
+        frame.wasAspectPadded = false;`;
+  const safeFrameReset = `        frame.remoteAssetId = null;
+        // R26：保留旧 remotePath，刷新后可先下载旧原图，再自动补边后重新上传。
+        frame.arkSafeVersion = null;
+        frame.wasAspectPadded = false;`;
+  if (!patched.includes(destructiveFrameReset)) throw new Error('无法定位旧的强制图片重传清理逻辑');
+  patched = patched.replace(destructiveFrameReset, safeFrameReset);
+  const oldGenerateCatch = `  } catch (error) {
+    const message = errorMessage(error, '提交失败');
+    segments.forEach(segment => {
+      if (['preparing','uploading','submitting','submitted','queued'].includes(segment.status)) {
+        segment.status = 'failed';
+        segment.progress = 0;
+        segment.error = message;
+      }
+    });`;
+  const newGenerateCatch = `  } catch (error) {
+    const message = errorMessage(error, '提交失败');
+    segments.forEach(segment => {
+      if (!['completed','succeeded','success','running','processing','generating','uploading_drive'].includes(String(segment.status || '').toLowerCase())) {
+        segment.status = 'failed';
+        segment.progress = 0;
+        segment.error = message;
+      }
+    });`;
+  if (!patched.includes(oldGenerateCatch)) throw new Error('无法定位生成失败反馈逻辑');
+  patched = patched.replace(oldGenerateCatch, newGenerateCatch);
   const autoReset = `  let resetCount = 0;
   segments.forEach(segment => {
     if (prepareSegmentForEditorSubmit(segment)) resetCount += 1;
