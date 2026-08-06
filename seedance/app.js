@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260806-auto-pad-retry-r26';
+const PRODUCTION_BUILD = '20260806-upload-stall-fix-r27';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -1699,17 +1699,16 @@ async function r10RecoverFrameBindings(projectId, plan) {
 
     // 旧版本可能把 3:1 / 1:3 原图直接标成“已上传”。强制解除旧绑定，重新走自动补边上传。
     if (staleUnsafeBinding) {
-      frame.remoteAssetId = null;
-      // 保留旧 remotePath：刷新后本地 Blob 可能已被压缩清理，自动补边必须能先从旧云端原图恢复 Blob。
+      // R27：旧 3:1 asset 仍作为“原图恢复来源”保留。
+      // 不能先清 remoteAssetId / remotePath，否则 persist() 会重新写入大 Blob，
+      // 在 IndexedDB 阶段卡住，实际上传请求根本还没发出。
       frame.arkSafeVersion = null;
-      frame.uploadWidth = null;
-      frame.uploadHeight = null;
       frame.uploadSafeRatio = null;
       frame.wasAspectPadded = false;
       frame.aspectPadMode = 'none';
     }
 
-    if (frame.remoteAssetId) continue;
+    if (frame.remoteAssetId && !staleUnsafeBinding) continue;
 
     const rows = (result.data || []).filter(candidate =>
       String(candidate.object_path || '').includes('-' + item.id + '-')
@@ -1786,6 +1785,7 @@ async function r10UploadNeededFrames(segmentIds) {
         segment.status = 'uploading';
         segment.progress = Math.max(3, Math.round(((index + 0.2) / Math.max(plan.length, 1)) * 12));
         segment.error = null;
+        segment.uploadStage = `正在自动补边并上传图片 ${index + 1}/${plan.length}`;
       }
     });
     renderAll(); await persist(); r10AssertContext(context);
@@ -1800,6 +1800,7 @@ async function r10UploadNeededFrames(segmentIds) {
   state.draft.segments.filter(segment => segmentIds.includes(segment.id)).forEach(segment => {
     const from = state.draft.frames.find(frame => frame.id === segment.fromFrameId);
     const to = state.draft.frames.find(frame => frame.id === segment.toFrameId);
+    segment.uploadStage = null;
     if (!from?.remoteAssetId || !to?.remoteAssetId) incomplete.push(segment.index + 1);
     else { segment.status = 'submitting'; segment.progress = 13; segment.error = null; }
   });
@@ -1956,6 +1957,7 @@ function r18JobStageMarkup(segment) {
       <div style="display:grid;gap:5px;margin-top:10px;font-size:10px;color:#8c92a1">
         ${steps.map(([label,done]) => `<span>${done ? '✓' : failed ? '×' : '○'} ${label}</span>`).join('')}
       </div>
+      ${segment.uploadStage ? `<div style="margin-top:9px;font-size:11px;color:#5665d8">${escapeHtml(segment.uploadStage)}</div>` : ''}
       ${segment.providerTaskId ? '<div style="margin-top:9px;font-size:10px;color:#8b91a3">后台任务已记录，可自动刷新结果</div>' : ''}
     </div>`;
 }
@@ -2033,8 +2035,8 @@ async function r25UploadFrame(frame, projectId, order) {
   );
   if (currentBindingSafe) return frame;
 
-  // 丢弃旧版本误标记的 asset 绑定，但保留旧 remotePath 作为失败重试/刷新后的原图恢复来源。
-  frame.remoteAssetId = null;
+  // R27：不要在新补边图成功上传前清掉旧 remoteAssetId / remotePath。
+  // 旧绑定只作为原图恢复来源，不会提交给 Ark；新安全 asset 成功后才原子替换本地绑定。
   frame.arkSafeVersion = null;
 
   // 只恢复数据库里已经是安全比例的历史补边图；3:1 原图不会再被恢复。
@@ -2233,8 +2235,8 @@ async function r21ConfirmMaterialRights(error) {
         frame.remotePath = null;
         frame.arkSafeVersion = null;
         frame.wasAspectPadded = false;`;
-  const safeFrameReset = `        frame.remoteAssetId = null;
-        // R26：保留旧 remotePath，刷新后可先下载旧原图，再自动补边后重新上传。
+  const safeFrameReset = `        // R27：保留旧 asset/path 作为原图恢复来源；只让安全版本失效，强制重新补边上传。
+        // 新安全 asset 写入成功后 uploadFrame 才替换绑定，避免 persist() 在上传前卡死。
         frame.arkSafeVersion = null;
         frame.wasAspectPadded = false;`;
   if (!patched.includes(destructiveFrameReset)) throw new Error('无法定位旧的强制图片重传清理逻辑');
@@ -2254,6 +2256,7 @@ async function r21ConfirmMaterialRights(error) {
       if (!['completed','succeeded','success','running','processing','generating','uploading_drive'].includes(String(segment.status || '').toLowerCase())) {
         segment.status = 'failed';
         segment.progress = 0;
+        segment.uploadStage = null;
         segment.error = message;
       }
     });`;
