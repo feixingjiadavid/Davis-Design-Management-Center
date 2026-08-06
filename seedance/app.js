@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260806-strict-first-last-r29-bootfix';
+const PRODUCTION_BUILD = '20260806-merge-worker-fix-r30';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -2270,6 +2270,50 @@ async function r21ConfirmMaterialRights(error) {
   patched = patched.replace(
     "      segment.providerTaskId = data.provider_task_id;",
     "      segment.providerTaskId = data.provider_task_id || null;"
+  );
+
+  // R30：修复 davis-design.cn 从 esm.sh 直接创建 FFmpeg Worker 被浏览器跨域策略拒绝。
+  // @ffmpeg/ffmpeg 本体仍可从 esm.sh 动态 import，但它的 class worker 必须显式指向本站同源脚本。
+  const mergeWorkerOld = `    const [{ FFmpeg }, { fetchFile, toBlobURL }] = await Promise.all([
+      import('https://esm.sh/@ffmpeg/ffmpeg@0.12.10'),
+      import('https://esm.sh/@ffmpeg/util@0.12.1'),
+    ]);
+    const ffmpeg = new FFmpeg();
+    const ffmpegBase = 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm';
+    const coreBase = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
+    await ffmpeg.load({
+      workerURL: await toBlobURL(\`\${ffmpegBase}/worker.js\`, 'text/javascript'),
+      coreURL: await toBlobURL(\`\${coreBase}/ffmpeg-core.js\`, 'text/javascript'),
+      wasmURL: await toBlobURL(\`\${coreBase}/ffmpeg-core.wasm\`, 'application/wasm'),
+    });`;
+
+  const mergeWorkerNew = `    const [{ FFmpeg }, { fetchFile, toBlobURL }] = await Promise.all([
+      import('https://esm.sh/@ffmpeg/ffmpeg@0.12.10'),
+      import('https://esm.sh/@ffmpeg/util@0.12.1'),
+    ]);
+    const ffmpeg = new FFmpeg();
+    const classWorkerURL = new URL(
+      './seedance/ffmpeg-class-worker.js?v=20260806-r30',
+      document.baseURI
+    ).href;
+    const coreBase = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm';
+    await ffmpeg.load({
+      classWorkerURL,
+      coreURL: await toBlobURL(\`\${coreBase}/ffmpeg-core.js\`, 'text/javascript'),
+      wasmURL: await toBlobURL(\`\${coreBase}/ffmpeg-core.wasm\`, 'application/wasm'),
+    });`;
+
+  if (!patched.includes(mergeWorkerOld)) throw new Error('无法定位 FFmpeg 合并引擎初始化块');
+  patched = patched.replace(mergeWorkerOld, mergeWorkerNew);
+
+  patched = patched.replace(
+    "  $('merge-all').textContent = '正在加载合并引擎...';",
+    "  $('merge-all').textContent = '正在加载合并引擎...';\\n  toast('正在准备合并', '首次使用需要加载 FFmpeg WebAssembly，随后会逐段统一尺寸并拼接。');"
+  );
+
+  patched = patched.replace(
+    "    console.error('[Seedance Studio] merge failed', error);\\n    toast('合并失败', errorMessage(error));",
+    "    console.error('[Davis Video R30] merge failed', error);\\n    const rawMergeError = errorMessage(error);\\n    const mergeMessage = /construct ['\\\"]?Worker|cannot be accessed from origin|cross-origin/i.test(rawMergeError) ? '合并引擎 Worker 加载失败。请确认 seedance/ffmpeg-class-worker.js 已上传，并 Ctrl+F5 强制刷新。' : rawMergeError;\\n    toast('合并失败', mergeMessage);"
   );
 
   patched = patched.replace("return new Set(['preparing','uploading','submitting','retrying','submitted','queued','running','processing']);", "return new Set(['preparing','uploading','submitting','retrying','submitted','queued','pending','generating','running','processing','uploading_drive']);");
