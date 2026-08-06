@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260806-upload-stall-fix-r27';
+const PRODUCTION_BUILD = '20260806-strict-first-last-r28';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -2091,6 +2091,43 @@ async function r25UploadFrame(frame, projectId, order) {
   return frame;
 }
 
+
+function r28BuildStrictFrameLockPrompt(segment) {
+  const rawPrompt = String(segment?.prompt || '').trim();
+  if (state.draft.mode === 'text_only') {
+    const ratioLabel = state.draft.ratio === 'follow' ? '16:9' : state.draft.ratio;
+    return [
+      '【纯文字生成要求】',
+      '当前任务为纯文字描述生成模式。',
+      '请严格根据用户文字描述和已提供参考素材生成，不要凭空添加与描述冲突的主体、文字、Logo、人物或复杂背景。',
+      `输出比例：${ratioLabel}；整体应保持画面稳定、主体明确、镜头运动自然。`,
+      '【用户视频描述】',
+      rawPrompt || '请生成一个画面稳定、质感高级、自然运动的短视频。'
+    ].join('\\n');
+  }
+  const fromIndex = state.draft.frames.findIndex(f => f.id === segment.fromFrameId);
+  const toIndex = state.draft.frames.findIndex(f => f.id === segment.toFrameId);
+  const frameA = fromIndex >= 0 ? `图 ${fromIndex + 1}` : '首图';
+  const frameB = toIndex >= 0 ? `图 ${toIndex + 1}` : '尾图';
+  const segmentLabel = `第 ${Math.max(0, Number(segment?.index || 0)) + 1} 段`;
+  const modeLine = state.draft.mode === 'multi_frame'
+    ? '多帧 Storyboard 只是把多组首尾帧拆成多个独立任务逐段提交；当前这一段仍然必须按严格首尾帧任务执行。'
+    : '当前任务必须按严格首尾帧任务执行。';
+  return [
+    '【Davis Video 严格首尾帧硬约束｜最高优先级】',
+    `${segmentLabel}：${modeLine}`,
+    `起始控制图=${frameA}；结束控制图=${frameB}。两张图不是风格参考，而是必须满足的硬控制点。`,
+    '1. 第1帧必须最大程度复现起始控制图：主体身份、IP造型、Logo、文字、数字、五官、轮廓、服装、颜色、材质、道具、背景、透视、构图和相对位置不得擅自改变。',
+    '2. 尾帧是必须精确抵达的最终画面，不是“接近即可”的参考。最后1帧必须最大程度复现结束控制图，不得自行改版、重绘、简化、替换或美化。',
+    '3. 禁止擅自重绘、改造或替换IP、角色、Logo、文字、数字、图标、道具和场景元素。两帧中没有发生变化的内容，整段都必须保持同一身份、造型、颜色、材质和结构。',
+    '4. 中间过程只允许在两张控制图真实差异之间做连续插值、位移、缓动、视差、镜头运动和必要形变；禁止新增两帧都不存在的主要元素，禁止删除两帧都存在的主要元素。',
+    '5. 若用户文字与首尾帧发生冲突，以首尾帧为最高优先级。不要为了执行文字而破坏尾帧。',
+    '6. 降低自由发挥和二次设计倾向。动画结束前必须主动收敛到结束控制图，不要在尾帧附近继续生成新的动作、构图或元素变化。',
+    '【本段用户运动/过渡要求】',
+    rawPrompt || '只做稳定、自然、低自由度的首尾帧过渡。',
+  ].join('\\n');
+}
+
 export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, accessControlSource }) {
   let patched = String(source || '');
   if (!patched.includes(ORIGINAL_BUILD)) throw new Error(`只支持 ${ORIGINAL_BUILD}，当前 app-v46.js 版本不匹配`);
@@ -2121,6 +2158,7 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, 
   patched = replaceSection(patched, 'function setView(view) {', 'function orderedDrafts() {', renamedFunction(r5SetView, 'setView'));
   patched = replaceSection(patched, 'function renderProjects() {', 'function escapeHtml(', renamedFunction(r5RenderProjects, 'renderProjects'));
   patched = replaceSection(patched, 'function renderSettings() {', 'function buildStrictFrameLockPrompt(', renamedFunction(r5RenderSettings, 'renderSettings'));
+  patched = replaceSection(patched, 'function buildStrictFrameLockPrompt(segment) {', 'function updateRatioTip() {', renamedFunction(r28BuildStrictFrameLockPrompt, 'buildStrictFrameLockPrompt'));
   patched = replaceSection(patched, 'async function selectDraft(id) {', 'async function createProject() {', renamedFunction(r5SelectDraft, 'selectDraft'));
   patched = replaceSection(patched, 'async function createProject() {', 'async function removeProject() {', renamedFunction(r5CreateProject, 'createProject'));
   patched = replaceSection(patched, 'async function removeProject() {', 'function statusText(', renamedFunction(r5RemoveProject, 'removeProject'));
@@ -2169,6 +2207,16 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, 
 `;
   if (!patched.includes(modeSwitchBlock)) throw new Error('无法定位旧模式切换事件');
   patched = patched.replace(modeSwitchBlock, '');
+
+  const framePromptModeMarker = "    prompt_mode: isTextOnly ? 'text_reference_video_v14' : 'strict_frame_lock_v14',";
+  const framePromptModeReplacement = "    prompt_mode: isTextOnly ? 'text_reference_video_v14' : 'strict_first_last_client_v28',";
+  if (!patched.includes(framePromptModeMarker)) throw new Error('无法定位首尾帧 prompt_mode');
+  patched = patched.replace(framePromptModeMarker, framePromptModeReplacement);
+
+  const frameLockBodyMarker = "    frame_fit_mode: state.draft.fitMode,\n    final_width: Number(state.draft.finalWidth),";
+  const frameLockBodyReplacement = "    frame_fit_mode: state.draft.fitMode,\n    frame_lock_policy: isTextOnly ? null : 'strict_first_last_server_v2',\n    storyboard_parent_mode: state.draft.mode,\n    segment_position: Number(segment.index || 0),\n    final_width: Number(state.draft.finalWidth),";
+  if (!patched.includes(frameLockBodyMarker)) throw new Error('无法定位首尾帧提交元数据');
+  patched = patched.replace(frameLockBodyMarker, frameLockBodyReplacement);
 
   patched = patched.replace(
     "    mode: isTextOnly ? 'text_only' : state.draft.mode,\n  };",
