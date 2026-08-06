@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260806-tail-identity-lock-r34';
+const PRODUCTION_BUILD = '20260806-reference-image-auto-pad-r35';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -2172,6 +2172,164 @@ function r34BuildStrictFrameLockPrompt(segment) {
   ].join('\\n');
 }
 
+
+async function r35UploadReferenceAssets(projectId, segmentsForProgress = []) {
+  const assets = commitTextReferenceAssets();
+  const resultIds = [];
+  const segments = Array.isArray(segmentsForProgress) ? segmentsForProgress : [];
+
+  for (let index = 0; index < assets.length; index++) {
+    const ref = assets[index];
+    const isImage = String(ref?.type || '').startsWith('image/');
+    const progress = Math.min(12, 4 + Math.round(((index + 0.35) / Math.max(assets.length, 1)) * 8));
+
+    segments.forEach(segment => {
+      segment.status = 'uploading';
+      segment.progress = progress;
+      segment.error = isImage
+        ? `正在检查比例并上传参考图片 ${index + 1}/${assets.length}：${ref.name || assetKindLabel(ref)}`
+        : `正在上传参考素材 ${index + 1}/${assets.length}：${ref.name || assetKindLabel(ref)}`;
+    });
+    renderJobs();
+    await persist();
+
+    const boundW = Number(ref?.uploadWidth || ref?.width || 0);
+    const boundH = Number(ref?.uploadHeight || ref?.height || 0);
+    const boundRatio = boundW > 0 && boundH > 0 ? boundW / boundH : null;
+    const safeRemoteImage = Boolean(
+      isImage &&
+      ref.remoteAssetId &&
+      ref.remotePath &&
+      ref.arkSafeVersion === IMAGE_SAFE_VERSION &&
+      boundRatio != null &&
+      boundRatio >= 0.41 &&
+      boundRatio <= 2.49
+    );
+
+    // 非图片素材沿用原逻辑；图片只有在“明确已做过 Ark 安全补边”时才允许复用。
+    if ((!isImage && ref.remoteAssetId && ref.remotePath) || safeRemoteImage) {
+      resultIds.push(ref.remoteAssetId);
+      continue;
+    }
+
+    // 旧版本的 reference_image 可能已经上传了 3:1 原图。
+    // 即使本地 Blob 被清理，也要从旧 remotePath 下载回来，再走 makeArkSafeFrameBlob。
+    if (!(ref.blob instanceof Blob)) {
+      await restoreRemoteFrameBlob(ref);
+    }
+    if (!(ref.blob instanceof Blob)) {
+      throw new Error(`参考内容“${ref.name}”的本地文件已丢失，请重新上传`);
+    }
+
+    let uploadBlob = ref.blob;
+    let uploadType = ref.type || ref.blob.type || 'application/octet-stream';
+    let uploadWidth = null;
+    let uploadHeight = null;
+    let normalized = false;
+    let padMode = 'none';
+    let safeRatio = null;
+    let originalRatio = null;
+
+    if (isImage) {
+      const safe = await makeArkSafeFrameBlob(ref);
+      uploadBlob = safe.blob;
+      uploadType = safe.type || 'image/png';
+      uploadWidth = Number(safe.width || 0) || null;
+      uploadHeight = Number(safe.height || 0) || null;
+      normalized = Boolean(safe.normalized);
+      padMode = safe.padMode || 'none';
+      safeRatio = Number(safe.safeRatio || safe.ratio || (
+        uploadWidth && uploadHeight ? uploadWidth / uploadHeight : 0
+      )) || null;
+      originalRatio = Number(safe.originalRatio || 0) || null;
+
+      if (safeRatio != null && (safeRatio < 0.40 || safeRatio > 2.50)) {
+        throw new Error(`参考图片“${ref.name}”自动补边失败：处理后比例 ${safeRatio.toFixed(2)} 仍超出 Seedance 0.40-2.50 范围`);
+      }
+    }
+
+    const ext = extensionFromMime(uploadType);
+    const kindFolder = ref.type.startsWith('audio/')
+      ? 'reference-audios'
+      : isImage
+        ? 'reference-images'
+        : 'reference-videos';
+    const safeNameBase = String(ref.name || 'reference')
+      .replace(/\.[^.]+$/, '')
+      .replace(/[^\w.\-]+/g,'_')
+      .slice(-90) || 'reference';
+    const path = `${state.user.id}/${projectId}/${kindFolder}/${ref.id}-${Date.now()}-${safeNameBase}.${ext}`;
+
+    const upload = await withTimeout(
+      supabase.storage.from('seedance-inputs').upload(path, uploadBlob, {
+        contentType: uploadType,
+        upsert: false,
+        cacheControl: '3600',
+      }),
+      TIMEOUTS.upload,
+      `上传参考内容 ${ref.name}`,
+    );
+    if (upload.error) throw new Error(`参考内容上传失败：${errorMessage(upload.error)}`);
+
+    const insert = await withTimeout(
+      supabase.from('video_assets').insert({
+        owner_id: state.user.id,
+        project_id: projectId,
+        bucket_id: 'seedance-inputs',
+        object_path: path,
+        original_name: isImage && normalized
+          ? `${ref.name}（已自动补边适配 Davis Video）`
+          : ref.name,
+        mime_type: uploadType,
+        file_size: uploadBlob.size,
+        width: uploadWidth,
+        height: uploadHeight,
+        kind: ref.type.startsWith('audio/')
+          ? 'reference_audio'
+          : isImage
+            ? 'reference_image'
+            : 'reference_video',
+        sort_order: resultIds.length,
+      }).select().single(),
+      TIMEOUTS.database,
+      `登记参考内容 ${ref.name}`,
+    );
+    if (insert.error) {
+      try { await supabase.storage.from('seedance-inputs').remove([path]); } catch {}
+      throw new Error(`参考内容登记失败：${errorMessage(insert.error)}`);
+    }
+
+    ref.remoteAssetId = insert.data.id;
+    ref.remotePath = path;
+
+    if (isImage) {
+      ref.arkSafeVersion = IMAGE_SAFE_VERSION;
+      ref.uploadWidth = uploadWidth;
+      ref.uploadHeight = uploadHeight;
+      ref.width = uploadWidth || ref.width || null;
+      ref.height = uploadHeight || ref.height || null;
+      ref.wasAspectPadded = normalized;
+      ref.aspectPadMode = padMode;
+      ref.uploadSafeRatio = safeRatio;
+      ref.originalRatio = originalRatio;
+      ref.type = uploadType;
+      ref.size = uploadBlob.size;
+      // 新补边 Blob 留在当前会话，后续重试不会再读取 3:1 旧原图。
+      ref.blob = uploadBlob;
+    }
+
+    resultIds.push(ref.remoteAssetId);
+    commitTextReferenceAssets(assets);
+  }
+
+  commitTextReferenceAssets(assets);
+  segments.forEach(segment => {
+    segment.error = null;
+  });
+  await persist();
+  return resultIds;
+}
+
 export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, accessControlSource }) {
   let patched = String(source || '');
   if (!patched.includes(ORIGINAL_BUILD)) throw new Error(`只支持 ${ORIGINAL_BUILD}，当前 app-v46.js 版本不匹配`);
@@ -2214,6 +2372,12 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, 
   patched = replaceSection(patched, 'function jobStageMarkup(', 'function frameCard(', renamedFunction(r18JobStageMarkup, 'jobStageMarkup'));
   patched = replaceSection(patched, 'function reEditSegment(segmentId) {', 'function renderAll() {', renamedFunction(r6ReEditSegment, 'reEditSegment'));
   patched = replaceSection(patched, 'async function syncRemoteTasks() {', 'async function bindProviderTaskAndRecover(', renamedFunction(r5SyncRemoteTasks, 'syncRemoteTasks'));
+  patched = replaceSection(
+    patched,
+    'async function uploadReferenceAssets(projectId, segmentsForProgress = []) {',
+    'function extensionFromMime(type) {',
+    renamedFunction(r35UploadReferenceAssets, 'uploadReferenceAssets')
+  );
   patched = replaceSection(patched, 'async function uploadNeededFrames(', 'async function submitOne(', renamedFunction(r10UploadNeededFrames, 'uploadNeededFrames'));
   patched = replaceSection(patched, 'async function refreshJobs() {', 'async function loadOutputs() {', renamedFunction(r10RefreshJobs, 'refreshJobs'));
   patched = replaceSection(patched, 'async function loadOutputs() {', 'function startPolling() {', renamedFunction(r5LoadOutputs, 'loadOutputs'));
@@ -2472,7 +2636,7 @@ export async function bootProduction() {
 
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   bootProduction().catch(error => {
-    console.error('[Davis Video Studio R34] boot failed', error);
+    console.error('[Davis Video Studio R35] boot failed', error);
     const box = document.createElement('div');
     box.style.cssText = 'position:fixed;inset:20px;z-index:99999;background:#220b12;color:#fff;border:1px solid #ff6075;border-radius:14px;padding:20px;font:14px/1.6 system-ui;overflow:auto';
     box.innerHTML = `<strong>Seedance 单项目单模式版启动失败</strong><br>${String(error?.message || error).replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]))}<br><br>请保留 seedance/app-v46.js，并覆盖本包中的 seedance/app.js；随后 Ctrl+F5 强制刷新。`;
