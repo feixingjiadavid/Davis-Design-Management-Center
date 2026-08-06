@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260806-merge-worker-fix-r30';
+const PRODUCTION_BUILD = '20260806-merge-worker-fix-r31';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -2306,16 +2306,6 @@ async function r21ConfirmMaterialRights(error) {
   if (!patched.includes(mergeWorkerOld)) throw new Error('无法定位 FFmpeg 合并引擎初始化块');
   patched = patched.replace(mergeWorkerOld, mergeWorkerNew);
 
-  patched = patched.replace(
-    "  $('merge-all').textContent = '正在加载合并引擎...';",
-    "  $('merge-all').textContent = '正在加载合并引擎...';\\n  toast('正在准备合并', '首次使用需要加载 FFmpeg WebAssembly，随后会逐段统一尺寸并拼接。');"
-  );
-
-  patched = patched.replace(
-    "    console.error('[Seedance Studio] merge failed', error);\\n    toast('合并失败', errorMessage(error));",
-    "    console.error('[Davis Video R30] merge failed', error);\\n    const rawMergeError = errorMessage(error);\\n    const mergeMessage = /construct ['\\\"]?Worker|cannot be accessed from origin|cross-origin/i.test(rawMergeError) ? '合并引擎 Worker 加载失败。请确认 seedance/ffmpeg-class-worker.js 已上传，并 Ctrl+F5 强制刷新。' : rawMergeError;\\n    toast('合并失败', mergeMessage);"
-  );
-
   patched = patched.replace("return new Set(['preparing','uploading','submitting','retrying','submitted','queued','running','processing']);", "return new Set(['preparing','uploading','submitting','retrying','submitted','queued','pending','generating','running','processing','uploading_drive']);");
   const generateSignature = 'async function generateSegments(segmentIds) {';
   patched = patched.replace(generateSignature, 'async function generateSegments(segmentIds, options = {}) {');
@@ -2475,7 +2465,7 @@ export async function bootProduction() {
 
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   bootProduction().catch(error => {
-    console.error('[Davis Video Studio R29] boot failed', error);
+    console.error('[Davis Video Studio R31] boot failed', error);
     const box = document.createElement('div');
     box.style.cssText = 'position:fixed;inset:20px;z-index:99999;background:#220b12;color:#fff;border:1px solid #ff6075;border-radius:14px;padding:20px;font:14px/1.6 system-ui;overflow:auto';
     box.innerHTML = `<strong>Seedance 单项目单模式版启动失败</strong><br>${String(error?.message || error).replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]))}<br><br>请保留 seedance/app-v46.js，并覆盖本包中的 seedance/app.js；随后 Ctrl+F5 强制刷新。`;
