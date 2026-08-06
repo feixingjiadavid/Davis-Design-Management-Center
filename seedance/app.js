@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260806-strict-first-last-r28';
+const PRODUCTION_BUILD = '20260806-strict-first-last-r29-bootfix';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -2096,9 +2096,12 @@ function r28BuildStrictFrameLockPrompt(segment) {
   const rawPrompt = String(segment?.prompt || '').trim();
   if (state.draft.mode === 'text_only') {
     const ratioLabel = state.draft.ratio === 'follow' ? '16:9' : state.draft.ratio;
+    const referenceCount = (state.referenceAssets || []).length;
     return [
       '【纯文字生成要求】',
-      '当前任务为纯文字描述生成模式。',
+      referenceCount
+        ? `当前任务为纯文字描述生成模式，已提供 ${referenceCount} 个参考素材；请结合参考素材理解主体、构图、动作与风格。`
+        : '当前任务为纯文字描述生成模式，没有上传参考素材。',
       '请严格根据用户文字描述和已提供参考素材生成，不要凭空添加与描述冲突的主体、文字、Logo、人物或复杂背景。',
       `输出比例：${ratioLabel}；整体应保持画面稳定、主体明确、镜头运动自然。`,
       '【用户视频描述】',
@@ -2398,10 +2401,7 @@ async function r21ConfirmMaterialRights(error) {
     renamedFunction(r25UploadFrame, 'uploadFrame')
   );
   // R25：保留 app-v46.js 的 makeArkSafeFrameBlob 自动补边，不再把原始超宽/超高图片绕过预处理直接上传。
-  const textReferencePromptMarker = "    return [\n      '【纯文字生成要求】',\n      '当前任务为纯文字描述生成模式，没有上传参考图。',";
-  const textReferencePromptReplacement = "    const referenceCount = (state.referenceAssets || []).length;\n    return [\n      '【纯文字生成要求】',\n      referenceCount\n        ? `当前任务为纯文字描述生成模式，已上传 ${referenceCount} 张参考图；请结合参考图理解主体、构图与风格。`\n        : '当前任务为纯文字描述生成模式，没有上传参考图。',";
-  if (!patched.includes(textReferencePromptMarker)) throw new Error('无法定位纯文字参考图提示包装');
-  patched = patched.replace(textReferencePromptMarker, textReferencePromptReplacement);
+  // R29：纯文字参考素材提示已内置到 r28BuildStrictFrameLockPrompt；禁止再对已替换函数做二次 marker patch。
   return `${patched}
 //# sourceURL=seedance/app-production-runtime.js
 `;
@@ -2431,10 +2431,10 @@ export async function bootProduction() {
 
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   bootProduction().catch(error => {
-    console.error('[Davis Video Studio R5] boot failed', error);
+    console.error('[Davis Video Studio R29] boot failed', error);
     const box = document.createElement('div');
     box.style.cssText = 'position:fixed;inset:20px;z-index:99999;background:#220b12;color:#fff;border:1px solid #ff6075;border-radius:14px;padding:20px;font:14px/1.6 system-ui;overflow:auto';
-    box.innerHTML = `<strong>Seedance 单项目单模式版启动失败</strong><br>${String(error?.message || error).replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]))}<br><br>请确认 seedance/app-v46.js 保留，并上传本包中的 ai-assistant.html 与 seedance/app.js。`;
+    box.innerHTML = `<strong>Seedance 单项目单模式版启动失败</strong><br>${String(error?.message || error).replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]))}<br><br>请保留 seedance/app-v46.js，并覆盖本包中的 seedance/app.js；随后 Ctrl+F5 强制刷新。`;
     document.body.appendChild(box);
   });
 }
