@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260806-reference-image-auto-pad-r35';
+const PRODUCTION_BUILD = '20260806-reference-image-auto-pad-r36-cache-bust';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
