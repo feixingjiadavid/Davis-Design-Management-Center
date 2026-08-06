@@ -1456,15 +1456,40 @@ async function r5CreateProject() { r5OpenCreateModal(); }
 
 async function r5RemoveProject() {
   if (!r16AssertCurrentProjectWritable('删除项目')) return;
-  if (!state.draft || !await confirmBox('删除项目', `确定删除“${state.draft.name}”及其本地草稿吗？云端生成记录不会自动删除。`)) return;
+  if (!state.draft || !await confirmBox('删除项目', `确定删除“${state.draft.name}”及其本地草稿吗？云端项目及关联记录也会隐藏。`)) return;
+
   const id = state.draft.id;
+  const remoteProjectId = state.draft.remoteProjectId || getWorkspace()?.remoteProjectId || null;
   const workspace = getWorkspace();
+
   (workspace.frames || []).forEach(frame => releaseFrameUrl(frame.id));
   (workspace.referenceAssets || []).forEach(asset => asset?.id && releaseFrameUrl(asset.id));
+
+  // 删除本地草稿
   await deleteDraft(id);
+
+  // 删除云端绑定，防止刷新后 R5 恢复逻辑重新加载
+  if (remoteProjectId && state.user?.id) {
+    try {
+      await supabase
+        .from('video_projects')
+        .update({
+          status: 'deleted',
+          deleted_at: new Date().toISOString()
+        })
+        .eq('id', remoteProjectId)
+        .eq('owner_id', state.user.id);
+    } catch (error) {
+      console.warn('[Davis Video] cloud project delete marker failed', error);
+    }
+  }
+
   state.drafts = state.drafts.filter(item => item.id !== id);
   state.draft = null;
-  state.outputs = []; state.outputHistory = []; state.jobs = [];
+  state.outputs = [];
+  state.outputHistory = [];
+  state.jobs = [];
+
   if (state.drafts.length) await selectDraft(orderedDrafts()[0].id);
   else { renderProjects(); r5OpenCreateModal(); }
 }
