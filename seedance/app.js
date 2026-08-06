@@ -1456,25 +1456,16 @@ async function r5CreateProject() { r5OpenCreateModal(); }
 
 async function r5RemoveProject() {
   if (!r16AssertCurrentProjectWritable('删除项目')) return;
-  if (!state.draft || !await confirmBox('删除项目', `确定删除“${state.draft.name}”及其本地草稿吗？删除后刷新不会恢复。`)) return;
-
+  if (!state.draft || !await confirmBox('删除项目', `确定删除“${state.draft.name}”吗？删除后刷新不会恢复。`)) return;
   const id = state.draft.id;
-  const remoteProjectId = state.draft.remoteProjectId || getWorkspace()?.remoteProjectId || null;
   const workspace = getWorkspace();
-
   (workspace.frames || []).forEach(frame => releaseFrameUrl(frame.id));
   (workspace.referenceAssets || []).forEach(asset => asset?.id && releaseFrameUrl(asset.id));
-
-  // 先标记本地删除，防止恢复流程重新加入
-  const removedDraft = state.drafts.find(item => item.id === id);
-  if (removedDraft) {
-    removedDraft.deleted = true;
-    removedDraft.deletedAt = Date.now();
-  }
-
+  // 本地删除
   await deleteDraft(id);
 
-  // 同步删除云端项目，避免 r11RestoreCloudDrafts 刷新恢复
+  // 云端标记删除，阻止启动恢复逻辑再次拉回
+  const remoteProjectId = workspace.remoteProjectId || state.draft.remoteProjectId || workspace.bindingCandidateProjectId || null;
   if (remoteProjectId) {
     try {
       await supabase
@@ -1485,16 +1476,13 @@ async function r5RemoveProject() {
         })
         .eq('id', remoteProjectId);
     } catch (error) {
-      console.warn('[Davis Video] delete remote project failed', error);
+      console.warn('[Davis Video] mark cloud project deleted failed', error);
     }
   }
 
-  state.drafts = state.drafts.filter(item => item.id !== id && !item.deleted);
+  state.drafts = state.drafts.filter(item => item.id !== id);
   state.draft = null;
-  state.outputs = [];
-  state.outputHistory = [];
-  state.jobs = [];
-
+  state.outputs = []; state.outputHistory = []; state.jobs = [];
   if (state.drafts.length) await selectDraft(orderedDrafts()[0].id);
   else { renderProjects(); r5OpenCreateModal(); }
 }
@@ -1508,7 +1496,6 @@ async function r11RestoreCloudDrafts(localDrafts) {
     .select('id,name,mode,owner_id,created_at,updated_at,status');
   projectQuery = scopeVideoRead(projectQuery, state.user);
   const { data, error } = await projectQuery
-    .neq('status', 'deleted')
     .order('created_at', { ascending: false })
     .limit(1000);
 
@@ -1520,7 +1507,7 @@ async function r11RestoreCloudDrafts(localDrafts) {
     });
   }
 
-  const projects = data || [];
+  const projects = (data || []).filter(project => String(project.status || '').toLowerCase() !== 'deleted');
   const projectById = new Map(projects.map(project => [project.id, project]));
 
   for (const draft of local) {
