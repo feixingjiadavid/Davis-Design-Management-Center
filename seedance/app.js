@@ -1456,30 +1456,12 @@ async function r5CreateProject() { r5OpenCreateModal(); }
 
 async function r5RemoveProject() {
   if (!r16AssertCurrentProjectWritable('删除项目')) return;
-  if (!state.draft || !await confirmBox('删除项目', `确定删除“${state.draft.name}”吗？删除后刷新不会恢复。`)) return;
+  if (!state.draft || !await confirmBox('删除项目', `确定删除“${state.draft.name}”及其本地草稿吗？云端生成记录不会自动删除。`)) return;
   const id = state.draft.id;
   const workspace = getWorkspace();
   (workspace.frames || []).forEach(frame => releaseFrameUrl(frame.id));
   (workspace.referenceAssets || []).forEach(asset => asset?.id && releaseFrameUrl(asset.id));
-  // 本地删除
   await deleteDraft(id);
-
-  // 云端标记删除，阻止启动恢复逻辑再次拉回
-  const remoteProjectId = workspace.remoteProjectId || state.draft.remoteProjectId || workspace.bindingCandidateProjectId || null;
-  if (remoteProjectId) {
-    try {
-      await supabase
-        .from('video_projects')
-        .update({
-          status: 'deleted',
-          deleted_at: new Date().toISOString()
-        })
-        .eq('id', remoteProjectId);
-    } catch (error) {
-      console.warn('[Davis Video] mark cloud project deleted failed', error);
-    }
-  }
-
   state.drafts = state.drafts.filter(item => item.id !== id);
   state.draft = null;
   state.outputs = []; state.outputHistory = []; state.jobs = [];
@@ -1488,12 +1470,14 @@ async function r5RemoveProject() {
 }
 
 async function r11RestoreCloudDrafts(localDrafts) {
-  const local = Array.isArray(localDrafts) ? [...localDrafts] : [];
+  const local = (Array.isArray(localDrafts) ? [...localDrafts] : []).filter(draft => {
+    return !draft?.deleted;
+  });
   if (!state.user?.id) return [];
 
   let projectQuery = supabase
     .from('video_projects')
-    .select('id,name,mode,owner_id,created_at,updated_at,status');
+    .select('id,name,mode,owner_id,created_at,updated_at');
   projectQuery = scopeVideoRead(projectQuery, state.user);
   const { data, error } = await projectQuery
     .order('created_at', { ascending: false })
@@ -1507,7 +1491,10 @@ async function r11RestoreCloudDrafts(localDrafts) {
     });
   }
 
-  const projects = (data || []).filter(project => String(project.status || '').toLowerCase() !== 'deleted');
+  const projects = (data || []).filter(project => {
+    // 已删除项目禁止重新恢复到草稿列表
+    return project.status !== 'deleted' && project.deleted_at == null;
+  });
   const projectById = new Map(projects.map(project => [project.id, project]));
 
   for (const draft of local) {
