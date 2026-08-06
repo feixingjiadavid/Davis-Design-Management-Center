@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260731-multi-person-diagnostics-r23';
+const PRODUCTION_BUILD = '20260806-project-delete-fix-r24';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -173,8 +173,9 @@ async function r6ExistingProjectNames() {
   if (!state.user?.id) throw new Error('用户会话已失效，无法分配新版本名称');
   const { data, error } = await supabase
     .from('video_projects')
-    .select('name')
+    .select('name,status')
     .eq('owner_id', state.user.id)
+    .neq('status', 'deleted')
     .limit(2000);
   if (error) throw new Error(`读取云端项目版本失败：${errorMessage(error)}`);
   return (data || []).map(row => String(row?.name || '').trim()).filter(Boolean);
@@ -665,12 +666,12 @@ function r53ProjectCandidateScore(project, stats, context) {
 async function r5VerifyProjectId(projectId, mode, snapshot) {
   if (!projectId || !r5ContextIsCurrent(snapshot)) return null;
   const { data, error } = await supabase.from('video_projects')
-    .select('id,name,mode,owner_id,created_at,updated_at')
+    .select('id,name,mode,owner_id,created_at,updated_at,status')
     .eq('owner_id', r16ProjectOwnerId())
     .eq('id', projectId)
     .maybeSingle();
   if (!r5ContextIsCurrent(snapshot)) return null;
-  if (error || !data || r5ModeKey(data.mode) !== mode) return null;
+  if (error || !data || String(data.status || '').toLowerCase() === 'deleted' || r5ModeKey(data.mode) !== mode) return null;
   return data;
 }
 
@@ -711,6 +712,7 @@ async function r5ResolveFixedProject(snapshot) {
     const { data, error } = await supabase.from('video_projects')
       .select('id,name,mode,owner_id,created_at,updated_at,status')
       .eq('owner_id', r16ProjectOwnerId())
+      .neq('status', 'deleted')
       .in('id', list);
     if (!r5ContextIsCurrent(snapshot) || error) return;
     for (const project of data || []) {
@@ -724,6 +726,7 @@ async function r5ResolveFixedProject(snapshot) {
     const { data, error } = await supabase.from('video_projects')
       .select('id,name,mode,owner_id,created_at,updated_at,status')
       .eq('owner_id', r16ProjectOwnerId())
+      .neq('status', 'deleted')
       .eq('mode', mode)
       .eq('name', baseName)
       .order('created_at', { ascending: false });
@@ -737,6 +740,7 @@ async function r5ResolveFixedProject(snapshot) {
       const { data, error } = await supabase.from('video_projects')
         .select('id,name,mode,owner_id,created_at,updated_at,status')
         .eq('owner_id', r16ProjectOwnerId())
+        .neq('status', 'deleted')
         .eq('mode', mode)
         .eq('name', fallbackName)
         .order('created_at', { ascending: false });
@@ -1456,28 +1460,50 @@ async function r5CreateProject() { r5OpenCreateModal(); }
 
 async function r5RemoveProject() {
   if (!r16AssertCurrentProjectWritable('删除项目')) return;
-  if (!state.draft || !await confirmBox('删除项目', `确定删除“${state.draft.name}”及其本地草稿吗？云端生成记录不会自动删除。`)) return;
+  if (!state.draft || !await confirmBox('删除项目', `确定删除“${state.draft.name}”吗？删除后不会再出现在项目列表；已生成的视频和任务记录仍保留在云端。`)) return;
+
   const id = state.draft.id;
   const workspace = getWorkspace();
+  const remoteProjectId = workspace.remoteProjectId || state.draft.remoteProjectId || workspace.bindingCandidateProjectId || null;
+  const ownerId = r16ProjectOwnerId() || state.user?.id || '';
+
+  if (remoteProjectId) {
+    const { data, error } = await supabase
+      .from('video_projects')
+      .update({ status: 'deleted', updated_at: new Date().toISOString() })
+      .eq('id', remoteProjectId)
+      .eq('owner_id', ownerId)
+      .select('id,status')
+      .maybeSingle();
+
+    if (error || !data || String(data.status || '').toLowerCase() !== 'deleted') {
+      console.error('[Davis Video] delete cloud project failed', error || data);
+      toast('删除失败', error ? errorMessage(error, '云端项目删除失败') : '云端项目没有成功标记为已删除，请重试。');
+      return;
+    }
+  }
+
   (workspace.frames || []).forEach(frame => releaseFrameUrl(frame.id));
   (workspace.referenceAssets || []).forEach(asset => asset?.id && releaseFrameUrl(asset.id));
   await deleteDraft(id);
   state.drafts = state.drafts.filter(item => item.id !== id);
+  if (localStorage.getItem(LAST_SELECTED_DRAFT_KEY) === id) localStorage.removeItem(LAST_SELECTED_DRAFT_KEY);
   state.draft = null;
-  state.outputs = []; state.outputHistory = []; state.jobs = [];
+  state.outputs = [];
+  state.outputHistory = [];
+  state.jobs = [];
+
   if (state.drafts.length) await selectDraft(orderedDrafts()[0].id);
   else { renderProjects(); r5OpenCreateModal(); }
 }
 
 async function r11RestoreCloudDrafts(localDrafts) {
-  const local = (Array.isArray(localDrafts) ? [...localDrafts] : []).filter(draft => {
-    return !draft?.deleted;
-  });
+  const local = (Array.isArray(localDrafts) ? [...localDrafts] : []).filter(draft => !draft?.deleted);
   if (!state.user?.id) return [];
 
   let projectQuery = supabase
     .from('video_projects')
-    .select('id,name,mode,owner_id,created_at,updated_at');
+    .select('id,name,mode,owner_id,created_at,updated_at,status');
   projectQuery = scopeVideoRead(projectQuery, state.user);
   const { data, error } = await projectQuery
     .order('created_at', { ascending: false })
@@ -1491,13 +1517,31 @@ async function r11RestoreCloudDrafts(localDrafts) {
     });
   }
 
-  const projects = (data || []).filter(project => {
-    // 已删除项目禁止重新恢复到草稿列表
-    return project.status !== 'deleted' && project.deleted_at == null;
-  });
+  const allProjects = data || [];
+  const deletedProjectIds = new Set(
+    allProjects
+      .filter(project => String(project?.status || '').toLowerCase() === 'deleted')
+      .map(project => project.id)
+      .filter(Boolean)
+  );
+  const projects = allProjects.filter(project => !deletedProjectIds.has(project.id));
   const projectById = new Map(projects.map(project => [project.id, project]));
 
+  const cleanLocal = [];
   for (const draft of local) {
+    const mode = r5ModeKey(draft.lockedMode || draft.mode);
+    const workspace = draft.workspaces?.[mode] || draft;
+    const projectId = workspace.remoteProjectId || draft.remoteProjectId || workspace.bindingCandidateProjectId || null;
+    if (projectId && deletedProjectIds.has(projectId)) {
+      try { await deleteDraft(draft.id); } catch (deleteError) {
+        console.warn('[Davis Video R24] failed to purge locally cached deleted project', draft.id, deleteError);
+      }
+      continue;
+    }
+    cleanLocal.push(draft);
+  }
+
+  for (const draft of cleanLocal) {
     const mode = r5ModeKey(draft.lockedMode || draft.mode);
     const workspace = draft.workspaces?.[mode] || draft;
     const projectId = workspace.remoteProjectId || draft.remoteProjectId || workspace.bindingCandidateProjectId || null;
@@ -1516,7 +1560,7 @@ async function r11RestoreCloudDrafts(localDrafts) {
     }
   }
 
-  const drafts = local.filter(draft => {
+  const drafts = cleanLocal.filter(draft => {
     const ownerId = r16ProjectOwnerId(draft);
     return isVideoSuperAdmin(state.user) || ownerId === state.user.id;
   });
