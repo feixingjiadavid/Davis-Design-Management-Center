@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260806-merge-worker-shim-r32';
+const PRODUCTION_BUILD = '20260806-strict-tail-r33';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -2127,7 +2127,7 @@ async function r25UploadFrame(frame, projectId, order) {
 }
 
 
-function r28BuildStrictFrameLockPrompt(segment) {
+function r33BuildStrictFrameLockPrompt(segment) {
   const rawPrompt = String(segment?.prompt || '').trim();
   if (state.draft.mode === 'text_only') {
     const ratioLabel = state.draft.ratio === 'follow' ? '16:9' : state.draft.ratio;
@@ -2152,16 +2152,20 @@ function r28BuildStrictFrameLockPrompt(segment) {
     ? '多帧 Storyboard 只是把多组首尾帧拆成多个独立任务逐段提交；当前这一段仍然必须按严格首尾帧任务执行。'
     : '当前任务必须按严格首尾帧任务执行。';
   return [
-    '【Davis Video 严格首尾帧硬约束｜最高优先级】',
+    '【Davis Video 严格首尾帧硬约束｜最高优先级｜R33 强化版】',
     `${segmentLabel}：${modeLine}`,
-    `起始控制图=${frameA}；结束控制图=${frameB}。两张图不是风格参考，而是必须满足的硬控制点。`,
-    '1. 第1帧必须最大程度复现起始控制图：主体身份、IP造型、Logo、文字、数字、五官、轮廓、服装、颜色、材质、道具、背景、透视、构图和相对位置不得擅自改变。',
-    '2. 尾帧是必须精确抵达的最终画面，不是“接近即可”的参考。最后1帧必须最大程度复现结束控制图，不得自行改版、重绘、简化、替换或美化。',
-    '3. 禁止擅自重绘、改造或替换IP、角色、Logo、文字、数字、图标、道具和场景元素。两帧中没有发生变化的内容，整段都必须保持同一身份、造型、颜色、材质和结构。',
-    '4. 中间过程只允许在两张控制图真实差异之间做连续插值、位移、缓动、视差、镜头运动和必要形变；禁止新增两帧都不存在的主要元素，禁止删除两帧都存在的主要元素。',
-    '5. 若用户文字与首尾帧发生冲突，以首尾帧为最高优先级。不要为了执行文字而破坏尾帧。',
-    '6. 降低自由发挥和二次设计倾向。动画结束前必须主动收敛到结束控制图，不要在尾帧附近继续生成新的动作、构图或元素变化。',
-    '【本段用户运动/过渡要求】',
+    `起始控制图=${frameA}；结束控制图=${frameB}。两张图都不是“风格参考”，而是必须落地的硬控制图。`,
+    '【绝对优先级】首帧还原 = 硬约束；尾帧还原 = 最终验收标准；如果中间过程、镜头设计、文字描述与尾帧还原发生冲突，必须牺牲中间创意和运动丰富度，优先保证最后1帧精确收敛到结束控制图。',
+    '1. 第1帧必须最大程度复现起始控制图：主体身份、IP造型、Logo、文字、数字、五官、轮廓、服装、颜色、材质、道具、背景、透视、构图、镜头裁切和相对位置不得擅自改变。',
+    '2. 最后1帧必须最大程度复现结束控制图：主体数量、主体形状、局部结构、表情姿态、文字数字内容、Logo样式、颜色材质、道具细节、背景元素、镜头远近、透视关系、前后景层次、构图和相对位置必须对齐。不能只做到“风格接近”或“概念相似”。',
+    '3. 禁止擅自重绘、改造、简化、替换或美化尾帧主体。尤其禁止把尾帧里的IP、数字、Logo、图标、文字、道具重新设计成另一种样子。',
+    '4. 两张控制图中没有变化的元素，整段都必须保持同一身份、造型、颜色、材质和结构；两张控制图中都存在的元素，不得中途丢失，不得在尾帧前后改版。',
+    '5. 中间过程只允许在两张控制图真实差异之间做连续插值、位移、缓动、视差、镜头运动和必要形变；禁止新增两帧都不存在的主要元素，禁止删除两帧都存在的主要元素。',
+    '6. 动画结束前必须主动收敛到结束控制图。最后0.5秒重点用于对齐尾帧，不要在结尾继续自由发挥，不要额外产生新构图、新运动、新元素或新的造型变化。',
+    '7. 如果时长不足以同时满足丰富运动和尾帧还原，请减少运动复杂度、缩短中间变化、弱化创意演出，但不能牺牲尾帧对齐。宁可简单过渡，也不要尾帧跑偏。',
+    '8. 若用户文字与首尾帧冲突，以首尾帧为最高优先级；若用户文字中重新描述了主体造型，也不得覆盖控制图。文字只用于说明“如何从A过渡到B”，不能改变A和B本身。',
+    '【尾帧验收清单】最终一帧请逐项对齐结束控制图：主体外观、数字/文字/Logo内容、色彩、材质、大小比例、位置、背景、镜头裁切、透视、层次、光影。',
+    '【本段用户运动/过渡要求｜仅用于说明过渡方式，不得覆盖首尾帧】',
     rawPrompt || '只做稳定、自然、低自由度的首尾帧过渡。',
   ].join('\\n');
 }
@@ -2196,7 +2200,7 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, 
   patched = replaceSection(patched, 'function setView(view) {', 'function orderedDrafts() {', renamedFunction(r5SetView, 'setView'));
   patched = replaceSection(patched, 'function renderProjects() {', 'function escapeHtml(', renamedFunction(r5RenderProjects, 'renderProjects'));
   patched = replaceSection(patched, 'function renderSettings() {', 'function buildStrictFrameLockPrompt(', renamedFunction(r5RenderSettings, 'renderSettings'));
-  patched = replaceSection(patched, 'function buildStrictFrameLockPrompt(segment) {', 'function updateRatioTip() {', renamedFunction(r28BuildStrictFrameLockPrompt, 'buildStrictFrameLockPrompt'));
+  patched = replaceSection(patched, 'function buildStrictFrameLockPrompt(segment) {', 'function updateRatioTip() {', renamedFunction(r33BuildStrictFrameLockPrompt, 'buildStrictFrameLockPrompt'));
   patched = replaceSection(patched, 'async function selectDraft(id) {', 'async function createProject() {', renamedFunction(r5SelectDraft, 'selectDraft'));
   patched = replaceSection(patched, 'async function createProject() {', 'async function removeProject() {', renamedFunction(r5CreateProject, 'createProject'));
   patched = replaceSection(patched, 'async function removeProject() {', 'function statusText(', renamedFunction(r5RemoveProject, 'removeProject'));
@@ -2466,7 +2470,7 @@ export async function bootProduction() {
 
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   bootProduction().catch(error => {
-    console.error('[Davis Video Studio R32] boot failed', error);
+    console.error('[Davis Video Studio R33] boot failed', error);
     const box = document.createElement('div');
     box.style.cssText = 'position:fixed;inset:20px;z-index:99999;background:#220b12;color:#fff;border:1px solid #ff6075;border-radius:14px;padding:20px;font:14px/1.6 system-ui;overflow:auto';
     box.innerHTML = `<strong>Seedance 单项目单模式版启动失败</strong><br>${String(error?.message || error).replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]))}<br><br>请保留 seedance/app-v46.js，并覆盖本包中的 seedance/app.js；随后 Ctrl+F5 强制刷新。`;
