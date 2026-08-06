@@ -1456,7 +1456,7 @@ async function r5CreateProject() { r5OpenCreateModal(); }
 
 async function r5RemoveProject() {
   if (!r16AssertCurrentProjectWritable('删除项目')) return;
-  if (!state.draft || !await confirmBox('删除项目', `确定删除“${state.draft.name}”及其本地草稿吗？云端项目及关联记录也会隐藏。`)) return;
+  if (!state.draft || !await confirmBox('删除项目', `确定删除“${state.draft.name}”及其本地草稿吗？删除后刷新不会恢复。`)) return;
 
   const id = state.draft.id;
   const remoteProjectId = state.draft.remoteProjectId || getWorkspace()?.remoteProjectId || null;
@@ -1465,11 +1465,17 @@ async function r5RemoveProject() {
   (workspace.frames || []).forEach(frame => releaseFrameUrl(frame.id));
   (workspace.referenceAssets || []).forEach(asset => asset?.id && releaseFrameUrl(asset.id));
 
-  // 删除本地草稿
+  // 先标记本地删除，防止恢复流程重新加入
+  const removedDraft = state.drafts.find(item => item.id === id);
+  if (removedDraft) {
+    removedDraft.deleted = true;
+    removedDraft.deletedAt = Date.now();
+  }
+
   await deleteDraft(id);
 
-  // 删除云端绑定，防止刷新后 R5 恢复逻辑重新加载
-  if (remoteProjectId && state.user?.id) {
+  // 同步删除云端项目，避免 r11RestoreCloudDrafts 刷新恢复
+  if (remoteProjectId) {
     try {
       await supabase
         .from('video_projects')
@@ -1477,14 +1483,13 @@ async function r5RemoveProject() {
           status: 'deleted',
           deleted_at: new Date().toISOString()
         })
-        .eq('id', remoteProjectId)
-        .eq('owner_id', state.user.id);
+        .eq('id', remoteProjectId);
     } catch (error) {
-      console.warn('[Davis Video] cloud project delete marker failed', error);
+      console.warn('[Davis Video] delete remote project failed', error);
     }
   }
 
-  state.drafts = state.drafts.filter(item => item.id !== id);
+  state.drafts = state.drafts.filter(item => item.id !== id && !item.deleted);
   state.draft = null;
   state.outputs = [];
   state.outputHistory = [];
@@ -1500,9 +1505,10 @@ async function r11RestoreCloudDrafts(localDrafts) {
 
   let projectQuery = supabase
     .from('video_projects')
-    .select('id,name,mode,owner_id,created_at,updated_at');
+    .select('id,name,mode,owner_id,created_at,updated_at,status');
   projectQuery = scopeVideoRead(projectQuery, state.user);
   const { data, error } = await projectQuery
+    .neq('status', 'deleted')
     .order('created_at', { ascending: false })
     .limit(1000);
 
