@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260807-parent-child-task-tree-r49';
+const PRODUCTION_BUILD = '20260807-tree-selection-collapse-r50';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -375,6 +375,184 @@ function r49ExpandParentGroup(groupId, expanded = true) {
   if (expanded) set.add(String(groupId)); else set.delete(String(groupId));
   r49SaveExpandedParentGroups(set);
 }
+
+function r50TreeSelection() {
+  const fallbackGroupId = r49ParentGroupIdForDraft(state.draft);
+  const fallback = state.draft && fallbackGroupId
+    ? { type:'task', groupId:String(fallbackGroupId), draftId:String(state.draft.id) }
+    : { type:'project', groupId:'', draftId:'' };
+
+  const current = state.r50TreeSelection;
+  if (current && ['project','task'].includes(current.type)) return current;
+
+  try {
+    const raw = JSON.parse(localStorage.getItem('davis_video_tree_selection_v50') || 'null');
+    if (raw && ['project','task'].includes(raw.type)) {
+      state.r50TreeSelection = {
+        type: raw.type,
+        groupId: String(raw.groupId || ''),
+        draftId: String(raw.draftId || ''),
+      };
+      return state.r50TreeSelection;
+    }
+  } catch {}
+
+  state.r50TreeSelection = fallback;
+  return fallback;
+}
+
+function r50SetTreeSelection(type, groupId, draftId = '') {
+  const next = {
+    type: type === 'project' ? 'project' : 'task',
+    groupId: String(groupId || ''),
+    draftId: type === 'project' ? '' : String(draftId || ''),
+  };
+  state.r50TreeSelection = next;
+  try { localStorage.setItem('davis_video_tree_selection_v50', JSON.stringify(next)); } catch {}
+  r50SyncDeleteButton();
+  return next;
+}
+
+function r50SelectParentGroup(groupId) {
+  const group = r49FindParentGroup(groupId);
+  if (!group) return;
+  r50SetTreeSelection('project', group.id, '');
+  renderProjects();
+}
+
+function r50SyncDeleteButton() {
+  const button = $('delete-project');
+  if (!button) return;
+
+  const selection = r50TreeSelection();
+  if (selection.type === 'project' && selection.groupId) {
+    const group = r49FindParentGroup(selection.groupId);
+    button.textContent = '删除当前项目';
+    const foreign = Boolean(group && String(group.owner_id || '') !== String(state.user?.id || ''));
+    button.disabled = !group || foreign;
+    button.title = foreign ? '其他用户的项目仅允许查看' : '删除当前一级项目及其子任务入口';
+    return;
+  }
+
+  button.textContent = '删除当前任务';
+  const draft = state.draft;
+  const writable = Boolean(draft) && r16CurrentProjectWritable(draft);
+  button.disabled = !writable;
+  button.title = draft && !writable ? '其他用户的任务仅允许查看' : '删除当前子生成任务';
+}
+
+function r50SetChildTaskNameError(message = '') {
+  const input = $('new-child-task-name');
+  const error = $('new-child-task-name-error');
+  const hasError = Boolean(message);
+  input?.classList.toggle('is-invalid', hasError);
+  input?.setAttribute('aria-invalid', hasError ? 'true' : 'false');
+  if (error) {
+    error.hidden = !hasError;
+    if (hasError) error.textContent = message;
+  }
+}
+
+function r50ValidateChildTaskName() {
+  const input = $('new-child-task-name');
+  const value = String(input?.value || '').trim();
+  if (value) {
+    r50SetChildTaskNameError('');
+    return value;
+  }
+  r50SetChildTaskNameError('请填写任务名称后再选择生成模式。');
+  toast('请填写任务名称', '任务名称为必填项。填写后才能创建首尾帧、多帧 Storyboard 或纯文字任务。');
+  input?.focus();
+  return '';
+}
+
+async function r50RemoveParentProject(groupId) {
+  const group = r49FindParentGroup(groupId);
+  if (!group) return toast('删除失败','没有找到当前一级项目，请刷新后重试。');
+  if (String(group.owner_id || '') !== String(state.user?.id || '')) return toast('只读项目','不能删除其他用户的一级项目。');
+
+  const children = r49GroupChildren(group.id);
+  if (!await confirmBox(
+    '删除当前项目',
+    `确定删除“${group.name}”吗？该项目下 ${children.length} 个生成任务会一并从项目树移除；已生成的视频、Ark 任务和输出记录仍保留在云端历史记录中。`
+  )) return;
+
+  const ownerId = String(group.owner_id || state.user.id);
+
+  const childCloud = await supabase.from('video_projects')
+    .update({ status:'deleted', updated_at:new Date().toISOString() })
+    .eq('owner_id', ownerId)
+    .eq('parent_group_id', group.id)
+    .neq('status','deleted');
+  if (childCloud.error) {
+    console.error('[Davis Video R50] delete project children failed', childCloud.error);
+    return toast('删除失败', errorMessage(childCloud.error,'项目下子任务删除失败，请重试。'));
+  }
+
+  const parentCloud = await supabase.from('video_project_groups')
+    .update({ status:'deleted', updated_at:new Date().toISOString() })
+    .eq('id', group.id)
+    .eq('owner_id', ownerId)
+    .select('id,status')
+    .maybeSingle();
+  if (parentCloud.error || !parentCloud.data || String(parentCloud.data.status || '').toLowerCase() !== 'deleted') {
+    console.error('[Davis Video R50] delete parent project failed', parentCloud.error || parentCloud.data);
+    return toast('删除失败', parentCloud.error ? errorMessage(parentCloud.error,'一级项目删除失败') : '一级项目没有成功标记为已删除，请重试。');
+  }
+
+  const deletedIds = new Set(children.map(draft => String(draft.id)));
+  for (const draft of children) {
+    const mode = r5ModeKey(draft.lockedMode || draft.mode);
+    const workspace = draft.workspaces?.[mode] || draft;
+    (workspace.frames || []).forEach(frame => frame?.id && releaseFrameUrl(frame.id));
+    (workspace.referenceAssets || []).forEach(asset => asset?.id && releaseFrameUrl(asset.id));
+    try { await deleteDraft(draft.id); } catch (error) {
+      console.warn('[Davis Video R50] local child cleanup failed', draft.id, error);
+    }
+  }
+
+  state.drafts = (state.drafts || []).filter(draft => !deletedIds.has(String(draft.id)));
+  state.projectGroups = (state.projectGroups || []).filter(item => String(item.id) !== String(group.id));
+  const expanded = r49ExpandedParentGroups();
+  expanded.delete(String(group.id));
+  r49SaveExpandedParentGroups(expanded);
+
+  if (state.draft && deletedIds.has(String(state.draft.id))) {
+    state.draft = null;
+    state.outputs = [];
+    state.outputHistory = [];
+    state.jobs = [];
+  }
+
+  const nextDraft = orderedDrafts()[0] || null;
+  if (nextDraft) {
+    const nextGroupId = r49ParentGroupIdForDraft(nextDraft);
+    r50SetTreeSelection('task', nextGroupId, nextDraft.id);
+    await selectDraft(nextDraft.id);
+  } else {
+    const nextGroup = (state.projectGroups || [])[0] || null;
+    if (nextGroup) r50SetTreeSelection('project', nextGroup.id, '');
+    else {
+      state.r50TreeSelection = { type:'project', groupId:'', draftId:'' };
+      try { localStorage.removeItem('davis_video_tree_selection_v50'); } catch {}
+    }
+    renderProjects();
+    r49RenderTaskContext();
+    r50SyncDeleteButton();
+  }
+
+  toast('项目已删除', `“${group.name}”及其子任务入口已从项目树移除。`);
+}
+
+async function r50DeleteSelectedNode() {
+  const selection = r50TreeSelection();
+  if (selection.type === 'project' && selection.groupId) {
+    return r50RemoveParentProject(selection.groupId);
+  }
+  return r49RemoveTask();
+}
+
+
 function r49GroupChildren(groupId) {
   return (state.drafts || []).filter(draft => String(r49ParentGroupIdForDraft(draft) || '') === String(groupId || ''))
     .sort((a,b) => Number(b.createdAt || b.updatedAt || 0) - Number(a.createdAt || a.updatedAt || 0));
@@ -384,7 +562,7 @@ async function r49LoadParentGroups() {
   const { data, error } = await supabase.from('video_project_groups')
     .select('id,owner_id,name,project_category,status,created_at,updated_at,metadata')
     .neq('status','deleted').order('updated_at',{ascending:false}).limit(1000);
-  if (error) { console.warn('[Davis Video R49] load parent groups failed', error); return state.projectGroups || []; }
+  if (error) { console.warn('[Davis Video R50] load parent groups failed', error); return state.projectGroups || []; }
   state.projectGroups = Array.isArray(data) ? data : [];
   return state.projectGroups;
 }
@@ -441,25 +619,59 @@ function r49RenderProjects() {
   const groups = [...(state.projectGroups || [])].filter(g => String(g?.status || 'active').toLowerCase() !== 'deleted')
     .sort((a,b) => new Date(b.updated_at || b.created_at || 0).getTime() - new Date(a.updated_at || a.created_at || 0).getTime());
   const expanded = r49ExpandedParentGroups();
-  const activeGroupId = r49ParentGroupIdForDraft(state.draft);
-  if (activeGroupId) expanded.add(String(activeGroupId));
+  const selection = r50TreeSelection();
+  const selectedGroupId = String(selection.groupId || '');
+  const selectedDraftId = selection.type === 'task' ? String(selection.draftId || state.draft?.id || '') : '';
+
   $('project-list').innerHTML = groups.length ? groups.map(group => {
-    const groupId = String(group.id), children = r49GroupChildren(groupId), isExpanded = expanded.has(groupId), isActive = String(activeGroupId || '') === groupId;
+    const groupId = String(group.id);
+    const children = r49GroupChildren(groupId);
+    const isExpanded = expanded.has(groupId);
+    const isSelectedGroup = selectedGroupId === groupId;
+    const isProjectNodeSelected = isSelectedGroup && selection.type === 'project';
     const foreign = String(group.owner_id || '') !== String(state.user?.id || '');
+
     const childMarkup = children.length ? children.map(draft => {
-      const mode = r5ModeKey(draft.lockedMode || draft.mode), workspace = draft.workspaces?.[mode] || draft;
+      const mode = r5ModeKey(draft.lockedMode || draft.mode);
+      const workspace = draft.workspaces?.[mode] || draft;
       const count = mode === 'text_only' ? '纯文字' : `${workspace.frames?.length || draft.frames?.length || 0} 张图`;
-      return `<button class="project-child ${state.draft?.id === draft.id ? 'active' : ''}" data-project="${draft.id}"><strong>${escapeHtml(r49TaskDisplayName(draft))}</strong><span><i class="project-child-mode">${escapeHtml(r5ModeLabel(mode))}</i><span>${count}</span><span>·</span><span>${new Date(draft.createdAt || draft.updatedAt || Date.now()).toLocaleString('zh-CN')}</span></span></button>`;
+      const childActive = isSelectedGroup && selection.type === 'task' && selectedDraftId === String(draft.id);
+      return `<button class="project-child ${childActive ? 'active' : ''}" data-project="${draft.id}" data-parent-group="${groupId}">
+        <strong>${escapeHtml(r49TaskDisplayName(draft))}</strong>
+        <span><i class="project-child-mode">${escapeHtml(r5ModeLabel(mode))}</i><span>${count}</span><span>·</span><span>${new Date(draft.createdAt || draft.updatedAt || Date.now()).toLocaleString('zh-CN')}</span></span>
+      </button>`;
     }).join('') : '<div class="project-child-empty">还没有生成任务</div>';
-    return `<div class="project-tree-group"><div class="project-parent-row ${isActive ? 'is-active' : ''}">
-      <button class="project-parent-toggle" type="button" data-toggle-parent="${groupId}" aria-expanded="${isExpanded ? 'true' : 'false'}"><span class="project-parent-chevron">▶</span><span class="project-parent-copy"><strong>${escapeHtml(group.name || '未命名项目')}</strong><span>${escapeHtml(group.project_category || '其他')} · ${children.length} 个任务${foreign ? ' · 只读' : ''}</span></span></button>
-      <button class="project-parent-add" type="button" data-add-child="${groupId}" title="新建生成任务" ${foreign ? 'disabled' : ''}>＋</button></div>
-      <div class="project-child-list" ${isExpanded ? '' : 'hidden'}>${childMarkup}${foreign ? '' : `<button class="project-child-add" type="button" data-add-child="${groupId}">＋ 新建生成任务</button>`}</div></div>`;
+
+    return `<div class="project-tree-group">
+      <div class="project-parent-row ${isSelectedGroup ? 'is-active' : ''} ${isProjectNodeSelected ? 'is-project-selected' : ''}">
+        <button class="project-parent-chevron-btn" type="button" data-toggle-parent="${groupId}" aria-expanded="${isExpanded ? 'true' : 'false'}" aria-label="${isExpanded ? '收起项目' : '展开项目'}"><span class="project-parent-chevron">▶</span></button>
+        <button class="project-parent-main" type="button" data-select-parent="${groupId}">
+          <span class="project-parent-copy"><strong>${escapeHtml(group.name || '未命名项目')}</strong><span>${escapeHtml(group.project_category || '其他')} · ${children.length} 个任务${foreign ? ' · 只读' : ''}</span></span>
+        </button>
+        <button class="project-parent-add" type="button" data-add-child="${groupId}" title="新建生成任务" ${foreign ? 'disabled' : ''}>＋</button>
+      </div>
+      <div class="project-child-list" ${isExpanded ? '' : 'hidden'}>${childMarkup}${foreign ? '' : `<button class="project-child-add" type="button" data-add-child="${groupId}">＋ 新建生成任务</button>`}</div>
+    </div>`;
   }).join('') : '<div class="empty-state">还没有生成项目，请先点击“新建视频项目”。</div>';
-  qsa('[data-toggle-parent]').forEach(btn => btn.onclick = () => { r49ExpandParentGroup(btn.dataset.toggleParent, btn.getAttribute('aria-expanded') !== 'true'); renderProjects(); });
-  qsa('[data-add-child]').forEach(btn => btn.onclick = event => { event.stopPropagation(); if (!btn.disabled) r49OpenChildTaskModal(btn.dataset.addChild); });
-  qsa('[data-project]').forEach(btn => btn.onclick = () => selectDraft(btn.dataset.project));
-  r49SaveExpandedParentGroups(expanded);
+
+  qsa('[data-toggle-parent]').forEach(btn => btn.onclick = event => {
+    event.stopPropagation();
+    const nextExpanded = btn.getAttribute('aria-expanded') !== 'true';
+    r49ExpandParentGroup(btn.dataset.toggleParent, nextExpanded);
+    renderProjects();
+  });
+  qsa('[data-select-parent]').forEach(btn => btn.onclick = () => r50SelectParentGroup(btn.dataset.selectParent));
+  qsa('[data-add-child]').forEach(btn => btn.onclick = event => {
+    event.stopPropagation();
+    if (!btn.disabled) r49OpenChildTaskModal(btn.dataset.addChild);
+  });
+  qsa('[data-project]').forEach(btn => btn.onclick = () => {
+    const draft = (state.drafts || []).find(item => String(item.id) === String(btn.dataset.project));
+    const groupId = btn.dataset.parentGroup || r49ParentGroupIdForDraft(draft);
+    r50SetTreeSelection('task', groupId, btn.dataset.project);
+    void selectDraft(btn.dataset.project);
+  });
+  r50SyncDeleteButton();
 }
 function r49OpenParentModal() {
   const modal = $('project-mode-modal'); if (!modal) return;
@@ -489,6 +701,7 @@ function r49OpenChildTaskModal(groupId) {
   const modal = $('child-task-modal'); if (!modal) return; modal.dataset.parentGroupId = group.id;
   if ($('child-task-parent-name')) $('child-task-parent-name').textContent = group.name;
   if ($('new-child-task-name')) $('new-child-task-name').value = '';
+  r50SetChildTaskNameError('');
   modal.hidden = false; setTimeout(() => $('new-child-task-name')?.focus(),0);
 }
 function r49CloseChildTaskModal() { if ($('child-task-modal')) $('child-task-modal').hidden = true; }
@@ -496,17 +709,27 @@ async function r49CreateChildTask(mode) {
   const modal = $('child-task-modal'), groupId = modal?.dataset.parentGroupId || '', group = r49FindParentGroup(groupId);
   if (!group) return toast('创建任务失败','一级项目不存在，请刷新后重试。');
   const key = r5ModeKey(mode), siblings = r49GroupChildren(group.id);
-  let taskName = String($('new-child-task-name')?.value || '').trim();
+  const taskName = r50ValidateChildTaskName();
   if (!taskName) {
-    let index = siblings.length + 1; taskName = r49DefaultTaskName(key,index);
-    const names = new Set(siblings.map(item => r14NormalizeProjectName(r49TaskDisplayName(item))));
-    while (names.has(r14NormalizeProjectName(taskName))) { index += 1; taskName = r49DefaultTaskName(key,index); }
-  } else if (siblings.some(item => r14NormalizeProjectName(r49TaskDisplayName(item)) === r14NormalizeProjectName(taskName))) {
-    toast('任务名称已存在',`“${taskName}”已经在“${group.name}”项目下，请换一个名称。`); $('new-child-task-name')?.focus(); return;
+    const clicked = document.querySelector(`[data-create-child-mode="${key}"]`);
+    if (clicked) {
+      clicked.classList.remove('is-blocked-hint');
+      void clicked.offsetWidth;
+      clicked.classList.add('is-blocked-hint');
+      setTimeout(() => clicked.classList.remove('is-blocked-hint'),360);
+    }
+    return;
+  }
+  if (siblings.some(item => r14NormalizeProjectName(r49TaskDisplayName(item)) === r14NormalizeProjectName(taskName))) {
+    r50SetChildTaskNameError('这个项目下已经有同名任务，请换一个名称。');
+    toast('任务名称已存在',`“${taskName}”已经在“${group.name}”项目下，请换一个名称。`);
+    $('new-child-task-name')?.focus();
+    return;
   }
   const remoteName = `${group.name} · ${taskName}`, draft = newDraft(key,remoteName,group.project_category);
   draft.parentGroupId = group.id; draft.parent_group_id = group.id; draft.parentProjectName = group.name; draft.taskName = taskName; draft.task_name = taskName; draft.taskOrder = siblings.length; draft.projectCategory = group.project_category; draft.projectCategorySource = 'parent_project'; draft.remoteProjectName = remoteName;
   await saveDraft(draft); state.drafts.unshift(draft); r49ExpandParentGroup(group.id,true);
+  r50SetTreeSelection('task', group.id, draft.id);
   try { await supabase.from('video_project_groups').update({updated_at:new Date().toISOString()}).eq('id',group.id).eq('owner_id',state.user.id); } catch {}
   group.updated_at = new Date().toISOString(); r49CloseChildTaskModal(); await selectDraft(draft.id); setView('quick');
   toast('生成任务已创建',`“${taskName}”已创建为${r5ModeLabel(key)}任务，素材、提示词、生成记录和输出均独立保存。`);
@@ -522,6 +745,9 @@ function r49WireHierarchyUi() {
   if ($('new-project-category')) $('new-project-category').onchange = () => { r43SyncCategoryCustomVisibility(true); r45SetProjectFieldError('new-project-category','new-project-category-error',''); if ($('new-project-category').value !== '__other__') r45SetProjectFieldError('new-project-category-custom','new-project-category-custom-error',''); };
   if ($('new-project-category-custom')) $('new-project-category-custom').oninput = () => { if (r43NormalizeCategory($('new-project-category-custom').value)) r45SetProjectFieldError('new-project-category-custom','new-project-category-custom-error',''); };
   if ($('new-project-name')) $('new-project-name').oninput = () => { if (String($('new-project-name').value || '').trim()) r45SetProjectFieldError('new-project-name','new-project-name-error',''); };
+  if ($('new-child-task-name')) $('new-child-task-name').oninput = () => { if (String($('new-child-task-name').value || '').trim()) r50SetChildTaskNameError(''); };
+  if ($('delete-project')) $('delete-project').onclick = r50DeleteSelectedNode;
+  r50SyncDeleteButton();
 }
 function r49RenderSettings() {
   $('project-name').value = r49TaskDisplayName(state.draft); $('project-name').readOnly = true; $('project-name').title = '当前子生成任务名称';
@@ -534,11 +760,12 @@ async function r49SelectDraft(id) {
   const draft = migrateDraftWorkspaces(await getDraft(id)); if (!draft) return;
   clearInterval(state.pollTimer); state.pollTimer = null; state.objectUrls.forEach(url => URL.revokeObjectURL(url)); state.objectUrls.clear();
   state.draft = draft; bindCurrentWorkspace(); normalizeSegments(state.draft); saveCurrentWorkspaceSelection();
-  const groupId = r49ParentGroupIdForDraft(draft); if (groupId) r49ExpandParentGroup(groupId,true);
+  const groupId = r49ParentGroupIdForDraft(draft);
+  r50SetTreeSelection('task', groupId, draft.id);
   localStorage.setItem(LAST_SELECTED_DRAFT_KEY,id); renderAll(); renderProjects(); r49RenderTaskContext();
   const workspace = getWorkspace();
-  try { if (!Number(workspace.cloudSyncedAt || 0) || Date.now() - Number(workspace.cloudSyncedAt || 0) > 5 * 60_000) await loadOutputs(false); } catch (error) { console.warn('[Davis Video Studio R49] task sync failed', error); }
-  renderAll(); renderProjects(); r49RenderTaskContext(); r16ApplyReadOnlyControls();
+  try { if (!Number(workspace.cloudSyncedAt || 0) || Date.now() - Number(workspace.cloudSyncedAt || 0) > 5 * 60_000) await loadOutputs(false); } catch (error) { console.warn('[Davis Video Studio R50] task sync failed', error); }
+  renderAll(); renderProjects(); r49RenderTaskContext(); r16ApplyReadOnlyControls(); r50SyncDeleteButton();
   const active = state.draft.segments.some(s => ['submitting','submitted','queued','running','processing'].includes(String(s.status || '').toLowerCase()));
   if (active && r16CurrentProjectWritable()) startPolling();
 }
@@ -555,14 +782,24 @@ async function r49RemoveTask() {
   await deleteDraft(id); state.drafts = state.drafts.filter(item => item.id !== id); if (localStorage.getItem(LAST_SELECTED_DRAFT_KEY) === id) localStorage.removeItem(LAST_SELECTED_DRAFT_KEY);
   state.draft = null; state.outputs = []; state.outputHistory = []; state.jobs = [];
   const sameParent = r49GroupChildren(parentGroupId);
-  if (sameParent.length) await selectDraft(sameParent[0].id); else if (state.drafts.length) await selectDraft(orderedDrafts()[0].id); else { renderProjects(); r49RenderTaskContext(); if (parentGroupId) r49OpenChildTaskModal(parentGroupId); }
+  if (sameParent.length) {
+    r50SetTreeSelection('task', parentGroupId, sameParent[0].id);
+    await selectDraft(sameParent[0].id);
+  } else if (parentGroupId && r49FindParentGroup(parentGroupId)) {
+    r50SetTreeSelection('project', parentGroupId, '');
+    renderProjects(); r49RenderTaskContext(); r50SyncDeleteButton();
+  } else if (state.drafts.length) {
+    await selectDraft(orderedDrafts()[0].id);
+  } else {
+    renderProjects(); r49RenderTaskContext(); r50SyncDeleteButton();
+  }
 }
 async function r49RestoreCloudDrafts(localDrafts) {
   const local = (Array.isArray(localDrafts) ? [...localDrafts] : []).filter(draft => !draft?.deleted); if (!state.user?.id) return [];
   let projectQuery = supabase.from('video_projects').select('id,name,mode,owner_id,project_category,parent_group_id,task_name,task_order,created_at,updated_at,status');
   projectQuery = scopeVideoRead(projectQuery,state.user);
   const { data, error } = await projectQuery.order('created_at',{ascending:false}).limit(1000);
-  if (error) { console.warn('[Davis Video R49] cloud task recovery skipped',error); return local; }
+  if (error) { console.warn('[Davis Video R50] cloud task recovery skipped',error); return local; }
   const allProjects = data || [], deletedIds = new Set(allProjects.filter(p => String(p?.status || '').toLowerCase() === 'deleted').map(p => p.id).filter(Boolean));
   const projects = allProjects.filter(p => !deletedIds.has(p.id)), projectById = new Map(projects.map(p => [p.id,p])), cleanLocal = [];
   for (const draft of local) {
@@ -590,7 +827,7 @@ async function r49RestoreCloudDrafts(localDrafts) {
     draft.parentGroupId = project.parent_group_id || null; draft.parent_group_id = project.parent_group_id || null; draft.parentProjectName = group?.name || ''; draft.taskName = taskName; draft.task_name = taskName; draft.taskOrder = Number(project.task_order || 0);
     draft.createdAt = new Date(project.created_at || Date.now()).getTime(); draft.updatedAt = new Date(project.updated_at || project.created_at || Date.now()).getTime(); draft.cloudRecoveredProject = true;
     workspace.ownerId = project.owner_id; workspace.remoteOwnerId = project.owner_id; workspace.remoteProjectId = project.id; workspace.bindingCandidateProjectId = project.id; workspace.remoteBindingSchema = 'r49-child-task'; workspace.remoteBindingVersion = 'r49'; workspace.remoteBindingLocked = true; workspace.cloudSyncedAt = 0;
-    try { await saveDraft(draft); drafts.push(draft); bound.add(project.id); } catch (saveError) { console.warn('[Davis Video R49] failed to cache cloud child task',project.id,saveError); }
+    try { await saveDraft(draft); drafts.push(draft); bound.add(project.id); } catch (saveError) { console.warn('[Davis Video R50] failed to cache cloud child task',project.id,saveError); }
   }
   return drafts.sort((a,b) => Number(b.createdAt || b.updatedAt || 0) - Number(a.createdAt || a.updatedAt || 0));
 }
@@ -621,7 +858,13 @@ async function r49Init() {
   state.drafts = await r49RestoreCloudDrafts(await r5MigrateDraftCollection(await listDrafts()));
   state.drafts = await r49EnsureDraftParentBindings(state.drafts);
   await r49LoadParentGroups(); renderProjects();
-  if (!state.drafts.length) { r49RenderTaskContext(); if (!state.projectGroups.length) r49OpenParentModal(); return; }
+  if (!state.drafts.length) {
+    r49RenderTaskContext();
+    if (state.projectGroups.length) r50SetTreeSelection('project', state.projectGroups[0].id, '');
+    else r49OpenParentModal();
+    renderProjects(); r50SyncDeleteButton();
+    return;
+  }
   const last = localStorage.getItem(LAST_SELECTED_DRAFT_KEY), initial = state.drafts.find(d => d.id === last) || orderedDrafts()[0];
   await selectDraft(initial.id); setView('quick');
 }
@@ -3606,7 +3849,7 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, 
     r5BuildSplitDraft,r5MigrateDraftCollection,r5ContextSnapshot,r5ContextIsCurrent,r5ExactTaskIds,
     r53IsGenericProjectName,r53NormalizePrompt,r53PromptOverlap,r53ProjectCandidateScore,r5VerifyProjectId,
     r5ResolveFixedProject,r5TaskScore,r5OutputStableKey,r5CacheRequestUrl,r5ReadPersistentVideo,r5PrunePersistentVideoCache,
-    r5WritePersistentVideo,r49ParentGroupIdForDraft,r49TaskDisplayName,r49DefaultTaskName,r49FindParentGroup,r49ExpandedParentGroups,r49SaveExpandedParentGroups,r49ExpandParentGroup,r49GroupChildren,r49LoadParentGroups,r49EnsureDraftParentBindings,r49RenderTaskContext,r49RenderProjects,r49OpenParentModal,r49CloseParentModal,r49CreateParentProject,r49OpenChildTaskModal,r49CloseChildTaskModal,r49CreateChildTask,r49WireHierarchyUi,r49RenderSettings,r49SelectDraft,r49RemoveTask,r49RestoreCloudDrafts,r49ReEditSegment,r49Init,r43NormalizeCategory,r43InferHistoricalCategory,r43ProjectCategoryValue,r43IncomingProjectCategory,r43SyncCategoryCustomVisibility,r43ApplyCategoryOptions,r43LoadCategoryOptions,r43ProjectCategoryFromControls,r45SetProjectFieldError,r45ClearProjectCreateErrors,r45ValidateProjectCreateFields,r5OpenCreateModal,r5CloseCreateModal,r5CreateProjectFromMode,r5WireCreateModal,
+    r5WritePersistentVideo,r49ParentGroupIdForDraft,r49TaskDisplayName,r49DefaultTaskName,r49FindParentGroup,r49ExpandedParentGroups,r49SaveExpandedParentGroups,r49ExpandParentGroup,r50TreeSelection,r50SetTreeSelection,r50SelectParentGroup,r50SyncDeleteButton,r50SetChildTaskNameError,r50ValidateChildTaskName,r50RemoveParentProject,r50DeleteSelectedNode,r49GroupChildren,r49LoadParentGroups,r49EnsureDraftParentBindings,r49RenderTaskContext,r49RenderProjects,r49OpenParentModal,r49CloseParentModal,r49CreateParentProject,r49OpenChildTaskModal,r49CloseChildTaskModal,r49CreateChildTask,r49WireHierarchyUi,r49RenderSettings,r49SelectDraft,r49RemoveTask,r49RestoreCloudDrafts,r49ReEditSegment,r49Init,r43NormalizeCategory,r43InferHistoricalCategory,r43ProjectCategoryValue,r43IncomingProjectCategory,r43SyncCategoryCustomVisibility,r43ApplyCategoryOptions,r43LoadCategoryOptions,r43ProjectCategoryFromControls,r45SetProjectFieldError,r45ClearProjectCreateErrors,r45ValidateProjectCreateFields,r5OpenCreateModal,r5CloseCreateModal,r5CreateProjectFromMode,r5WireCreateModal,
     r6ExistingProjectNames,r6ForkCurrentDraftForSubmit,r10StableUploadPlan,r10ApplyFrameBinding,
     r10SubmissionContext,r10AssertContext,r10RecoverFrameBindings,r10RecoverOrphan,r11RestoreCloudDrafts,r13MarkVersionForkForSubmit,r14NormalizeProjectName,r14ProjectNameExists,r15HasFilePayload,r15WireFileDropzone,r15PreventDocumentFileNavigation,
     r16ProjectOwnerId,r16ScopeProjectRead,r16CurrentProjectWritable,r16AssertCurrentProjectWritable,r16ApplyReadOnlyControls,
@@ -3933,7 +4176,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
       if (quotaFailure && !globalThis.__davisR46QuotaRetry) {
         globalThis.__davisR46QuotaRetry = true;
         r46ClearObsoleteRuntimeCaches();
-        console.warn('[Davis Video Studio R49] storage quota during boot; legacy cache cleared, retrying once');
+        console.warn('[Davis Video Studio R50] storage quota during boot; legacy cache cleared, retrying once');
         await bootProduction();
         return;
       }
@@ -3942,7 +4185,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   };
 
   r46Boot().catch(error => {
-    console.error('[Davis Video Studio R49] boot failed', error);
+    console.error('[Davis Video Studio R50] boot failed', error);
     const box = document.createElement('div');
     box.style.cssText = 'position:fixed;inset:20px;z-index:99999;background:#220b12;color:#fff;border:1px solid #ff6075;border-radius:14px;padding:20px;font:14px/1.6 system-ui;overflow:auto';
     box.innerHTML = `<strong>Davis Video 启动失败</strong><br>${String(error?.message || error).replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]))}<br><br>请保留 seedance/app-v46.js，并覆盖本包中的 ai-assistant.html 与 seedance/app.js；随后 Ctrl+F5 强制刷新。`;
