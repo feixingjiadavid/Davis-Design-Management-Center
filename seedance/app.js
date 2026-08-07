@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260806-reference-image-auto-pad-r36-cache-bust';
+const PRODUCTION_BUILD = '20260806-model-catalog-cost-r37';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -1188,7 +1188,7 @@ function r5LoadOutputs(force = false) {
         toFrameId: null,
         prompt: '',
         duration: 4,
-        model: 'mini',
+        model: 'v20',
         resolution: '720p',
         status: 'draft',
         progress: 0,
@@ -1801,7 +1801,7 @@ async function r10UploadNeededFrames(segmentIds) {
       segment.referenceAssetId = ids[0] || null; segment.referenceAssetIds = ids;
       segment.referenceDirections = uploaded.map((item, index) => ({
         asset_id: item.remoteAssetId || null, token: referenceToken(item, index),
-        name: item.name, mime_type: item.type, usage: 'free_prompt_reference'
+        name: item.name, mime_type: item.type, duration_seconds: Number(item.durationSeconds || item.duration_seconds || 0) || null, usage: 'free_prompt_reference'
       }));
       segment.status = 'submitting'; segment.progress = 13; segment.error = null;
     });
@@ -2330,6 +2330,305 @@ async function r35UploadReferenceAssets(projectId, segmentsForProgress = []) {
   return resultIds;
 }
 
+
+function r37ModelCatalog() {
+  return {
+    v20: {
+      label: 'Davis Video 2.0（Seedance 2.0）',
+      shortLabel: '2.0', family: '2.0', minDuration: 4, maxDuration: 15,
+      resolutions: ['480p','720p','1080p','4k'], supportsAudio: true, supportsVideoReference: true,
+      pricing: { noVideo: 46, withVideo: 28 },
+    },
+    fast: {
+      label: 'Davis Video 2.0 Fast',
+      shortLabel: '2.0 Fast', family: '2.0', minDuration: 4, maxDuration: 15,
+      resolutions: ['480p','720p'], supportsAudio: true, supportsVideoReference: true,
+      pricing: { noVideo: 37, withVideo: 22 },
+    },
+    mini: {
+      label: 'Davis Video 2.0 Mini',
+      shortLabel: '2.0 Mini', family: '2.0', minDuration: 4, maxDuration: 15,
+      resolutions: ['480p','720p'], supportsAudio: false, supportsVideoReference: true,
+      pricing: { noVideo: 23, withVideo: 14 },
+    },
+    v15: {
+      label: 'Davis Video 1.5 Pro',
+      shortLabel: '1.5 Pro', family: '1.5', minDuration: 1, maxDuration: 12,
+      resolutions: ['480p','720p','1080p'], supportsAudio: true, supportsVideoReference: false,
+      pricing: { silent: 8, audio: 16 },
+    },
+  };
+}
+
+function r37ModelConfig(alias) {
+  const catalog = r37ModelCatalog();
+  return catalog[alias] || catalog.v20;
+}
+
+function r37ModelLabel(alias) {
+  return r37ModelConfig(alias).shortLabel;
+}
+
+function r37ResolutionPixels(resolution) {
+  const map = {
+    '480p': 864 * 496,
+    '720p': 1280 * 720,
+    '1080p': 1920 * 1080,
+    '4k': 3840 * 2160,
+  };
+  return map[String(resolution || '').toLowerCase()] || map['720p'];
+}
+
+function r37InputProfile(segment) {
+  if (state.draft?.mode !== 'text_only') {
+    return {
+      label: state.draft?.mode === 'multi_frame' ? '图片 · 多帧首尾帧' : '图片 · 首尾帧',
+      hasVideo: false, hasImage: true, hasAudio: false,
+      videoSeconds: 0, unknownVideoDuration: false, refs: [],
+    };
+  }
+  const refs = typeof currentReferenceAssets === 'function'
+    ? currentReferenceAssets()
+    : (state.referenceAssets || []);
+  let hasVideo = false;
+  let hasImage = false;
+  let hasAudio = false;
+  let videoSeconds = 0;
+  let unknownVideoDuration = false;
+  refs.forEach(asset => {
+    const type = String(asset?.type || '');
+    if (type.startsWith('video/')) {
+      hasVideo = true;
+      const d = Number(asset?.durationSeconds || asset?.duration_seconds || asset?.duration || 0);
+      if (d > 0) videoSeconds += d;
+      else unknownVideoDuration = true;
+    } else if (type.startsWith('image/')) hasImage = true;
+    else if (type.startsWith('audio/')) hasAudio = true;
+  });
+  const labels = [];
+  if (hasVideo) labels.push('视频');
+  if (hasImage) labels.push('图片');
+  if (hasAudio) labels.push('音频');
+  if (!labels.length) labels.push('纯文字');
+  return { label: labels.join(' + '), hasVideo, hasImage, hasAudio, videoSeconds, unknownVideoDuration, refs };
+}
+
+function r37EstimateCost(segment) {
+  const config = r37ModelConfig(segment?.model || 'v20');
+  const resolution = config.resolutions.includes(String(segment?.resolution || '').toLowerCase())
+    ? String(segment.resolution).toLowerCase()
+    : '720p';
+  const rawDuration = Number(segment?.duration || config.minDuration || 4);
+  const duration = Math.max(config.minDuration, Math.min(config.maxDuration, Number.isFinite(rawDuration) ? rawDuration : config.minDuration));
+  const profile = r37InputProfile(segment);
+  const generateAudio = config.supportsAudio ? Boolean(segment?.generateAudio) : false;
+  const secondsForTokens = config.family === '2.0'
+    ? duration + (profile.hasVideo ? Math.max(0, profile.videoSeconds) : 0)
+    : duration;
+  const estimatedTokens = Math.ceil((r37ResolutionPixels(resolution) * 24 * secondsForTokens) / 1024);
+  const rate = config.family === '1.5'
+    ? (generateAudio ? config.pricing.audio : config.pricing.silent)
+    : (profile.hasVideo ? config.pricing.withVideo : config.pricing.noVideo);
+  const estimatedCost = estimatedTokens * rate / 1_000_000;
+  return {
+    model: config.label,
+    resolution,
+    duration,
+    generateAudio,
+    inputLabel: profile.label,
+    hasVideo: profile.hasVideo,
+    videoSeconds: profile.videoSeconds,
+    lowerBound: Boolean(config.family === '2.0' && profile.hasVideo && profile.unknownVideoDuration),
+    estimatedTokens,
+    rate,
+    cost: estimatedCost,
+    family: config.family,
+  };
+}
+
+function r37ValidateSegmentConfig(segment) {
+  const config = r37ModelConfig(segment?.model || 'v20');
+  const profile = r37InputProfile(segment);
+  const duration = Number(segment?.duration || 0);
+  const resolution = String(segment?.resolution || '').toLowerCase();
+  if (duration < config.minDuration || duration > config.maxDuration) {
+    return `${config.label} 支持 ${config.minDuration}-${config.maxDuration} 秒，请调整时长。`;
+  }
+  if (!config.resolutions.includes(resolution)) {
+    return `${config.label} 当前支持 ${config.resolutions.map(item => item.toUpperCase()).join(' / ')}，请调整清晰度。`;
+  }
+  if (segment?.model === 'v15' && profile.hasVideo) {
+    return 'Davis Video 1.5 Pro 当前不接收参考视频；请改用 2.0 系列，或移除参考视频。';
+  }
+  if (segment?.model === 'v15' && profile.hasAudio) {
+    return 'Davis Video 1.5 Pro 当前不接收参考音频；声音开关只控制输出视频是否带声音。';
+  }
+  if (segment?.model === 'v15' && state.draft?.mode === 'text_only' && profile.refs.length > 1) {
+    return 'Davis Video 1.5 Pro 当前最多使用 1 张图片参考；多参考素材请改用 2.0 系列。';
+  }
+  return '';
+}
+
+function r37SetSelectOptions(select, items, preferredValue) {
+  if (!select) return preferredValue;
+  const normalized = items.map(item => typeof item === 'string' ? { value: item, label: item } : item);
+  const allowed = new Set(normalized.map(item => String(item.value)));
+  const value = allowed.has(String(preferredValue)) ? String(preferredValue) : String(normalized[0]?.value || '');
+  select.innerHTML = normalized.map(item => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`).join('');
+  select.value = value;
+  return value;
+}
+
+function r37ApplyModelControls(segment) {
+  if (!segment) return;
+  const catalog = r37ModelCatalog();
+  segment.model = r37SetSelectOptions($('segment-model'), [
+    { value:'v20', label:'Davis Video 2.0 · 1080P/4K' },
+    { value:'fast', label:'Davis Video 2.0 Fast' },
+    { value:'mini', label:'Davis Video 2.0 Mini' },
+    { value:'v15', label:'Davis Video 1.5 Pro · 最短1秒' },
+  ], segment.model || 'v20') || 'v20';
+  const config = catalog[segment.model] || catalog.v20;
+
+  const duration = Math.max(config.minDuration, Math.min(config.maxDuration, Number(segment.duration || config.minDuration)));
+  segment.duration = Number(r37SetSelectOptions(
+    $('segment-duration'),
+    Array.from({ length: config.maxDuration - config.minDuration + 1 }, (_, i) => ({ value:String(config.minDuration + i), label:`${config.minDuration + i} 秒` })),
+    String(duration)
+  ));
+
+  segment.resolution = r37SetSelectOptions(
+    $('segment-resolution'),
+    config.resolutions.map(value => ({ value, label:value === '4k' ? '4K' : value.toUpperCase() })),
+    String(segment.resolution || '720p').toLowerCase()
+  ) || '720p';
+
+  if (!config.supportsAudio) segment.generateAudio = false;
+  const audioItems = config.supportsAudio
+    ? [{ value:'false', label:'关 · 无声视频' }, { value:'true', label:'开 · 生成声音' }]
+    : [{ value:'false', label:'关 · 当前模型仅无声' }];
+  r37SetSelectOptions($('segment-audio'), audioItems, String(Boolean(segment.generateAudio)));
+}
+
+function r37RenderSegmentCost(segment) {
+  const el = $('segment-cost-estimate');
+  if (!el || !segment) return;
+  const estimate = r37EstimateCost(segment);
+  const issue = r37ValidateSegmentConfig(segment);
+  const prefix = estimate.lowerBound ? '≥ ' : '约 ';
+  const extra = estimate.resolution === '4k' ? ' · 4K任务独占并发1' : '';
+  el.innerHTML = `
+    <div class="pricing-card-head"><strong>本段费用预估</strong><b>${prefix}¥${estimate.cost.toFixed(2)}</b></div>
+    <div class="pricing-card-grid">
+      <span>模型 <strong>${escapeHtml(estimate.model)}</strong></span>
+      <span>输入 <strong>${escapeHtml(estimate.inputLabel)}</strong></span>
+      <span>时长 <strong>${estimate.duration}s</strong></span>
+      <span>清晰度 <strong>${escapeHtml(estimate.resolution === '4k' ? '4K' : estimate.resolution.toUpperCase())}</strong></span>
+      <span>声音 <strong>${estimate.generateAudio ? '有声' : '无声'}</strong></span>
+      <span>计费单价 <strong>¥${estimate.rate}/百万 tokens</strong></span>
+    </div>
+    <small>${estimate.lowerBound ? '参考视频时长尚未读取完整，因此这里显示最低预估；' : ''}约 ${estimate.estimatedTokens.toLocaleString('zh-CN')} tokens${extra}。最终以 Ark usage / 火山方舟账单为准。</small>
+    ${issue ? `<p class="pricing-warning">${escapeHtml(issue)}</p>` : ''}`;
+}
+
+function r37RenderProjectCost() {
+  const el = $('project-cost-estimate');
+  if (!el || !state.draft) return;
+  const segments = state.draft.segments || [];
+  if (!segments.length) { el.innerHTML = ''; return; }
+  const rows = segments.map(segment => ({ segment, estimate:r37EstimateCost(segment), issue:r37ValidateSegmentConfig(segment) }));
+  const total = rows.reduce((sum, row) => sum + row.estimate.cost, 0);
+  const lowerBound = rows.some(row => row.estimate.lowerBound);
+  el.innerHTML = `
+    <div class="pricing-total-head"><span>预计本项目生成费用</span><strong>${lowerBound ? '≥ ' : '约 '}¥${total.toFixed(2)}</strong></div>
+    <div class="pricing-total-list">${rows.map((row, index) => `<div><span>SEG ${String(index + 1).padStart(2,'0')} · ${escapeHtml(r37ModelLabel(row.segment.model))} · ${row.estimate.duration}s · ${escapeHtml(row.estimate.resolution === '4k' ? '4K' : row.estimate.resolution.toUpperCase())} · ${escapeHtml(row.estimate.inputLabel)} · ${row.estimate.generateAudio ? '有声' : '无声'}</span><b>${row.estimate.lowerBound ? '≥' : '≈'} ¥${row.estimate.cost.toFixed(2)}</b></div>`).join('')}</div>
+    <small>费用为前端预估，最终以 Ark usage / 火山方舟实际账单为准。</small>`;
+}
+
+function r37ReadMediaDuration(file) {
+  return new Promise(resolve => {
+    if (!(file instanceof Blob)) return resolve(0);
+    const type = String(file.type || '');
+    if (!type.startsWith('video/') && !type.startsWith('audio/')) return resolve(0);
+    const element = document.createElement(type.startsWith('audio/') ? 'audio' : 'video');
+    const url = URL.createObjectURL(file);
+    let settled = false;
+    const done = value => {
+      if (settled) return;
+      settled = true;
+      URL.revokeObjectURL(url);
+      element.removeAttribute('src');
+      resolve(Number.isFinite(Number(value)) ? Number(value) : 0);
+    };
+    const timer = setTimeout(() => done(0), 6000);
+    element.preload = 'metadata';
+    element.onloadedmetadata = () => { clearTimeout(timer); done(element.duration); };
+    element.onerror = () => { clearTimeout(timer); done(0); };
+    element.src = url;
+  });
+}
+
+async function r37AddReferenceAssets(fileList) {
+  const files = [...fileList];
+  const allowed = new Set([
+    'video/mp4', 'video/quicktime', 'video/webm',
+    'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/aac', 'audio/mp4', 'audio/ogg',
+    'image/png', 'image/jpeg', 'image/webp',
+  ]);
+  let added = 0;
+  for (const file of files) {
+    if (!allowed.has(file.type)) { toast('格式不支持', `${file.name} 不是支持的参考格式`); continue; }
+    const isVideo = file.type.startsWith('video/');
+    const isAudio = file.type.startsWith('audio/');
+    const maxSize = isVideo ? 300 * 1024 * 1024 : isAudio ? 80 * 1024 * 1024 : 20 * 1024 * 1024;
+    if (file.size > maxSize) { toast('文件过大', `${file.name} 超过当前类型限制`); continue; }
+    const durationSeconds = (isVideo || isAudio) ? await r37ReadMediaDuration(file) : 0;
+    const refs = commitTextReferenceAssets();
+    refs.push({
+      id: uid(), name: file.name, type: file.type, size: file.size, blob: file,
+      createdAt: Date.now(), remoteAssetId: null, remotePath: null,
+      durationSeconds: durationSeconds > 0 ? durationSeconds : null,
+    });
+    added += 1;
+  }
+  commitTextReferenceAssets(state.referenceAssets);
+  renderTextModePanel();
+  renderSummary();
+  await persist();
+  if (added) toast('参考内容已加入', `已添加 ${added} 个参考内容；费用预估会按图片/视频/音频输入自动更新。`);
+}
+
+function r37RenderInspector() {
+  const segment = state.draft.segments.find(s => s.id === state.selectedSegmentId);
+  $('inspector-empty').hidden = !!segment;
+  $('inspector-form').hidden = !segment;
+  if (!segment) return;
+  const fromIndex = state.draft.frames.findIndex(f => f.id === segment.fromFrameId);
+  const toIndex = state.draft.frames.findIndex(f => f.id === segment.toFrameId);
+  $('inspector-index').textContent = state.draft.mode === 'text_only' ? 'TEXT TO VIDEO' : `SEGMENT ${String(segment.index+1).padStart(2,'0')}`;
+  $('inspector-name').textContent = state.draft.mode === 'text_only' ? '纯文字 / 多模态参考生成' : `图 ${fromIndex+1} → 图 ${toIndex+1}`;
+  $('inspector-status').textContent = statusText(segment.status);
+  $('segment-prompt').value = segment.prompt;
+  r37ApplyModelControls(segment);
+  $('segment-duration').value = String(segment.duration);
+  $('segment-model').value = segment.model;
+  $('segment-resolution').value = segment.resolution;
+  $('segment-ratio').value = state.draft.ratio === 'adaptive' ? '智能比例' : state.draft.ratio;
+  if ($('segment-audio')) $('segment-audio').value = String(Boolean(segment.generateAudio));
+  if ($('segment-prompt')) $('segment-prompt').placeholder = state.draft.mode === 'text_only'
+    ? '描述你想生成的视频；2.0 支持文字/图片/视频/音频参考，1.5 Pro 支持纯文字/图片并可最短生成1秒。'
+    : '描述这两帧之间的动作、镜头、节奏和画面变化。';
+  r37RenderSegmentCost(segment);
+  syncCustomSelects();
+}
+
+function r37RenderSummary() {
+  $('summary-frames').textContent = state.draft.mode === 'text_only' ? '无需图片' : state.draft.frames.length;
+  $('summary-segments').textContent = state.draft.mode === 'text_only' ? 1 : state.draft.segments.length;
+  $('summary-duration').textContent = `${state.draft.segments.reduce((sum,s)=>sum+Number(s.duration||0),0)} 秒`;
+  r37RenderProjectCost();
+}
+
 export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, accessControlSource }) {
   let patched = String(source || '');
   if (!patched.includes(ORIGINAL_BUILD)) throw new Error(`只支持 ${ORIGINAL_BUILD}，当前 app-v46.js 版本不匹配`);
@@ -2346,7 +2645,7 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, 
     r6ExistingProjectNames,r6ForkCurrentDraftForSubmit,r10StableUploadPlan,r10ApplyFrameBinding,
     r10SubmissionContext,r10AssertContext,r10RecoverFrameBindings,r10RecoverOrphan,r11RestoreCloudDrafts,r13MarkVersionForkForSubmit,r14NormalizeProjectName,r14ProjectNameExists,r15HasFilePayload,r15WireFileDropzone,r15PreventDocumentFileNavigation,
     r16ProjectOwnerId,r16ScopeProjectRead,r16CurrentProjectWritable,r16AssertCurrentProjectWritable,r16ApplyReadOnlyControls,
-    r18PublicSegmentState,r18StatusText,r18JobStageMarkup].map(fn => fn.toString()).join('\n\n');
+    r18PublicSegmentState,r18StatusText,r18JobStageMarkup,r37ModelCatalog,r37ModelConfig,r37ModelLabel,r37ResolutionPixels,r37InputProfile,r37EstimateCost,r37ValidateSegmentConfig,r37SetSelectOptions,r37ApplyModelControls,r37RenderSegmentCost,r37RenderProjectCost,r37ReadMediaDuration].map(fn => fn.toString()).join('\n\n');
 
   patched = patched.replace("const LAST_SELECTED_DRAFT_KEY = 'seedance_last_selected_draft_id_v1';",
     "const LAST_SELECTED_DRAFT_KEY = 'seedance_last_selected_draft_id_v1';\n\n" + support);
@@ -2360,6 +2659,8 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, 
   patched = replaceSection(patched, 'function setView(view) {', 'function orderedDrafts() {', renamedFunction(r5SetView, 'setView'));
   patched = replaceSection(patched, 'function renderProjects() {', 'function escapeHtml(', renamedFunction(r5RenderProjects, 'renderProjects'));
   patched = replaceSection(patched, 'function renderSettings() {', 'function buildStrictFrameLockPrompt(', renamedFunction(r5RenderSettings, 'renderSettings'));
+  patched = replaceSection(patched, 'function renderInspector() {', 'function renderSummary() {', renamedFunction(r37RenderInspector, 'renderInspector'));
+  patched = replaceSection(patched, 'function renderSummary() {', 'function renderSettings() {', renamedFunction(r37RenderSummary, 'renderSummary'));
   patched = replaceSection(patched, 'function buildStrictFrameLockPrompt(segment) {', 'function updateRatioTip() {', renamedFunction(r34BuildStrictFrameLockPrompt, 'buildStrictFrameLockPrompt'));
   patched = replaceSection(patched, 'async function selectDraft(id) {', 'async function createProject() {', renamedFunction(r5SelectDraft, 'selectDraft'));
   patched = replaceSection(patched, 'async function createProject() {', 'async function removeProject() {', renamedFunction(r5CreateProject, 'createProject'));
@@ -2372,6 +2673,7 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, 
   patched = replaceSection(patched, 'function jobStageMarkup(', 'function frameCard(', renamedFunction(r18JobStageMarkup, 'jobStageMarkup'));
   patched = replaceSection(patched, 'function reEditSegment(segmentId) {', 'function renderAll() {', renamedFunction(r6ReEditSegment, 'reEditSegment'));
   patched = replaceSection(patched, 'async function syncRemoteTasks() {', 'async function bindProviderTaskAndRecover(', renamedFunction(r5SyncRemoteTasks, 'syncRemoteTasks'));
+  patched = replaceSection(patched, 'async function addReferenceAssets(fileList) {', 'async function uploadReferenceVideo(projectId) {', renamedFunction(r37AddReferenceAssets, 'addReferenceAssets'));
   patched = replaceSection(
     patched,
     'async function uploadReferenceAssets(projectId, segmentsForProgress = []) {',
@@ -2415,6 +2717,11 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, 
 `;
   if (!patched.includes(modeSwitchBlock)) throw new Error('无法定位旧模式切换事件');
   patched = patched.replace(modeSwitchBlock, '');
+
+  patched = patched.replaceAll(
+    "      mime_type: item.type,\n      usage: 'free_prompt_reference',",
+    "      mime_type: item.type,\n      duration_seconds: Number(item.durationSeconds || item.duration_seconds || 0) || null,\n      usage: 'free_prompt_reference',"
+  );
 
   const framePromptModeMarker = "    prompt_mode: isTextOnly ? 'text_reference_video_v14' : 'strict_frame_lock_v14',";
   const framePromptModeReplacement = "    prompt_mode: isTextOnly ? 'text_reference_video_v14' : 'strict_first_last_client_v28',";
@@ -2562,7 +2869,17 @@ async function r21ConfirmMaterialRights(error) {
   patched = patched.replace(autoReset, guard);
   const versionForkMarker = "  if (!await confirmBox('确认提交真实任务', `将提交 ${segments.length} 个视频片段。为避免 Ark 连接超时，多帧会逐段提交，可能产生 Ark API 费用。`)) return;";
   if (!patched.includes(versionForkMarker)) throw new Error('无法定位版本分叉提交点');
-  patched = patched.replace(versionForkMarker, versionForkMarker + '\n' + "  if (state.draft?.pendingVersionFork) {\n    try {\n      const versionFork = await r6ForkCurrentDraftForSubmit(segmentIds);\n      if (versionFork) {\n        segmentIds = versionFork.segmentIds;\n        segments = state.draft.segments.filter(segment => segmentIds.includes(segment.id));\n        options = { ...options, allowResubmit: false, versionForked: true };\n        if (!segments.length) return toast('无法创建新版本任务', '新版本中没有找到要提交的片段。');\n      }\n    } catch (error) {\n      console.error('[Davis Video Studio] version fork failed', error);\n      return toast('新版本创建失败', errorMessage(error, '无法创建独立版本，请稍后重试'));\n    }\n  }");
+  const r37PaidConfirm = `  const modelIssue = segments.map(segment => r37ValidateSegmentConfig(segment)).find(Boolean);
+  if (modelIssue) return toast('当前模型配置不可提交', modelIssue);
+  const costRows = segments.map(segment => r37EstimateCost(segment));
+  const estimatedTotal = costRows.reduce((sum, item) => sum + Number(item.cost || 0), 0);
+  const lowerBoundCost = costRows.some(item => item.lowerBound);
+  const costSummary = costRows.map((item, index) => 'SEG ' + String(index + 1).padStart(2,'0') + '：' + item.model + ' · ' + item.duration + 's · ' + (item.resolution === '4k' ? '4K' : item.resolution.toUpperCase()) + ' · ' + item.inputLabel + ' · ' + (item.generateAudio ? '有声' : '无声') + ' ≈ ¥' + item.cost.toFixed(2)).join('；');
+  if (!await confirmBox('确认提交真实任务', '将提交 ' + segments.length + ' 个视频片段。\\n\\n本次预估费用' + (lowerBoundCost ? '至少' : '约') + ' ¥' + estimatedTotal.toFixed(2) + '。\\n' + costSummary + '\\n\\n最终费用以 Ark usage / 火山方舟账单为准。')) return;`;
+  patched = patched.replace(versionForkMarker, r37PaidConfirm);
+  const r37ConfirmEndMarker = "  if (!await confirmBox('确认提交真实任务', '将提交 ' + segments.length + ' 个视频片段。\\n\\n本次预估费用' + (lowerBoundCost ? '至少' : '约') + ' ¥' + estimatedTotal.toFixed(2) + '。\\n' + costSummary + '\\n\\n最终费用以 Ark usage / 火山方舟账单为准。')) return;";
+  if (!patched.includes(r37ConfirmEndMarker)) throw new Error('无法定位 R37 费用确认点');
+  patched = patched.replace(r37ConfirmEndMarker, r37ConfirmEndMarker + '\n' + "  if (state.draft?.pendingVersionFork) {\n    try {\n      const versionFork = await r6ForkCurrentDraftForSubmit(segmentIds);\n      if (versionFork) {\n        segmentIds = versionFork.segmentIds;\n        segments = state.draft.segments.filter(segment => segmentIds.includes(segment.id));\n        options = { ...options, allowResubmit: false, versionForked: true };\n        if (!segments.length) return toast('无法创建新版本任务', '新版本中没有找到要提交的片段。');\n      }\n    } catch (error) {\n      console.error('[Davis Video Studio] version fork failed', error);\n      return toast('新版本创建失败', errorMessage(error, '无法创建独立版本，请稍后重试'));\n    }\n  }");
   patched = patched.replace("    segments.forEach(s => { s.status = 'preparing'; s.progress = 1; s.error = null; s.remoteTaskId = null; s.providerTaskId = null; s.remoteSegmentId = null; s.outputPath = null; });",
     "    segments.forEach(s => { s.status = 'preparing'; s.progress = 1; s.error = null; s.submissionStartedAt = Date.now(); if (options.allowResubmit) { s.remoteTaskId = null; s.providerTaskId = null; s.remoteSegmentId = null; s.outputPath = null; } });");
   const fileDropEvents = `  const zone = $('upload-zone');
