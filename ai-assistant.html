@@ -5,7 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Davis Video 视频生成中心 - Davis Design System</title>
   <link rel="stylesheet" href="./seedance/style.css?v=20260724-unified-studio-system-v4" />
-  <style>[hidden]{display:none!important}</style>
+  <style>[hidden]{display:none!important}
+.pricing-card{margin:14px 0;padding:14px 16px;border:1px solid #dfe4ff;border-radius:14px;background:linear-gradient(135deg,#f8f9ff,#fff)}
+.pricing-card-head,.pricing-total-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.pricing-card-head b,.pricing-total-head strong{font-size:20px;color:#4f5fe7}
+.pricing-card-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;margin:12px 0;font-size:12px;color:#69738b}.pricing-card-grid strong{color:#20283b}
+.pricing-card small,.pricing-total-card small{display:block;color:#8a93a8;line-height:1.5}.pricing-warning{margin:10px 0 0;color:#d55361;font-size:12px;font-weight:600}
+.pricing-total-card{margin:12px 0;padding:13px;border:1px solid #dfe4ff;border-radius:12px;background:#f8f9ff}.pricing-total-head span{font-size:12px;color:#69738b}.pricing-total-list{display:grid;gap:6px;margin:10px 0}.pricing-total-list div{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:#717b92}.pricing-total-list b{white-space:nowrap;color:#20283b}
+</style>
 </head>
 <body>
   <div id="app-shell">
@@ -63,7 +69,7 @@
               <div id="text-mode-panel" class="text-mode-panel" hidden>
                 <div class="text-mode-copy">
                   <strong>纯文字描述生成</strong>
-                  <span>可以直接文字生成，也可以上传多个参考内容。上传后用 @视频1、@音频1、@图片1 在描述里自由指定参考什么。</span>
+                  <span>2.0 支持文字 / 图片 / 视频 / 音频多模态参考；1.5 Pro 支持纯文字 / 图片并可最短生成 1 秒。上传后用 @视频1、@音频1、@图片1 指定参考内容。</span>
                 </div>
                 <label class="text-prompt-box">
                   <div class="ai-prompt-heading">
@@ -105,7 +111,7 @@
               <div class="summary"><div><span>图片</span><strong id="summary-frames">0</strong></div><div><span>片段</span><strong id="summary-segments">0</strong></div><div><span>总时长</span><strong id="summary-duration">0 秒</strong></div></div>
               <button class="ghost-btn full" id="go-editor">进入高级 Storyboard</button>
               <button class="primary-btn full large" id="generate-all">全部生成</button>
-              <p class="cost-note">提交后可能产生 Ark API 费用。默认最多同时生成 2 段。</p>
+              <div id="project-cost-estimate" class="pricing-total-card"></div><p class="cost-note">提交前会显示人民币费用预估；最终以 Ark usage / 火山方舟账单为准。</p>
             </section>
           </aside>
         </div>
@@ -134,13 +140,13 @@
               </label>
               <div class="prompt-tools"><button data-prompt="镜头缓慢向前推进">镜头推进</button><button data-prompt="保持人物身份、五官、服装和构图一致">锁定人物</button><button data-prompt="动作自然流畅，避免画面抖动和变形">动作稳定</button></div>
               <div class="settings-grid two">
-                <label><span>时长</span><select id="segment-duration"><option value="4">4 秒</option><option value="5">5 秒</option><option value="6">6 秒</option><option value="7">7 秒</option><option value="8">8 秒</option><option value="9">9 秒</option><option value="10">10 秒</option></select></label>
-                <label><span>模型</span><select id="segment-model"><option value="mini">Davis Video Mini</option><option value="fast">Davis Video Fast</option></select></label>
-                <label><span>清晰度</span><select id="segment-resolution"><option value="720p">720p</option><option value="480p">480p</option></select></label>
-                <label><span>声音输出</span><select id="segment-audio"><option value="false">关</option><option value="true">开</option></select></label>
+                <label><span>时长</span><select id="segment-duration"><option value="1">1 秒</option><option value="2">2 秒</option><option value="3">3 秒</option><option value="4">4 秒</option><option value="5">5 秒</option><option value="6">6 秒</option><option value="7">7 秒</option><option value="8">8 秒</option><option value="9">9 秒</option><option value="10">10 秒</option><option value="11">11 秒</option><option value="12">12 秒</option><option value="13">13 秒</option><option value="14">14 秒</option><option value="15">15 秒</option></select></label>
+                <label><span>模型</span><select id="segment-model"><option value="v20">Davis Video 2.0 · 1080P/4K</option><option value="fast">Davis Video 2.0 Fast</option><option value="mini">Davis Video 2.0 Mini</option><option value="v15">Davis Video 1.5 Pro · 最短1秒</option></select></label>
+                <label><span>清晰度</span><select id="segment-resolution"><option value="480p">480P</option><option value="720p">720P</option><option value="1080p">1080P</option><option value="4k">4K</option></select></label>
+                <label><span>声音输出</span><select id="segment-audio"><option value="false">关 · 无声视频</option><option value="true">开 · 生成声音</option></select></label>
                 <label><span>项目比例</span><input id="segment-ratio" disabled /></label>
               </div>
-              <div class="inspector-actions"><button class="ghost-btn full" id="preview-segment" type="button" hidden>预检当前段</button><button class="primary-btn full" id="generate-segment">真实生成当前段</button></div>
+              <div id="segment-cost-estimate" class="pricing-card"></div><div class="inspector-actions"><button class="ghost-btn full" id="preview-segment" type="button" hidden>预检当前段</button><button class="primary-btn full" id="generate-segment">真实生成当前段</button></div>
             </div>
           </aside>
         </div>
@@ -201,7 +207,7 @@
     </div>
   </div>
 
-  <script type="module" src="./seedance/app.js?v=20260806-reference-image-auto-pad-r36-cache-bust"></script>
+  <script type="module" src="./seedance/app.js?v=20260806-model-catalog-cost-r37"></script>
   <script type="module" src="./seedance/prompt-optimizer.js?v=20260728-davis-video-optimizer-v7"></script>
   <script type="module" src="./seedance/ui-patches.js?v=20260724-davis-video-ui-v1"></script>
 </body>
