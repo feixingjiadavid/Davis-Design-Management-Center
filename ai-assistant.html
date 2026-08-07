@@ -85,19 +85,6 @@ body.usage-modal-open{overflow:hidden}
 .project-mode-dialog>p{max-width:660px}
 @media(max-width:720px){.project-create-fields{grid-template-columns:1fr}}
 
-
-/* R45 新建项目必填校验 */
-.required-mark{font-style:normal;color:#ef5b6a;font-weight:800;margin-left:3px}
-.project-create-error{display:block!important;color:#df4d5d!important;font-size:11px!important;font-weight:600;line-height:1.45;margin-top:1px}
-.project-create-error[hidden]{display:none!important}
-.project-create-field select.is-invalid,.project-create-field input.is-invalid{
-  border-color:#ef6674!important;
-  box-shadow:0 0 0 3px rgba(239,91,106,.10)!important;
-  background:#fffafb!important
-}
-.project-mode-option.is-blocked-hint{animation:r45RequiredNudge .28s ease}
-@keyframes r45RequiredNudge{0%,100%{transform:translateX(0)}30%{transform:translateX(-3px)}70%{transform:translateX(3px)}}
-
 </style>
 </head>
 <body>
@@ -282,25 +269,22 @@ body.usage-modal-open{overflow:hidden}
       <p>每个项目只能使用一种生成模式，创建后不可切换。这样任务、输出与 Google Drive 视频会永久点对点绑定。</p>
       <div class="project-create-fields">
         <label class="project-create-field">
-          <span>项目类别 <em class="required-mark">*</em></span>
-          <select id="new-project-category" aria-label="项目类别" required aria-required="true">
+          <span>项目类别</span>
+          <select id="new-project-category" aria-label="项目类别">
             <option value="__other__">其他（手动填写）</option>
           </select>
           <small>类别与需求大厅 index 页「归属项目」完整清单精准一致；没有对应类别时请选择“其他”。</small>
-          <small id="new-project-category-error" class="project-create-error" hidden>请选择项目类别。</small>
         </label>
         <label class="project-create-field">
-          <span>项目名称 <em class="required-mark">*</em></span>
-          <input id="new-project-name" placeholder="例如：周年活动片头视频－纯文字" required aria-required="true" maxlength="120" />
+          <span>项目名称</span>
+          <input id="new-project-name" placeholder="例如：周年活动片头视频－纯文字" />
           <small>用于区分具体的视频生成项目；项目类别用于费用统计与占比分析。</small>
-          <small id="new-project-name-error" class="project-create-error" hidden>请填写项目名称。</small>
         </label>
       </div>
       <label id="new-project-category-custom-wrap" class="project-create-field project-category-custom" hidden>
-        <span>自定义项目类别 <em class="required-mark">*</em></span>
+        <span>自定义项目类别</span>
         <input id="new-project-category-custom" placeholder="例如：专项品牌活动" maxlength="80" />
         <small>手动填写后会作为独立项目类别进入费用统计。</small>
-        <small id="new-project-category-custom-error" class="project-create-error" hidden>选择“其他”后必须填写自定义项目类别。</small>
       </label>
       <div class="project-mode-options">
         <button type="button" class="project-mode-option" data-create-project-mode="first_last"><b>首尾帧生成</b><span>一个项目只使用首帧与尾帧生成单段视频</span></button>
@@ -339,7 +323,7 @@ body.usage-modal-open{overflow:hidden}
     </div>
   </div>
 
-  <script type="module" src="./seedance/app.js?v=20260807-required-project-identity-r45"></script>
+  <script type="module" src="./seedance/app.js?v=20260807-index-project-list-exact-r44"></script>
   <script type="module" src="./seedance/prompt-optimizer.js?v=20260728-davis-video-optimizer-v7"></script>
   <script type="module" src="./seedance/ui-patches.js?v=20260724-davis-video-ui-v1"></script>
 </body>
