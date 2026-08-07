@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260807-storage-quota-bootfix-r46';
+const PRODUCTION_BUILD = '20260807-runtime-category-source-r47';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -3334,11 +3334,12 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, 
     .replace(ORIGINAL_BUILD, PRODUCTION_BUILD);
 
   const accessControlSupport = String(accessControlSource || '').replace(/\bexport\s+/g, '');
-  const support = accessControlSupport + '\n\n' + [r5ModeKey,r5ModeLabel,r5ModeSuffix,r5BaseProjectName,r5Clone,r5WorkspaceHasContent,r5CreateWorkspaceClone,
+  const categorySupportSource = `const R44_INDEX_PROJECT_CATEGORIES = Object.freeze(${JSON.stringify(R44_INDEX_PROJECT_CATEGORIES)});`;
+  const support = accessControlSupport + '\n\n' + categorySupportSource + '\n\n' + [r5ModeKey,r5ModeLabel,r5ModeSuffix,r5BaseProjectName,r5Clone,r5WorkspaceHasContent,r5CreateWorkspaceClone,
     r5BuildSplitDraft,r5MigrateDraftCollection,r5ContextSnapshot,r5ContextIsCurrent,r5ExactTaskIds,
     r53IsGenericProjectName,r53NormalizePrompt,r53PromptOverlap,r53ProjectCandidateScore,r5VerifyProjectId,
     r5ResolveFixedProject,r5TaskScore,r5OutputStableKey,r5CacheRequestUrl,r5ReadPersistentVideo,r5PrunePersistentVideoCache,
-    r5WritePersistentVideo,R44_INDEX_PROJECT_CATEGORIES,r43NormalizeCategory,r43InferHistoricalCategory,r43ProjectCategoryValue,r43IncomingProjectCategory,r43SyncCategoryCustomVisibility,r43ApplyCategoryOptions,r43LoadCategoryOptions,r43ProjectCategoryFromControls,r45SetProjectFieldError,r45ClearProjectCreateErrors,r45ValidateProjectCreateFields,r5OpenCreateModal,r5CloseCreateModal,r5CreateProjectFromMode,r5WireCreateModal,
+    r5WritePersistentVideo,r43NormalizeCategory,r43InferHistoricalCategory,r43ProjectCategoryValue,r43IncomingProjectCategory,r43SyncCategoryCustomVisibility,r43ApplyCategoryOptions,r43LoadCategoryOptions,r43ProjectCategoryFromControls,r45SetProjectFieldError,r45ClearProjectCreateErrors,r45ValidateProjectCreateFields,r5OpenCreateModal,r5CloseCreateModal,r5CreateProjectFromMode,r5WireCreateModal,
     r6ExistingProjectNames,r6ForkCurrentDraftForSubmit,r10StableUploadPlan,r10ApplyFrameBinding,
     r10SubmissionContext,r10AssertContext,r10RecoverFrameBindings,r10RecoverOrphan,r11RestoreCloudDrafts,r13MarkVersionForkForSubmit,r14NormalizeProjectName,r14ProjectNameExists,r15HasFilePayload,r15WireFileDropzone,r15PreventDocumentFileNavigation,
     r16ProjectOwnerId,r16ScopeProjectRead,r16CurrentProjectWritable,r16AssertCurrentProjectWritable,r16ApplyReadOnlyControls,
@@ -3665,7 +3666,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
       if (quotaFailure && !globalThis.__davisR46QuotaRetry) {
         globalThis.__davisR46QuotaRetry = true;
         r46ClearObsoleteRuntimeCaches();
-        console.warn('[Davis Video Studio R46] storage quota during boot; legacy cache cleared, retrying once');
+        console.warn('[Davis Video Studio R47] storage quota during boot; legacy cache cleared, retrying once');
         await bootProduction();
         return;
       }
@@ -3674,7 +3675,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   };
 
   r46Boot().catch(error => {
-    console.error('[Davis Video Studio R46] boot failed', error);
+    console.error('[Davis Video Studio R47] boot failed', error);
     const box = document.createElement('div');
     box.style.cssText = 'position:fixed;inset:20px;z-index:99999;background:#220b12;color:#fff;border:1px solid #ff6075;border-radius:14px;padding:20px;font:14px/1.6 system-ui;overflow:auto';
     box.innerHTML = `<strong>Davis Video 启动失败</strong><br>${String(error?.message || error).replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]))}<br><br>请保留 seedance/app-v46.js，并覆盖本包中的 ai-assistant.html 与 seedance/app.js；随后 Ctrl+F5 强制刷新。`;
