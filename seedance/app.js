@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260807-personal-usage-ledger-r38';
+const PRODUCTION_BUILD = '20260807-personal-usage-popover-r39';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -1658,6 +1658,14 @@ async function r5Init() {
   if (!await initSession()) return;
   void r38LoadUsageSummary(true);
   wireEvents();
+  const usagePopover = $('personal-usage-popover');
+  const usageOpen = $('personal-usage-open');
+  if (usagePopover && usageOpen) {
+    usagePopover.addEventListener('toggle', event => {
+      usageOpen.setAttribute('aria-expanded', event.newState === 'open' ? 'true' : 'false');
+      if (event.newState === 'open') void r38LoadUsageSummary(false);
+    });
+  }
   r5WireCreateModal();
   enhanceCustomSelects();
   document.body.dataset.seedanceBuild = APP_BUILD;
@@ -2669,6 +2677,7 @@ function r38UsagePeriodMarkup(label, sublabel, row) {
 function r38RenderUsageSummary(summary, error = null) {
   const body = $('personal-usage-body');
   const date = $('personal-usage-date');
+  const overview = $('personal-usage-overview');
   const foot = $('personal-usage-foot');
   const refresh = $('personal-usage-refresh');
   if (refresh) refresh.onclick = () => void r38LoadUsageSummary(true);
@@ -2678,6 +2687,7 @@ function r38RenderUsageSummary(summary, error = null) {
     date.textContent = '个人用量读取失败';
     body.className = 'personal-usage-error';
     body.textContent = `暂时无法读取个人用量：${errorMessage(error, '未知错误')}`;
+    if (overview) overview.hidden = true;
     foot.hidden = true;
     return;
   }
@@ -2686,6 +2696,7 @@ function r38RenderUsageSummary(summary, error = null) {
     date.textContent = '正在读取当前日期...';
     body.className = 'personal-usage-loading';
     body.textContent = '正在读取 Ark 实际 usage...';
+    if (overview) overview.hidden = true;
     foot.hidden = true;
     return;
   }
@@ -2697,6 +2708,16 @@ function r38RenderUsageSummary(summary, error = null) {
     r38UsagePeriodMarkup('本月已产生费用', summary.month_label || '', summary.month),
     r38UsagePeriodMarkup('本年已产生费用', summary.year_label || '', summary.year),
   ].join('');
+
+  if (overview) {
+    const year = summary.year || {};
+    overview.hidden = false;
+    overview.innerHTML = [
+      `<div class="personal-usage-overview-item"><span>本年生成片段</span><strong>${Math.max(0, Number(year.generated_tasks || 0))} 段</strong></div>`,
+      `<div class="personal-usage-overview-item"><span>本年 Tokens</span><strong>${escapeHtml(r38FormatTokens(year.tokens))}</strong></div>`,
+      `<div class="personal-usage-overview-item"><span>本年生成时长</span><strong>${escapeHtml(r38FormatDuration(year.generated_seconds))}</strong></div>`,
+    ].join('');
+  }
 
   const inProgress = summary.in_progress || {};
   const pendingTasks = Math.max(0, Number(inProgress.task_count || 0));
