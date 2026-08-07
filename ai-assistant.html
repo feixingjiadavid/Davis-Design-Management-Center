@@ -114,6 +114,48 @@ body.usage-modal-open{overflow:hidden}
 .child-task-context{margin:12px 20px 0;padding:10px 14px;border:1px solid #e5e8f1;border-radius:12px;background:#fff;display:flex;align-items:center;gap:8px;color:#7f889d;font-size:12px}.child-task-context[hidden]{display:none!important}.child-task-context strong{color:#20283b;font-size:13px}.child-task-context b{color:#4d5ddd;font-size:13px}.child-task-context em{font-style:normal;padding:3px 7px;border-radius:7px;background:#eef1ff;color:#5966d9;font-size:10px}.child-task-context .spacer{flex:1}.child-task-context button{border:1px solid #dce1ee;border-radius:8px;background:#fff;padding:6px 10px;color:#5360d7;cursor:pointer;font-size:11px}
 .child-task-parent-pill{display:inline-flex;padding:4px 8px;border-radius:8px;background:#f2f4ff;color:#5361dc;font-size:12px;font-weight:700}.child-task-name-field{display:flex;flex-direction:column;gap:8px;margin:18px 0}.child-task-name-field span{font-size:13px;font-weight:700;color:#323a50}.child-task-name-field input{height:44px;border:1px solid #dfe4ee;border-radius:12px;padding:0 13px;font:inherit;outline:none}.child-task-name-field input:focus{border-color:#6d7cff;box-shadow:0 0 0 3px rgba(91,107,236,.10)}.child-task-name-field small{font-size:11px;color:#8b94a8;line-height:1.5}
 
+
+/* R50 树形选择 / 折叠分离 + 子任务名称必填 */
+.project-parent-row{
+  grid-template-columns:24px minmax(0,1fr) 30px!important;
+  gap:3px!important;
+  border:1px solid transparent;
+  transition:background .15s ease,border-color .15s ease,box-shadow .15s ease;
+}
+.project-parent-row.is-active{
+  background:#f0f3ff!important;
+  border-color:#dce2ff;
+}
+.project-parent-row.is-project-selected{
+  box-shadow:inset 3px 0 0 #5969ed;
+}
+.project-parent-chevron-btn{
+  width:24px;height:40px;border:0;background:transparent;padding:0;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  color:#79839a;border-radius:8px;
+}
+.project-parent-chevron-btn:hover{background:#e9edff;color:#5362d9}
+.project-parent-chevron-btn .project-parent-chevron{
+  display:inline-block;transition:transform .15s ease;
+}
+.project-parent-chevron-btn[aria-expanded="true"] .project-parent-chevron{transform:rotate(90deg)}
+.project-parent-main{
+  min-width:0;border:0;background:transparent;padding:8px 5px;
+  display:block;text-align:left;cursor:pointer;color:#20283b;border-radius:9px;
+}
+.project-parent-main:hover{background:rgba(255,255,255,.56)}
+.project-parent-main .project-parent-copy{display:block}
+.project-child.active{
+  background:#e9edff!important;
+  color:#3f50d8!important;
+  box-shadow:inset 3px 0 0 #5969ed;
+}
+.child-task-name-field input.is-invalid{
+  border-color:#ef6674!important;
+  box-shadow:0 0 0 3px rgba(239,91,106,.10)!important;
+  background:#fffafb!important;
+}
+
 </style>
 </head>
 <body>
@@ -315,7 +357,7 @@ body.usage-modal-open{overflow:hidden}
     <div class="project-mode-dialog">
       <h2>新建生成任务</h2>
       <p>归属项目：<span id="child-task-parent-name" class="child-task-parent-pill">—</span></p>
-      <label class="child-task-name-field"><span>任务名称</span><input id="new-child-task-name" maxlength="120" placeholder="例如：开场倒计时 / 领导寄语 / 片尾转场" /><small>可不填写；留空时会按模式自动生成“首尾帧任务 01”等名称。每个任务的素材、提示词、生成记录和输出彼此独立。</small></label>
+      <label class="child-task-name-field"><span>任务名称 <em class="required-mark">*</em></span><input id="new-child-task-name" maxlength="120" placeholder="例如：开场倒计时 / 领导寄语 / 片尾转场" required aria-required="true" /><small>必填。用于区分当前项目下的不同生成内容；每个任务的素材、提示词、生成记录和输出彼此独立。</small><small id="new-child-task-name-error" class="project-create-error" hidden>请填写任务名称。</small></label>
       <div class="project-mode-options">
         <button type="button" class="project-mode-option" data-create-child-mode="first_last"><b>首尾帧生成</b><span>独立首帧 → 尾帧任务</span></button>
         <button type="button" class="project-mode-option" data-create-child-mode="multi_frame"><b>多帧 Storyboard</b><span>独立多组首尾帧连续任务</span></button>
@@ -359,7 +401,7 @@ try {
   localStorage.removeItem('seedance_app_v46_source_cache_v1');
 } catch {}
 </script>
-<script type="module" src="./seedance/app.js?v=20260807-parent-child-task-tree-r49"></script>
+<script type="module" src="./seedance/app.js?v=20260807-tree-selection-collapse-r50"></script>
   <script type="module" src="./seedance/prompt-optimizer.js?v=20260728-davis-video-optimizer-v7"></script>
   <script type="module" src="./seedance/ui-patches.js?v=20260724-davis-video-ui-v1"></script>
 </body>
