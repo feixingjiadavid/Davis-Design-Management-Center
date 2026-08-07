@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260807-usage-modal-detail-r41';
+const PRODUCTION_BUILD = '20260807-usage-chart-r42';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -2691,13 +2691,166 @@ function r38UsagePeriodMarkup(label, sublabel, row) {
   </article>`;
 }
 
+
+function r42UsagePeriods(summary) {
+  return {
+    today: { key:'today', title:'今日', label:'今日已产生费用', sublabel: summary?.as_of_date || '', row: summary?.today || {} },
+    month: { key:'month', title:'本月', label:'本月已产生费用', sublabel: summary?.month_label || '', row: summary?.month || {} },
+    year: { key:'year', title:'本年', label:'本年已产生费用', sublabel: summary?.year_label || '', row: summary?.year || {} },
+  };
+}
+
+function r42VisibleBars(chart, summary) {
+  const rows = Array.isArray(chart?.bars) ? chart.bars : [];
+  if (chart?.period === 'month' && summary?.as_of_date) {
+    return rows.filter(row => String(row?.full_label || '') <= String(summary.as_of_date));
+  }
+  if (chart?.period === 'year' && summary?.month_label) {
+    return rows.filter(row => String(row?.full_label || '') <= String(summary.month_label));
+  }
+  if (chart?.period === 'today') {
+    const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone:'Asia/Shanghai', hour:'2-digit', hour12:false }).format(new Date()));
+    return rows.slice(0, Math.min(rows.length, Math.max(1, hour + 1)));
+  }
+  return rows;
+}
+
+function r42UsageOverviewMarkup(summary, period) {
+  const item = r42UsagePeriods(summary)[period] || r42UsagePeriods(summary).month;
+  const row = item.row || {};
+  return [
+    `<div class="personal-usage-overview-item"><span>${escapeHtml(item.title)}生成片段</span><strong>${Math.max(0, Number(row.generated_tasks || 0))} 段</strong></div>`,
+    `<div class="personal-usage-overview-item"><span>${escapeHtml(item.title)} Tokens</span><strong>${escapeHtml(r38FormatTokens(row.tokens))}</strong></div>`,
+    `<div class="personal-usage-overview-item"><span>${escapeHtml(item.title)}生成时长</span><strong>${escapeHtml(r38FormatDuration(row.generated_seconds))}</strong></div>`,
+  ].join('');
+}
+
+function r42TooltipMarkup(row) {
+  const models = Array.isArray(row?.models) ? row.models : [];
+  const projectTypes = Array.isArray(row?.project_types) ? row.project_types : [];
+  const modelRows = models.length
+    ? models.map(item => `<div class="usage-tip-row usage-tip-model"><span><i class="usage-tip-dot"></i>${escapeHtml(item.label || 'Seedance')}</span><b>¥${Math.max(0, Number(item.cost_cny || 0)).toFixed(2)} · ${Math.max(0, Number(item.share_pct || 0)).toFixed(1)}%</b></div>`).join('')
+    : '<div class="usage-tip-row"><span>无已计费模型</span><b>—</b></div>';
+  const projectRows = projectTypes.length
+    ? projectTypes.map(item => `<div class="usage-tip-row"><span><i class="usage-tip-dot"></i>${escapeHtml(item.label || '其他项目')}</span><b>${Math.max(0, Number(item.share_pct || 0)).toFixed(1)}%</b></div>`).join('')
+    : '<div class="usage-tip-row"><span>无生成内容</span><b>—</b></div>';
+  return `<div class="usage-tip-top"><span>${escapeHtml(row?.full_label || row?.label || '--')}</span><strong>¥${Math.max(0, Number(row?.cost_cny || 0)).toFixed(2)}</strong></div>
+    <div class="usage-tip-section"><strong>模型</strong>${modelRows}</div>
+    <div class="usage-tip-section"><strong>生成内容项目占比</strong>${projectRows}</div>`;
+}
+
+function r42RenderUsageChart(chart, summary) {
+  const host = $('personal-usage-chart-host');
+  if (!host) return;
+  const period = chart?.period || r38RenderUsageSummary.selectedPeriod || 'month';
+  const rows = r42VisibleBars(chart, summary);
+  const maxCost = Math.max(0, ...rows.map(row => Number(row?.cost_cny || 0)));
+  const yMax = maxCost > 0 ? Math.max(1, Math.ceil(maxCost * 1.15 * 10) / 10) : 1;
+  const ticks = [yMax, yMax * 2 / 3, yMax / 3, 0];
+  const showEvery = rows.length > 24 ? 5 : rows.length > 14 ? 3 : rows.length > 8 ? 2 : 1;
+  const title = period === 'today' ? '今日消费金额（CNY）' : period === 'year' ? '本年消费金额（CNY）' : '本月消费金额（CNY）';
+  const grainLabel = period === 'today' ? '今日 · 按小时' : period === 'year' ? '本年 · 按月' : '本月 · 按天';
+  host.innerHTML = `<div class="personal-usage-chart-toolbar">
+      <div class="personal-usage-chart-title"><strong>${title}</strong><span>鼠标悬停柱子查看模型与项目占比</span></div>
+      <span class="personal-usage-period-chip">时间维度　${grainLabel}</span>
+    </div>
+    <div class="personal-usage-chart-wrap">
+      <div class="personal-usage-y-axis">${ticks.map(v => `<span>${v >= 10 ? v.toFixed(0) : v.toFixed(1)}</span>`).join('')}</div>
+      <div class="personal-usage-grid-lines"><i></i><i></i><i></i><i></i></div>
+      <div class="personal-usage-bars">
+        ${rows.map((row, index) => {
+          const cost = Math.max(0, Number(row?.cost_cny || 0));
+          const height = cost > 0 ? Math.max(4, (cost / yMax) * 100) : 0.6;
+          const showLabel = index === 0 || index === rows.length - 1 || index % showEvery === 0;
+          return `<div class="personal-usage-bar-slot" tabindex="0" data-usage-bar-index="${index}">
+            <div class="personal-usage-bar${cost <= 0 ? ' is-zero' : ''}" style="height:${height.toFixed(2)}%"></div>
+            ${showLabel ? `<span class="personal-usage-x-label">${escapeHtml(row?.label || '')}</span>` : ''}
+          </div>`;
+        }).join('')}
+      </div>
+      ${rows.some(row => Number(row?.cost_cny || 0) > 0) ? '' : '<div class="personal-usage-empty-chart">当前周期暂无已计费生成记录</div>'}
+      <div id="personal-usage-tooltip" class="personal-usage-tooltip"></div>
+    </div>`;
+
+  const wrap = host.querySelector('.personal-usage-chart-wrap');
+  const tip = host.querySelector('#personal-usage-tooltip');
+  if (!wrap || !tip) return;
+
+  const hide = () => {
+    tip.classList.remove('is-visible');
+    host.querySelectorAll('.personal-usage-bar-slot').forEach(node => node.classList.remove('is-active'));
+  };
+  const show = (slot, row) => {
+    host.querySelectorAll('.personal-usage-bar-slot').forEach(node => node.classList.toggle('is-active', node === slot));
+    tip.innerHTML = r42TooltipMarkup(row);
+    tip.classList.add('is-visible');
+    const wrapRect = wrap.getBoundingClientRect();
+    const slotRect = slot.getBoundingClientRect();
+    const tipWidth = Math.min(286, wrapRect.width - 20);
+    let left = slotRect.left - wrapRect.left + slotRect.width / 2 - tipWidth / 2;
+    left = Math.max(8, Math.min(left, wrapRect.width - tipWidth - 8));
+    const estimatedHeight = tip.offsetHeight || 220;
+    let top = slotRect.top - wrapRect.top - estimatedHeight - 12;
+    if (top < 6) top = Math.min(wrapRect.height - estimatedHeight - 6, slotRect.top - wrapRect.top + 12);
+    tip.style.left = `${left}px`;
+    tip.style.top = `${Math.max(6, top)}px`;
+  };
+
+  host.querySelectorAll('[data-usage-bar-index]').forEach(slot => {
+    const index = Number(slot.dataset.usageBarIndex || 0);
+    const row = rows[index] || {};
+    slot.addEventListener('mouseenter', () => show(slot, row));
+    slot.addEventListener('focus', () => show(slot, row));
+    slot.addEventListener('click', () => show(slot, row));
+    slot.addEventListener('mouseleave', hide);
+    slot.addEventListener('blur', hide);
+  });
+}
+
+async function r42LoadUsageChart(period = 'month', force = false) {
+  if (!state.user?.id) return null;
+  const safePeriod = ['today','month','year'].includes(period) ? period : 'month';
+  r42LoadUsageChart.cache ||= {};
+  r42LoadUsageChart.inFlight ||= {};
+  const cached = r42LoadUsageChart.cache[safePeriod];
+  if (!force && cached && Date.now() - cached.fetchedAt < 20_000) {
+    r42RenderUsageChart(cached.data, r38LoadUsageSummary.lastSummary);
+    return cached.data;
+  }
+  if (r42LoadUsageChart.inFlight[safePeriod]) return r42LoadUsageChart.inFlight[safePeriod];
+  const host = $('personal-usage-chart-host');
+  if (host) host.innerHTML = '<div class="personal-usage-loading">正在读取消费柱状图明细...</div>';
+  r42LoadUsageChart.inFlight[safePeriod] = (async () => {
+    try {
+      const { data, error } = await supabase.rpc('get_my_video_usage_chart', { p_period: safePeriod });
+      if (error) throw error;
+      const chart = data && typeof data === 'object' ? data : { period:safePeriod, bars:[] };
+      r42LoadUsageChart.cache[safePeriod] = { data: chart, fetchedAt: Date.now() };
+      r42RenderUsageChart(chart, r38LoadUsageSummary.lastSummary);
+      return chart;
+    } catch (error) {
+      console.warn('[Davis Video R42] usage chart failed', error);
+      if (host) host.innerHTML = `<div class="personal-usage-error">暂时无法读取柱状图明细：${escapeHtml(errorMessage(error, '未知错误'))}</div>`;
+      return null;
+    } finally {
+      r42LoadUsageChart.inFlight[safePeriod] = null;
+    }
+  })();
+  return r42LoadUsageChart.inFlight[safePeriod];
+}
+
+
+
 function r38RenderUsageSummary(summary, error = null) {
   const body = $('personal-usage-body');
   const date = $('personal-usage-date');
   const overview = $('personal-usage-overview');
   const foot = $('personal-usage-foot');
   const refresh = $('personal-usage-refresh');
-  if (refresh) refresh.onclick = () => void r38LoadUsageSummary(true);
+  if (refresh) refresh.onclick = () => {
+    r42LoadUsageChart.cache = {};
+    void r38LoadUsageSummary(true);
+  };
   if (!body || !date || !foot) return;
 
   if (error) {
@@ -2718,11 +2871,7 @@ function r38RenderUsageSummary(summary, error = null) {
     return;
   }
 
-  const periods = {
-    today: { key:'today', title:'今日', label:'今日已产生费用', sublabel: summary.as_of_date || '', row: summary.today || {} },
-    month: { key:'month', title:'本月', label:'本月已产生费用', sublabel: summary.month_label || '', row: summary.month || {} },
-    year: { key:'year', title:'本年', label:'本年已产生费用', sublabel: summary.year_label || '', row: summary.year || {} },
-  };
+  const periods = r42UsagePeriods(summary);
   const safePeriod = periods[r38RenderUsageSummary.selectedPeriod] ? r38RenderUsageSummary.selectedPeriod : 'month';
   r38RenderUsageSummary.selectedPeriod = safePeriod;
 
@@ -2731,99 +2880,49 @@ function r38RenderUsageSummary(summary, error = null) {
     const data = item.row || {};
     const cost = Math.max(0, Number(data.cost_cny || 0));
     const tasks = Math.max(0, Number(data.generated_tasks || 0));
-    return `<button type="button" class="personal-usage-item${key === r38RenderUsageSummary.selectedPeriod ? ' is-active' : ''}" data-usage-period="${key}" aria-pressed="${key === r38RenderUsageSummary.selectedPeriod ? 'true' : 'false'}">
+    return `<button type="button" class="personal-usage-item${key === safePeriod ? ' is-active' : ''}" data-usage-period="${key}" aria-pressed="${key === safePeriod ? 'true' : 'false'}">
       <div class="label"><span>${escapeHtml(item.label)}</span><b>${escapeHtml(item.sublabel || '')}</b></div>
       <strong>¥${cost.toFixed(2)}</strong>
       <span>生成 ${tasks} 段 · ${escapeHtml(r38FormatTokens(data.tokens))} · ${escapeHtml(r38FormatDuration(data.generated_seconds))}</span>
     </button>`;
   };
 
-  const renderDetail = key => {
-    const item = periods[key] || periods.month;
-    const data = item.row || {};
-    const cost = Math.max(0, Number(data.cost_cny || 0));
-    const tasks = Math.max(0, Number(data.generated_tasks || 0));
-    const tokens = r38FormatTokens(data.tokens);
-    const duration = r38FormatDuration(data.generated_seconds);
-    const detail = body.querySelector('#personal-usage-detail');
-    if (!detail) return;
+  date.textContent = `所有时间均为北京时间（UTC+8） · 当前日期 ${summary.as_of_date || '--'}`;
+  body.className = 'personal-usage-shell';
+  body.innerHTML = `<div class="personal-usage-grid">${cardMarkup('today')}${cardMarkup('month')}${cardMarkup('year')}</div>
+    <section id="personal-usage-chart-host" class="personal-usage-chart-card"><div class="personal-usage-loading">正在读取消费柱状图明细...</div></section>`;
+
+  if (overview) {
+    overview.hidden = false;
+    overview.innerHTML = r42UsageOverviewMarkup(summary, safePeriod);
+  }
+
+  const activatePeriod = period => {
+    if (!periods[period]) return;
+    r38RenderUsageSummary.selectedPeriod = period;
     body.querySelectorAll('[data-usage-period]').forEach(node => {
-      const active = node.dataset.usagePeriod === key;
+      const active = node.dataset.usagePeriod === period;
       node.classList.toggle('is-active', active);
       node.setAttribute('aria-pressed', active ? 'true' : 'false');
     });
-    detail.innerHTML = `<div class="personal-usage-detail-main">
-      <div class="personal-usage-detail-head">
-        <div><h3>${escapeHtml(item.title)}费用明细</h3><span>${escapeHtml(item.sublabel || '')}</span></div>
-        <span>点击上方卡片切换统计周期</span>
-      </div>
-      <div class="personal-usage-detail-grid">
-        <article class="personal-usage-detail-metric">
-          <span>已产生费用</span>
-          <strong>¥${cost.toFixed(2)}</strong>
-          <small>已按 Ark 实际 usage × 模型单价换算</small>
-        </article>
-        <article class="personal-usage-detail-metric">
-          <span>生成片段</span>
-          <strong>${tasks} 段</strong>
-          <small>${escapeHtml(item.title)}周期内成功生成的片段数</small>
-        </article>
-        <article class="personal-usage-detail-metric">
-          <span>累计 Tokens</span>
-          <strong>${escapeHtml(tokens)}</strong>
-          <small>用于视频生成的 Ark usage 消耗量</small>
-        </article>
-        <article class="personal-usage-detail-metric">
-          <span>累计时长</span>
-          <strong>${escapeHtml(duration)}</strong>
-          <small>该周期内成功生成视频总时长</small>
-        </article>
-      </div>
-    </div>
-    <aside class="personal-usage-side personal-usage-detail-side">
-      <section class="personal-usage-side-card">
-        <strong>${escapeHtml(item.title)}统计说明</strong>
-        <ul>
-          <li>失败且未产生 usage 的任务，不计入费用。</li>
-          <li>费用仅作页面参考，最终以火山方舟账单为准。</li>
-          <li>如任务正在进行中，预计费用会在下方单独提示。</li>
-        </ul>
-      </section>
-      <section class="personal-usage-side-card">
-        <strong>当前选中周期</strong>
-        <p>你正在查看 <b>${escapeHtml(item.title)}</b> 维度的费用情况，可点击上方“今日 / 本月 / 本年”卡片进行切换，并立即查看对应明细。</p>
-      </section>
-    </aside>`;
+    if (overview) overview.innerHTML = r42UsageOverviewMarkup(summary, period);
+    void r42LoadUsageChart(period, false);
   };
 
-  date.textContent = `当前日期：${summary.as_of_date || '--'} · 北京时间`;
-  body.className = 'personal-usage-shell';
-  body.innerHTML = `<div class="personal-usage-grid">${cardMarkup('today')}${cardMarkup('month')}${cardMarkup('year')}</div><div id="personal-usage-detail" class="personal-usage-detail"></div>`;
   body.querySelectorAll('[data-usage-period]').forEach(node => {
-    node.addEventListener('click', () => {
-      r38RenderUsageSummary.selectedPeriod = node.dataset.usagePeriod || 'month';
-      renderDetail(r38RenderUsageSummary.selectedPeriod);
-    });
+    node.addEventListener('click', () => activatePeriod(node.dataset.usagePeriod || 'month'));
   });
-  renderDetail(r38RenderUsageSummary.selectedPeriod);
-
-  if (overview) {
-    const year = summary.year || {};
-    overview.hidden = false;
-    overview.innerHTML = [
-      `<div class="personal-usage-overview-item"><span>本年生成片段</span><strong>${Math.max(0, Number(year.generated_tasks || 0))} 段</strong></div>`,
-      `<div class="personal-usage-overview-item"><span>本年 Tokens</span><strong>${escapeHtml(r38FormatTokens(year.tokens))}</strong></div>`,
-      `<div class="personal-usage-overview-item"><span>本年生成时长</span><strong>${escapeHtml(r38FormatDuration(year.generated_seconds))}</strong></div>`,
-    ].join('');
-  }
 
   const inProgress = summary.in_progress || {};
   const pendingTasks = Math.max(0, Number(inProgress.task_count || 0));
   const pendingCost = Math.max(0, Number(inProgress.estimated_cost_cny || 0));
   foot.hidden = false;
-  foot.innerHTML = `<span class="basis">已消费按 Ark 实际 usage × 模型单价换算；失败且无 usage 不计入，最终以火山方舟账单为准。</span>
+  foot.innerHTML = `<span class="basis">费用按 Ark 实际 usage × 对应 Seedance 模型单价换算；失败且无 usage 不计入，最终以火山方舟账单为准。</span>
     <span class="pending">${pendingTasks ? `进行中 ${pendingTasks} 段 · 预计约 ¥${pendingCost.toFixed(2)}` : '当前无进行中计费任务'}</span>`;
+
+  void r42LoadUsageChart(safePeriod, false);
 }
+
 
 async function r38LoadUsageSummary(force = false) {
   if (!state.user?.id) return;
@@ -2873,7 +2972,7 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, 
     r6ExistingProjectNames,r6ForkCurrentDraftForSubmit,r10StableUploadPlan,r10ApplyFrameBinding,
     r10SubmissionContext,r10AssertContext,r10RecoverFrameBindings,r10RecoverOrphan,r11RestoreCloudDrafts,r13MarkVersionForkForSubmit,r14NormalizeProjectName,r14ProjectNameExists,r15HasFilePayload,r15WireFileDropzone,r15PreventDocumentFileNavigation,
     r16ProjectOwnerId,r16ScopeProjectRead,r16CurrentProjectWritable,r16AssertCurrentProjectWritable,r16ApplyReadOnlyControls,
-    r18PublicSegmentState,r18StatusText,r18JobStageMarkup,r37ModelCatalog,r37ModelConfig,r37ModelLabel,r37ResolutionPixels,r37InputProfile,r37EstimateCost,r37ValidateSegmentConfig,r37SetSelectOptions,r37ApplyModelControls,r37RenderSegmentCost,r37RenderProjectCost,r37ReadMediaDuration,r38FormatTokens,r38FormatDuration,r38UsagePeriodMarkup,r38RenderUsageSummary,r38LoadUsageSummary].map(fn => fn.toString()).join('\n\n');
+    r18PublicSegmentState,r18StatusText,r18JobStageMarkup,r37ModelCatalog,r37ModelConfig,r37ModelLabel,r37ResolutionPixels,r37InputProfile,r37EstimateCost,r37ValidateSegmentConfig,r37SetSelectOptions,r37ApplyModelControls,r37RenderSegmentCost,r37RenderProjectCost,r37ReadMediaDuration,r38FormatTokens,r38FormatDuration,r38UsagePeriodMarkup,r42UsagePeriods,r42VisibleBars,r42UsageOverviewMarkup,r42TooltipMarkup,r42RenderUsageChart,r42LoadUsageChart,r38RenderUsageSummary,r38LoadUsageSummary].map(fn => fn.toString()).join('\n\n');
 
   patched = patched.replace("const LAST_SELECTED_DRAFT_KEY = 'seedance_last_selected_draft_id_v1';",
     "const LAST_SELECTED_DRAFT_KEY = 'seedance_last_selected_draft_id_v1';\n\n" + support);
