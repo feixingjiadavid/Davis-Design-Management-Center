@@ -1,6 +1,22 @@
-const PRODUCTION_BUILD = '20260807-index-project-list-exact-r44';
+const PRODUCTION_BUILD = '20260807-storage-quota-bootfix-r46';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
+
+const R46_OBSOLETE_RUNTIME_CACHE_KEYS = Object.freeze([
+  'seedance_app_v46_last_known_good_v1',
+  'seedance_app_v46_last_known_good',
+  'seedance_app_v46_source_cache_v1',
+]);
+
+function r46ClearObsoleteRuntimeCaches() {
+  if (typeof localStorage === 'undefined') return;
+  for (const key of R46_OBSOLETE_RUNTIME_CACHE_KEYS) {
+    try { localStorage.removeItem(key); } catch {}
+  }
+}
+
+r46ClearObsoleteRuntimeCaches();
+
 
 /**
  * R32 FFmpeg Worker 同源兼容层。
@@ -248,6 +264,83 @@ function r43ProjectCategoryFromControls() {
     return r43NormalizeCategory(custom?.value) || '其他';
   }
   return r43NormalizeCategory(select.value) || '其他';
+}
+
+
+
+function r45SetProjectFieldError(inputId, errorId, message = '') {
+  const input = $(inputId);
+  const error = $(errorId);
+  const hasError = Boolean(message);
+  input?.classList.toggle('is-invalid', hasError);
+  input?.setAttribute('aria-invalid', hasError ? 'true' : 'false');
+  if (error) {
+    error.hidden = !hasError;
+    if (hasError) error.textContent = message;
+  }
+}
+
+function r45ClearProjectCreateErrors() {
+  r45SetProjectFieldError('new-project-category', 'new-project-category-error', '');
+  r45SetProjectFieldError('new-project-category-custom', 'new-project-category-custom-error', '');
+  r45SetProjectFieldError('new-project-name', 'new-project-name-error', '');
+}
+
+function r45ValidateProjectCreateFields() {
+  r45ClearProjectCreateErrors();
+
+  const select = $('new-project-category');
+  const custom = $('new-project-category-custom');
+  const nameInput = $('new-project-name');
+
+  const selectValue = String(select?.value || '').trim();
+  const customValue = r43NormalizeCategory(custom?.value);
+  const nameValue = String(nameInput?.value || '').trim();
+
+  const missing = [];
+  let firstInvalid = null;
+
+  if (!select || !selectValue || selectValue === '__loading__') {
+    r45SetProjectFieldError(
+      'new-project-category',
+      'new-project-category-error',
+      selectValue === '__loading__' ? '项目类别仍在加载，请稍后再选择。' : '请选择项目类别。'
+    );
+    missing.push('项目类别');
+    firstInvalid ||= select;
+  } else if (selectValue === '__other__' && !customValue) {
+    r45SetProjectFieldError(
+      'new-project-category-custom',
+      'new-project-category-custom-error',
+      '选择“其他”后必须填写自定义项目类别。'
+    );
+    missing.push('自定义项目类别');
+    firstInvalid ||= custom;
+  }
+
+  if (!nameValue) {
+    r45SetProjectFieldError(
+      'new-project-name',
+      'new-project-name-error',
+      '请填写项目名称，不能使用未命名项目直接创建。'
+    );
+    missing.push('项目名称');
+    firstInvalid ||= nameInput;
+  }
+
+  if (missing.length) {
+    const unique = [...new Set(missing)];
+    toast('请先填写生成归属', `${unique.join('、')}为必填项。填写完整后再选择生成模式。`);
+    firstInvalid?.focus();
+    return { ok:false, category:'', name:'', missing:unique };
+  }
+
+  return {
+    ok:true,
+    category:r43ProjectCategoryFromControls(),
+    name:nameValue,
+    missing:[],
+  };
 }
 
 
@@ -1654,6 +1747,7 @@ function r5OpenCreateModal() {
   if (input) input.value = '';
   const custom = $('new-project-category-custom');
   if (custom) custom.value = '';
+  r45ClearProjectCreateErrors();
   const cancel = $('project-mode-cancel');
   if (cancel) cancel.hidden = !(state.drafts || []).length;
   modal.hidden = false;
@@ -1668,9 +1762,21 @@ function r5CloseCreateModal() {
 async function r5CreateProjectFromMode(mode) {
   const key = r5ModeKey(mode);
   await r43LoadCategoryOptions(false, false);
-  const category = r43ProjectCategoryFromControls();
-  const inputName = String($('new-project-name')?.value || '').trim();
-  const displayName = inputName || `未命名 ${r5ModeSuffix(key)}项目`;
+
+  const validation = r45ValidateProjectCreateFields();
+  if (!validation.ok) {
+    const clicked = document.querySelector(`[data-create-project-mode="${key}"]`);
+    if (clicked) {
+      clicked.classList.remove('is-blocked-hint');
+      void clicked.offsetWidth;
+      clicked.classList.add('is-blocked-hint');
+      setTimeout(() => clicked.classList.remove('is-blocked-hint'), 360);
+    }
+    return;
+  }
+
+  const category = validation.category;
+  const displayName = validation.name;
 
   let remoteNames;
   try {
@@ -1699,7 +1805,33 @@ async function r5CreateProjectFromMode(mode) {
 function r5WireCreateModal() {
   if ($('new-project')) $('new-project').onclick = r5OpenCreateModal;
   qsa('[data-create-project-mode]').forEach(btn => btn.onclick = () => r5CreateProjectFromMode(btn.dataset.createProjectMode));
-  if ($('new-project-category')) $('new-project-category').onchange = () => r43SyncCategoryCustomVisibility(true);
+
+  if ($('new-project-category')) {
+    $('new-project-category').onchange = () => {
+      r43SyncCategoryCustomVisibility(true);
+      r45SetProjectFieldError('new-project-category', 'new-project-category-error', '');
+      if ($('new-project-category').value !== '__other__') {
+        r45SetProjectFieldError('new-project-category-custom', 'new-project-category-custom-error', '');
+      }
+    };
+  }
+
+  if ($('new-project-category-custom')) {
+    $('new-project-category-custom').oninput = () => {
+      if (r43NormalizeCategory($('new-project-category-custom').value)) {
+        r45SetProjectFieldError('new-project-category-custom', 'new-project-category-custom-error', '');
+      }
+    };
+  }
+
+  if ($('new-project-name')) {
+    $('new-project-name').oninput = () => {
+      if (String($('new-project-name').value || '').trim()) {
+        r45SetProjectFieldError('new-project-name', 'new-project-name-error', '');
+      }
+    };
+  }
+
   if ($('project-mode-cancel')) $('project-mode-cancel').onclick = r5CloseCreateModal;
   if ($('project-mode-modal')) $('project-mode-modal').onclick = event => { if (event.target === $('project-mode-modal') && (state.drafts || []).length) r5CloseCreateModal(); };
 }
@@ -3206,7 +3338,7 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, 
     r5BuildSplitDraft,r5MigrateDraftCollection,r5ContextSnapshot,r5ContextIsCurrent,r5ExactTaskIds,
     r53IsGenericProjectName,r53NormalizePrompt,r53PromptOverlap,r53ProjectCandidateScore,r5VerifyProjectId,
     r5ResolveFixedProject,r5TaskScore,r5OutputStableKey,r5CacheRequestUrl,r5ReadPersistentVideo,r5PrunePersistentVideoCache,
-    r5WritePersistentVideo,R44_INDEX_PROJECT_CATEGORIES,r43NormalizeCategory,r43InferHistoricalCategory,r43ProjectCategoryValue,r43IncomingProjectCategory,r43SyncCategoryCustomVisibility,r43ApplyCategoryOptions,r43LoadCategoryOptions,r43ProjectCategoryFromControls,r5OpenCreateModal,r5CloseCreateModal,r5CreateProjectFromMode,r5WireCreateModal,
+    r5WritePersistentVideo,R44_INDEX_PROJECT_CATEGORIES,r43NormalizeCategory,r43InferHistoricalCategory,r43ProjectCategoryValue,r43IncomingProjectCategory,r43SyncCategoryCustomVisibility,r43ApplyCategoryOptions,r43LoadCategoryOptions,r43ProjectCategoryFromControls,r45SetProjectFieldError,r45ClearProjectCreateErrors,r45ValidateProjectCreateFields,r5OpenCreateModal,r5CloseCreateModal,r5CreateProjectFromMode,r5WireCreateModal,
     r6ExistingProjectNames,r6ForkCurrentDraftForSubmit,r10StableUploadPlan,r10ApplyFrameBinding,
     r10SubmissionContext,r10AssertContext,r10RecoverFrameBindings,r10RecoverOrphan,r11RestoreCloudDrafts,r13MarkVersionForkForSubmit,r14NormalizeProjectName,r14ProjectNameExists,r15HasFilePayload,r15WireFileDropzone,r15PreventDocumentFileNavigation,
     r16ProjectOwnerId,r16ScopeProjectRead,r16CurrentProjectWritable,r16AssertCurrentProjectWritable,r16ApplyReadOnlyControls,
@@ -3501,6 +3633,7 @@ async function r21ConfirmMaterialRights(error) {
 }
 
 export async function bootProduction() {
+  r46ClearObsoleteRuntimeCaches();
   const originalUrl = new URL(`${ORIGINAL_FILE}?v=${ORIGINAL_BUILD}`, import.meta.url);
   const supabaseUrl = new URL('../supabase-config.js', import.meta.url).href;
   const dbUrl = new URL('./db.js', import.meta.url).href;
@@ -3523,11 +3656,28 @@ export async function bootProduction() {
 }
 
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-  bootProduction().catch(error => {
-    console.error('[Davis Video Studio R38] boot failed', error);
+  const r46Boot = async () => {
+    try {
+      await bootProduction();
+    } catch (error) {
+      const message = String(error?.message || error);
+      const quotaFailure = /quota|exceeded.*storage|setItem.*Storage/i.test(message);
+      if (quotaFailure && !globalThis.__davisR46QuotaRetry) {
+        globalThis.__davisR46QuotaRetry = true;
+        r46ClearObsoleteRuntimeCaches();
+        console.warn('[Davis Video Studio R46] storage quota during boot; legacy cache cleared, retrying once');
+        await bootProduction();
+        return;
+      }
+      throw error;
+    }
+  };
+
+  r46Boot().catch(error => {
+    console.error('[Davis Video Studio R46] boot failed', error);
     const box = document.createElement('div');
     box.style.cssText = 'position:fixed;inset:20px;z-index:99999;background:#220b12;color:#fff;border:1px solid #ff6075;border-radius:14px;padding:20px;font:14px/1.6 system-ui;overflow:auto';
-    box.innerHTML = `<strong>Seedance 单项目单模式版启动失败</strong><br>${String(error?.message || error).replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]))}<br><br>请保留 seedance/app-v46.js，并覆盖本包中的 seedance/app.js；随后 Ctrl+F5 强制刷新。`;
+    box.innerHTML = `<strong>Davis Video 启动失败</strong><br>${String(error?.message || error).replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]))}<br><br>请保留 seedance/app-v46.js，并覆盖本包中的 ai-assistant.html 与 seedance/app.js；随后 Ctrl+F5 强制刷新。`;
     document.body.appendChild(box);
   });
 }
