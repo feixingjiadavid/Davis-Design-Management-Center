@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260807-runtime-category-source-r47';
+const PRODUCTION_BUILD = '20260807-project-parent-multimode-r48';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -722,6 +722,309 @@ function r5CreateWorkspaceClone(workspace) {
   return next;
 }
 
+
+function r48EnsureWorkspaceShape(workspace, rootProjectId = null, ownerId = null) {
+  const target = workspace && typeof workspace === 'object' ? workspace : createWorkspaceState();
+  if (!Array.isArray(target.frames)) target.frames = [];
+  if (!Array.isArray(target.segments)) target.segments = [];
+  if (!Array.isArray(target.outputs)) target.outputs = [];
+  if (!Array.isArray(target.outputHistory)) target.outputHistory = [];
+  if (!Array.isArray(target.jobs)) target.jobs = [];
+  if (!Array.isArray(target.referenceAssets)) target.referenceAssets = target.referenceVideo ? [target.referenceVideo] : [];
+  if (!('referenceVideo' in target)) target.referenceVideo = null;
+  if (!('cloudSyncedAt' in target)) target.cloudSyncedAt = 0;
+  target.remoteProjectId = rootProjectId || target.remoteProjectId || null;
+  target.bindingCandidateProjectId = rootProjectId || target.bindingCandidateProjectId || target.remoteProjectId || null;
+  target.ownerId = ownerId || target.ownerId || state.user?.id || null;
+  if (!('remoteOwnerId' in target)) target.remoteOwnerId = null;
+  return target;
+}
+
+function r48NewDraft(mode = 'first_last', name = '', projectCategory = null) {
+  const activeMode = r5ModeKey(mode || 'first_last');
+  const id = uid();
+  const displayName = String(name || '').trim() || '未命名生成项目';
+  const category = r43NormalizeCategory(projectCategory) || r43InferHistoricalCategory(displayName) || '其他';
+  const ownerId = state.user?.id || null;
+  const workspaces = {
+    first_last: r48EnsureWorkspaceShape(createWorkspaceState(), null, ownerId),
+    multi_frame: r48EnsureWorkspaceShape(createWorkspaceState(), null, ownerId),
+    text_only: r48EnsureWorkspaceShape(createWorkspaceState(), null, ownerId),
+  };
+  const active = workspaces[activeMode];
+  return {
+    id,
+    name: displayName,
+    remoteProjectName: displayName,
+    projectCategory: category,
+    mode: activeMode,
+    lockedMode: activeMode,
+    projectModeLocked: false,
+    multiModeProjectVersion: 'r48',
+    ratio: '16:9',
+    finalWidth: 1920,
+    finalHeight: 1080,
+    fitMode: 'contain',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    ownerId,
+    remoteOwnerId: null,
+    remoteProjectId: null,
+    workspaces,
+    frames: active.frames,
+    segments: active.segments,
+    selectedSegmentId: null,
+  };
+}
+
+function r48GetWorkspace(draft = state.draft) {
+  if (!draft) return r48EnsureWorkspaceShape(createWorkspaceState());
+  const key = r5ModeKey(draft.mode || draft.lockedMode || 'first_last');
+  draft.mode = key;
+  draft.lockedMode = key; // compatibility only: this tracks active child mode, not a lock.
+  draft.projectModeLocked = false;
+  if (!draft.workspaces || typeof draft.workspaces !== 'object') draft.workspaces = {};
+  const rootProjectId = draft.remoteProjectId || null;
+  const ownerId = draft.remoteOwnerId || draft.ownerId || state.user?.id || null;
+  draft.workspaces[key] = r48EnsureWorkspaceShape(draft.workspaces[key], rootProjectId, ownerId);
+  return draft.workspaces[key];
+}
+
+function r48MigrateDraftWorkspaces(draft) {
+  if (!draft) return draft;
+  const legacyMode = r5ModeKey(draft.mode || draft.lockedMode || 'first_last');
+  const legacyWorkspace = draft.workspaces?.[legacyMode] || {
+    frames: draft.frames || [], segments: draft.segments || [], outputs: draft.outputs || [],
+    outputHistory: draft.outputHistory || [], referenceVideo: draft.referenceVideo || null,
+    referenceAssets: draft.referenceAssets || [], jobs: draft.jobs || [],
+    selectedSegmentId: draft.selectedSegmentId || null, remoteProjectId: draft.remoteProjectId || null,
+    remoteOwnerId: draft.remoteOwnerId || null, ownerId: draft.ownerId || null,
+  };
+  if (!draft.workspaces || typeof draft.workspaces !== 'object') draft.workspaces = {};
+  if (!draft.workspaces[legacyMode]) draft.workspaces[legacyMode] = legacyWorkspace;
+
+  const rootProjectId = draft.remoteProjectId
+    || Object.values(draft.workspaces).map(w => w?.remoteProjectId).find(Boolean)
+    || null;
+  const ownerId = draft.remoteOwnerId || draft.ownerId || state.user?.id || null;
+  for (const mode of ['first_last','multi_frame','text_only']) {
+    draft.workspaces[mode] = r48EnsureWorkspaceShape(draft.workspaces[mode], rootProjectId, ownerId);
+    if (rootProjectId) draft.workspaces[mode].remoteProjectId = rootProjectId;
+    if (draft.remoteOwnerId) draft.workspaces[mode].remoteOwnerId = draft.remoteOwnerId;
+    draft.workspaces[mode].bindingCandidateProjectId = rootProjectId || draft.workspaces[mode].bindingCandidateProjectId || null;
+    draft.workspaces[mode].remoteBindingSchema = 'r48-shared-project';
+  }
+
+  draft.mode = legacyMode;
+  draft.lockedMode = legacyMode;
+  draft.projectModeLocked = false;
+  draft.multiModeProjectVersion = 'r48';
+  draft.singleModeVersion = null;
+  draft.pendingVersionFork = null;
+  draft.projectCategory = r43NormalizeCategory(draft.projectCategory || draft.project_category) || r43InferHistoricalCategory(draft.name) || '其他';
+  draft.remoteProjectId = rootProjectId;
+  draft.remoteOwnerId = draft.remoteOwnerId || null;
+  draft.ownerId = ownerId;
+  draft.remoteProjectName = String(draft.remoteProjectName || r5BaseProjectName(draft.name) || draft.name || '').trim();
+
+  const active = draft.workspaces[legacyMode];
+  draft.frames = active.frames;
+  draft.segments = active.segments;
+  draft.selectedSegmentId = active.selectedSegmentId || active.segments[0]?.id || null;
+  active.selectedSegmentId = draft.selectedSegmentId;
+  return draft;
+}
+
+async function r48MigrateDraftCollection(drafts) {
+  const result = [];
+  const seen = new Set();
+  for (const raw of drafts || []) {
+    if (!raw || raw.deleted || seen.has(raw.id)) continue;
+    const draft = r48MigrateDraftWorkspaces(raw);
+    try { await saveDraft(draft); } catch (error) { console.warn('[Davis Video R48] local project migration save skipped', error); }
+    result.push(draft);
+    seen.add(draft.id);
+  }
+  return result.sort((a,b) => Number(b.createdAt || b.updatedAt || 0) - Number(a.createdAt || a.updatedAt || 0));
+}
+
+function r48BindCurrentWorkspace() {
+  if (!state.draft) return;
+  r48MigrateDraftWorkspaces(state.draft);
+  const workspace = r48GetWorkspace(state.draft);
+  const mode = r5ModeKey(state.draft.mode);
+  const contextKey = `${state.draft.id}:${mode}`;
+  if (state.r5BoundContextKey !== contextKey) {
+    state.r5BoundContextKey = contextKey;
+    state.r5ContextEpoch = Number(state.r5ContextEpoch || 0) + 1;
+    if (typeof renderJobs === 'function') { renderJobs.lastContextKey = null; renderJobs.lastOutputSignature = null; }
+  }
+  state.draft.frames = workspace.frames;
+  state.draft.segments = workspace.segments;
+  workspace.remoteProjectId = state.draft.remoteProjectId || workspace.remoteProjectId || null;
+  if (!state.draft.remoteProjectId && workspace.remoteProjectId) state.draft.remoteProjectId = workspace.remoteProjectId;
+  state.outputs = workspace.outputs || [];
+  state.outputHistory = workspace.outputHistory || [];
+  state.jobs = workspace.jobs || [];
+  state.referenceAssets = workspace.referenceAssets || [];
+  state.referenceVideo = workspace.referenceVideo || state.referenceAssets[0] || null;
+  state.selectedSegmentId = workspace.selectedSegmentId || workspace.segments[0]?.id || null;
+  state.driveFallbackDoneForDraftId = null;
+}
+
+function r48SaveCurrentWorkspaceSelection() {
+  if (!state.draft) return;
+  const mode = r5ModeKey(state.draft.mode || state.draft.lockedMode || 'first_last');
+  state.draft.mode = mode;
+  state.draft.lockedMode = mode;
+  state.draft.projectModeLocked = false;
+  state.draft.multiModeProjectVersion = 'r48';
+  const workspace = r48GetWorkspace(state.draft);
+  workspace.frames = state.draft.frames || [];
+  workspace.segments = state.draft.segments || [];
+  workspace.outputs = state.outputs || [];
+  workspace.outputHistory = state.outputHistory || [];
+  workspace.jobs = state.jobs || [];
+  workspace.referenceAssets = state.referenceAssets || [];
+  workspace.referenceVideo = state.referenceVideo || workspace.referenceAssets[0] || null;
+  const rootProjectId = state.draft.remoteProjectId || workspace.remoteProjectId || null;
+  state.draft.remoteProjectId = rootProjectId;
+  workspace.remoteProjectId = rootProjectId;
+  workspace.bindingCandidateProjectId = rootProjectId || workspace.bindingCandidateProjectId || null;
+  workspace.selectedSegmentId = state.selectedSegmentId || null;
+  state.draft.selectedSegmentId = workspace.selectedSegmentId;
+  for (const child of Object.values(state.draft.workspaces || {})) {
+    if (!child) continue;
+    if (rootProjectId) { child.remoteProjectId = rootProjectId; child.bindingCandidateProjectId = rootProjectId; }
+    if (state.draft.remoteOwnerId) child.remoteOwnerId = state.draft.remoteOwnerId;
+    child.ownerId = state.draft.ownerId || child.ownerId || state.user?.id || null;
+  }
+}
+
+async function r48SwitchProjectMode(mode) {
+  if (!state.draft) return;
+  if (state.isGenerating) return toast('任务正在提交', '当前任务提交完成后再切换生成模式，避免素材写入错误工作区。');
+  const nextMode = r5ModeKey(mode);
+  const currentMode = r5ModeKey(state.draft.mode);
+  if (nextMode === currentMode) return;
+  saveCurrentWorkspaceSelection();
+  state.draft.mode = nextMode;
+  state.draft.lockedMode = nextMode;
+  state.draft.projectModeLocked = false;
+  r48BindCurrentWorkspace();
+  normalizeSegments(state.draft);
+  saveCurrentWorkspaceSelection();
+  renderAll();
+  await persist();
+  toast('已切换生成模式', `${r5ModeLabel(nextMode)} 已打开；所有生成内容仍归属于“${state.draft.name}”。`);
+}
+
+function r48RenderProjectModeBar() {
+  const bar = $('project-generation-mode-bar');
+  if (!bar) return;
+  if (!state.draft) { bar.hidden = true; return; }
+  bar.hidden = false;
+  const name = $('project-generation-name');
+  const category = $('project-generation-category');
+  if (name) name.textContent = state.draft.name || '未命名项目';
+  if (category) category.textContent = r43ProjectCategoryValue(state.draft);
+  const mode = r5ModeKey(state.draft.mode);
+  qsa('[data-project-generation-mode]').forEach(btn => {
+    const active = r5ModeKey(btn.dataset.projectGenerationMode) === mode;
+    btn.classList.toggle('is-active', active);
+    btn.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+}
+
+function r48RenderProjects() {
+  const list = orderedDrafts();
+  $('project-list').innerHTML = list.length ? list.map(d => {
+    r48MigrateDraftWorkspaces(d);
+    const usedModes = ['first_last','multi_frame','text_only'].filter(mode => r5WorkspaceHasContent(d.workspaces?.[mode]));
+    const modeTags = (usedModes.length ? usedModes : [r5ModeKey(d.mode)]).map(mode => `<i>${escapeHtml(r5ModeLabel(mode))}</i>`).join('');
+    const outputCount = Object.values(d.workspaces || {}).reduce((sum,w) => sum + Number(w?.outputs?.length || w?.outputHistory?.length || 0), 0);
+    const readOnly = isVideoSuperAdmin(state.user) && isForeignVideoOwner(state.user, r16ProjectOwnerId(d));
+    return `<button class="project-item ${state.draft?.id === d.id ? 'active' : ''}" data-project="${d.id}">
+      <strong>${escapeHtml(d.name)}</strong>
+      <span>${escapeHtml(r43ProjectCategoryValue(d))}${readOnly ? ' · 只读' : ''} · <span class="project-mode-summary">${modeTags}</span>${outputCount ? ` · ${outputCount} 个输出` : ''} · ${new Date(d.createdAt || d.updatedAt || Date.now()).toLocaleString('zh-CN')}</span>
+    </button>`;
+  }).join('') : '<div class="empty-state">还没有生成项目，请先创建项目。项目创建后可在项目内选择不同生成模式。</div>';
+  qsa('[data-project]').forEach(btn => btn.onclick = () => selectDraft(btn.dataset.project));
+}
+
+function r48RenderSettings() {
+  $('project-name').value = state.draft.name;
+  $('project-ratio').value = state.draft.ratio;
+  $('final-width').value = state.draft.finalWidth;
+  $('final-height').value = state.draft.finalHeight;
+  $('fit-mode').value = state.draft.fitMode;
+  const label = $('locked-mode-label');
+  if (label) label.textContent = r5ModeLabel(state.draft.mode);
+  const card = $('mode-lock-card');
+  if (card) card.dataset.mode = r5ModeKey(state.draft.mode);
+  r48RenderProjectModeBar();
+  updateRatioTip();
+  renderTextModePanel();
+  syncCustomSelects();
+}
+
+async function r48CreateProject() {
+  await r43LoadCategoryOptions(false, false);
+  const validation = r45ValidateProjectCreateFields();
+  if (!validation.ok) return;
+  const category = validation.category;
+  const displayName = validation.name;
+  let remoteNames;
+  try { remoteNames = await r6ExistingProjectNames(); }
+  catch (error) { toast('无法校验项目名称', errorMessage(error, '读取云端项目名称失败，请检查网络后重试')); return; }
+  const localNames = (state.drafts || []).map(d => d?.name).filter(Boolean);
+  if (r14ProjectNameExists(displayName, [...localNames, ...remoteNames])) {
+    toast('项目名称已存在', `“${displayName}”已经存在，请直接进入该项目继续生成，或修改名称创建另一个项目。`);
+    $('new-project-name')?.focus(); return;
+  }
+  const draft = newDraft('first_last', displayName, category);
+  draft.projectCategorySource = $('new-project-category')?.value === '__other__' ? 'manual_or_other' : 'design_request_project';
+  await saveDraft(draft);
+  state.drafts.unshift(draft);
+  r5CloseCreateModal();
+  await selectDraft(draft.id);
+  setView('quick');
+  toast('生成项目已创建', `“${displayName}”已创建。现在可在项目内选择首尾帧、多帧 Storyboard 或纯文字生成。`);
+}
+
+function r48WireCreateModal() {
+  if ($('new-project')) $('new-project').onclick = r5OpenCreateModal;
+  if ($('project-create-submit')) $('project-create-submit').onclick = r48CreateProject;
+  qsa('[data-project-generation-mode]').forEach(btn => btn.onclick = () => r48SwitchProjectMode(btn.dataset.projectGenerationMode));
+  if ($('new-project-category')) $('new-project-category').onchange = () => {
+    r43SyncCategoryCustomVisibility(true); r45SetProjectFieldError('new-project-category','new-project-category-error','');
+    if ($('new-project-category').value !== '__other__') r45SetProjectFieldError('new-project-category-custom','new-project-category-custom-error','');
+  };
+  if ($('new-project-category-custom')) $('new-project-category-custom').oninput = () => {
+    if (r43NormalizeCategory($('new-project-category-custom').value)) r45SetProjectFieldError('new-project-category-custom','new-project-category-custom-error','');
+  };
+  if ($('new-project-name')) $('new-project-name').oninput = () => {
+    if (String($('new-project-name').value || '').trim()) r45SetProjectFieldError('new-project-name','new-project-name-error','');
+  };
+  if ($('project-mode-cancel')) $('project-mode-cancel').onclick = r5CloseCreateModal;
+  if ($('project-mode-modal')) $('project-mode-modal').onclick = event => { if (event.target === $('project-mode-modal') && (state.drafts || []).length) r5CloseCreateModal(); };
+}
+
+async function r48ReEditSegment(segmentId) {
+  if (!r16AssertCurrentProjectWritable('重新编辑')) return;
+  if (!segmentId) { toast('无法定位片段','这个输出没有找到对应片段，请在高级 Storyboard 中手动选择。'); setView('editor'); return; }
+  const segment = state.draft.segments.find(item => item.id === segmentId || item.remoteTaskId === segmentId);
+  if (!segment) { toast('无法定位片段','当前生成模式没有找到对应片段，请切换到对应模式后再编辑。'); setView('editor'); return; }
+  state.draft.pendingVersionFork = null;
+  state.selectedSegmentId = segment.id;
+  saveCurrentWorkspaceSelection();
+  await persist();
+  setView('editor');
+  renderEditor();
+  toast('已回到编辑页','修改后再次生成会继续写入当前一级项目，不会创建新的 V-N 项目。');
+}
+
+
 function r5NewDraft(mode = 'multi_frame', name = '', projectCategory = null) {
   const key = r5ModeKey(mode);
   const id = uid();
@@ -1018,7 +1321,7 @@ async function r5VerifyProjectId(projectId, mode, snapshot) {
     .eq('id', projectId)
     .maybeSingle();
   if (!r5ContextIsCurrent(snapshot)) return null;
-  if (error || !data || String(data.status || '').toLowerCase() === 'deleted' || r5ModeKey(data.mode) !== mode) return null;
+  if (error || !data || String(data.status || '').toLowerCase() === 'deleted') return null;
   return data;
 }
 
@@ -1063,7 +1366,7 @@ async function r5ResolveFixedProject(snapshot) {
       .in('id', list);
     if (!r5ContextIsCurrent(snapshot) || error) return;
     for (const project of data || []) {
-      if (r5ModeKey(project.mode) === mode) candidateMap.set(project.id, project);
+      candidateMap.set(project.id, project);
     }
   }
 
@@ -1074,7 +1377,6 @@ async function r5ResolveFixedProject(snapshot) {
       .select('id,name,mode,owner_id,project_category,created_at,updated_at,status')
       .eq('owner_id', r16ProjectOwnerId())
       .neq('status', 'deleted')
-      .eq('mode', mode)
       .eq('name', baseName)
       .order('created_at', { ascending: false });
     if (!r5ContextIsCurrent(snapshot)) return null;
@@ -1088,7 +1390,6 @@ async function r5ResolveFixedProject(snapshot) {
         .select('id,name,mode,owner_id,project_category,created_at,updated_at,status')
         .eq('owner_id', r16ProjectOwnerId())
         .neq('status', 'deleted')
-        .eq('mode', mode)
         .eq('name', fallbackName)
         .order('created_at', { ascending: false });
       if (!r5ContextIsCurrent(snapshot)) return null;
@@ -1646,7 +1947,7 @@ function r5RecoverLatestDriveOutputWhenEmpty(force = false) {
       await loadOutputs(Boolean(force));
       renderJobs();
       if (force) toast((state.outputs || []).length ? '已刷新当前项目' : '当前项目暂无视频',
-        (state.outputs || []).length ? '已按固定项目 ID 恢复并使用浏览器视频缓存。' : '没有找到属于这个独立项目的 Google Drive 视频。');
+        (state.outputs || []).length ? '已按当前项目 ID 恢复并使用浏览器视频缓存。' : '当前项目暂未找到 Google Drive 视频。');
     } catch (error) { if (force) toast('刷新失败', errorMessage(error)); }
   })();
 }
@@ -1672,8 +1973,8 @@ function r5RenderJobs() {
   const visible = currentOutputRows();
   const history = historicalOutputRows();
   const markup = [activeMarkup, visible.map(o => outputCardMarkup(o, false)).join(''),
-    history.length ? `<div class="history-title">当前独立项目历史输出</div>${history.map(o => outputCardMarkup(o, true)).join('')}` : ''].filter(Boolean).join('');
-  const next = markup || '<div class="empty-state">当前独立项目暂无视频。点击“刷新状态”只会查询这个项目，不会搜索或展示其他项目。</div>';
+    history.length ? `<div class="history-title">当前项目历史输出</div>${history.map(o => outputCardMarkup(o, true)).join('')}` : ''].filter(Boolean).join('');
+  const next = markup || '<div class="empty-state">当前生成模式暂无视频。可切换上方生成模式查看同一项目中的其他任务与输出。</div>';
   const signature = [...visible, ...history].map(r5OutputStableKey).join('|') + `:${segments.map(s => `${s.id}-${s.status}-${s.progress}`).join('|')}`;
   const list = $('outputs-list');
   if (renderJobs.lastContextKey !== contextKey || renderJobs.lastOutputSignature !== signature || !list.childNodes.length) {
@@ -2002,6 +2303,13 @@ async function r11RestoreCloudDrafts(localDrafts) {
     workspace.remoteOwnerId = project.owner_id;
     workspace.remoteProjectId = project.id;
     workspace.bindingCandidateProjectId = project.id;
+    for (const child of Object.values(draft.workspaces || {})) {
+      child.ownerId = project.owner_id;
+      child.remoteOwnerId = project.owner_id;
+      child.remoteProjectId = project.id;
+      child.bindingCandidateProjectId = project.id;
+      child.remoteBindingSchema = 'r48-shared-project';
+    }
     workspace.remoteBindingSchema = 'r5.3';
     workspace.remoteBindingVersion = 'r5.3';
     workspace.remoteBindingLocked = true;
@@ -2051,10 +2359,10 @@ async function r5Init() {
   window.addEventListener('keydown', event => {
     if (event.key === 'Escape' && usageModal && !usageModal.hidden) closeUsageModal();
   });
-  r5WireCreateModal();
+  r48WireCreateModal();
   enhanceCustomSelects();
   document.body.dataset.seedanceBuild = APP_BUILD;
-  state.drafts = await r11RestoreCloudDrafts(await r5MigrateDraftCollection(await listDrafts()));
+  state.drafts = await r11RestoreCloudDrafts(await r48MigrateDraftCollection(await listDrafts()));
   if (!state.drafts.length) { renderProjects(); r5OpenCreateModal(); return; }
   const last = localStorage.getItem(LAST_SELECTED_DRAFT_KEY);
   const initial = state.drafts.find(d => d.id === last) || orderedDrafts()[0];
@@ -3339,7 +3647,7 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, 
     r5BuildSplitDraft,r5MigrateDraftCollection,r5ContextSnapshot,r5ContextIsCurrent,r5ExactTaskIds,
     r53IsGenericProjectName,r53NormalizePrompt,r53PromptOverlap,r53ProjectCandidateScore,r5VerifyProjectId,
     r5ResolveFixedProject,r5TaskScore,r5OutputStableKey,r5CacheRequestUrl,r5ReadPersistentVideo,r5PrunePersistentVideoCache,
-    r5WritePersistentVideo,r43NormalizeCategory,r43InferHistoricalCategory,r43ProjectCategoryValue,r43IncomingProjectCategory,r43SyncCategoryCustomVisibility,r43ApplyCategoryOptions,r43LoadCategoryOptions,r43ProjectCategoryFromControls,r45SetProjectFieldError,r45ClearProjectCreateErrors,r45ValidateProjectCreateFields,r5OpenCreateModal,r5CloseCreateModal,r5CreateProjectFromMode,r5WireCreateModal,
+    r5WritePersistentVideo,r48EnsureWorkspaceShape,r48NewDraft,r48GetWorkspace,r48MigrateDraftWorkspaces,r48MigrateDraftCollection,r48BindCurrentWorkspace,r48SaveCurrentWorkspaceSelection,r48SwitchProjectMode,r48RenderProjectModeBar,r48RenderProjects,r48RenderSettings,r48CreateProject,r48WireCreateModal,r48ReEditSegment,r43NormalizeCategory,r43InferHistoricalCategory,r43ProjectCategoryValue,r43IncomingProjectCategory,r43SyncCategoryCustomVisibility,r43ApplyCategoryOptions,r43LoadCategoryOptions,r43ProjectCategoryFromControls,r45SetProjectFieldError,r45ClearProjectCreateErrors,r45ValidateProjectCreateFields,r5OpenCreateModal,r5CloseCreateModal,
     r6ExistingProjectNames,r6ForkCurrentDraftForSubmit,r10StableUploadPlan,r10ApplyFrameBinding,
     r10SubmissionContext,r10AssertContext,r10RecoverFrameBindings,r10RecoverOrphan,r11RestoreCloudDrafts,r13MarkVersionForkForSubmit,r14NormalizeProjectName,r14ProjectNameExists,r15HasFilePayload,r15WireFileDropzone,r15PreventDocumentFileNavigation,
     r16ProjectOwnerId,r16ScopeProjectRead,r16CurrentProjectWritable,r16AssertCurrentProjectWritable,r16ApplyReadOnlyControls,
@@ -3355,14 +3663,14 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, 
     r43ProjectPayloadMarker,
     "    frame_fit_mode: state.draft.fitMode,\n    project_category: r43ProjectCategoryValue(state.draft),\n    status: 'draft',"
   );
-  patched = replaceSection(patched, 'function newDraft() {', 'function createWorkspaceState() {', renamedFunction(r5NewDraft, 'newDraft'));
-  patched = replaceSection(patched, 'function migrateDraftWorkspaces(draft) {', 'function getWorkspace(', renamedFunction(r5MigrateDraftWorkspaces, 'migrateDraftWorkspaces'));
-  patched = replaceSection(patched, 'function getWorkspace(', 'function bindCurrentWorkspace() {', renamedFunction(r5GetWorkspace, 'getWorkspace'));
-  patched = replaceSection(patched, 'function bindCurrentWorkspace() {', 'function saveCurrentWorkspaceSelection() {', renamedFunction(r5BindCurrentWorkspace, 'bindCurrentWorkspace'));
-  patched = replaceSection(patched, 'function saveCurrentWorkspaceSelection() {', 'function workspaceLabel(', renamedFunction(r5SaveCurrentWorkspaceSelection, 'saveCurrentWorkspaceSelection'));
+  patched = replaceSection(patched, 'function newDraft() {', 'function createWorkspaceState() {', renamedFunction(r48NewDraft, 'newDraft'));
+  patched = replaceSection(patched, 'function migrateDraftWorkspaces(draft) {', 'function getWorkspace(', renamedFunction(r48MigrateDraftWorkspaces, 'migrateDraftWorkspaces'));
+  patched = replaceSection(patched, 'function getWorkspace(', 'function bindCurrentWorkspace() {', renamedFunction(r48GetWorkspace, 'getWorkspace'));
+  patched = replaceSection(patched, 'function bindCurrentWorkspace() {', 'function saveCurrentWorkspaceSelection() {', renamedFunction(r48BindCurrentWorkspace, 'bindCurrentWorkspace'));
+  patched = replaceSection(patched, 'function saveCurrentWorkspaceSelection() {', 'function workspaceLabel(', renamedFunction(r48SaveCurrentWorkspaceSelection, 'saveCurrentWorkspaceSelection'));
   patched = replaceSection(patched, 'function setView(view) {', 'function orderedDrafts() {', renamedFunction(r5SetView, 'setView'));
-  patched = replaceSection(patched, 'function renderProjects() {', 'function escapeHtml(', renamedFunction(r5RenderProjects, 'renderProjects'));
-  patched = replaceSection(patched, 'function renderSettings() {', 'function buildStrictFrameLockPrompt(', renamedFunction(r5RenderSettings, 'renderSettings'));
+  patched = replaceSection(patched, 'function renderProjects() {', 'function escapeHtml(', renamedFunction(r48RenderProjects, 'renderProjects'));
+  patched = replaceSection(patched, 'function renderSettings() {', 'function buildStrictFrameLockPrompt(', renamedFunction(r48RenderSettings, 'renderSettings'));
   patched = replaceSection(patched, 'function renderInspector() {', 'function renderSummary() {', renamedFunction(r37RenderInspector, 'renderInspector'));
   patched = replaceSection(patched, 'function renderSummary() {', 'function renderSettings() {', renamedFunction(r37RenderSummary, 'renderSummary'));
   patched = replaceSection(patched, 'function buildStrictFrameLockPrompt(segment) {', 'function updateRatioTip() {', renamedFunction(r34BuildStrictFrameLockPrompt, 'buildStrictFrameLockPrompt'));
@@ -3375,7 +3683,7 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, 
   patched = replaceSection(patched, 'async function recoverLatestDriveOutputWhenEmpty(force = false) {', 'function renderJobs() {', renamedFunction(r5RecoverLatestDriveOutputWhenEmpty, 'recoverLatestDriveOutputWhenEmpty'));
   patched = replaceSection(patched, 'function renderJobs() {', 'function findSegmentIdByOutputIndex(', renamedFunction(r5RenderJobs, 'renderJobs'));
   patched = replaceSection(patched, 'function jobStageMarkup(', 'function frameCard(', renamedFunction(r18JobStageMarkup, 'jobStageMarkup'));
-  patched = replaceSection(patched, 'function reEditSegment(segmentId) {', 'function renderAll() {', renamedFunction(r6ReEditSegment, 'reEditSegment'));
+  patched = replaceSection(patched, 'function reEditSegment(segmentId) {', 'function renderAll() {', renamedFunction(r48ReEditSegment, 'reEditSegment'));
   patched = replaceSection(patched, 'async function syncRemoteTasks() {', 'async function bindProviderTaskAndRecover(', renamedFunction(r5SyncRemoteTasks, 'syncRemoteTasks'));
   patched = replaceSection(patched, 'async function addReferenceAssets(fileList) {', 'async function uploadReferenceVideo(projectId) {', renamedFunction(r37AddReferenceAssets, 'addReferenceAssets'));
   patched = replaceSection(
@@ -3540,32 +3848,24 @@ async function r21ConfirmMaterialRights(error) {
     await persist();
   }
 `;
-  const guard = `  if (!options.allowResubmit && !state.draft?.pendingVersionFork) {
+  const guard = `  if (!options.allowResubmit) {
     await loadOutputs(false).catch(() => {});
     const retryableStatuses = new Set(['failed', 'cancelled', 'canceled']);
-    const retryable = segments.filter(segment => {
+    const reusable = segments.filter(segment => {
       const status = String(segment?.status || '').toLowerCase();
-      const hasOutput = Boolean(
-        segment?.outputPath
-        || segment?.outputUrl
-        || (state.outputs || []).some(output => Number(output.index) === Number(segment.index))
-      );
-      return retryableStatuses.has(status) && !hasOutput;
+      const hasPrevious = segmentHasExistingTask(segment)
+        || Boolean(segment?.outputPath || segment?.outputUrl)
+        || (state.outputs || []).some(output => Number(output.index) === Number(segment.index));
+      return hasPrevious || retryableStatuses.has(status);
     });
-    const existing = segments.filter(segment => !retryable.includes(segment) && (
-      segmentHasExistingTask(segment)
-      || (state.outputs || []).some(output => Number(output.index) === Number(segment.index))
-    ));
-    if (existing.length) {
-      r13MarkVersionForkForSubmit(segmentIds);
-      toast('将创建新版本', '当前项目已有任务或视频；确认提交后会自动创建新的 V-N 独立项目，原历史保持不变。');
-    }
-    if (!existing.length && retryable.length) {
-      retryable.forEach(resetSegmentForNewSubmit);
-      state.outputs = (state.outputs || []).filter(isOutputCurrentForSegment);
+    if (reusable.length) {
+      reusable.forEach(resetSegmentForNewSubmit);
+      state.draft.pendingVersionFork = null;
+      options = { ...options, allowResubmit: true, sameProjectBatch: true };
       saveCurrentWorkspaceSelection();
       renderAll();
       await persist();
+      toast('将在当前项目新增生成', '本次任务会继续归属于当前一级项目；历史输出保留，不会创建新的 V-N 项目。');
     }
   }
 `;
@@ -3583,7 +3883,7 @@ async function r21ConfirmMaterialRights(error) {
   patched = patched.replace(versionForkMarker, r37PaidConfirm);
   const r37ConfirmEndMarker = "  if (!await confirmBox('确认提交真实任务', '将提交 ' + segments.length + ' 个视频片段。\\n\\n本次预估费用' + (lowerBoundCost ? '至少' : '约') + ' ¥' + estimatedTotal.toFixed(2) + '。\\n' + costSummary + '\\n\\n最终费用以 Ark usage / 火山方舟账单为准。')) return;";
   if (!patched.includes(r37ConfirmEndMarker)) throw new Error('无法定位 R37 费用确认点');
-  patched = patched.replace(r37ConfirmEndMarker, r37ConfirmEndMarker + '\n' + "  if (state.draft?.pendingVersionFork) {\n    try {\n      const versionFork = await r6ForkCurrentDraftForSubmit(segmentIds);\n      if (versionFork) {\n        segmentIds = versionFork.segmentIds;\n        segments = state.draft.segments.filter(segment => segmentIds.includes(segment.id));\n        options = { ...options, allowResubmit: false, versionForked: true };\n        if (!segments.length) return toast('无法创建新版本任务', '新版本中没有找到要提交的片段。');\n      }\n    } catch (error) {\n      console.error('[Davis Video Studio] version fork failed', error);\n      return toast('新版本创建失败', errorMessage(error, '无法创建独立版本，请稍后重试'));\n    }\n  }");
+  patched = patched.replace(r37ConfirmEndMarker, r37ConfirmEndMarker + '\n' + "  if (state.draft?.pendingVersionFork) state.draft.pendingVersionFork = null;");
   patched = patched.replace("    segments.forEach(s => { s.status = 'preparing'; s.progress = 1; s.error = null; s.remoteTaskId = null; s.providerTaskId = null; s.remoteSegmentId = null; s.outputPath = null; });",
     "    segments.forEach(s => { s.status = 'preparing'; s.progress = 1; s.error = null; s.submissionStartedAt = Date.now(); if (options.allowResubmit) { s.remoteTaskId = null; s.providerTaskId = null; s.remoteSegmentId = null; s.outputPath = null; } });");
   const fileDropEvents = `  const zone = $('upload-zone');
@@ -3675,7 +3975,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   };
 
   r46Boot().catch(error => {
-    console.error('[Davis Video Studio R47] boot failed', error);
+    console.error('[Davis Video Studio R48] boot failed', error);
     const box = document.createElement('div');
     box.style.cssText = 'position:fixed;inset:20px;z-index:99999;background:#220b12;color:#fff;border:1px solid #ff6075;border-radius:14px;padding:20px;font:14px/1.6 system-ui;overflow:auto';
     box.innerHTML = `<strong>Davis Video 启动失败</strong><br>${String(error?.message || error).replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]))}<br><br>请保留 seedance/app-v46.js，并覆盖本包中的 ai-assistant.html 与 seedance/app.js；随后 Ctrl+F5 强制刷新。`;
