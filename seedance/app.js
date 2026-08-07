@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260807-personal-usage-popover-r39';
+const PRODUCTION_BUILD = '20260807-usage-modal-detail-r41';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -1658,14 +1658,31 @@ async function r5Init() {
   if (!await initSession()) return;
   void r38LoadUsageSummary(true);
   wireEvents();
-  const usagePopover = $('personal-usage-popover');
+  const usageModal = $('personal-usage-modal');
   const usageOpen = $('personal-usage-open');
-  if (usagePopover && usageOpen) {
-    usagePopover.addEventListener('toggle', event => {
-      usageOpen.setAttribute('aria-expanded', event.newState === 'open' ? 'true' : 'false');
-      if (event.newState === 'open') void r38LoadUsageSummary(false);
-    });
-  }
+  const usageClose = $('personal-usage-close');
+  const usageBackdrop = $('personal-usage-backdrop');
+  const closeUsageModal = () => {
+    if (!usageModal) return;
+    usageModal.hidden = true;
+    usageModal.setAttribute('aria-hidden', 'true');
+    usageOpen?.setAttribute('aria-expanded', 'false');
+    document.body.classList.remove('usage-modal-open');
+  };
+  const openUsageModal = () => {
+    if (!usageModal) return;
+    usageModal.hidden = false;
+    usageModal.setAttribute('aria-hidden', 'false');
+    usageOpen?.setAttribute('aria-expanded', 'true');
+    document.body.classList.add('usage-modal-open');
+    void r38LoadUsageSummary(false);
+  };
+  usageOpen?.addEventListener('click', openUsageModal);
+  usageClose?.addEventListener('click', closeUsageModal);
+  usageBackdrop?.addEventListener('click', closeUsageModal);
+  window.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && usageModal && !usageModal.hidden) closeUsageModal();
+  });
   r5WireCreateModal();
   enhanceCustomSelects();
   document.body.dataset.seedanceBuild = APP_BUILD;
@@ -2345,26 +2362,26 @@ async function r35UploadReferenceAssets(projectId, segmentsForProgress = []) {
 function r37ModelCatalog() {
   return {
     v20: {
-      label: 'Davis Video 2.0（Seedance 2.0）',
-      shortLabel: '2.0', family: '2.0', minDuration: 4, maxDuration: 15,
+      label: 'Seedance 2.0',
+      shortLabel: 'Seedance 2.0', family: '2.0', minDuration: 4, maxDuration: 15,
       resolutions: ['480p','720p','1080p','4k'], supportsAudio: true, supportsVideoReference: true,
       pricing: { noVideo: 46, withVideo: 28 },
     },
     fast: {
-      label: 'Davis Video 2.0 Fast',
-      shortLabel: '2.0 Fast', family: '2.0', minDuration: 4, maxDuration: 15,
+      label: 'Seedance 2.0 Fast',
+      shortLabel: 'Seedance 2.0 Fast', family: '2.0', minDuration: 4, maxDuration: 15,
       resolutions: ['480p','720p'], supportsAudio: true, supportsVideoReference: true,
       pricing: { noVideo: 37, withVideo: 22 },
     },
     mini: {
-      label: 'Davis Video 2.0 Mini',
-      shortLabel: '2.0 Mini', family: '2.0', minDuration: 4, maxDuration: 15,
+      label: 'Seedance 2.0 Mini',
+      shortLabel: 'Seedance 2.0 Mini', family: '2.0', minDuration: 4, maxDuration: 15,
       resolutions: ['480p','720p'], supportsAudio: false, supportsVideoReference: true,
       pricing: { noVideo: 23, withVideo: 14 },
     },
     v15: {
-      label: 'Davis Video 1.5 Pro',
-      shortLabel: '1.5 Pro', family: '1.5', minDuration: 1, maxDuration: 12,
+      label: 'Seedance 1.5 Pro',
+      shortLabel: 'Seedance 1.5 Pro', family: '1.5', minDuration: 1, maxDuration: 12,
       resolutions: ['480p','720p','1080p'], supportsAudio: true, supportsVideoReference: false,
       pricing: { silent: 8, audio: 16 },
     },
@@ -2469,13 +2486,13 @@ function r37ValidateSegmentConfig(segment) {
     return `${config.label} 当前支持 ${config.resolutions.map(item => item.toUpperCase()).join(' / ')}，请调整清晰度。`;
   }
   if (segment?.model === 'v15' && profile.hasVideo) {
-    return 'Davis Video 1.5 Pro 当前不接收参考视频；请改用 2.0 系列，或移除参考视频。';
+    return 'Seedance 1.5 Pro 当前不接收参考视频；请改用 2.0 系列，或移除参考视频。';
   }
   if (segment?.model === 'v15' && profile.hasAudio) {
-    return 'Davis Video 1.5 Pro 当前不接收参考音频；声音开关只控制输出视频是否带声音。';
+    return 'Seedance 1.5 Pro 当前不接收参考音频；声音开关只控制输出视频是否带声音。';
   }
   if (segment?.model === 'v15' && state.draft?.mode === 'text_only' && profile.refs.length > 1) {
-    return 'Davis Video 1.5 Pro 当前最多使用 1 张图片参考；多参考素材请改用 2.0 系列。';
+    return 'Seedance 1.5 Pro 当前最多使用 1 张图片参考；多参考素材请改用 2.0 系列。';
   }
   return '';
 }
@@ -2494,10 +2511,10 @@ function r37ApplyModelControls(segment) {
   if (!segment) return;
   const catalog = r37ModelCatalog();
   segment.model = r37SetSelectOptions($('segment-model'), [
-    { value:'v20', label:'Davis Video 2.0 · 1080P/4K' },
-    { value:'fast', label:'Davis Video 2.0 Fast' },
-    { value:'mini', label:'Davis Video 2.0 Mini' },
-    { value:'v15', label:'Davis Video 1.5 Pro · 最短1秒' },
+    { value:'v20', label:'Seedance 2.0 · 1080P/4K' },
+    { value:'fast', label:'Seedance 2.0 Fast' },
+    { value:'mini', label:'Seedance 2.0 Mini' },
+    { value:'v15', label:'Seedance 1.5 Pro · 最短1秒' },
   ], segment.model || 'v20') || 'v20';
   const config = catalog[segment.model] || catalog.v20;
 
@@ -2701,13 +2718,94 @@ function r38RenderUsageSummary(summary, error = null) {
     return;
   }
 
+  const periods = {
+    today: { key:'today', title:'今日', label:'今日已产生费用', sublabel: summary.as_of_date || '', row: summary.today || {} },
+    month: { key:'month', title:'本月', label:'本月已产生费用', sublabel: summary.month_label || '', row: summary.month || {} },
+    year: { key:'year', title:'本年', label:'本年已产生费用', sublabel: summary.year_label || '', row: summary.year || {} },
+  };
+  const safePeriod = periods[r38RenderUsageSummary.selectedPeriod] ? r38RenderUsageSummary.selectedPeriod : 'month';
+  r38RenderUsageSummary.selectedPeriod = safePeriod;
+
+  const cardMarkup = key => {
+    const item = periods[key];
+    const data = item.row || {};
+    const cost = Math.max(0, Number(data.cost_cny || 0));
+    const tasks = Math.max(0, Number(data.generated_tasks || 0));
+    return `<button type="button" class="personal-usage-item${key === r38RenderUsageSummary.selectedPeriod ? ' is-active' : ''}" data-usage-period="${key}" aria-pressed="${key === r38RenderUsageSummary.selectedPeriod ? 'true' : 'false'}">
+      <div class="label"><span>${escapeHtml(item.label)}</span><b>${escapeHtml(item.sublabel || '')}</b></div>
+      <strong>¥${cost.toFixed(2)}</strong>
+      <span>生成 ${tasks} 段 · ${escapeHtml(r38FormatTokens(data.tokens))} · ${escapeHtml(r38FormatDuration(data.generated_seconds))}</span>
+    </button>`;
+  };
+
+  const renderDetail = key => {
+    const item = periods[key] || periods.month;
+    const data = item.row || {};
+    const cost = Math.max(0, Number(data.cost_cny || 0));
+    const tasks = Math.max(0, Number(data.generated_tasks || 0));
+    const tokens = r38FormatTokens(data.tokens);
+    const duration = r38FormatDuration(data.generated_seconds);
+    const detail = body.querySelector('#personal-usage-detail');
+    if (!detail) return;
+    body.querySelectorAll('[data-usage-period]').forEach(node => {
+      const active = node.dataset.usagePeriod === key;
+      node.classList.toggle('is-active', active);
+      node.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+    detail.innerHTML = `<div class="personal-usage-detail-main">
+      <div class="personal-usage-detail-head">
+        <div><h3>${escapeHtml(item.title)}费用明细</h3><span>${escapeHtml(item.sublabel || '')}</span></div>
+        <span>点击上方卡片切换统计周期</span>
+      </div>
+      <div class="personal-usage-detail-grid">
+        <article class="personal-usage-detail-metric">
+          <span>已产生费用</span>
+          <strong>¥${cost.toFixed(2)}</strong>
+          <small>已按 Ark 实际 usage × 模型单价换算</small>
+        </article>
+        <article class="personal-usage-detail-metric">
+          <span>生成片段</span>
+          <strong>${tasks} 段</strong>
+          <small>${escapeHtml(item.title)}周期内成功生成的片段数</small>
+        </article>
+        <article class="personal-usage-detail-metric">
+          <span>累计 Tokens</span>
+          <strong>${escapeHtml(tokens)}</strong>
+          <small>用于视频生成的 Ark usage 消耗量</small>
+        </article>
+        <article class="personal-usage-detail-metric">
+          <span>累计时长</span>
+          <strong>${escapeHtml(duration)}</strong>
+          <small>该周期内成功生成视频总时长</small>
+        </article>
+      </div>
+    </div>
+    <aside class="personal-usage-side personal-usage-detail-side">
+      <section class="personal-usage-side-card">
+        <strong>${escapeHtml(item.title)}统计说明</strong>
+        <ul>
+          <li>失败且未产生 usage 的任务，不计入费用。</li>
+          <li>费用仅作页面参考，最终以火山方舟账单为准。</li>
+          <li>如任务正在进行中，预计费用会在下方单独提示。</li>
+        </ul>
+      </section>
+      <section class="personal-usage-side-card">
+        <strong>当前选中周期</strong>
+        <p>你正在查看 <b>${escapeHtml(item.title)}</b> 维度的费用情况，可点击上方“今日 / 本月 / 本年”卡片进行切换，并立即查看对应明细。</p>
+      </section>
+    </aside>`;
+  };
+
   date.textContent = `当前日期：${summary.as_of_date || '--'} · 北京时间`;
-  body.className = 'personal-usage-grid';
-  body.innerHTML = [
-    r38UsagePeriodMarkup('今日已产生费用', summary.as_of_date || '', summary.today),
-    r38UsagePeriodMarkup('本月已产生费用', summary.month_label || '', summary.month),
-    r38UsagePeriodMarkup('本年已产生费用', summary.year_label || '', summary.year),
-  ].join('');
+  body.className = 'personal-usage-shell';
+  body.innerHTML = `<div class="personal-usage-grid">${cardMarkup('today')}${cardMarkup('month')}${cardMarkup('year')}</div><div id="personal-usage-detail" class="personal-usage-detail"></div>`;
+  body.querySelectorAll('[data-usage-period]').forEach(node => {
+    node.addEventListener('click', () => {
+      r38RenderUsageSummary.selectedPeriod = node.dataset.usagePeriod || 'month';
+      renderDetail(r38RenderUsageSummary.selectedPeriod);
+    });
+  });
+  renderDetail(r38RenderUsageSummary.selectedPeriod);
 
   if (overview) {
     const year = summary.year || {};
