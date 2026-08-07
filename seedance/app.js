@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260807-usage-chart-r42';
+const PRODUCTION_BUILD = '20260807-project-category-r43';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -35,6 +35,182 @@ function r32InstallFfmpegWorkerShim() {
 }
 
 r32InstallFfmpegWorkerShim();
+
+
+
+function r43NormalizeCategory(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+}
+
+function r43InferHistoricalCategory(name) {
+  const value = String(name || '').toLocaleLowerCase('zh-CN');
+  if (value.includes('周年')) return 'HR侧相关-周年庆';
+  if (value.includes('荣誉') || value.includes('激励')) return '荣誉体系-即时激励';
+  if (value.includes('小蓝书')) return 'Smart文化-小蓝书运营';
+  if (value.includes('团建') || value.includes('旅游')) return '工会相关-团建旅游';
+  if (value.includes('opentalk') || value.includes('waic')) return 'Smart文化-OpenTalk';
+  if (value.includes('机器人')) return 'Smart文化-送物机器人';
+  if (value.includes('贷款')) return '部门-贷款';
+  if (value.includes('财富')) return '部门-财富';
+  if (value.includes('上海')) return '部门-上海';
+  if (value.includes('成都')) return '部门-成都';
+  return '其他';
+}
+
+function r43ProjectCategoryValue(draft = state.draft) {
+  if (!draft) return '其他';
+  return r43NormalizeCategory(draft.projectCategory || draft.project_category)
+    || r43InferHistoricalCategory(draft.name)
+    || '其他';
+}
+
+function r43IncomingProjectCategory() {
+  const keys = ['project_category', 'project', 'category', 'design_project'];
+  const readParams = raw => {
+    try {
+      const params = new URLSearchParams(raw || '');
+      for (const key of keys) {
+        const value = r43NormalizeCategory(params.get(key));
+        if (value) return value;
+      }
+    } catch {}
+    return '';
+  };
+  const direct = readParams(globalThis.location?.search || '');
+  if (direct) return direct;
+
+  try {
+    const ref = document.referrer ? new URL(document.referrer) : null;
+    if (ref && ref.origin === location.origin) {
+      const value = readParams(ref.search);
+      if (value) return value;
+    }
+  } catch {}
+
+  for (const key of ['davis_design_project', 'davis_project_category', 'design_project']) {
+    try {
+      const value = r43NormalizeCategory(sessionStorage.getItem(key));
+      if (value) return value;
+    } catch {}
+  }
+  return '';
+}
+
+function r43SyncCategoryCustomVisibility(focus = false) {
+  const select = $('new-project-category');
+  const wrap = $('new-project-category-custom-wrap');
+  const input = $('new-project-category-custom');
+  if (!select || !wrap) return;
+  const custom = select.value === '__other__';
+  wrap.hidden = !custom;
+  if (custom && focus) setTimeout(() => input?.focus(), 0);
+}
+
+function r43ApplyCategoryOptions(payload, resetSelection = false) {
+  const select = $('new-project-category');
+  const custom = $('new-project-category-custom');
+  if (!select) return;
+
+  const currentValue = select.value;
+  const currentCustom = r43NormalizeCategory(custom?.value);
+  const seen = new Set();
+  const values = [];
+  for (const item of Array.isArray(payload?.options) ? payload.options : []) {
+    const value = r43NormalizeCategory(item?.value || item?.label);
+    if (!value || value === '其他' || seen.has(value)) continue;
+    seen.add(value);
+    values.push(value);
+  }
+
+  select.replaceChildren();
+  for (const value of values) {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = value;
+    select.appendChild(option);
+  }
+  const other = document.createElement('option');
+  other.value = '__other__';
+  other.textContent = '其他（手动填写）';
+  select.appendChild(other);
+
+  const incoming = r43IncomingProjectCategory();
+  const suggested = r43NormalizeCategory(payload?.suggested_category);
+  let preferred = '';
+  if (!resetSelection && currentValue && currentValue !== '__other__' && values.includes(currentValue)) {
+    preferred = currentValue;
+  } else if (!resetSelection && currentValue === '__other__' && currentCustom) {
+    preferred = currentCustom;
+  } else {
+    preferred = incoming || suggested || '其他';
+  }
+
+  if (values.includes(preferred)) {
+    select.value = preferred;
+    if (custom) custom.value = '';
+  } else {
+    select.value = '__other__';
+    if (custom) custom.value = preferred && preferred !== '其他' ? preferred : '';
+  }
+  r43SyncCategoryCustomVisibility(false);
+}
+
+async function r43LoadCategoryOptions(force = false, resetSelection = false) {
+  r43LoadCategoryOptions.cache ||= null;
+  r43LoadCategoryOptions.inflight ||= null;
+
+  if (!force && r43LoadCategoryOptions.cache) {
+    r43ApplyCategoryOptions(r43LoadCategoryOptions.cache, resetSelection);
+    return r43LoadCategoryOptions.cache;
+  }
+  if (r43LoadCategoryOptions.inflight) {
+    const data = await r43LoadCategoryOptions.inflight;
+    r43ApplyCategoryOptions(data, resetSelection);
+    return data;
+  }
+
+  const select = $('new-project-category');
+  if (select && !r43LoadCategoryOptions.cache) {
+    select.replaceChildren();
+    const loading = document.createElement('option');
+    loading.value = '__loading__';
+    loading.textContent = '正在读取设计需求项目类别...';
+    select.appendChild(loading);
+  }
+
+  r43LoadCategoryOptions.inflight = (async () => {
+    try {
+      const { data, error } = await supabase.rpc('get_video_project_category_options');
+      if (error) throw error;
+      const result = data && typeof data === 'object'
+        ? data
+        : { options: [], suggested_category: null, fallback: '其他' };
+      r43LoadCategoryOptions.cache = result;
+      return result;
+    } catch (error) {
+      console.warn('[Davis Video R43] project category options failed', error);
+      const fallback = { options: [], suggested_category: null, fallback: '其他' };
+      r43LoadCategoryOptions.cache = fallback;
+      return fallback;
+    } finally {
+      r43LoadCategoryOptions.inflight = null;
+    }
+  })();
+
+  const data = await r43LoadCategoryOptions.inflight;
+  r43ApplyCategoryOptions(data, resetSelection);
+  return data;
+}
+
+function r43ProjectCategoryFromControls() {
+  const select = $('new-project-category');
+  const custom = $('new-project-category-custom');
+  if (!select || select.value === '__loading__') return '其他';
+  if (select.value === '__other__') {
+    return r43NormalizeCategory(custom?.value) || '其他';
+  }
+  return r43NormalizeCategory(select.value) || '其他';
+}
 
 
 function r14NormalizeProjectName(value) {
@@ -415,17 +591,19 @@ function r5CreateWorkspaceClone(workspace) {
   return next;
 }
 
-function r5NewDraft(mode = 'multi_frame', name = '') {
+function r5NewDraft(mode = 'multi_frame', name = '', projectCategory = null) {
   const key = r5ModeKey(mode);
   const id = uid();
   const workspace = createWorkspaceState();
   workspace.ownerId = state.user?.id || null;
   workspace.remoteOwnerId = null;
   const displayName = String(name || '').trim() || `未命名 ${r5ModeSuffix(key)}项目`;
+  const category = r43NormalizeCategory(projectCategory) || r43InferHistoricalCategory(displayName) || '其他';
   return {
     id,
     name: displayName,
     remoteProjectName: displayName,
+    projectCategory: category,
     mode: key,
     lockedMode: key,
     projectModeLocked: true,
@@ -475,6 +653,9 @@ function r5MigrateDraftWorkspaces(draft) {
   draft.lockedMode = key;
   draft.projectModeLocked = true;
   draft.singleModeVersion = 'r5';
+  draft.projectCategory = r43NormalizeCategory(draft.projectCategory || draft.project_category)
+    || r43InferHistoricalCategory(draft.name)
+    || '其他';
   draft.frames = workspace.frames;
   draft.segments = workspace.segments;
   draft.remoteProjectId = workspace.remoteProjectId || draft.remoteProjectId || null;
@@ -701,7 +882,7 @@ function r53ProjectCandidateScore(project, stats, context) {
 async function r5VerifyProjectId(projectId, mode, snapshot) {
   if (!projectId || !r5ContextIsCurrent(snapshot)) return null;
   const { data, error } = await supabase.from('video_projects')
-    .select('id,name,mode,owner_id,created_at,updated_at,status')
+    .select('id,name,mode,owner_id,project_category,created_at,updated_at,status')
     .eq('owner_id', r16ProjectOwnerId())
     .eq('id', projectId)
     .maybeSingle();
@@ -745,7 +926,7 @@ async function r5ResolveFixedProject(snapshot) {
     const list = [...new Set((ids || []).filter(Boolean))];
     if (!list.length || !r5ContextIsCurrent(snapshot)) return;
     const { data, error } = await supabase.from('video_projects')
-      .select('id,name,mode,owner_id,created_at,updated_at,status')
+      .select('id,name,mode,owner_id,project_category,created_at,updated_at,status')
       .eq('owner_id', r16ProjectOwnerId())
       .neq('status', 'deleted')
       .in('id', list);
@@ -759,7 +940,7 @@ async function r5ResolveFixedProject(snapshot) {
 
   if (baseName) {
     const { data, error } = await supabase.from('video_projects')
-      .select('id,name,mode,owner_id,created_at,updated_at,status')
+      .select('id,name,mode,owner_id,project_category,created_at,updated_at,status')
       .eq('owner_id', r16ProjectOwnerId())
       .neq('status', 'deleted')
       .eq('mode', mode)
@@ -773,7 +954,7 @@ async function r5ResolveFixedProject(snapshot) {
     const fallbackName = String(state.draft.remoteProjectName || '').trim();
     if (fallbackName && fallbackName !== baseName) {
       const { data, error } = await supabase.from('video_projects')
-        .select('id,name,mode,owner_id,created_at,updated_at,status')
+        .select('id,name,mode,owner_id,project_category,created_at,updated_at,status')
         .eq('owner_id', r16ProjectOwnerId())
         .neq('status', 'deleted')
         .eq('mode', mode)
@@ -866,8 +1047,11 @@ async function r5ResolveFixedProject(snapshot) {
   state.draft.remoteOwnerId = project.owner_id || r16ProjectOwnerId();
   state.draft.ownerId = state.draft.remoteOwnerId || state.draft.ownerId;
   state.draft.remoteProjectName = project.name || baseName || state.draft.remoteProjectName;
+  const resolvedCategory = r43NormalizeCategory(project.project_category);
+  const categoryChanged = Boolean(resolvedCategory && resolvedCategory !== r43ProjectCategoryValue(state.draft));
+  if (resolvedCategory) state.draft.projectCategory = resolvedCategory;
 
-  if (changed) await saveDraft(state.draft);
+  if (changed || categoryChanged) await saveDraft(state.draft);
   return project;
 }
 
@@ -1430,9 +1614,12 @@ function r5OpenCreateModal() {
   if (!modal) return;
   const input = $('new-project-name');
   if (input) input.value = '';
+  const custom = $('new-project-category-custom');
+  if (custom) custom.value = '';
   const cancel = $('project-mode-cancel');
   if (cancel) cancel.hidden = !(state.drafts || []).length;
   modal.hidden = false;
+  void r43LoadCategoryOptions(false, true);
   setTimeout(() => input?.focus(), 0);
 }
 
@@ -1442,6 +1629,8 @@ function r5CloseCreateModal() {
 
 async function r5CreateProjectFromMode(mode) {
   const key = r5ModeKey(mode);
+  await r43LoadCategoryOptions(false, false);
+  const category = r43ProjectCategoryFromControls();
   const inputName = String($('new-project-name')?.value || '').trim();
   const displayName = inputName || `未命名 ${r5ModeSuffix(key)}项目`;
 
@@ -1460,7 +1649,8 @@ async function r5CreateProjectFromMode(mode) {
     return;
   }
 
-  const draft = newDraft(key, displayName);
+  const draft = newDraft(key, displayName, category);
+  draft.projectCategorySource = $('new-project-category')?.value === '__other__' ? 'manual_or_other' : 'design_request_project';
   await saveDraft(draft);
   state.drafts.unshift(draft);
   r5CloseCreateModal();
@@ -1471,6 +1661,7 @@ async function r5CreateProjectFromMode(mode) {
 function r5WireCreateModal() {
   if ($('new-project')) $('new-project').onclick = r5OpenCreateModal;
   qsa('[data-create-project-mode]').forEach(btn => btn.onclick = () => r5CreateProjectFromMode(btn.dataset.createProjectMode));
+  if ($('new-project-category')) $('new-project-category').onchange = () => r43SyncCategoryCustomVisibility(true);
   if ($('project-mode-cancel')) $('project-mode-cancel').onclick = r5CloseCreateModal;
   if ($('project-mode-modal')) $('project-mode-modal').onclick = event => { if (event.target === $('project-mode-modal') && (state.drafts || []).length) r5CloseCreateModal(); };
 }
@@ -1544,7 +1735,7 @@ async function r11RestoreCloudDrafts(localDrafts) {
 
   let projectQuery = supabase
     .from('video_projects')
-    .select('id,name,mode,owner_id,created_at,updated_at,status');
+    .select('id,name,mode,owner_id,project_category,created_at,updated_at,status');
   projectQuery = scopeVideoRead(projectQuery, state.user);
   const { data, error } = await projectQuery
     .order('created_at', { ascending: false })
@@ -1592,6 +1783,9 @@ async function r11RestoreCloudDrafts(localDrafts) {
       draft.ownerId = project.owner_id;
       workspace.remoteOwnerId = project.owner_id;
       workspace.ownerId = project.owner_id;
+      if (r43NormalizeCategory(project.project_category)) {
+        draft.projectCategory = r43NormalizeCategory(project.project_category);
+      }
       try { await saveDraft(draft); } catch (saveError) {
         console.warn('[Davis Video R16] failed to persist project owner', projectId, saveError);
       }
@@ -1618,7 +1812,11 @@ async function r11RestoreCloudDrafts(localDrafts) {
   for (const project of projects) {
     if (!project?.id || boundProjectIds.has(project.id)) continue;
     const mode = r5ModeKey(project.mode);
-    const draft = newDraft(mode, project.name || `云端 ${r5ModeLabel(mode)}项目`);
+    const draft = newDraft(
+      mode,
+      project.name || `云端 ${r5ModeLabel(mode)}项目`,
+      r43NormalizeCategory(project.project_category) || null
+    );
     const workspace = draft.workspaces[mode];
 
     draft.id = `cloud-${project.id}`;
@@ -2727,16 +2925,18 @@ function r42UsageOverviewMarkup(summary, period) {
 
 function r42TooltipMarkup(row) {
   const models = Array.isArray(row?.models) ? row.models : [];
-  const projectTypes = Array.isArray(row?.project_types) ? row.project_types : [];
+  const projectTypes = Array.isArray(row?.project_categories)
+    ? row.project_categories
+    : (Array.isArray(row?.project_types) ? row.project_types : []);
   const modelRows = models.length
     ? models.map(item => `<div class="usage-tip-row usage-tip-model"><span><i class="usage-tip-dot"></i>${escapeHtml(item.label || 'Seedance')}</span><b>¥${Math.max(0, Number(item.cost_cny || 0)).toFixed(2)} · ${Math.max(0, Number(item.share_pct || 0)).toFixed(1)}%</b></div>`).join('')
     : '<div class="usage-tip-row"><span>无已计费模型</span><b>—</b></div>';
   const projectRows = projectTypes.length
-    ? projectTypes.map(item => `<div class="usage-tip-row"><span><i class="usage-tip-dot"></i>${escapeHtml(item.label || '其他项目')}</span><b>${Math.max(0, Number(item.share_pct || 0)).toFixed(1)}%</b></div>`).join('')
-    : '<div class="usage-tip-row"><span>无生成内容</span><b>—</b></div>';
+    ? projectTypes.map(item => `<div class="usage-tip-row"><span><i class="usage-tip-dot"></i>${escapeHtml(item.label || '其他')}</span><b>¥${Math.max(0, Number(item.cost_cny || 0)).toFixed(2)} · ${Math.max(0, Number(item.share_pct || 0)).toFixed(1)}%</b></div>`).join('')
+    : '<div class="usage-tip-row"><span>无已计费项目</span><b>—</b></div>';
   return `<div class="usage-tip-top"><span>${escapeHtml(row?.full_label || row?.label || '--')}</span><strong>¥${Math.max(0, Number(row?.cost_cny || 0)).toFixed(2)}</strong></div>
     <div class="usage-tip-section"><strong>模型</strong>${modelRows}</div>
-    <div class="usage-tip-section"><strong>生成内容项目占比</strong>${projectRows}</div>`;
+    <div class="usage-tip-section"><strong>项目占比（按花费）</strong>${projectRows}</div>`;
 }
 
 function r42RenderUsageChart(chart, summary) {
@@ -2751,7 +2951,7 @@ function r42RenderUsageChart(chart, summary) {
   const title = period === 'today' ? '今日消费金额（CNY）' : period === 'year' ? '本年消费金额（CNY）' : '本月消费金额（CNY）';
   const grainLabel = period === 'today' ? '今日 · 按小时' : period === 'year' ? '本年 · 按月' : '本月 · 按天';
   host.innerHTML = `<div class="personal-usage-chart-toolbar">
-      <div class="personal-usage-chart-title"><strong>${title}</strong><span>鼠标悬停柱子查看模型与项目占比</span></div>
+      <div class="personal-usage-chart-title"><strong>${title}</strong><span>鼠标悬停柱子查看模型与业务项目占比</span></div>
       <span class="personal-usage-period-chip">时间维度　${grainLabel}</span>
     </div>
     <div class="personal-usage-chart-wrap">
@@ -2968,7 +3168,7 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, 
     r5BuildSplitDraft,r5MigrateDraftCollection,r5ContextSnapshot,r5ContextIsCurrent,r5ExactTaskIds,
     r53IsGenericProjectName,r53NormalizePrompt,r53PromptOverlap,r53ProjectCandidateScore,r5VerifyProjectId,
     r5ResolveFixedProject,r5TaskScore,r5OutputStableKey,r5CacheRequestUrl,r5ReadPersistentVideo,r5PrunePersistentVideoCache,
-    r5WritePersistentVideo,r5OpenCreateModal,r5CloseCreateModal,r5CreateProjectFromMode,r5WireCreateModal,
+    r5WritePersistentVideo,r43NormalizeCategory,r43InferHistoricalCategory,r43ProjectCategoryValue,r43IncomingProjectCategory,r43SyncCategoryCustomVisibility,r43ApplyCategoryOptions,r43LoadCategoryOptions,r43ProjectCategoryFromControls,r5OpenCreateModal,r5CloseCreateModal,r5CreateProjectFromMode,r5WireCreateModal,
     r6ExistingProjectNames,r6ForkCurrentDraftForSubmit,r10StableUploadPlan,r10ApplyFrameBinding,
     r10SubmissionContext,r10AssertContext,r10RecoverFrameBindings,r10RecoverOrphan,r11RestoreCloudDrafts,r13MarkVersionForkForSubmit,r14NormalizeProjectName,r14ProjectNameExists,r15HasFilePayload,r15WireFileDropzone,r15PreventDocumentFileNavigation,
     r16ProjectOwnerId,r16ScopeProjectRead,r16CurrentProjectWritable,r16AssertCurrentProjectWritable,r16ApplyReadOnlyControls,
@@ -2978,6 +3178,12 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, 
     "const LAST_SELECTED_DRAFT_KEY = 'seedance_last_selected_draft_id_v1';\n\n" + support);
   if (!patched.includes('.map((segment, index) => ({ ...segment, index }));')) throw new Error('无法定位 Segment 身份稳定修复点');
   patched = patched.replace('.map((segment, index) => ({ ...segment, index }));', '.map((segment, index) => { segment.index = index; return segment; });');
+  const r43ProjectPayloadMarker = "    frame_fit_mode: state.draft.fitMode,\n    status: 'draft',";
+  if (!patched.includes(r43ProjectPayloadMarker)) throw new Error('无法定位 video_projects 项目类别写入点');
+  patched = patched.replace(
+    r43ProjectPayloadMarker,
+    "    frame_fit_mode: state.draft.fitMode,\n    project_category: r43ProjectCategoryValue(state.draft),\n    status: 'draft',"
+  );
   patched = replaceSection(patched, 'function newDraft() {', 'function createWorkspaceState() {', renamedFunction(r5NewDraft, 'newDraft'));
   patched = replaceSection(patched, 'function migrateDraftWorkspaces(draft) {', 'function getWorkspace(', renamedFunction(r5MigrateDraftWorkspaces, 'migrateDraftWorkspaces'));
   patched = replaceSection(patched, 'function getWorkspace(', 'function bindCurrentWorkspace() {', renamedFunction(r5GetWorkspace, 'getWorkspace'));
