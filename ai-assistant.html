@@ -15,17 +15,28 @@
 .usage-popover-trigger-wrap{position:relative;display:inline-flex;align-items:center}
 .personal-usage-open{white-space:nowrap}
 .personal-usage-open[aria-expanded="true"],.personal-usage-open:active{border-color:#c8ceff;background:#f5f6ff;color:#4f5fe7}
-.personal-usage-popover{position:fixed;top:76px;right:150px;width:min(520px,calc(100vw - 32px));margin:0;padding:0;border:0;border-radius:16px;background:#fff;box-shadow:0 20px 56px rgba(25,35,70,.18),0 4px 16px rgba(25,35,70,.08);color:#20263a;z-index:3000;overflow:visible}
-.personal-usage-popover::backdrop{background:transparent}
-.personal-usage-popover[popover]:not(:popover-open){display:none}
-.personal-usage-popover-inner{padding:16px}
-.personal-usage-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:13px}.personal-usage-title{display:flex;flex-direction:column;gap:4px;min-width:0}.personal-usage-title strong{font-size:15px;line-height:1.25;color:#20263a}.personal-usage-title span{font-size:10px;color:#8a92a6;white-space:nowrap}.personal-usage-head-actions{display:flex;align-items:center;gap:6px}.personal-usage-refresh,.personal-usage-close{border:1px solid #e4e7f0;background:#fff;color:#69738b;border-radius:9px;height:30px;cursor:pointer}.personal-usage-refresh{padding:0 9px;font-size:10px}.personal-usage-close{width:30px;padding:0;font-size:17px;line-height:1}.personal-usage-refresh:hover,.personal-usage-close:hover{border-color:#cbd1f5;color:#4f57d9;background:#fafaff}
-.personal-usage-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.personal-usage-item{padding:11px;border:1px solid #e9ebf3;border-radius:11px;background:linear-gradient(180deg,#fff,#fbfbfe);min-width:0}.personal-usage-item .label{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:10px;color:#7b8499}.personal-usage-item .label b{font-size:9px;font-weight:500;color:#a0a7b7}.personal-usage-item>strong{display:block;margin:7px 0 5px;font-size:20px;line-height:1;color:#20263a;letter-spacing:-.02em}.personal-usage-item>span{display:block;font-size:9px;line-height:1.35;color:#8a92a6;white-space:normal}
-.personal-usage-overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin-top:10px;padding:10px 0;border:1px solid #eef0f6;border-radius:11px;background:#fcfcfe}.personal-usage-overview-item{padding:0 11px;min-width:0}.personal-usage-overview-item+ .personal-usage-overview-item{border-left:1px solid #eceef5}.personal-usage-overview-item span{display:block;font-size:9px;color:#9299aa;margin-bottom:4px}.personal-usage-overview-item strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:#2a3145}
-.personal-usage-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;padding-top:10px;border-top:1px solid #f0f1f5;font-size:9px;line-height:1.45;color:#8991a4}.personal-usage-foot .pending{color:#625ed8;font-weight:600;white-space:nowrap}.personal-usage-foot .basis{min-width:0}.personal-usage-loading{padding:28px 0;text-align:center;font-size:11px;color:#9198aa}.personal-usage-error{padding:18px 12px;border-radius:10px;background:#fff7f8;color:#c45a65;font-size:11px}
-@supports(anchor-name:--usage-trigger){#personal-usage-open{anchor-name:--usage-trigger}.personal-usage-popover{top:calc(anchor(bottom) + 10px);right:auto;left:anchor(right);transform:translateX(-100%)}}
-@media(max-width:900px){.personal-usage-popover{top:70px;right:12px;width:calc(100vw - 24px)}.personal-usage-grid{grid-template-columns:1fr}.personal-usage-overview{grid-template-columns:1fr}.personal-usage-overview-item{padding:7px 11px}.personal-usage-overview-item+.personal-usage-overview-item{border-left:0;border-top:1px solid #eceef5}.personal-usage-foot{align-items:flex-start;flex-direction:column}}
-</style>
+.personal-usage-modal[hidden]{display:none!important}
+.personal-usage-modal{position:fixed;inset:0;z-index:3000}
+.personal-usage-backdrop{position:absolute;inset:0;background:rgba(20,27,45,.30);backdrop-filter:blur(4px)}
+.personal-usage-dialog{position:relative;z-index:1;width:min(980px,calc(100vw - 40px));max-height:min(84vh,860px);margin:52px auto 0;background:#fff;border-radius:24px;box-shadow:0 28px 80px rgba(24,34,70,.22),0 8px 24px rgba(24,34,70,.12);display:flex;flex-direction:column;overflow:hidden}
+.personal-usage-dialog-inner{padding:22px 24px 18px;overflow:auto}
+.personal-usage-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}.personal-usage-title{display:flex;flex-direction:column;gap:6px;min-width:0}.personal-usage-title strong{font-size:28px;line-height:1.15;color:#20263a}.personal-usage-title span{font-size:14px;color:#8a92a6;white-space:nowrap}.personal-usage-head-actions{display:flex;align-items:center;gap:10px}.personal-usage-refresh,.personal-usage-close{border:1px solid #e4e7f0;background:#fff;color:#69738b;border-radius:12px;height:42px;cursor:pointer}.personal-usage-refresh{padding:0 14px;font-size:14px;font-weight:600}.personal-usage-close{width:42px;padding:0;font-size:24px;line-height:1}.personal-usage-refresh:hover,.personal-usage-close:hover{border-color:#cbd1f5;color:#4f57d9;background:#fafaff}
+.personal-usage-loading{padding:48px 0;text-align:center;font-size:15px;color:#9198aa}.personal-usage-error{padding:18px 16px;border-radius:14px;background:#fff7f8;color:#c45a65;font-size:14px;line-height:1.6}
+.personal-usage-shell{display:grid;gap:16px}.personal-usage-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.personal-usage-item{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:18px;border:1px solid #e7eaf5;border-radius:18px;background:linear-gradient(180deg,#fff,#fbfbfe);min-width:0;text-align:left;cursor:pointer;transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease,background .18s ease}
+.personal-usage-item:hover{border-color:#cfd6ff;box-shadow:0 12px 28px rgba(79,95,231,.10);transform:translateY(-1px)}
+.personal-usage-item.is-active{border-color:#5567ef;background:linear-gradient(180deg,#f8f9ff,#eef1ff);box-shadow:0 14px 30px rgba(79,95,231,.14)}
+.personal-usage-item .label{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;font-size:13px;color:#6f7890}.personal-usage-item .label b{font-size:12px;font-weight:600;color:#a0a7b7}.personal-usage-item>strong{display:block;font-size:40px;line-height:1;color:#20263a;letter-spacing:-.03em}.personal-usage-item>span{display:block;font-size:13px;line-height:1.5;color:#7f889f;white-space:normal}
+.personal-usage-detail{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(280px,.95fr);gap:16px;align-items:start}
+.personal-usage-detail-main,.personal-usage-side{border:1px solid #edf0f7;border-radius:18px;background:#fff}
+.personal-usage-detail-main{padding:18px 18px 16px}.personal-usage-detail-side{padding:16px}
+.personal-usage-detail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}.personal-usage-detail-head h3{margin:0;font-size:18px;color:#20263a}.personal-usage-detail-head span{font-size:12px;color:#8e96aa}
+.personal-usage-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.personal-usage-detail-metric{padding:14px;border:1px solid #edf0f7;border-radius:14px;background:#fafbff}.personal-usage-detail-metric span{display:block;font-size:12px;color:#8d95aa;margin-bottom:8px}.personal-usage-detail-metric strong{display:block;font-size:28px;line-height:1.1;color:#20263a;letter-spacing:-.02em}.personal-usage-detail-metric small{display:block;margin-top:6px;font-size:12px;color:#7f889f;line-height:1.45}
+.personal-usage-side{display:grid;gap:12px}.personal-usage-side-card{padding:14px;border:1px solid #edf0f7;border-radius:14px;background:#fbfbfe}.personal-usage-side-card strong{display:block;font-size:14px;color:#20263a;margin-bottom:8px}.personal-usage-side-card p,.personal-usage-side-card ul{margin:0;font-size:12px;line-height:1.6;color:#7d879c}.personal-usage-side-card ul{padding-left:18px}
+.personal-usage-overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;padding:10px 0;border:1px solid #eef0f6;border-radius:16px;background:#fcfcfe}.personal-usage-overview-item{padding:0 16px;min-width:0}.personal-usage-overview-item+.personal-usage-overview-item{border-left:1px solid #eceef5}.personal-usage-overview-item span{display:block;font-size:12px;color:#9299aa;margin-bottom:4px}.personal-usage-overview-item strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:20px;color:#2a3145}
+.personal-usage-foot{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:2px;padding-top:14px;border-top:1px solid #f0f1f5;font-size:12px;line-height:1.6;color:#8991a4}.personal-usage-foot .pending{color:#625ed8;font-weight:700;white-space:nowrap}.personal-usage-foot .basis{min-width:0}
+@media(max-width:900px){.personal-usage-dialog{width:calc(100vw - 20px);max-height:88vh;margin:14px auto 0;border-radius:18px}.personal-usage-dialog-inner{padding:16px}.personal-usage-head{align-items:flex-start;flex-direction:column}.personal-usage-head-actions{width:100%;justify-content:flex-end}.personal-usage-title strong{font-size:22px}.personal-usage-grid{grid-template-columns:1fr}.personal-usage-detail{grid-template-columns:1fr}.personal-usage-detail-grid{grid-template-columns:1fr}.personal-usage-overview{grid-template-columns:1fr}.personal-usage-overview-item{padding:10px 14px}.personal-usage-overview-item+.personal-usage-overview-item{border-left:0;border-top:1px solid #eceef5}.personal-usage-foot{align-items:flex-start;flex-direction:column}.personal-usage-item>strong{font-size:30px}}
+</style></style>
 </head>
 <body>
   <div id="app-shell">
@@ -57,26 +68,32 @@
         </div>
         <div class="topbar-actions">
           <span class="usage-popover-trigger-wrap">
-            <button class="ghost-btn personal-usage-open" id="personal-usage-open" type="button" popovertarget="personal-usage-popover" aria-expanded="false">花费详情</button>
+            <button class="ghost-btn personal-usage-open" id="personal-usage-open" type="button" aria-haspopup="dialog" aria-controls="personal-usage-modal" aria-expanded="false">花费详情</button>
           </span>
           <button class="ghost-btn" id="open-jobs">任务与输出</button>
           <button class="danger-btn" id="delete-project">删除项目</button>
         </div>
       </header>
 
-      <div id="personal-usage-popover" class="personal-usage-popover" popover="auto" aria-label="花费详情">
-        <div class="personal-usage-popover-inner">
-          <div class="personal-usage-head">
-            <div class="personal-usage-title"><strong>花费详情</strong><span id="personal-usage-date">正在读取当前日期...</span></div>
-            <div class="personal-usage-head-actions">
-              <button type="button" id="personal-usage-refresh" class="personal-usage-refresh">↻ 刷新</button>
-              <button type="button" class="personal-usage-close" popovertarget="personal-usage-popover" popovertargetaction="hide" aria-label="关闭花费详情">×</button>
+      <div id="personal-usage-modal" class="personal-usage-modal" hidden>
+        <div id="personal-usage-backdrop" class="personal-usage-backdrop"></div>
+        <section class="personal-usage-dialog" role="dialog" aria-modal="true" aria-labelledby="personal-usage-modal-title">
+          <div class="personal-usage-dialog-inner">
+            <div class="personal-usage-head">
+              <div class="personal-usage-title">
+                <strong id="personal-usage-modal-title">花费详情</strong>
+                <span id="personal-usage-date">正在读取当前日期...</span>
+              </div>
+              <div class="personal-usage-head-actions">
+                <button type="button" id="personal-usage-refresh" class="personal-usage-refresh">↻ 刷新</button>
+                <button type="button" id="personal-usage-close" class="personal-usage-close" aria-label="关闭花费详情">×</button>
+              </div>
             </div>
+            <div id="personal-usage-body" class="personal-usage-loading">正在读取 Ark 实际 usage...</div>
+            <div id="personal-usage-overview" class="personal-usage-overview" hidden></div>
+            <div id="personal-usage-foot" class="personal-usage-foot" hidden></div>
           </div>
-          <div id="personal-usage-body" class="personal-usage-loading">正在读取 Ark 实际 usage...</div>
-          <div id="personal-usage-overview" class="personal-usage-overview" hidden></div>
-          <div id="personal-usage-foot" class="personal-usage-foot" hidden></div>
-        </div>
+        </section>
       </div>
 
       <nav class="view-tabs">
@@ -173,7 +190,7 @@
               <div class="prompt-tools"><button data-prompt="镜头缓慢向前推进">镜头推进</button><button data-prompt="保持人物身份、五官、服装和构图一致">锁定人物</button><button data-prompt="动作自然流畅，避免画面抖动和变形">动作稳定</button></div>
               <div class="settings-grid two">
                 <label><span>时长</span><select id="segment-duration"><option value="1">1 秒</option><option value="2">2 秒</option><option value="3">3 秒</option><option value="4">4 秒</option><option value="5">5 秒</option><option value="6">6 秒</option><option value="7">7 秒</option><option value="8">8 秒</option><option value="9">9 秒</option><option value="10">10 秒</option><option value="11">11 秒</option><option value="12">12 秒</option><option value="13">13 秒</option><option value="14">14 秒</option><option value="15">15 秒</option></select></label>
-                <label><span>模型</span><select id="segment-model"><option value="v20">Davis Video 2.0 · 1080P/4K</option><option value="fast">Davis Video 2.0 Fast</option><option value="mini">Davis Video 2.0 Mini</option><option value="v15">Davis Video 1.5 Pro · 最短1秒</option></select></label>
+                <label><span>模型</span><select id="segment-model"><option value="v20">Seedance 2.0 · 1080P/4K</option><option value="fast">Seedance 2.0 Fast</option><option value="mini">Seedance 2.0 Mini</option><option value="v15">Seedance 1.5 Pro · 最短1秒</option></select></label>
                 <label><span>清晰度</span><select id="segment-resolution"><option value="480p">480P</option><option value="720p">720P</option><option value="1080p">1080P</option><option value="4k">4K</option></select></label>
                 <label><span>声音输出</span><select id="segment-audio"><option value="false">关 · 无声视频</option><option value="true">开 · 生成声音</option></select></label>
                 <label><span>项目比例</span><input id="segment-ratio" disabled /></label>
@@ -239,7 +256,7 @@
     </div>
   </div>
 
-  <script type="module" src="./seedance/app.js?v=20260807-personal-usage-popover-r39"></script>
+  <script type="module" src="./seedance/app.js?v=20260807-usage-modal-detail-r41"></script>
   <script type="module" src="./seedance/prompt-optimizer.js?v=20260728-davis-video-optimizer-v7"></script>
   <script type="module" src="./seedance/ui-patches.js?v=20260724-davis-video-ui-v1"></script>
 </body>
