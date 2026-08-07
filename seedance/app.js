@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260806-model-catalog-cost-r37';
+const PRODUCTION_BUILD = '20260807-personal-usage-ledger-r38';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -1656,6 +1656,7 @@ async function r11RestoreCloudDrafts(localDrafts) {
 
 async function r5Init() {
   if (!await initSession()) return;
+  void r38LoadUsageSummary(true);
   wireEvents();
   r5WireCreateModal();
   enhanceCustomSelects();
@@ -1868,12 +1869,14 @@ async function r10RefreshJobs(force = false) {
   if (!r16CurrentProjectWritable()) {
     try { await loadOutputs(true); } catch (error) { console.warn('[Davis Video R16] read-only refresh failed', error); }
     renderJobs();
+    void r38LoadUsageSummary(false);
     return;
   }
   try { await loadOutputs(true); } catch (error) { console.warn('[Davis Video R10] refresh failed', error); }
   try { await r10RecoverOrphan(Boolean(force)); }
   catch (error) { console.warn('[Davis Video R10] orphan recovery failed', error); if (force) toast('状态检查失败', errorMessage(error)); }
   renderJobs();
+  void r38LoadUsageSummary(false);
 }
 
 function r18PublicSegmentState(task, outputRows) {
@@ -2629,6 +2632,112 @@ function r37RenderSummary() {
   r37RenderProjectCost();
 }
 
+
+function r38FormatTokens(value) {
+  const n = Math.max(0, Number(value || 0));
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 1 : 2)}M tokens`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(n >= 100_000 ? 0 : 1)}K tokens`;
+  return `${Math.round(n)} tokens`;
+}
+
+function r38FormatDuration(value) {
+  const seconds = Math.max(0, Math.round(Number(value || 0)));
+  if (seconds >= 3600) {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    return minutes ? `${hours}h ${minutes}m` : `${hours}h`;
+  }
+  if (seconds >= 60) {
+    const minutes = Math.floor(seconds / 60);
+    const rest = seconds % 60;
+    return rest ? `${minutes}m ${rest}s` : `${minutes}m`;
+  }
+  return `${seconds}s`;
+}
+
+function r38UsagePeriodMarkup(label, sublabel, row) {
+  const data = row || {};
+  const cost = Math.max(0, Number(data.cost_cny || 0));
+  const tasks = Math.max(0, Number(data.generated_tasks || 0));
+  return `<article class="personal-usage-item">
+    <div class="label"><span>${escapeHtml(label)}</span><b>${escapeHtml(sublabel || '')}</b></div>
+    <strong>¥${cost.toFixed(2)}</strong>
+    <span>生成 ${tasks} 段 · ${escapeHtml(r38FormatTokens(data.tokens))} · ${escapeHtml(r38FormatDuration(data.generated_seconds))}</span>
+  </article>`;
+}
+
+function r38RenderUsageSummary(summary, error = null) {
+  const body = $('personal-usage-body');
+  const date = $('personal-usage-date');
+  const foot = $('personal-usage-foot');
+  const refresh = $('personal-usage-refresh');
+  if (refresh) refresh.onclick = () => void r38LoadUsageSummary(true);
+  if (!body || !date || !foot) return;
+
+  if (error) {
+    date.textContent = '个人用量读取失败';
+    body.className = 'personal-usage-error';
+    body.textContent = `暂时无法读取个人用量：${errorMessage(error, '未知错误')}`;
+    foot.hidden = true;
+    return;
+  }
+
+  if (!summary) {
+    date.textContent = '正在读取当前日期...';
+    body.className = 'personal-usage-loading';
+    body.textContent = '正在读取 Ark 实际 usage...';
+    foot.hidden = true;
+    return;
+  }
+
+  date.textContent = `当前日期：${summary.as_of_date || '--'} · 北京时间`;
+  body.className = 'personal-usage-grid';
+  body.innerHTML = [
+    r38UsagePeriodMarkup('今日已产生费用', summary.as_of_date || '', summary.today),
+    r38UsagePeriodMarkup('本月已产生费用', summary.month_label || '', summary.month),
+    r38UsagePeriodMarkup('本年已产生费用', summary.year_label || '', summary.year),
+  ].join('');
+
+  const inProgress = summary.in_progress || {};
+  const pendingTasks = Math.max(0, Number(inProgress.task_count || 0));
+  const pendingCost = Math.max(0, Number(inProgress.estimated_cost_cny || 0));
+  foot.hidden = false;
+  foot.innerHTML = `<span class="basis">已消费按 Ark 实际 usage × 模型单价换算；失败且无 usage 不计入，最终以火山方舟账单为准。</span>
+    <span class="pending">${pendingTasks ? `进行中 ${pendingTasks} 段 · 预计约 ¥${pendingCost.toFixed(2)}` : '当前无进行中计费任务'}</span>`;
+}
+
+async function r38LoadUsageSummary(force = false) {
+  if (!state.user?.id) return;
+  const now = Date.now();
+  const ttl = 20_000;
+  if (!force && r38LoadUsageSummary.lastFetchAt && now - r38LoadUsageSummary.lastFetchAt < ttl) {
+    if (r38LoadUsageSummary.lastSummary) r38RenderUsageSummary(r38LoadUsageSummary.lastSummary);
+    return r38LoadUsageSummary.lastSummary || null;
+  }
+  if (r38LoadUsageSummary.inFlight) return r38LoadUsageSummary.inFlight;
+
+  if (!r38LoadUsageSummary.lastSummary) r38RenderUsageSummary(null);
+  r38LoadUsageSummary.inFlight = (async () => {
+    try {
+      const { data, error } = await supabase.rpc('get_my_video_usage_summary');
+      if (error) throw error;
+      const summary = data && typeof data === 'object' ? data : null;
+      if (!summary) throw new Error('个人用量接口没有返回数据');
+      r38LoadUsageSummary.lastSummary = summary;
+      r38LoadUsageSummary.lastFetchAt = Date.now();
+      r38RenderUsageSummary(summary);
+      return summary;
+    } catch (error) {
+      console.warn('[Davis Video R38] personal usage summary failed', error);
+      r38RenderUsageSummary(r38LoadUsageSummary.lastSummary || null, r38LoadUsageSummary.lastSummary ? null : error);
+      return r38LoadUsageSummary.lastSummary || null;
+    } finally {
+      r38LoadUsageSummary.inFlight = null;
+    }
+  })();
+  return r38LoadUsageSummary.inFlight;
+}
+
 export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, accessControlSource }) {
   let patched = String(source || '');
   if (!patched.includes(ORIGINAL_BUILD)) throw new Error(`只支持 ${ORIGINAL_BUILD}，当前 app-v46.js 版本不匹配`);
@@ -2645,7 +2754,7 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, 
     r6ExistingProjectNames,r6ForkCurrentDraftForSubmit,r10StableUploadPlan,r10ApplyFrameBinding,
     r10SubmissionContext,r10AssertContext,r10RecoverFrameBindings,r10RecoverOrphan,r11RestoreCloudDrafts,r13MarkVersionForkForSubmit,r14NormalizeProjectName,r14ProjectNameExists,r15HasFilePayload,r15WireFileDropzone,r15PreventDocumentFileNavigation,
     r16ProjectOwnerId,r16ScopeProjectRead,r16CurrentProjectWritable,r16AssertCurrentProjectWritable,r16ApplyReadOnlyControls,
-    r18PublicSegmentState,r18StatusText,r18JobStageMarkup,r37ModelCatalog,r37ModelConfig,r37ModelLabel,r37ResolutionPixels,r37InputProfile,r37EstimateCost,r37ValidateSegmentConfig,r37SetSelectOptions,r37ApplyModelControls,r37RenderSegmentCost,r37RenderProjectCost,r37ReadMediaDuration].map(fn => fn.toString()).join('\n\n');
+    r18PublicSegmentState,r18StatusText,r18JobStageMarkup,r37ModelCatalog,r37ModelConfig,r37ModelLabel,r37ResolutionPixels,r37InputProfile,r37EstimateCost,r37ValidateSegmentConfig,r37SetSelectOptions,r37ApplyModelControls,r37RenderSegmentCost,r37RenderProjectCost,r37ReadMediaDuration,r38FormatTokens,r38FormatDuration,r38UsagePeriodMarkup,r38RenderUsageSummary,r38LoadUsageSummary].map(fn => fn.toString()).join('\n\n');
 
   patched = patched.replace("const LAST_SELECTED_DRAFT_KEY = 'seedance_last_selected_draft_id_v1';",
     "const LAST_SELECTED_DRAFT_KEY = 'seedance_last_selected_draft_id_v1';\n\n" + support);
@@ -2953,7 +3062,7 @@ export async function bootProduction() {
 
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   bootProduction().catch(error => {
-    console.error('[Davis Video Studio R35] boot failed', error);
+    console.error('[Davis Video Studio R38] boot failed', error);
     const box = document.createElement('div');
     box.style.cssText = 'position:fixed;inset:20px;z-index:99999;background:#220b12;color:#fff;border:1px solid #ff6075;border-radius:14px;padding:20px;font:14px/1.6 system-ui;overflow:auto';
     box.innerHTML = `<strong>Seedance 单项目单模式版启动失败</strong><br>${String(error?.message || error).replace(/[<>&]/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[s]))}<br><br>请保留 seedance/app-v46.js，并覆盖本包中的 seedance/app.js；随后 Ctrl+F5 强制刷新。`;
