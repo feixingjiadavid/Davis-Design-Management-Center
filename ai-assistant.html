@@ -98,6 +98,17 @@ body.usage-modal-open{overflow:hidden}
 .project-mode-option.is-blocked-hint{animation:r45RequiredNudge .28s ease}
 @keyframes r45RequiredNudge{0%,100%{transform:translateX(0)}30%{transform:translateX(-3px)}70%{transform:translateX(3px)}}
 
+
+/* R48 一级项目 -> 多生成模式 */
+.project-create-note{margin:4px 0 16px;padding:12px 14px;border-radius:12px;background:#f7f8ff;color:#68728b;font-size:12px;line-height:1.6;text-align:left}
+.project-mode-footer{display:flex;justify-content:flex-end;gap:10px;align-items:center}.project-mode-footer .primary-btn{min-width:138px}
+.project-generation-mode-bar{margin:14px 18px 0;padding:13px 16px;border:1px solid #e6e9f4;border-radius:16px;background:#fff;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.project-generation-mode-bar[hidden]{display:none!important}
+.project-generation-identity{display:flex;align-items:center;gap:9px;min-width:0}.project-generation-identity>span{font-size:12px;color:#8a93a7;white-space:nowrap}.project-generation-identity>strong{max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px;color:#20283b}.project-generation-identity>em{font-style:normal;padding:5px 8px;border-radius:8px;background:#f2f4ff;color:#5c67d9;font-size:11px;white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis}
+.project-generation-mode-actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}.project-generation-mode-actions button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:142px;padding:9px 11px;border:1px solid #e2e6f0;border-radius:11px;background:#fff;color:#4d566d;cursor:pointer;text-align:left;transition:.15s ease}.project-generation-mode-actions button b{font-size:12px}.project-generation-mode-actions button small{font-size:10px;color:#9299aa}.project-generation-mode-actions button:hover{border-color:#cbd2ff;background:#fafaff}.project-generation-mode-actions button.is-active{border-color:#6877f3;background:#f1f3ff;color:#4758df;box-shadow:0 0 0 2px rgba(83,100,235,.06)}.project-generation-mode-actions button.is-active small{color:#737fe4}
+.project-item .project-mode-summary{display:inline-flex;gap:4px;flex-wrap:wrap}.project-item .project-mode-summary i{font-style:normal;padding:2px 5px;border-radius:6px;background:#eef1ff;color:#5c67d9;font-size:10px}
+@media(max-width:1100px){.project-generation-mode-bar{align-items:flex-start;flex-direction:column}.project-generation-mode-actions{width:100%;justify-content:flex-start}.project-generation-mode-actions button{flex:1;min-width:150px}}
+
 </style>
 </head>
 <body>
@@ -164,6 +175,19 @@ body.usage-modal-open{overflow:hidden}
         <button class="view-tab" data-view="jobs">任务与输出</button>
       </nav>
 
+      <section id="project-generation-mode-bar" class="project-generation-mode-bar" hidden>
+        <div class="project-generation-identity">
+          <span>当前生成项目</span>
+          <strong id="project-generation-name">—</strong>
+          <em id="project-generation-category">—</em>
+        </div>
+        <div class="project-generation-mode-actions" role="tablist" aria-label="项目生成模式">
+          <button type="button" data-project-generation-mode="first_last"><b>首尾帧生成</b><small>单组首帧 → 尾帧</small></button>
+          <button type="button" data-project-generation-mode="multi_frame"><b>多帧 Storyboard</b><small>多组首尾帧连续生成</small></button>
+          <button type="button" data-project-generation-mode="text_only"><b>纯文字生成</b><small>文字 + 可选参考素材</small></button>
+        </div>
+      </section>
+
       <section id="view-quick" class="view active">
         <div class="quick-layout">
           <div class="quick-main">
@@ -171,7 +195,7 @@ body.usage-modal-open{overflow:hidden}
               <div class="panel-heading">
                 <div><h2>创建视频</h2></div>
                 <div class="mode-lock-card" id="mode-lock-card" data-mode="multi_frame">
-                  <span>当前项目模式</span>
+                  <span>当前生成模式</span>
                   <strong id="locked-mode-label">多帧 Storyboard</strong>
                   
                 </div>
@@ -279,7 +303,7 @@ body.usage-modal-open{overflow:hidden}
   <div id="project-mode-modal" class="project-mode-modal" hidden>
     <div class="project-mode-dialog">
       <h2>新建视频生成项目</h2>
-      <p>每个项目只能使用一种生成模式，创建后不可切换。这样任务、输出与 Google Drive 视频会永久点对点绑定。</p>
+      <p>先创建一级生成项目，再在项目内自由切换首尾帧、多帧 Storyboard、纯文字生成。一个项目可以持续生成大量不同模式的视频内容。</p>
       <div class="project-create-fields">
         <label class="project-create-field">
           <span>项目类别 <em class="required-mark">*</em></span>
@@ -291,8 +315,8 @@ body.usage-modal-open{overflow:hidden}
         </label>
         <label class="project-create-field">
           <span>项目名称 <em class="required-mark">*</em></span>
-          <input id="new-project-name" placeholder="例如：周年活动片头视频－纯文字" required aria-required="true" maxlength="120" />
-          <small>用于区分具体的视频生成项目；项目类别用于费用统计与占比分析。</small>
+          <input id="new-project-name" placeholder="例如：周年活动生成项目" required aria-required="true" maxlength="120" />
+          <small>项目名称代表一级业务项目，例如“周年活动”；不同生成模式与视频任务都归属于这个项目。</small>
           <small id="new-project-name-error" class="project-create-error" hidden>请填写项目名称。</small>
         </label>
       </div>
@@ -302,12 +326,11 @@ body.usage-modal-open{overflow:hidden}
         <small>手动填写后会作为独立项目类别进入费用统计。</small>
         <small id="new-project-category-custom-error" class="project-create-error" hidden>选择“其他”后必须填写自定义项目类别。</small>
       </label>
-      <div class="project-mode-options">
-        <button type="button" class="project-mode-option" data-create-project-mode="first_last"><b>首尾帧生成</b><span>一个项目只使用首帧与尾帧生成单段视频</span></button>
-        <button type="button" class="project-mode-option" data-create-project-mode="multi_frame"><b>多帧连续模式</b><span>一个项目使用多张图片生成连续多个片段</span></button>
-        <button type="button" class="project-mode-option" data-create-project-mode="text_only"><b>纯文字生成</b><span>一个项目只使用文字与可选参考素材生成视频</span></button>
+      <div class="project-create-note">创建后进入项目，再选择需要的生成模式。后续可在同一个项目中反复切换模式并持续生成视频。</div>
+      <div class="project-mode-footer">
+        <button id="project-mode-cancel" type="button" class="ghost-btn">取消</button>
+        <button id="project-create-submit" type="button" class="primary-btn">创建生成项目</button>
       </div>
-      <div class="project-mode-footer"><button id="project-mode-cancel" type="button" class="ghost-btn">取消</button></div>
     </div>
   </div>
 
@@ -346,7 +369,7 @@ try {
   localStorage.removeItem('seedance_app_v46_source_cache_v1');
 } catch {}
 </script>
-<script type="module" src="./seedance/app.js?v=20260807-runtime-category-source-r47"></script>
+<script type="module" src="./seedance/app.js?v=20260807-project-parent-multimode-r48"></script>
   <script type="module" src="./seedance/prompt-optimizer.js?v=20260728-davis-video-optimizer-v7"></script>
   <script type="module" src="./seedance/ui-patches.js?v=20260724-davis-video-ui-v1"></script>
 </body>
