@@ -71,7 +71,21 @@
 body.usage-modal-open{overflow:hidden}
 @media(max-width:900px){.personal-usage-dialog{width:calc(100vw - 16px);max-height:94vh;margin:8px auto 0}.personal-usage-dialog-inner{padding:15px}.personal-usage-grid{grid-template-columns:1fr}.personal-usage-overview{grid-template-columns:1fr}.personal-usage-chart-wrap{height:300px;padding-left:42px}.personal-usage-bars,.personal-usage-grid-lines{left:42px}.personal-usage-y-axis{width:37px}.personal-usage-tooltip{width:250px}.personal-usage-bar{width:min(22px,72%)}}
 
-</style></style>
+
+/* R43 新建视频项目：业务项目类别 */
+.project-create-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin:18px 0 12px}
+.project-create-field{display:flex;flex-direction:column;gap:8px;text-align:left;min-width:0}
+.project-create-field>span{font-size:13px;font-weight:700;color:#323a50}
+.project-create-field select,.project-create-field input{width:100%;box-sizing:border-box;height:44px;border:1px solid #dfe4ee;border-radius:12px;background:#fff;color:#20283b;padding:0 13px;font:inherit;outline:none;transition:border-color .15s ease,box-shadow .15s ease}
+.project-create-field select:focus,.project-create-field input:focus{border-color:#6d7cff;box-shadow:0 0 0 3px rgba(91,107,236,.10)}
+.project-create-field small{font-size:11px;line-height:1.55;color:#8b94a8}
+.project-category-custom{margin:0 0 15px}
+.project-category-custom[hidden]{display:none!important}
+.project-mode-dialog{width:min(760px,calc(100vw - 36px))}
+.project-mode-dialog>p{max-width:660px}
+@media(max-width:720px){.project-create-fields{grid-template-columns:1fr}}
+
+</style>
 </head>
 <body>
   <div id="app-shell">
@@ -253,7 +267,25 @@ body.usage-modal-open{overflow:hidden}
     <div class="project-mode-dialog">
       <h2>新建视频生成项目</h2>
       <p>每个项目只能使用一种生成模式，创建后不可切换。这样任务、输出与 Google Drive 视频会永久点对点绑定。</p>
-      <label class="project-name-create"><span>项目名称</span><input id="new-project-name" placeholder="例如：周年活动片头视频－纯文字" /></label>
+      <div class="project-create-fields">
+        <label class="project-create-field">
+          <span>项目类别</span>
+          <select id="new-project-category" aria-label="项目类别">
+            <option value="__other__">其他（手动填写）</option>
+          </select>
+          <small>默认与「创建设计需求」中的项目字段保持一致；没有对应类别时请选择“其他”。</small>
+        </label>
+        <label class="project-create-field">
+          <span>项目名称</span>
+          <input id="new-project-name" placeholder="例如：周年活动片头视频－纯文字" />
+          <small>用于区分具体的视频生成项目；项目类别用于费用统计与占比分析。</small>
+        </label>
+      </div>
+      <label id="new-project-category-custom-wrap" class="project-create-field project-category-custom" hidden>
+        <span>自定义项目类别</span>
+        <input id="new-project-category-custom" placeholder="例如：专项品牌活动" maxlength="80" />
+        <small>手动填写后会作为独立项目类别进入费用统计。</small>
+      </label>
       <div class="project-mode-options">
         <button type="button" class="project-mode-option" data-create-project-mode="first_last"><b>首尾帧生成</b><span>一个项目只使用首帧与尾帧生成单段视频</span></button>
         <button type="button" class="project-mode-option" data-create-project-mode="multi_frame"><b>多帧连续模式</b><span>一个项目使用多张图片生成连续多个片段</span></button>
@@ -291,7 +323,7 @@ body.usage-modal-open{overflow:hidden}
     </div>
   </div>
 
-  <script type="module" src="./seedance/app.js?v=20260807-usage-chart-r42"></script>
+  <script type="module" src="./seedance/app.js?v=20260807-project-category-r43"></script>
   <script type="module" src="./seedance/prompt-optimizer.js?v=20260728-davis-video-optimizer-v7"></script>
   <script type="module" src="./seedance/ui-patches.js?v=20260724-davis-video-ui-v1"></script>
 </body>
