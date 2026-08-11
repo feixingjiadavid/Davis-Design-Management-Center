@@ -4,6 +4,7 @@ import { parseEstimatedRmb } from './r54-deliverables-core.mjs';
 
 const LAST_SELECTED_DRAFT_KEY = 'seedance_last_selected_draft_id_v1';
 let requestSerial = 0;
+let watchSerial = 0;
 
 function selectedDraftId() {
   return document.querySelector('.project-child.active')?.dataset?.project
@@ -30,7 +31,7 @@ function formatMoney(value) {
 async function renderCostContext() {
   const modal = document.getElementById('r54-paid');
   const body = document.getElementById('r54-paid-body');
-  if (!modal || modal.hidden || !body) return;
+  if (!modal || modal.hidden || !body) return false;
   const serial = ++requestSerial;
 
   let box = document.getElementById('r54-group-cost-context');
@@ -46,11 +47,11 @@ async function renderCostContext() {
     const groupId = await currentGroupId();
     if (serial !== requestSerial || !groupId) {
       if (serial === requestSerial) box.textContent = '当前任务未绑定一级项目，暂不显示项目累计费用。';
-      return;
+      return true;
     }
     const { data, error } = await supabase.rpc('get_my_video_group_usage', { p_group_id:groupId });
     if (error) throw error;
-    if (serial !== requestSerial) return;
+    if (serial !== requestSerial) return true;
 
     const incremental = parseEstimatedRmb(body.querySelector('.r54-paid strong')?.textContent || '');
     const spent = Number(data?.cost_cny || 0);
@@ -58,22 +59,37 @@ async function renderCostContext() {
     box.innerHTML = `
       <div style="display:flex;justify-content:space-between;gap:12px"><span>当前一级项目已产生费用</span><strong style="color:#30384b">${formatMoney(spent)}</strong></div>
       <div style="display:flex;justify-content:space-between;gap:12px"><span>本次确认后预计累计</span><strong style="color:#4657dc">${after === null ? '—' : formatMoney(after)}</strong></div>
-      <div style="margin-top:4px;color:#98a0b2">已产生费用按 Ark usage.total_tokens × 对应模型真实费率统计；最终账单仍以火山方舟为准。</div>`;
+      <div style="margin-top:4px;color:#98a0b2">已产生费用按 Ark usage / 当前费用统计口径汇总；最终账单仍以火山方舟为准。</div>`;
   } catch (error) {
-    if (serial !== requestSerial) return;
+    if (serial !== requestSerial) return true;
     box.textContent = `项目累计费用读取失败：${error?.message || String(error)}。本次新增费用仍以确认弹窗上方金额为准。`;
+  }
+  return true;
+}
+
+async function waitForPaidModalAndRender(maxMs = 90000) {
+  const serial = ++watchSerial;
+  const started = Date.now();
+  while (serial === watchSerial && Date.now() - started < maxMs) {
+    const modal = document.getElementById('r54-paid');
+    if (modal && !modal.hidden) {
+      await renderCostContext();
+      return;
+    }
+    await new Promise(resolve => setTimeout(resolve, 120));
   }
 }
 
 function init() {
-  const modal = document.getElementById('r54-paid');
-  if (!modal) return;
-  const observer = new MutationObserver(() => {
-    if (!modal.hidden) queueMicrotask(() => { void renderCostContext(); });
-  });
-  observer.observe(modal, { attributes:true, attributeFilter:['hidden'], childList:true, subtree:true });
+  // No MutationObserver: the old implementation observed the same subtree that it wrote to,
+  // which could recursively schedule itself and freeze the whole page.
+  document.addEventListener('click', event => {
+    if (event.target.closest?.('#generate-all,#generate-segment,[data-r54-batch-generate]')) {
+      void waitForPaidModalAndRender();
+    }
+  }, true);
   document.body.dataset.davisVideoCostContextR54 = 'ready';
-  console.log('[Davis Video R54] project cost context ready');
+  console.log('[Davis Video A] project cost context ready');
 }
 
 export function initCostContextR54() {
