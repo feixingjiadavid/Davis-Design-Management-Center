@@ -9,4 +9,14 @@ const supabaseAnonKey = 'sb_publishable_v6fbIaU52lLFacywiIKvUw_x1gc1ckQ'
 // 创建连接通道并暴露给其他页面使用
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
+// R54 只在 Davis Video Studio 页面加载成片单元 / 批量任务扩展。
+// 使用 queueMicrotask 避免 supabase-config <-> r54-deliverables 的模块循环影响基础客户端初始化。
+if (typeof window !== 'undefined' && /(?:^|\/)ai-assistant\.html$/i.test(window.location.pathname)) {
+  queueMicrotask(() => {
+    import('./seedance/r54-deliverables.js')
+      .then(({ initDeliverablesR54 }) => initDeliverablesR54())
+      .catch(error => console.error('[Davis Video R54] deliverables init failed', error));
+  });
+}
+
 console.log("🚀 Supabase 云端服务器配置完成！");
