@@ -20,6 +20,23 @@ const MODE_ALIASES = new Map([
   ['纯文字', 'text_only'],
   ['纯文字生成', 'text_only'],
 ]);
+const MODEL_ALIASES = new Map([
+  ['v20', 'v20'],
+  ['seedance 2.0', 'v20'],
+  ['doubao-seedance-2-0', 'v20'],
+  ['fast', 'fast'],
+  ['seedance 2.0 fast', 'fast'],
+  ['mini', 'mini'],
+  ['seedance 2.0 mini', 'mini'],
+  ['v15', 'v15'],
+  ['seedance 1.5 pro', 'v15'],
+]);
+const RESOLUTION_ALIASES = new Map([
+  ['480p', '480p'],
+  ['720p', '720p'],
+  ['1080p', '1080p'],
+  ['4k', '4k'],
+]);
 
 function text(value) {
   return String(value ?? '').trim();
@@ -37,6 +54,18 @@ export function normalizeReviewStatus(value) {
 export function normalizeMode(value) {
   const normalized = text(value).toLowerCase();
   return MODE_ALIASES.get(normalized) || '';
+}
+
+export function normalizeModelAlias(value) {
+  const normalized = text(value).toLowerCase();
+  if (!normalized) return 'mini';
+  return MODEL_ALIASES.get(normalized) || '';
+}
+
+export function normalizeResolution(value) {
+  const normalized = text(value).toLowerCase();
+  if (!normalized) return '720p';
+  return RESOLUTION_ALIASES.get(normalized) || '';
 }
 
 export function groupTasksByDeliverable(tasks = [], deliverables = []) {
@@ -88,6 +117,8 @@ export function validateBatchRows(rows = []) {
     const mode = normalizeMode(row?.mode ?? row?.['生成模式'] ?? row?.['模式']);
     const oldPhoto = text(row?.oldPhoto ?? row?.old_photo ?? row?.['历史照片'] ?? row?.['旧照片']);
     const currentPhoto = text(row?.currentPhoto ?? row?.current_photo ?? row?.['当前照片'] ?? row?.['现在照片']);
+    const rawModel = text(row?.model ?? row?.['模型']);
+    const rawResolution = text(row?.resolution ?? row?.['清晰度'] ?? row?.['分辨率']);
     return {
       index,
       source: row || {},
@@ -97,9 +128,11 @@ export function validateBatchRows(rows = []) {
       oldPhoto,
       currentPhoto,
       prompt: text(row?.prompt ?? row?.['提示词'] ?? row?.['动作模板']),
-      model: text(row?.model ?? row?.['模型']),
+      model: normalizeModelAlias(rawModel),
+      rawModel,
       duration: text(row?.duration ?? row?.['时长']),
-      resolution: text(row?.resolution ?? row?.['清晰度'] ?? row?.['分辨率']),
+      resolution: normalizeResolution(rawResolution),
+      rawResolution,
       ratio: text(row?.ratio ?? row?.['比例']),
     };
   });
@@ -117,6 +150,8 @@ export function validateBatchRows(rows = []) {
     if (!row.taskName) errors.push('任务名称不能为空');
     if (!row.subjectKey) errors.push('subject_key 不能为空');
     if (!row.mode) errors.push('生成模式无效，请使用首尾帧 / 多帧 Storyboard / 纯文字');
+    if (row.rawModel && !row.model) errors.push('模型名称无效，请使用 Seedance 2.0 / Seedance 2.0 Fast / Seedance 2.0 Mini / Seedance 1.5 Pro');
+    if (row.rawResolution && !row.resolution) errors.push('分辨率无效，请使用 480P / 720P / 1080P / 4K');
     if (row.subjectKey && subjectCounts.get(row.subjectKey) > 1) errors.push('subject_key 在本次导入中重复');
     if (row.mode === 'first_last' && !row.oldPhoto) errors.push('首尾帧任务缺少历史照片');
     if (row.mode === 'first_last' && !row.currentPhoto) errors.push('首尾帧任务缺少当前照片');
@@ -128,9 +163,9 @@ export function validateBatchRows(rows = []) {
       oldPhoto: row.oldPhoto,
       currentPhoto: row.currentPhoto,
       prompt: row.prompt,
-      model: row.model,
+      model: row.model || 'mini',
       duration: row.duration,
-      resolution: row.resolution,
+      resolution: row.resolution || '720p',
       ratio: row.ratio,
     };
     if (errors.length) invalid.push({ index: row.index, row: row.source, normalized, errors });
