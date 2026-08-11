@@ -1,4 +1,4 @@
-const BUILD = '20260811-r54-architecture-ux';
+const BUILD = '20260812-a-architecture-ux-safe';
 const ONBOARD_KEY = 'davis_video_r54_onboard_group';
 let parentCreateBefore = null;
 let pendingDeliverableLabel = '';
@@ -37,20 +37,28 @@ function injectStyle() {
   document.head.appendChild(style);
 }
 
+function setTextIfChanged(node, value) {
+  if (node && node.textContent !== value) node.textContent = value;
+}
+
 function patchProjectCreateCopy() {
   const modal = $('project-mode-modal');
-  if (!modal) return;
+  if (!modal || modal.dataset.aVersionCopyPatched === '1') return;
+  modal.dataset.aVersionCopyPatched = '1';
   const title = modal.querySelector('h2');
-  if (title) title.textContent = '新建视频业务项目';
+  setTextIfChanged(title, '新建视频业务项目');
   const lead = modal.querySelector('.project-mode-dialog > p');
-  if (lead) lead.textContent = '先创建一级业务项目。创建完成后，先建立“成片单元”（例如互动暖场视频、开场视频），再在对应成片单元里创建多个独立生成任务。';
+  setTextIfChanged(lead, '先创建一级业务项目。创建完成后，先建立“成片单元”（例如互动暖场视频、开场视频），再在对应成片单元里创建多个独立生成任务。');
   const nameField = $('new-project-name')?.closest('.project-create-field');
   const nameTitle = nameField?.querySelector('span');
-  if (nameTitle) nameTitle.innerHTML = '业务项目名称 <em class="required-mark">*</em>';
+  if (nameTitle && nameTitle.dataset.aVersionPatched !== '1') {
+    nameTitle.dataset.aVersionPatched = '1';
+    nameTitle.innerHTML = '业务项目名称 <em class="required-mark">*</em>';
+  }
   const nameHint = nameField?.querySelector('small:not(.project-create-error)');
-  if (nameHint) nameHint.textContent = '这是左侧树形列表的一级业务项目名称；一个项目下面可以建立多个成片单元。';
+  setTextIfChanged(nameHint, '这是左侧树形列表的一级业务项目名称；一个项目下面可以建立多个成片单元。');
   const note = modal.querySelector('.project-create-note');
-  if (note) note.textContent = '这里只创建一级业务项目。下一步会先创建成片单元，不会直接创建付费生成任务。';
+  setTextIfChanged(note, '这里只创建一级业务项目。下一步会先创建成片单元，不会直接创建付费生成任务。');
 }
 
 function injectDeliverableContext(label) {
@@ -65,7 +73,8 @@ function injectDeliverableContext(label) {
     else modal.querySelector('.modal-card,.child-task-dialog,.project-mode-dialog')?.prepend(context);
   }
   const safe = String(label || '当前成片单元').replace(/[&<>]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]));
-  context.innerHTML = `归属成片单元：<b>${safe}</b><br>这里创建的是该成片的一次具体视频生成任务。`;
+  const html = `归属成片单元：<b>${safe}</b><br>这里创建的是该成片的一次具体视频生成任务。`;
+  if (context.innerHTML !== html) context.innerHTML = html;
 }
 
 async function resumeOnboarding() {
@@ -86,7 +95,6 @@ async function redirectNewParentToDeliverable() {
   const before = parentCreateBefore;
   parentCreateBefore = null;
   if (!before) return;
-
   let newGroupId = '';
   for (let i = 0; i < 80; i += 1) {
     await sleep(100);
@@ -95,8 +103,6 @@ async function redirectNewParentToDeliverable() {
     if (newGroupId) break;
   }
   if (!newGroupId) return;
-
-  // R50 会自动打开“子任务”弹窗；R54 先关掉它，禁止绕过成片单元。
   for (let i = 0; i < 30; i += 1) {
     await sleep(70);
     const childModal = $('child-task-modal');
@@ -105,8 +111,6 @@ async function redirectNewParentToDeliverable() {
       break;
     }
   }
-
-  // 新一级项目刚进入数据库，R54 的云端缓存需要刷新一次；自动恢复并继续打开成片单元创建。
   sessionStorage.setItem(ONBOARD_KEY, newGroupId);
   location.reload();
 }
@@ -123,18 +127,24 @@ function enhance() {
   if (pendingDeliverableLabel) injectDeliverableContext(pendingDeliverableLabel);
 }
 
+function scheduleEnhance(delay=0) {
+  clearTimeout(scheduleEnhance.timer);
+  scheduleEnhance.timer = setTimeout(enhance, delay);
+}
+
 function init() {
   enhance();
   void resumeOnboarding();
 
   document.addEventListener('click', event => {
+    if (event.target.closest?.('#new-project')) scheduleEnhance(20);
+
     if (event.target.closest?.('#project-create-submit')) {
       parentCreateBefore = parentIdsInDom();
       setTimeout(() => { void redirectNewParentToDeliverable(); }, 0);
       return;
     }
 
-    // 旧 R50 的“当前任务旁新建任务”必须改走当前成片单元，不能创建未归类任务。
     if (event.target.closest?.('#new-child-task-current')) {
       const add = currentDeliverableAddButton();
       event.preventDefault();
@@ -152,7 +162,7 @@ function init() {
     if (addTask) {
       const section = addTask.closest('.r54-deliverable');
       pendingDeliverableLabel = section?.querySelector('.r54-deliverable-main strong')?.textContent?.replace(/^▾\s*/, '').trim() || '当前成片单元';
-      setTimeout(() => injectDeliverableContext(pendingDeliverableLabel), 80);
+      scheduleEnhance(80);
       return;
     }
 
@@ -161,10 +171,12 @@ function init() {
     }
   }, true);
 
-  const observer = new MutationObserver(() => queueMicrotask(enhance));
-  observer.observe(document.body, { childList:true, subtree:true, attributes:true, attributeFilter:['hidden','data-davis-video-deliverables-r54'] });
+  // Important: no document-wide MutationObserver here. R54's old observer could observe
+  // its own text/attribute writes and starve the browser main thread. All enhancements are
+  // now event-driven and idempotent.
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) scheduleEnhance(0); });
   document.body.dataset.davisVideoArchitectureUxR54 = 'ready';
-  console.log('[Davis Video R54 Architecture]', BUILD);
+  console.log('[Davis Video A Architecture]', BUILD);
 }
 
 export function initArchitectureUxR54() {
