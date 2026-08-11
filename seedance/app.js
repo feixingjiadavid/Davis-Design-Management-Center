@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260810-jianying-project-bridge-r53';
+const PRODUCTION_BUILD = '20260811-jianying-encoding-fix-r53-1';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
