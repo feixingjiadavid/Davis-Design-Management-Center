@@ -1,0 +1,39 @@
+name: R54 Deliverables Check
+
+on:
+  push:
+    branches:
+      - feature/video-deliverables-r54
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  verify-r54:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Syntax check R54 modules
+        run: |
+          node --check seedance/r54-deliverables.js
+          node --check seedance/r54-paid-safety.js
+          node --check seedance/r54-selection-tools.js
+          node --check seedance/r54-cost-context.js
+          node --check seedance/r54-architecture-ux.js
+          node --check seedance/r54-deliverables-core.mjs
+          node --check supabase-config.js
+
+      - name: R54 unit tests
+        run: |
+          node --test seedance/r54-deliverables-core.test.mjs seedance/r54-import-normalization.test.mjs
