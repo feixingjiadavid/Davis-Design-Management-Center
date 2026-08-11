@@ -1,8 +1,7 @@
-import { supabase } from '../supabase-config.js';
-
 const KEY = 'davis_video_a_history_archive_v1';
 
-export async function prepareHistoryArchiveA() {
+export async function prepareHistoryArchiveA(supabase) {
+  if (!supabase) return { archivedProjects:0, archivedGroups:0, reload:false };
   const { data: sessionData } = await supabase.auth.getSession();
   const user = sessionData?.session?.user;
   if (!user?.id) return { archivedProjects:0, archivedGroups:0, reload:false };
