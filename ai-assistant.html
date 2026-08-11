@@ -156,17 +156,6 @@ body.usage-modal-open{overflow:hidden}
   background:#fffafb!important;
 }
 
-
-/* R51 Davis Video -> 剪映项目桥接 */
-#jianying-sync-project:not(:disabled){border-color:#d8defd;color:#4e5ddb;background:#f8f9ff}
-#jianying-sync-project:not(:disabled):hover{background:#eef1ff;border-color:#bdc7ff}
-.jianying-sync-modal[hidden]{display:none!important}.jianying-sync-modal{position:fixed;inset:0;z-index:3600}.jianying-sync-backdrop{position:absolute;inset:0;background:rgba(21,28,48,.34);backdrop-filter:blur(4px)}
-.jianying-sync-dialog{position:relative;z-index:1;width:min(680px,calc(100vw - 34px));margin:10vh auto 0;background:#fff;border-radius:22px;box-shadow:0 28px 80px rgba(31,40,72,.25);overflow:hidden}
-.jianying-sync-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:24px 26px 18px;border-bottom:1px solid #eef0f5}.jianying-sync-head h2{margin:3px 0 5px;font-size:25px;color:#20283a}.jianying-sync-head p{margin:0;color:#737d93;font-size:13px}.jianying-sync-kicker{font-size:11px;color:#5d6bdd;font-weight:700;letter-spacing:.04em}.jianying-sync-head .icon-btn{font-size:22px}
-.jianying-sync-body{padding:22px 26px 26px}.jianying-sync-status-row{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:10px}.jianying-sync-status-row strong{font-size:15px;color:#242c40}.jianying-sync-status-row span{font-size:12px;color:#8a93a7}.jianying-sync-progress{height:8px;border-radius:999px;background:#edf0f6;overflow:hidden}.jianying-sync-progress i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#5b6bed,#7b66ef);transition:width .2s ease}.jianying-sync-detail{margin:13px 0 0;color:#7f899f;font-size:12px;line-height:1.65}
-.jianying-sync-install,.jianying-sync-result{margin-top:16px;padding:15px 16px;border-radius:14px;background:#f7f8fc;border:1px solid #e9ecf4}.jianying-sync-install strong{font-size:13px;color:#343d52}.jianying-sync-install p{font-size:12px;line-height:1.65;color:#768096}.jianying-sync-install code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;color:#4f5fe0}.jianying-sync-result{font-size:12px;line-height:1.7;color:#556078}.jianying-sync-result.success{background:#f5fbf7;border-color:#d9eee0;color:#39704a}.jianying-sync-result.warn{background:#fff9f3;border-color:#f4e1c8;color:#8a5e25}.jianying-sync-result.error{background:#fff6f7;border-color:#f4d9de;color:#a24755}
-@media(max-width:720px){.jianying-sync-dialog{margin:5vh auto 0}.jianying-sync-head,.jianying-sync-body{padding-left:17px;padding-right:17px}}
-
 </style>
 </head>
 <body>
@@ -201,7 +190,6 @@ body.usage-modal-open{overflow:hidden}
           <span class="usage-popover-trigger-wrap">
             <button class="ghost-btn personal-usage-open" id="personal-usage-open" type="button" aria-haspopup="dialog" aria-controls="personal-usage-modal" aria-expanded="false">花费详情</button>
           </span>
-          <button class="ghost-btn" id="jianying-sync-project" type="button" disabled title="选择一个生成项目后可同步到剪映">🎬 剪映剪辑</button>
           <button class="ghost-btn" id="open-jobs">任务与输出</button>
           <button class="danger-btn" id="delete-project">删除当前任务</button>
         </div>
@@ -351,27 +339,6 @@ body.usage-modal-open{overflow:hidden}
   <div id="confirm-modal" class="modal" hidden><div class="modal-card"><h3 id="confirm-title"></h3><p id="confirm-message"></p><div class="modal-actions"><button class="ghost-btn" id="confirm-cancel">取消</button><button class="primary-btn" id="confirm-ok">确认</button></div></div></div>
 
 
-  <div id="jianying-sync-modal" class="jianying-sync-modal" hidden>
-    <div class="jianying-sync-backdrop" data-jianying-sync-close></div>
-    <section class="jianying-sync-dialog" role="dialog" aria-modal="true" aria-labelledby="jianying-sync-title">
-      <header class="jianying-sync-head">
-        <div><span class="jianying-sync-kicker">Davis Clip Bridge</span><h2 id="jianying-sync-title">同步到剪映</h2><p id="jianying-sync-project-name">—</p></div>
-        <button type="button" id="jianying-sync-close" class="icon-btn" aria-label="关闭">×</button>
-      </header>
-      <div class="jianying-sync-body">
-        <div class="jianying-sync-status-row"><strong id="jianying-sync-status">准备同步…</strong><span id="jianying-sync-count">0 / 0</span></div>
-        <div class="jianying-sync-progress"><i id="jianying-sync-progress-bar" style="width:0%"></i></div>
-        <p id="jianying-sync-detail" class="jianying-sync-detail">会把当前一级项目下各子任务的最终视频同步到本地项目素材目录，并导入剪映草稿媒体池。</p>
-        <div id="jianying-sync-install" class="jianying-sync-install" hidden>
-          <strong>本机还没有运行 Davis 剪映桥接器</strong>
-          <p>先双击 R53 一键安装程序，安装一次即可。安装后返回本页再点“剪映剪辑”。</p>
-          <button type="button" id="jianying-sync-retry" class="ghost-btn">重新检测桥接器</button>
-        </div>
-        <div id="jianying-sync-result" class="jianying-sync-result" hidden></div>
-      </div>
-    </section>
-  </div>
-
   <div id="project-mode-modal" class="project-mode-modal" hidden>
     <div class="project-mode-dialog">
       <h2>新建视频生成项目</h2>
@@ -434,7 +401,7 @@ try {
   localStorage.removeItem('seedance_app_v46_source_cache_v1');
 } catch {}
 </script>
-<script type="module" src="./seedance/app.js?v=20260811-jianying-tray-bridge-r53-4-lna"></script>
+<script type="module" src="./seedance/app.js?v=20260807-tree-selection-collapse-r50"></script>
   <script type="module" src="./seedance/prompt-optimizer.js?v=20260728-davis-video-optimizer-v7"></script>
   <script type="module" src="./seedance/ui-patches.js?v=20260724-davis-video-ui-v1"></script>
 </body>
