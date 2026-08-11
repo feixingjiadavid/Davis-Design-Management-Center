@@ -31,6 +31,35 @@ function enhanceReviewControls() {
   else actions.appendChild(button);
 }
 
+function downloadBatchTemplate() {
+  const csv = [
+    ['任务名称','subject_key','生成模式','历史照片','当前照片','提示词','模型','时长','分辨率','比例'],
+    ['张三｜5周年互动','zhangsan_5y','首尾帧','zhangsan_old.jpg','zhangsan_now.jpg','5年前的自己与现在的自己自然走近并握手，身份与五官保持一致','Seedance 2.0','5','1080P','16:9'],
+    ['李四｜10周年互动','lisi_10y','首尾帧','lisi_old.jpg','lisi_now.jpg','10年前的自己与现在的自己自然拥抱，人物身份、服装和面部特征稳定','Seedance 2.0','5','1080P','16:9'],
+  ].map(row => row.map(value => `"${String(value).replaceAll('"','""')}"`).join(',')).join('\r\n');
+  const blob = new Blob([`\uFEFF${csv}`], { type:'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'Davis_Video_批量生成任务模板.csv';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
+}
+
+function enhanceBatchTemplate() {
+  const input = document.getElementById('r54-sheet');
+  const box = input?.closest('.r54-file');
+  if (!box || box.querySelector('[data-r54-download-template]')) return;
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.dataset.r54DownloadTemplate = '1';
+  button.textContent = '下载 CSV 模板';
+  button.style.cssText = 'margin-top:9px;min-height:30px;padding:0 10px;border:1px solid #dfe4ed;border-radius:8px;background:#fff;color:#5567ef;font-size:11px;font-weight:700;cursor:pointer';
+  box.appendChild(button);
+}
+
 function toggleSection(section, check) {
   section.querySelectorAll('input[data-r54-task-check]').forEach(input => {
     if (input.checked === check) return;
@@ -51,11 +80,20 @@ function syncHeaderLabel(section) {
 function enhance() {
   enhanceDeliverableHeaders();
   enhanceReviewControls();
+  enhanceBatchTemplate();
   document.querySelectorAll('.r54-deliverable[data-deliverable]').forEach(syncHeaderLabel);
 }
 
 function init() {
   document.addEventListener('click', event => {
+    const template = event.target.closest?.('[data-r54-download-template]');
+    if (template) {
+      event.preventDefault();
+      event.stopPropagation();
+      downloadBatchTemplate();
+      return;
+    }
+
     const button = event.target.closest?.('[data-r54-select-visible]');
     if (!button) return;
     event.preventDefault();
