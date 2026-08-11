@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260811-jianying-tray-bridge-r53-4-lna';
+const PRODUCTION_BUILD = '20260807-tree-selection-collapse-r50';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -553,224 +553,6 @@ async function r50DeleteSelectedNode() {
 }
 
 
-
-const R51_CLIP_BRIDGE_BASE = 'http://127.0.0.1:17890';
-let r53LastBridgeHealth = null;
-
-function r51ResolveSyncGroupId() {
-  const selection = r50TreeSelection();
-  return String(selection?.groupId || r49ParentGroupIdForDraft(state.draft) || '').trim() || null;
-}
-
-function r51SyncJianyingButton() {
-  const button = $('jianying-sync-project');
-  if (!button) return;
-  const groupId = r51ResolveSyncGroupId();
-  const group = groupId ? r49FindParentGroup(groupId) : null;
-  button.disabled = !group;
-  button.textContent = group ? '🎬 剪映剪辑' : '🎬 剪映剪辑';
-  button.title = group ? `同步“${group.name}”全部最终视频到剪映` : '先选择一个一级生成项目';
-}
-
-function r51OpenSyncModal(group) {
-  const modal = $('jianying-sync-modal');
-  if (!modal) return;
-  modal.hidden = false;
-  document.body.classList.add('usage-modal-open');
-  if ($('jianying-sync-project-name')) $('jianying-sync-project-name').textContent = group?.name || '当前项目';
-  if ($('jianying-sync-status')) $('jianying-sync-status').textContent = '准备同步…';
-  if ($('jianying-sync-count')) $('jianying-sync-count').textContent = '0 / 0';
-  if ($('jianying-sync-progress-bar')) $('jianying-sync-progress-bar').style.width = '0%';
-  if ($('jianying-sync-detail')) $('jianying-sync-detail').textContent = '正在检查 Davis 剪映桥接器和项目输出…';
-  if ($('jianying-sync-install')) $('jianying-sync-install').hidden = true;
-  if ($('jianying-sync-result')) { $('jianying-sync-result').hidden = true; $('jianying-sync-result').className = 'jianying-sync-result'; $('jianying-sync-result').textContent = ''; }
-}
-
-function r51CloseSyncModal() {
-  if ($('jianying-sync-modal')) $('jianying-sync-modal').hidden = true;
-  document.body.classList.remove('usage-modal-open');
-}
-
-function r51UpdateSyncProgress(done, total, status, detail = '') {
-  const safeTotal = Math.max(0, Number(total || 0));
-  const safeDone = Math.max(0, Math.min(safeTotal || 1, Number(done || 0)));
-  if ($('jianying-sync-count')) $('jianying-sync-count').textContent = `${safeDone} / ${safeTotal}`;
-  if ($('jianying-sync-progress-bar')) $('jianying-sync-progress-bar').style.width = `${safeTotal ? (safeDone / safeTotal) * 100 : 0}%`;
-  if ($('jianying-sync-status')) $('jianying-sync-status').textContent = status || '同步中…';
-  if (detail && $('jianying-sync-detail')) $('jianying-sync-detail').textContent = detail;
-}
-
-function r51ShowSyncResult(kind, message) {
-  const result = $('jianying-sync-result'); if (!result) return;
-  result.hidden = false; result.className = `jianying-sync-result ${kind || ''}`; result.textContent = message || '';
-}
-
-async function r51BridgeRequest(path, options = {}, timeoutMs = 10000) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const headers = { 'X-Davis-Bridge':'1', ...(options.headers || {}) };
-    if (path === '/health' && String(options.method || 'GET').toUpperCase() === 'GET') delete headers['X-Davis-Bridge'];
-    const response = await fetch(`${R51_CLIP_BRIDGE_BASE}${path}`, {
-      ...options,
-      mode: 'cors',
-      targetAddressSpace: 'local',
-      headers,
-      signal: controller.signal,
-    });
-    const text = await response.text();
-    let data = null; try { data = text ? JSON.parse(text) : {}; } catch { data = { message:text }; }
-    if (!response.ok) throw new Error(data?.message || `Bridge HTTP ${response.status}`);
-    return data || {};
-  } finally { clearTimeout(timer); }
-}
-
-async function r51BridgeHealth() {
-  try { const data = await r51BridgeRequest('/health', { method:'GET' }, 1800); r53LastBridgeHealth = data; return Boolean(data?.ok); }
-  catch { return false; }
-}
-
-function r51TryStartBridgeProtocol() {
-  try {
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.src = 'davisclip://start';
-    document.body.appendChild(iframe);
-    setTimeout(() => iframe.remove(), 2500);
-  } catch {}
-}
-
-async function r51EnsureBridge() {
-  if (await r51BridgeHealth()) return true;
-  r51TryStartBridgeProtocol();
-  for (let i=0;i<12;i+=1) { await new Promise(resolve => setTimeout(resolve,500)); if (await r51BridgeHealth()) return true; }
-  return false;
-}
-
-function r51SafeFilenamePart(value) {
-  return String(value || '').replace(/[<>:"/\\|?*\x00-\x1f]/g,'_').replace(/[. ]+$/g,'').trim().slice(0,70) || '任务';
-}
-
-async function r51CollectProjectOutputs(groupId) {
-  const group = r49FindParentGroup(groupId);
-  if (!group) throw new Error('没有找到当前一级项目');
-  const { data:projects, error:projectError } = await supabase.from('video_projects')
-    .select('id,name,mode,task_name,task_order,parent_group_id,status,created_at,updated_at')
-    .eq('parent_group_id', groupId).neq('status','deleted').order('task_order',{ascending:true}).order('created_at',{ascending:true});
-  if (projectError) throw new Error(`读取项目子任务失败：${errorMessage(projectError)}`);
-  const children = projects || [];
-  if (!children.length) return { group, clips:[] };
-  const projectIds = children.map(item => item.id).filter(Boolean);
-  const [segmentResult, outputResult] = await Promise.all([
-    supabase.from('video_segments').select('id,project_id,position,created_at').in('project_id',projectIds),
-    supabase.from('video_outputs').select('id,project_id,segment_id,task_id,google_drive_file_id,storage_status,status,metadata,created_at').in('project_id',projectIds).eq('storage_status','completed').order('created_at',{ascending:false}).limit(2000),
-  ]);
-  if (segmentResult.error) throw new Error(`读取子任务片段失败：${errorMessage(segmentResult.error)}`);
-  if (outputResult.error) throw new Error(`读取项目视频失败：${errorMessage(outputResult.error)}`);
-
-  const segmentById = new Map((segmentResult.data || []).map(segment => [segment.id,segment]));
-  const projectById = new Map(children.map((project,index) => [project.id,{...project,__index:index}]));
-  const chosen = new Map();
-  for (const row of outputResult.data || []) {
-    const driveId = row.google_drive_file_id || row.metadata?.google_drive_file_id || row.metadata?.googleDriveFileId || row.metadata?.drive_file_id || row.metadata?.driveFileId || '';
-    if (!row.id || !row.project_id || !driveId) continue;
-    const segment = row.segment_id ? segmentById.get(row.segment_id) : null;
-    const key = row.segment_id ? `${row.project_id}:segment:${row.segment_id}` : `${row.project_id}:task:${row.task_id || row.id}`;
-    if (chosen.has(key)) continue; // rows are newest-first: keep latest final output per segment.
-    const project = projectById.get(row.project_id); if (!project) continue;
-    const taskOrder = Number(project.task_order ?? project.__index ?? 0);
-    const segmentPosition = Number(segment?.position ?? 0);
-    const taskName = String(project.task_name || project.name || `生成任务 ${taskOrder+1}`).trim();
-    const outputId = String(row.id);
-    const filename = `${String(taskOrder+1).padStart(3,'0')}_${r51SafeFilenamePart(taskName)}_S${String(segmentPosition+1).padStart(2,'0')}_${outputId.slice(0,8)}.mp4`;
-    chosen.set(key, {
-      output_id:outputId, task_id:String(row.task_id || ''), task_name:taskName, task_order:taskOrder,
-      segment_position:segmentPosition, mode:String(project.mode || ''), created_at:String(row.created_at || ''), filename,
-      output:{ row, outputId, googleDriveFileId:driveId, projectId:project.id, mode:project.mode, taskId:row.task_id || null, remoteSegmentId:row.segment_id || null, index:segmentPosition },
-    });
-  }
-  const clips = [...chosen.values()].sort((a,b) => a.task_order-b.task_order || a.segment_position-b.segment_position || String(a.created_at).localeCompare(String(b.created_at)));
-  return { group, clips };
-}
-
-async function r51SyncProjectToJianying(groupId = r51ResolveSyncGroupId()) {
-  const group = groupId ? r49FindParentGroup(groupId) : null;
-  if (!group) return toast('请选择生成项目','先在左侧选择一个一级生成项目，再同步到剪映。');
-  r51OpenSyncModal(group);
-  try {
-    r51UpdateSyncProgress(0,0,'检测本地桥接器','正在连接 127.0.0.1 上的 Davis Clip Bridge…');
-    const bridgeReady = await r51EnsureBridge();
-    if (!bridgeReady) {
-      if ($('jianying-sync-install')) $('jianying-sync-install').hidden = false;
-      r51UpdateSyncProgress(0,0,'后台程序未监听 17890','请启动 Davis Clip Bridge 托盘程序后再重试。');
-      return;
-    }
-
-    if (r53LastBridgeHealth?.editor_found) r51UpdateSyncProgress(0,0,'已检测到剪映',`已找到 ${r53LastBridgeHealth.editor_exe || '剪映程序'}，继续同步项目视频…`);
-
-    r51UpdateSyncProgress(0,0,'汇总项目视频','正在按一级项目读取全部子生成任务的最终输出…');
-    const collected = await r51CollectProjectOutputs(group.id);
-    const clips = collected.clips || [];
-    if (!clips.length) {
-      r51ShowSyncResult('warn','这个项目下还没有已经同步到 Google Drive 的最终视频，暂时没有可导入剪映的素材。');
-      r51UpdateSyncProgress(0,0,'暂无可同步视频','先完成至少一个子任务的视频生成。');
-      return;
-    }
-
-    const startPayload = {
-      project_id:String(group.id), project_name:String(group.name || '未命名项目'), project_category:String(group.project_category || '其他'),
-      clips:clips.map(({output,...meta}) => meta),
-    };
-    const start = await r51BridgeRequest('/v1/projects/start',{ method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(startPayload) },10000);
-    const known = new Set((start.known_output_ids || []).map(String));
-    const pending = clips.filter(clip => !known.has(String(clip.output_id)));
-    const total = clips.length;
-    let done = total - pending.length;
-    r51UpdateSyncProgress(done,total,pending.length ? '同步项目素材' : '素材已是最新',pending.length ? `本地已存在 ${done} 个，本次新增 ${pending.length} 个。` : `本地已有全部 ${total} 个项目视频，将直接唤起剪映。`);
-
-    const failures = [];
-    for (const clip of pending) {
-      try {
-        r51UpdateSyncProgress(done,total,'正在下载并写入本地',`${clip.task_name} · Segment ${clip.segment_position+1}`);
-        const blob = await fetchVideoBlobThroughProxy(clip.output);
-        const query = new URLSearchParams({ filename:clip.filename,task_name:clip.task_name,task_id:clip.task_id || '',task_order:String(clip.task_order),segment_position:String(clip.segment_position),mode:clip.mode || '',created_at:clip.created_at || '' });
-        await r51BridgeRequest(`/v1/projects/${encodeURIComponent(start.sync_id)}/clips/${encodeURIComponent(clip.output_id)}?${query.toString()}`,{ method:'PUT',headers:{'Content-Type':blob.type || 'video/mp4'},body:blob },180000);
-        done += 1; r51UpdateSyncProgress(done,total,'项目素材同步中',`${clip.task_name} 已写入本地项目目录`);
-      } catch (error) { failures.push(`${clip.task_name}：${errorMessage(error)}`); done += 1; r51UpdateSyncProgress(done,total,'有素材同步失败',failures[failures.length-1]); }
-    }
-
-    r51UpdateSyncProgress(total,total,'正在打开剪映',failures.length ? `有 ${failures.length} 个素材失败，其余素材继续导入剪映。` : '正在启动/激活剪映并批量导入项目素材…');
-    const commit = await r51BridgeRequest(`/v1/projects/${encodeURIComponent(start.sync_id)}/commit`,{ method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({launch:true,auto_import:true,new_draft:true}) },60000);
-    if (commit.ok) {
-      const imported = Number(commit.imported || 0), skipped = Number(commit.skipped || 0);
-      r51ShowSyncResult('success',`${commit.message || '剪映同步完成'}。项目本地素材目录：${commit.project_dir || start.project_dir || ''}。本次导入 ${imported} 个，已存在并跳过 ${skipped} 个。${failures.length ? `另有 ${failures.length} 个素材拉取失败。` : ''}`);
-      r51UpdateSyncProgress(total,total,'剪映同步完成',imported ? '新增视频已经导入剪映草稿媒体池，可以直接开始剪辑。' : '没有新增视频；剪映已被唤起。');
-    } else {
-      const kind = commit.code === 'jianying_not_found' ? 'warn' : 'error';
-      r51ShowSyncResult(kind,`${commit.message || '剪映自动导入未完成'}。项目素材已经保存在：${commit.project_dir || start.project_dir || ''}`);
-      r51UpdateSyncProgress(total,total,'素材已保存，剪映自动导入未完成','不会丢素材；可以从本地项目目录手动导入。');
-    }
-  } catch (error) {
-    console.error('[Davis Video R53] JianYing sync failed',error);
-    r51ShowSyncResult('error',errorMessage(error,'同步到剪映失败'));
-    r51UpdateSyncProgress(0,0,'同步失败','请检查桥接器、网络和剪映客户端后重试。');
-  }
-}
-
-function r51WireClipBridgeUi() {
-  if ($('jianying-sync-project')) $('jianying-sync-project').onclick = () => void r51SyncProjectToJianying();
-  if ($('jianying-sync-close')) $('jianying-sync-close').onclick = r51CloseSyncModal;
-  qsa('[data-jianying-sync-close]').forEach(node => node.onclick = r51CloseSyncModal);
-  if ($('jianying-sync-retry')) $('jianying-sync-retry').onclick = async () => {
-    $('jianying-sync-install').hidden = true;
-    r51UpdateSyncProgress(0,0,'重新检测桥接器','正在连接本地 Davis Clip Bridge…');
-    if (await r51EnsureBridge()) r51ShowSyncResult('success',`桥接器已连接（PID ${r53LastBridgeHealth?.pid || '未知'}，端口 ${r53LastBridgeHealth?.port || 17890}）。现在可以关闭弹窗并再次点击“剪映剪辑”。`);
-    else $('jianying-sync-install').hidden = false;
-  };
-  r51SyncJianyingButton();
-}
-
-
 function r49GroupChildren(groupId) {
   return (state.drafts || []).filter(draft => String(r49ParentGroupIdForDraft(draft) || '') === String(groupId || ''))
     .sort((a,b) => Number(b.createdAt || b.updatedAt || 0) - Number(a.createdAt || a.updatedAt || 0));
@@ -889,7 +671,7 @@ function r49RenderProjects() {
     r50SetTreeSelection('task', groupId, btn.dataset.project);
     void selectDraft(btn.dataset.project);
   });
-  r50SyncDeleteButton(); r51SyncJianyingButton();
+  r50SyncDeleteButton();
 }
 function r49OpenParentModal() {
   const modal = $('project-mode-modal'); if (!modal) return;
@@ -1070,8 +852,8 @@ async function r49Init() {
   const closeUsage = () => { if (!usageModal) return; usageModal.hidden = true; usageModal.setAttribute('aria-hidden','true'); usageOpen?.setAttribute('aria-expanded','false'); document.body.classList.remove('usage-modal-open'); };
   const openUsage = () => { if (!usageModal) return; usageModal.hidden = false; usageModal.setAttribute('aria-hidden','false'); usageOpen?.setAttribute('aria-expanded','true'); document.body.classList.add('usage-modal-open'); void r38LoadUsageSummary(false); };
   usageOpen?.addEventListener('click',openUsage); usageClose?.addEventListener('click',closeUsage); usageBackdrop?.addEventListener('click',closeUsage);
-  window.addEventListener('keydown',event => { if (event.key === 'Escape') { if (usageModal && !usageModal.hidden) closeUsage(); if ($('jianying-sync-modal') && !$('jianying-sync-modal').hidden) r51CloseSyncModal(); if ($('child-task-modal') && !$('child-task-modal').hidden) r49CloseChildTaskModal(); if ($('project-mode-modal') && !$('project-mode-modal').hidden) r49CloseParentModal(); } });
-  r49WireHierarchyUi(); r51WireClipBridgeUi(); enhanceCustomSelects(); document.body.dataset.seedanceBuild = APP_BUILD;
+  window.addEventListener('keydown',event => { if (event.key === 'Escape') { if (usageModal && !usageModal.hidden) closeUsage(); if ($('child-task-modal') && !$('child-task-modal').hidden) r49CloseChildTaskModal(); if ($('project-mode-modal') && !$('project-mode-modal').hidden) r49CloseParentModal(); } });
+  r49WireHierarchyUi(); enhanceCustomSelects(); document.body.dataset.seedanceBuild = APP_BUILD;
   state.projectGroups = await r49LoadParentGroups();
   state.drafts = await r49RestoreCloudDrafts(await r5MigrateDraftCollection(await listDrafts()));
   state.drafts = await r49EnsureDraftParentBindings(state.drafts);
@@ -4063,12 +3845,11 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, 
 
   const accessControlSupport = String(accessControlSource || '').replace(/\bexport\s+/g, '');
   const categorySupportSource = `const R44_INDEX_PROJECT_CATEGORIES = Object.freeze(${JSON.stringify(R44_INDEX_PROJECT_CATEGORIES)});`;
-  const bridgeSupportSource = `const R51_CLIP_BRIDGE_BASE = ${JSON.stringify(R51_CLIP_BRIDGE_BASE)};`;
-  const support = accessControlSupport + '\n\n' + categorySupportSource + '\n\n' + bridgeSupportSource + '\n\n' + [r5ModeKey,r5ModeLabel,r5ModeSuffix,r5BaseProjectName,r5Clone,r5WorkspaceHasContent,r5CreateWorkspaceClone,
+  const support = accessControlSupport + '\n\n' + categorySupportSource + '\n\n' + [r5ModeKey,r5ModeLabel,r5ModeSuffix,r5BaseProjectName,r5Clone,r5WorkspaceHasContent,r5CreateWorkspaceClone,
     r5BuildSplitDraft,r5MigrateDraftCollection,r5ContextSnapshot,r5ContextIsCurrent,r5ExactTaskIds,
     r53IsGenericProjectName,r53NormalizePrompt,r53PromptOverlap,r53ProjectCandidateScore,r5VerifyProjectId,
     r5ResolveFixedProject,r5TaskScore,r5OutputStableKey,r5CacheRequestUrl,r5ReadPersistentVideo,r5PrunePersistentVideoCache,
-    r5WritePersistentVideo,r49ParentGroupIdForDraft,r49TaskDisplayName,r49DefaultTaskName,r49FindParentGroup,r49ExpandedParentGroups,r49SaveExpandedParentGroups,r49ExpandParentGroup,r50TreeSelection,r50SetTreeSelection,r50SelectParentGroup,r50SyncDeleteButton,r50SetChildTaskNameError,r50ValidateChildTaskName,r50RemoveParentProject,r50DeleteSelectedNode,r51ResolveSyncGroupId,r51SyncJianyingButton,r51OpenSyncModal,r51CloseSyncModal,r51UpdateSyncProgress,r51ShowSyncResult,r51BridgeRequest,r51BridgeHealth,r51TryStartBridgeProtocol,r51EnsureBridge,r51SafeFilenamePart,r51CollectProjectOutputs,r51SyncProjectToJianying,r51WireClipBridgeUi,r49GroupChildren,r49LoadParentGroups,r49EnsureDraftParentBindings,r49RenderTaskContext,r49RenderProjects,r49OpenParentModal,r49CloseParentModal,r49CreateParentProject,r49OpenChildTaskModal,r49CloseChildTaskModal,r49CreateChildTask,r49WireHierarchyUi,r49RenderSettings,r49SelectDraft,r49RemoveTask,r49RestoreCloudDrafts,r49ReEditSegment,r49Init,r43NormalizeCategory,r43InferHistoricalCategory,r43ProjectCategoryValue,r43IncomingProjectCategory,r43SyncCategoryCustomVisibility,r43ApplyCategoryOptions,r43LoadCategoryOptions,r43ProjectCategoryFromControls,r45SetProjectFieldError,r45ClearProjectCreateErrors,r45ValidateProjectCreateFields,r5OpenCreateModal,r5CloseCreateModal,r5CreateProjectFromMode,r5WireCreateModal,
+    r5WritePersistentVideo,r49ParentGroupIdForDraft,r49TaskDisplayName,r49DefaultTaskName,r49FindParentGroup,r49ExpandedParentGroups,r49SaveExpandedParentGroups,r49ExpandParentGroup,r50TreeSelection,r50SetTreeSelection,r50SelectParentGroup,r50SyncDeleteButton,r50SetChildTaskNameError,r50ValidateChildTaskName,r50RemoveParentProject,r50DeleteSelectedNode,r49GroupChildren,r49LoadParentGroups,r49EnsureDraftParentBindings,r49RenderTaskContext,r49RenderProjects,r49OpenParentModal,r49CloseParentModal,r49CreateParentProject,r49OpenChildTaskModal,r49CloseChildTaskModal,r49CreateChildTask,r49WireHierarchyUi,r49RenderSettings,r49SelectDraft,r49RemoveTask,r49RestoreCloudDrafts,r49ReEditSegment,r49Init,r43NormalizeCategory,r43InferHistoricalCategory,r43ProjectCategoryValue,r43IncomingProjectCategory,r43SyncCategoryCustomVisibility,r43ApplyCategoryOptions,r43LoadCategoryOptions,r43ProjectCategoryFromControls,r45SetProjectFieldError,r45ClearProjectCreateErrors,r45ValidateProjectCreateFields,r5OpenCreateModal,r5CloseCreateModal,r5CreateProjectFromMode,r5WireCreateModal,
     r6ExistingProjectNames,r6ForkCurrentDraftForSubmit,r10StableUploadPlan,r10ApplyFrameBinding,
     r10SubmissionContext,r10AssertContext,r10RecoverFrameBindings,r10RecoverOrphan,r11RestoreCloudDrafts,r13MarkVersionForkForSubmit,r14NormalizeProjectName,r14ProjectNameExists,r15HasFilePayload,r15WireFileDropzone,r15PreventDocumentFileNavigation,
     r16ProjectOwnerId,r16ScopeProjectRead,r16CurrentProjectWritable,r16AssertCurrentProjectWritable,r16ApplyReadOnlyControls,
