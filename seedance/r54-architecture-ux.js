@@ -1,4 +1,5 @@
 const BUILD = '20260811-r54-architecture-ux';
+const ONBOARD_KEY = 'davis_video_r54_onboard_group';
 let parentCreateBefore = null;
 let pendingDeliverableLabel = '';
 
@@ -49,7 +50,22 @@ function injectDeliverableContext(label) {
     if (firstField) firstField.insertAdjacentElement('beforebegin', context);
     else modal.querySelector('.modal-card,.child-task-dialog,.project-mode-dialog')?.prepend(context);
   }
-  context.innerHTML = `归属成片单元：<b>${String(label || '当前成片单元').replace(/[&<>]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]))}</b><br>这里创建的是该成片的一次具体视频生成任务。`;
+  const safe = String(label || '当前成片单元').replace(/[&<>]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]));
+  context.innerHTML = `归属成片单元：<b>${safe}</b><br>这里创建的是该成片的一次具体视频生成任务。`;
+}
+
+async function resumeOnboarding() {
+  const groupId = sessionStorage.getItem(ONBOARD_KEY) || '';
+  if (!groupId) return;
+  for (let i = 0; i < 100; i += 1) {
+    await sleep(100);
+    const button = document.querySelector(`[data-r54-create-deliverable="${CSS.escape(groupId)}"]`);
+    if (button) {
+      sessionStorage.removeItem(ONBOARD_KEY);
+      button.click();
+      return;
+    }
+  }
 }
 
 async function redirectNewParentToDeliverable() {
@@ -66,7 +82,7 @@ async function redirectNewParentToDeliverable() {
   }
   if (!newGroupId) return;
 
-  // R50 会在创建一级项目后自动打开“子任务”弹窗；R54 不允许绕过成片单元。
+  // R50 会自动打开“子任务”弹窗；R54 先关掉它，禁止绕过成片单元。
   for (let i = 0; i < 30; i += 1) {
     await sleep(70);
     const childModal = $('child-task-modal');
@@ -76,15 +92,9 @@ async function redirectNewParentToDeliverable() {
     }
   }
 
-  // 等 R54 三级树完成增强后，直接打开“新建成片单元”。
-  for (let i = 0; i < 80; i += 1) {
-    await sleep(100);
-    const button = document.querySelector(`[data-r54-create-deliverable="${CSS.escape(newGroupId)}"]`);
-    if (button) {
-      button.click();
-      return;
-    }
-  }
+  // 新一级项目刚进入数据库，R54 的云端缓存需要刷新一次；自动恢复并继续打开成片单元创建。
+  sessionStorage.setItem(ONBOARD_KEY, newGroupId);
+  location.reload();
 }
 
 function enhance() {
@@ -95,6 +105,7 @@ function enhance() {
 
 function init() {
   enhance();
+  void resumeOnboarding();
 
   document.addEventListener('click', event => {
     if (event.target.closest?.('#project-create-submit')) {
