@@ -1,4 +1,4 @@
-const BUILD = '20260811-r54-selection-tools';
+const BUILD = '20260812-a-selection-tools-safe';
 
 function enhanceDeliverableHeaders() {
   document.querySelectorAll('.r54-deliverable[data-deliverable]').forEach(section => {
@@ -73,8 +73,10 @@ function syncHeaderLabel(section) {
   if (!button) return;
   const inputs = [...section.querySelectorAll('input[data-r54-task-check]')];
   const allChecked = inputs.length > 0 && inputs.every(input => input.checked);
-  button.textContent = allChecked ? '清空' : '全选';
-  button.title = allChecked ? '取消这个成片单元下全部任务的勾选' : '勾选这个成片单元下全部任务';
+  const label = allChecked ? '清空' : '全选';
+  const title = allChecked ? '取消这个成片单元下全部任务的勾选' : '勾选这个成片单元下全部任务';
+  if (button.textContent !== label) button.textContent = label;
+  if (button.title !== title) button.title = title;
 }
 
 function enhance() {
@@ -95,15 +97,22 @@ function init() {
     }
 
     const button = event.target.closest?.('[data-r54-select-visible]');
-    if (!button) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const section = button.closest('.r54-deliverable[data-deliverable]');
-    if (!section) return;
-    const inputs = [...section.querySelectorAll('input[data-r54-task-check]')];
-    const allChecked = inputs.length > 0 && inputs.every(input => input.checked);
-    toggleSection(section, !allChecked);
-    syncHeaderLabel(section);
+    if (button) {
+      event.preventDefault();
+      event.stopPropagation();
+      const section = button.closest('.r54-deliverable[data-deliverable]');
+      if (!section) return;
+      const inputs = [...section.querySelectorAll('input[data-r54-task-check]')];
+      const allChecked = inputs.length > 0 && inputs.every(input => input.checked);
+      toggleSection(section, !allChecked);
+      syncHeaderLabel(section);
+      return;
+    }
+
+    // Deliverable/task actions rebuild small parts of the tree; enhance after the action settles.
+    if (event.target.closest?.('[data-r54-create-deliverable],[data-r54-add-task],[data-r54-review],[data-r54-retry],[data-r54-batch-import],[data-select-parent],.project-child')) {
+      setTimeout(enhance, 120);
+    }
   });
 
   document.addEventListener('change', event => {
@@ -112,11 +121,14 @@ function init() {
     if (section) syncHeaderLabel(section);
   });
 
-  const observer = new MutationObserver(() => queueMicrotask(enhance));
-  observer.observe(document.body, { childList:true, subtree:true });
+  // Deliberately no page-wide MutationObserver. A low-frequency idempotent refresh catches
+  // base-tree rerenders without creating observer/write feedback loops.
+  const timer = setInterval(enhance, 1200);
+  window.addEventListener('beforeunload', () => clearInterval(timer), { once:true });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) enhance(); });
   enhance();
   document.body.dataset.davisVideoSelectionToolsR54 = 'ready';
-  console.log('[Davis Video R54 Selection]', BUILD);
+  console.log('[Davis Video A Selection]', BUILD);
 }
 
 export function initSelectionToolsR54() {
