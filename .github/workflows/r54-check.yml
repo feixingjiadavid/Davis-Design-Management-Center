@@ -1,9 +1,9 @@
-name: R54 Deliverables Check
+name: Davis Video A Version Check
 
 on:
   push:
     branches:
-      - feature/video-deliverables-r54
+      - feature/video-studio-a-architecture
   pull_request:
     branches:
       - main
@@ -12,9 +12,9 @@ permissions:
   contents: read
 
 jobs:
-  verify-r54:
+  verify-a-version:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,7 +24,7 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Syntax check R54 modules
+      - name: Syntax check A modules
         run: |
           node --check seedance/r54-deliverables.js
           node --check seedance/r54-paid-safety.js
@@ -35,6 +35,6 @@ jobs:
           node --check seedance/r54-deliverables-core.mjs
           node --check supabase-config.js
 
-      - name: R54 unit tests
+      - name: A-version unit tests
         run: |
-          node --test seedance/r54-deliverables-core.test.mjs seedance/r54-import-normalization.test.mjs
+          node --test seedance/r54-deliverables-core.test.mjs seedance/r54-import-normalization.test.mjs seedance/a-version-regression.test.mjs
