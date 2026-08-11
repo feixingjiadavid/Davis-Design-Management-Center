@@ -6,6 +6,13 @@ let pendingDeliverableLabel = '';
 const $ = id => document.getElementById(id);
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
+function toast(title, message='') {
+  const box=$('toast'), titleEl=$('toast-title'), messageEl=$('toast-message');
+  if(!box||!titleEl||!messageEl)return;
+  titleEl.textContent=title; messageEl.textContent=message; box.hidden=false;
+  clearTimeout(toast.timer); toast.timer=setTimeout(()=>{box.hidden=true;},4200);
+}
+
 function parentIdsInDom() {
   return new Set([...document.querySelectorAll('[data-select-parent]')]
     .map(node => String(node.dataset.selectParent || ''))
@@ -35,8 +42,15 @@ function patchProjectCreateCopy() {
   if (!modal) return;
   const title = modal.querySelector('h2');
   if (title) title.textContent = '新建视频业务项目';
-  const nameLabel = modal.querySelector('label[for="new-project-name"]');
-  if (nameLabel && !/业务项目/.test(nameLabel.textContent || '')) nameLabel.textContent = '业务项目名称 *';
+  const lead = modal.querySelector('.project-mode-dialog > p');
+  if (lead) lead.textContent = '先创建一级业务项目。创建完成后，先建立“成片单元”（例如互动暖场视频、开场视频），再在对应成片单元里创建多个独立生成任务。';
+  const nameField = $('new-project-name')?.closest('.project-create-field');
+  const nameTitle = nameField?.querySelector('span');
+  if (nameTitle) nameTitle.innerHTML = '业务项目名称 <em class="required-mark">*</em>';
+  const nameHint = nameField?.querySelector('small:not(.project-create-error)');
+  if (nameHint) nameHint.textContent = '这是左侧树形列表的一级业务项目名称；一个项目下面可以建立多个成片单元。';
+  const note = modal.querySelector('.project-create-note');
+  if (note) note.textContent = '这里只创建一级业务项目。下一步会先创建成片单元，不会直接创建付费生成任务。';
 }
 
 function injectDeliverableContext(label) {
@@ -97,6 +111,12 @@ async function redirectNewParentToDeliverable() {
   location.reload();
 }
 
+function currentDeliverableAddButton() {
+  const active = document.querySelector('.project-child.active');
+  const section = active?.closest('.r54-deliverable[data-deliverable]');
+  return section?.querySelector('[data-r54-add-task]') || null;
+}
+
 function enhance() {
   injectStyle();
   patchProjectCreateCopy();
@@ -111,6 +131,20 @@ function init() {
     if (event.target.closest?.('#project-create-submit')) {
       parentCreateBefore = parentIdsInDom();
       setTimeout(() => { void redirectNewParentToDeliverable(); }, 0);
+      return;
+    }
+
+    // 旧 R50 的“当前任务旁新建任务”必须改走当前成片单元，不能创建未归类任务。
+    if (event.target.closest?.('#new-child-task-current')) {
+      const add = currentDeliverableAddButton();
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      if (!add) {
+        toast('请先创建成片单元', '当前是历史未归类任务。请回到一级项目，先新建“互动暖场视频 / 开场视频”等成片单元，再在成片单元内创建任务。');
+        return;
+      }
+      add.click();
       return;
     }
 
