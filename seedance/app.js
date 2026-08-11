@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260811-jianying-tray-bridge-r53-3';
+const PRODUCTION_BUILD = '20260810-jianying-project-bridge-r53';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -609,12 +609,10 @@ async function r51BridgeRequest(path, options = {}, timeoutMs = 10000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const headers = { 'X-Davis-Bridge':'1', ...(options.headers || {}) };
-    if (path === '/health' && String(options.method || 'GET').toUpperCase() === 'GET') delete headers['X-Davis-Bridge'];
     const response = await fetch(`${R51_CLIP_BRIDGE_BASE}${path}`, {
       ...options,
       mode: 'cors',
-      headers,
+      headers: { 'X-Davis-Bridge':'1', ...(options.headers || {}) },
       signal: controller.signal,
     });
     const text = await response.text();
@@ -701,7 +699,7 @@ async function r51SyncProjectToJianying(groupId = r51ResolveSyncGroupId()) {
     const bridgeReady = await r51EnsureBridge();
     if (!bridgeReady) {
       if ($('jianying-sync-install')) $('jianying-sync-install').hidden = false;
-      r51UpdateSyncProgress(0,0,'后台程序未监听 17890','请启动 Davis Clip Bridge 托盘程序后再重试。');
+      r51UpdateSyncProgress(0,0,'桥接器未运行','请双击 R53 一键安装程序。安装一次后会随 Windows 自动启动。');
       return;
     }
 
@@ -763,7 +761,7 @@ function r51WireClipBridgeUi() {
   if ($('jianying-sync-retry')) $('jianying-sync-retry').onclick = async () => {
     $('jianying-sync-install').hidden = true;
     r51UpdateSyncProgress(0,0,'重新检测桥接器','正在连接本地 Davis Clip Bridge…');
-    if (await r51EnsureBridge()) r51ShowSyncResult('success',`桥接器已连接（PID ${r53LastBridgeHealth?.pid || '未知'}，端口 ${r53LastBridgeHealth?.port || 17890}）。现在可以关闭弹窗并再次点击“剪映剪辑”。`);
+    if (await r51EnsureBridge()) r51ShowSyncResult('success','桥接器已连接。现在可以关闭弹窗并再次点击“剪映剪辑”。');
     else $('jianying-sync-install').hidden = false;
   };
   r51SyncJianyingButton();
