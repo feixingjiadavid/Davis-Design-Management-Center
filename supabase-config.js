@@ -7,19 +7,27 @@ const supabaseAnonKey = 'sb_publishable_v6fbIaU52lLFacywiIKvUw_x1gc1ckQ'
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 const isVideoStudio = typeof window !== 'undefined' && /(?:^|\/)ai-assistant\.html$/i.test(window.location.pathname)
+let aVersionMayBoot = isVideoStudio
 
 if (isVideoStudio) {
   try {
     const { prepareHistoryArchiveA } = await import('./seedance/a-history-compat.js')
     const history = await prepareHistoryArchiveA(supabase)
-    if (history?.reload) {
+    if (history?.error) {
+      aVersionMayBoot = false
+      console.warn('[Davis Video A] history preservation failed; keeping stable base UI only', history.error)
+    } else if (history?.reload) {
+      aVersionMayBoot = false
       console.log('[Davis Video A] archived historical generated projects; reloading once', history)
       location.reload()
     }
   } catch (error) {
-    console.warn('[Davis Video A] history compatibility bootstrap skipped', error)
+    aVersionMayBoot = false
+    console.warn('[Davis Video A] history compatibility bootstrap failed; keeping stable base UI only', error)
   }
+}
 
+if (aVersionMayBoot) {
   queueMicrotask(() => {
     import('./seedance/r54-paid-safety.js')
       .then(({ initPaidSafetyR54 }) => initPaidSafetyR54())
