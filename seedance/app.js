@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260811-jianying-tray-bridge-r53-2';
+const PRODUCTION_BUILD = '20260811-jianying-tray-bridge-r53-4-lna';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -614,6 +614,7 @@ async function r51BridgeRequest(path, options = {}, timeoutMs = 10000) {
     const response = await fetch(`${R51_CLIP_BRIDGE_BASE}${path}`, {
       ...options,
       mode: 'cors',
+      targetAddressSpace: 'local',
       headers,
       signal: controller.signal,
     });
