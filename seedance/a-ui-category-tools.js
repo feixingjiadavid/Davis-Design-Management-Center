@@ -12,6 +12,7 @@ const STATUS_GROUPS = [
   { key: 'needs_retry', title: '需重做', desc: '只做标记，不会自动重新生成', statuses: ['needs_retry'] },
   { key: 'rejected', title: '废弃片段', desc: '不再使用，但保留历史记录', statuses: ['rejected'] },
 ];
+
 const STATUS_OPTIONS = [
   ['draft', '草稿'],
   ['accepted', '定版'],
@@ -19,9 +20,6 @@ const STATUS_OPTIONS = [
   ['needs_retry', '需重做'],
   ['rejected', '废弃'],
 ];
-
-let draftStatusById = new Map();
-let refreshBusy = false;
 
 function workspaceOf(draft) {
   const key = draft?.lockedMode || draft?.mode;
@@ -34,23 +32,15 @@ function remoteProjectId(draft) {
 function localIdForRow(row) {
   return $('.project-child', row)?.dataset?.project || '';
 }
-function normalizedStatus(value) {
-  const raw = text(value || 'draft');
-  return raw === 'pending_review' ? 'draft' : (STATUS_OPTIONS.some(([key]) => key === raw) ? raw : 'draft');
+function normalizeStatus(value) {
+  const status = text(value || 'draft') || 'draft';
+  return status === 'pending_review' ? 'draft' : status;
 }
 function statusFromRow(row) {
-  const localId = localIdForRow(row);
-  if (localId && draftStatusById.has(String(localId))) return draftStatusById.get(String(localId));
-  return normalizedStatus(row.dataset.aClipStatus || $('.r54-pill', row)?.dataset?.status || 'draft');
+  return normalizeStatus(row.dataset.aClipStatus || $('.r54-pill', row)?.dataset?.status || 'draft');
 }
 function bucketForStatus(status) {
   return STATUS_GROUPS.find(group => group.statuses.includes(status)) || STATUS_GROUPS[1];
-}
-
-async function refreshStatusMap() {
-  const drafts = await listDrafts();
-  draftStatusById = new Map(drafts.map(draft => [String(draft.id), normalizedStatus(draft.reviewStatus || draft.review_status || 'draft')]));
-  return drafts;
 }
 
 async function setStatus(localId, status) {
@@ -58,11 +48,9 @@ async function setStatus(localId, status) {
   const draft = drafts.find(d => String(d.id) === String(localId));
   if (!draft) throw new Error('没有找到这个片段，请刷新页面后再试。');
 
-  const next = normalizedStatus(status);
-  draft.reviewStatus = next;
-  draft.review_status = next;
+  draft.reviewStatus = status;
+  draft.review_status = status;
   await saveDraft(draft);
-  draftStatusById.set(String(localId), next);
 
   const remoteId = remoteProjectId(draft);
   if (remoteId) {
@@ -71,63 +59,59 @@ async function setStatus(localId, status) {
     if (!user) throw new Error('登录状态已失效');
     const { error } = await supabase
       .from('video_projects')
-      .update({ review_status: next, updated_at: new Date().toISOString() })
+      .update({ review_status: status, updated_at: new Date().toISOString() })
       .eq('id', remoteId)
       .eq('owner_id', user.id);
     if (error) throw error;
   }
 }
 
-function makeStatusControl(row) {
+function mountStatusSelect(row) {
   const localId = localIdForRow(row);
   if (!localId) return;
-  const current = statusFromRow(row);
-  row.dataset.aClipStatus = current;
-
-  let control = $('.a-clip-status-control', row);
-  if (!control) {
-    control = document.createElement('div');
-    control.className = 'a-clip-status-control';
-    control.innerHTML = `
-      <span class="a-clip-status-label">状态</span>
-      <label class="a-clip-status-select-wrap">
-        <select class="a-clip-status-select" aria-label="片段状态">
-          ${STATUS_OPTIONS.map(([value, label]) => `<option value="${value}">${label}</option>`).join('')}
-        </select>
-      </label>
-    `;
-    const select = $('.a-clip-status-select', control);
+  let select = $('.a-clip-status-select', row);
+  if (!select) {
+    select = document.createElement('select');
+    select.className = 'a-clip-status-select';
+    select.setAttribute('aria-label', '片段状态');
+    select.innerHTML = STATUS_OPTIONS.map(([value, label]) => `<option value="${value}">${label}</option>`).join('');
+    select.addEventListener('pointerdown', event => event.stopPropagation());
     select.addEventListener('click', event => event.stopPropagation());
-    select.addEventListener('change', event => {
-      event.preventDefault();
+    select.addEventListener('change', async event => {
       event.stopPropagation();
-      const next = normalizedStatus(select.value);
+      const next = select.value;
       const previous = statusFromRow(row);
       if (next === previous) return;
       select.disabled = true;
-      control.classList.add('is-saving');
-      void setStatus(localId, next)
-        .then(() => {
-          row.dataset.aClipStatus = next;
-          const pill = $('.r54-pill', row);
-          if (pill) pill.dataset.status = next;
-          return refreshStatusMap();
-        })
-        .then(() => regroupAll())
-        .catch(error => {
-          select.value = previous;
-          alert(`状态更新失败：${error?.message || error}`);
-        })
-        .finally(() => {
-          select.disabled = false;
-          control.classList.remove('is-saving');
-        });
+      try {
+        await setStatus(localId, next);
+        row.dataset.aClipStatus = next;
+        const pill = $('.r54-pill', row);
+        if (pill) pill.dataset.status = next;
+        await regroupAll();
+      } catch (error) {
+        select.value = previous;
+        alert(`状态更新失败：${error?.message || error}`);
+      } finally {
+        select.disabled = false;
+      }
     });
-    row.appendChild(control);
+    row.appendChild(select);
   }
-  const select = $('.a-clip-status-select', control);
-  if (select && select.value !== current) select.value = current;
-  control.dataset.status = current;
+  select.value = statusFromRow(row);
+}
+
+async function hydrateStatuses(rows) {
+  const drafts = await listDrafts();
+  const map = new Map(drafts.map(draft => [String(draft.id), normalizeStatus(draft.reviewStatus || draft.review_status || 'draft')]));
+  rows.forEach(row => {
+    const id = localIdForRow(row);
+    if (!id) return;
+    const status = map.get(String(id)) || statusFromRow(row);
+    row.dataset.aClipStatus = status;
+    const pill = $('.r54-pill', row);
+    if (pill) pill.dataset.status = status;
+  });
 }
 
 function buildStatusSection(group, rows) {
@@ -143,7 +127,7 @@ function buildStatusSection(group, rows) {
   `;
   const body = $('.a-status-bucket-body', section);
   rows.forEach(row => {
-    makeStatusControl(row);
+    mountStatusSelect(row);
     body.appendChild(row);
   });
   return section;
@@ -153,15 +137,8 @@ function regroupBody(body) {
   if (!body) return;
   const rows = $$('.r54-task-row', body);
   if (!rows.length) return;
-
   const grouped = new Map(STATUS_GROUPS.map(group => [group.key, []]));
-  rows.forEach(row => {
-    const current = statusFromRow(row);
-    row.dataset.aClipStatus = current;
-    const bucket = bucketForStatus(current);
-    grouped.get(bucket.key).push(row);
-  });
-
+  rows.forEach(row => grouped.get(bucketForStatus(statusFromRow(row)).key).push(row));
   body.replaceChildren();
   for (const group of STATUS_GROUPS) {
     const groupRows = grouped.get(group.key) || [];
@@ -176,7 +153,6 @@ function transformLegacyBucket(box) {
   if (!rows.length) return;
   const parent = box.parentElement;
   if (!parent) return;
-
   const holder = document.createElement('div');
   holder.className = 'a-legacy-status-holder';
   rows.forEach(row => holder.appendChild(row));
@@ -185,28 +161,33 @@ function transformLegacyBucket(box) {
   regroupBody(holder);
 }
 
-function regroupAll() {
-  $$('.r54-unclassified').forEach(transformLegacyBucket);
-  $$('.r54-deliverable:not(.r54-unclassified) > .r54-deliverable-body').forEach(regroupBody);
-  $$('.a-legacy-status-holder').forEach(regroupBody);
-}
-
-async function tick() {
-  if (refreshBusy) return;
-  refreshBusy = true;
+let regrouping = false;
+async function regroupAll() {
+  if (regrouping) return;
+  regrouping = true;
   try {
-    await refreshStatusMap();
-    regroupAll();
-  } catch (error) {
-    console.warn('[Davis Video] status grouping refresh skipped', error);
+    const rows = $$('.r54-task-row');
+    await hydrateStatuses(rows);
+    $$('.r54-unclassified').forEach(transformLegacyBucket);
+    $$('.r54-deliverable:not(.r54-unclassified) > .r54-deliverable-body').forEach(regroupBody);
+    $$('.a-legacy-status-holder').forEach(regroupBody);
+    $$('.r54-task-row').forEach(mountStatusSelect);
   } finally {
-    refreshBusy = false;
+    regrouping = false;
   }
 }
 
 function start() {
-  void tick();
-  setInterval(() => { void tick(); }, 1800);
+  let lastSignature = '';
+  const tick = () => {
+    const signature = `${$$('.r54-unclassified').length}|${$$('.r54-task-row').length}|${$$('.r54-deliverable-body').length}`;
+    if (signature !== lastSignature || $$('.r54-task-row:not(:has(.a-clip-status-select))').length) {
+      lastSignature = signature;
+      void regroupAll();
+    }
+  };
+  setInterval(tick, 800);
+  tick();
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
