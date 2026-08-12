@@ -29,3 +29,35 @@ test('batch import is draft-only before paid submission', () => {
   assert.match(source, /创建草稿不调用 Seedance，不产生模型费用/);
   assert.match(source, /创建草稿（不产生费用）/);
 });
+
+// R11 architecture guards: status changes stay local, event-driven and persistence-backed.
+test('review status save never rebuilds the project tree', () => {
+  const source = read('seedance/r54-deliverables.js');
+  const match = source.match(/async function setReview\([\s\S]*?\nasync function retryDraft/);
+  assert.ok(match, 'setReview implementation must be present');
+  assert.doesNotMatch(match[0], /await loadData\(\)/, 'status save must not reload all project data');
+  assert.doesNotMatch(match[0], /queueEnhance\(\)/, 'status save must not rebuild the sidebar tree');
+  assert.match(match[0], /saveDraft\(draft\)/, 'status save must persist the local draft');
+  assert.match(match[0], /video_projects/, 'status save must sync the remote project when bound');
+});
+
+test('review UI is event-driven and exposes only three business states', () => {
+  const source = read('seedance/a-ui-category-tools.js');
+  assert.equal(source.includes('setInterval('), false, 'review UI must not poll the page');
+  assert.match(source, /data-a-review="accepted"[^>]*>定版</);
+  assert.match(source, /data-a-review="backup"[^>]*>备用</);
+  assert.match(source, /data-a-review="rejected"[^>]*>废弃</);
+  assert.doesNotMatch(source, /data-a-review="draft"/);
+  assert.doesNotMatch(source, /data-a-review="pending_review"/);
+  assert.doesNotMatch(source, /data-a-review="needs_retry"/);
+});
+
+test('sidebar business status uses native persisted R54 pill and hides internal states', () => {
+  const css = read('seedance/a-ui-layout-fix.css');
+  assert.match(css, /\.r54-pill\[data-status="accepted"\][\s\S]*display:inline-flex/);
+  assert.match(css, /\.r54-pill\[data-status="backup"\][\s\S]*display:inline-flex/);
+  assert.match(css, /\.r54-pill\[data-status="rejected"\][\s\S]*display:inline-flex/);
+  assert.match(css, /\.r54-pill\[data-status="draft"\][\s\S]*display:none/);
+  assert.match(css, /\.r54-pill\[data-status="pending_review"\][\s\S]*display:none/);
+  assert.match(css, /\.r54-pill\[data-status="needs_retry"\][\s\S]*display:none/);
+});
