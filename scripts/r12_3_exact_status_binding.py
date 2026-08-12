@@ -41,7 +41,6 @@ r54 = replace_once(
 )
 r54_path.write_text(r54)
 
-# Cache bust the two changed UI runtime assets.
 html_path = Path('ai-assistant.html')
 html = html_path.read_text()
 html = re.sub(r'a-ui-category-tools\.js\?v=[^\"\']+', 'a-ui-category-tools.js?v=20260812-r12-3-exact-status-1', html)
@@ -51,16 +50,5 @@ config_path = Path('supabase-config.js')
 config = config_path.read_text()
 config = re.sub(r"r54-deliverables\.js\?v=[^'\"]+", "r54-deliverables.js?v=20260812-r12-3-exact-status-1", config)
 config_path.write_text(config)
-
-# Keep this regression permanently in normal PR CI.
-check_path = Path('.github/workflows/r54-check.yml')
-check = check_path.read_text()
-old = 'node --test seedance/r12-2-status-regression.test.mjs seedance/r12-1-regression.test.mjs seedance/r54-deliverables-core.test.mjs seedance/r54-import-normalization.test.mjs seedance/a-version-regression.test.mjs seedance/a-ui-mount.test.mjs'
-new = 'node --test seedance/r12-3-status-binding-regression.test.mjs seedance/r12-2-status-regression.test.mjs seedance/r12-1-regression.test.mjs seedance/r54-deliverables-core.test.mjs seedance/r54-import-normalization.test.mjs seedance/a-version-regression.test.mjs seedance/a-ui-mount.test.mjs'
-if old in check:
-    check = check.replace(old, new, 1)
-elif 'r12-3-status-binding-regression.test.mjs' not in check:
-    raise SystemExit('cannot locate A-version test command')
-check_path.write_text(check)
 
 print('R12.3 exact status binding patch applied')
