@@ -1,4 +1,6 @@
-const BUILD = '20260811-emergency-recovery-r50';
+import '../supabase-config.js?v=20260812-a-ui-mount';
+
+const BUILD = '20260812-emergency-recovery-r50-a-mount';
 
 const $ = id => document.getElementById(id);
 
