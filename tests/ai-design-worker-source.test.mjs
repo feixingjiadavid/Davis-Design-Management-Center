@@ -1,0 +1,23 @@
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import test from 'node:test'
+
+const worker = readFileSync(new URL('../supabase/functions/ai-design-analyze/index.ts', import.meta.url), 'utf8')
+const migration = readFileSync(new URL('../supabase/migrations/20260812094500_ai_design_jobs.sql', import.meta.url), 'utf8')
+const requester = readFileSync(new URL('../index.html', import.meta.url), 'utf8')
+
+test('AI design assignment is queued without image or video generation', () => {
+  assert.match(migration, /davis\.design\.ai/)
+  assert.match(migration, /ai_design_jobs/)
+  assert.doesNotMatch(worker, /seedance|image generation|images\/generations/i)
+})
+
+test('worker stops after analysis and waits for generation confirmation', () => {
+  assert.match(worker, /ready_for_generation/)
+  assert.match(worker, /等待人工确认进入设计生成/)
+})
+
+test('assigning a request to Davis AI starts analysis without blocking submission', () => {
+  assert.match(requester, /functions\.invoke\(['"]ai-design-analyze['"]/)
+  assert.match(requester, /void window\.supabase\.functions\.invoke/)
+})
