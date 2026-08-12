@@ -1,0 +1,79 @@
+name: One-time Video Status Buttons
+on: push
+permissions:
+  contents: write
+jobs:
+  migrate:
+    if: "!contains(github.event.head_commit.message, '[status-buttons-done]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/video-task-cards-20260812
+      - name: Replace status dropdown with three buttons
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('seedance/r54-deliverables.js')
+          s=p.read_text(encoding='utf-8')
+          old="""  if(extra.dataset.localId!==localId || !$('[data-r54-review-select]',extra)){
+    extra.dataset.localId=localId;
+    extra.innerHTML=`<span class=\"r54-chip\">${esc(d?.name||'未分配成片单元')}</span>${meta.subjectKey?`<span class=\"r54-chip\">${esc(meta.subjectKey)}</span>`:''}<span class=\"r54-chip\">第 ${meta.attemptNo} 次</span><label class=\"r54-review-control\"><span>状态</span><select data-r54-review-select data-local-id=\"${esc(localId)}\"><option value=\"draft\">草稿</option><option value=\"accepted\">定版</option><option value=\"backup\">备用</option><option value=\"needs_retry\">需重做</option><option value=\"rejected\">废弃</option></select></label>${meta.deliverableId?`<span class=\"r54-context-actions\"><button data-r54-retry=\"${esc(localId)}\">重新生成草稿</button></span>`:''}`;
+  }
+  const select=$('[data-r54-review-select]',extra);
+  if(select && document.activeElement!==select) select.value=normalized;
+"""
+          new="""  if(extra.dataset.localId!==localId || !$('[data-r54-review]',extra)){
+    extra.dataset.localId=localId;
+    extra.innerHTML=`<span class=\"r54-chip\">${esc(d?.name||'未分配成片单元')}</span>${meta.subjectKey?`<span class=\"r54-chip\">${esc(meta.subjectKey)}</span>`:''}<span class=\"r54-chip\">第 ${meta.attemptNo} 次</span><div class=\"r54-review-buttons\" role=\"group\" aria-label=\"任务状态\"><button type=\"button\" data-r54-review=\"accepted\" data-local-id=\"${esc(localId)}\">定版</button><button type=\"button\" data-r54-review=\"backup\" data-local-id=\"${esc(localId)}\">备用</button><button type=\"button\" data-r54-review=\"rejected\" data-local-id=\"${esc(localId)}\">废弃</button></div>`;
+  }
+  extra.querySelectorAll('[data-r54-review]').forEach(button=>button.classList.toggle('active',button.dataset.r54Review===normalized));
+"""
+          if old not in s:
+              raise SystemExit('renderContext target not found')
+          s=s.replace(old,new,1)
+          old2="""const r=event.target.closest('[data-r54-review]');if(r){event.preventDefault();event.stopPropagation();void setReview(r.dataset.localId,r.dataset.r54Review);return;}"""
+          new2="""const r=event.target.closest('[data-r54-review]');if(r){event.preventDefault();event.stopPropagation();const localId=r.dataset.localId,next=r.dataset.r54Review;document.querySelectorAll('[data-r54-review]').forEach(button=>button.disabled=true);void setReview(localId,next).then(()=>{document.dispatchEvent(new CustomEvent('davis-video-review-status-changed',{detail:{localId,status:next}}));renderContext();}).finally(()=>{document.querySelectorAll('[data-r54-review]').forEach(button=>button.disabled=false);});return;}"""
+          if old2 not in s:
+              raise SystemExit('review click target not found')
+          s=s.replace(old2,new2,1)
+          p.write_text(s,encoding='utf-8')
+
+          css=Path('seedance/a-ui-layout-fix.css')
+          c=css.read_text(encoding='utf-8')
+          c += """
+
+/* Three-button review control: only explicit business states are editable. */
+.r54-review-control{display:none!important}
+.r54-review-buttons{display:inline-flex!important;align-items:center!important;gap:6px!important;margin:0!important;padding:0!important;border:0!important;background:transparent!important}
+.r54-review-buttons button{min-width:48px!important;height:30px!important;margin:0!important;padding:0 11px!important;border:1px solid #e2e6ed!important;border-radius:8px!important;background:#f5f6f8!important;color:#7c8492!important;font-size:11px!important;font-weight:720!important;line-height:28px!important;box-shadow:none!important;cursor:pointer!important;transition:all .14s ease!important}
+.r54-review-buttons button:hover{border-color:#cfd5df!important;background:#eef1f5!important;color:#555f70!important}
+.r54-review-buttons button.active{border-color:#cde7d5!important;background:#eaf7ee!important;color:#2f7447!important;box-shadow:0 0 0 2px rgba(66,145,91,.06)!important}
+.r54-review-buttons button:disabled{opacity:.58!important;cursor:wait!important}
+"""
+          css.write_text(c,encoding='utf-8')
+
+          sp=Path('supabase-config.js')
+          x=sp.read_text(encoding='utf-8')
+          x=x.replace("import('./seedance/r54-deliverables.js')","import('./seedance/r54-deliverables.js?v=20260812-status-buttons-1')")
+          sp.write_text(x,encoding='utf-8')
+
+          hp=Path('ai-assistant.html')
+          h=hp.read_text(encoding='utf-8')
+          h=h.replace('supabase-config.js?v=20260812-a-product-cleanup-2','supabase-config.js?v=20260812-status-buttons-1')
+          h=h.replace('a-ui-layout-fix.css?v=20260812-task-cards-1','a-ui-layout-fix.css?v=20260812-task-cards-status-1')
+          hp.write_text(h,encoding='utf-8')
+          PY
+          rm -f .github/workflows/video-status-buttons.yml
+      - name: Syntax check
+        run: |
+          node --check seedance/r54-deliverables.js
+          node --check seedance/a-ui-category-tools.js
+          node --check supabase-config.js
+      - name: Commit
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add seedance/r54-deliverables.js seedance/a-ui-layout-fix.css supabase-config.js ai-assistant.html .github/workflows/video-status-buttons.yml
+          git commit -m 'fix(video): three business status buttons [status-buttons-done]' || exit 0
+          git push origin HEAD:fix/video-task-cards-20260812
