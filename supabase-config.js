@@ -53,7 +53,7 @@ async function bootAVersionAfterR50() {
 
   await import('./seedance/r54-paid-safety.js')
     .then(({ initPaidSafetyR54 }) => initPaidSafetyR54())
-    .then(() => import('./seedance/r54-deliverables.js?v=20260812-r11-state-1'))
+    .then(() => import('./seedance/r54-deliverables.js?v=20260812-r12-task-state-1'))
     .then(({ initDeliverablesR54 }) => initDeliverablesR54())
     .then(() => import('./seedance/r54-tree-stability.js'))
     .then(({ initTreeStabilityR54 }) => initTreeStabilityR54())

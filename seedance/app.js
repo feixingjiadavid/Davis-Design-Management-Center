@@ -756,16 +756,32 @@ function r49RenderSettings() {
   if ($('mode-lock-card')) $('mode-lock-card').dataset.mode = r5ModeKey(state.draft.mode);
   r49RenderTaskContext(); updateRatioTip(); renderTextModePanel(); syncCustomSelects();
 }
+function r50ApplySelectedTaskDom(draftId, groupId) {
+  const root = $('project-list');
+  if (!root) return;
+  root.querySelectorAll('.project-child.active').forEach(node => node.classList.remove('active'));
+  const task = root.querySelector(`.project-child[data-project="${CSS.escape(String(draftId || ''))}"]`);
+  task?.classList.add('active');
+  root.querySelectorAll('.project-parent-row').forEach(row => {
+    const parentId = String(row.querySelector('[data-select-parent]')?.dataset?.selectParent || '');
+    row.classList.toggle('is-active', Boolean(groupId) && parentId === String(groupId));
+    row.classList.remove('is-project-selected');
+  });
+}
+
 async function r49SelectDraft(id) {
   const draft = migrateDraftWorkspaces(await getDraft(id)); if (!draft) return;
   clearInterval(state.pollTimer); state.pollTimer = null; state.objectUrls.forEach(url => URL.revokeObjectURL(url)); state.objectUrls.clear();
   state.draft = draft; bindCurrentWorkspace(); normalizeSegments(state.draft); saveCurrentWorkspaceSelection();
   const groupId = r49ParentGroupIdForDraft(draft);
   r50SetTreeSelection('task', groupId, draft.id);
-  localStorage.setItem(LAST_SELECTED_DRAFT_KEY,id); renderAll(); renderProjects(); r49RenderTaskContext();
+  localStorage.setItem(LAST_SELECTED_DRAFT_KEY,id);
+  r50ApplySelectedTaskDom(draft.id, groupId);
+  renderAll(); r49RenderTaskContext();
+  document.dispatchEvent(new CustomEvent('davis-video-task-selected',{detail:{draftId:String(draft.id),groupId:String(groupId||'')}}));
   const workspace = getWorkspace();
   try { if (!Number(workspace.cloudSyncedAt || 0) || Date.now() - Number(workspace.cloudSyncedAt || 0) > 5 * 60_000) await loadOutputs(false); } catch (error) { console.warn('[Davis Video Studio R50] task sync failed', error); }
-  renderAll(); renderProjects(); r49RenderTaskContext(); r16ApplyReadOnlyControls(); r50SyncDeleteButton();
+  renderAll(); r49RenderTaskContext(); r16ApplyReadOnlyControls(); r50SyncDeleteButton();
   const active = state.draft.segments.some(s => ['submitting','submitted','queued','running','processing'].includes(String(s.status || '').toLowerCase()));
   if (active && r16CurrentProjectWritable()) startPolling();
 }

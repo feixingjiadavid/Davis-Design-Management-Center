@@ -51,6 +51,15 @@ export function normalizeReviewStatus(value) {
   return REVIEW_STATUS_SET.has(normalized) ? normalized : 'draft';
 }
 
+export function resolveDraftReviewStatus({ draftStatus, cloudStatus, remoteShareCount = 0 } = {}) {
+  const explicit = text(draftStatus);
+  if (explicit) return normalizeReviewStatus(explicit);
+  const shares = Math.max(0, Number(remoteShareCount) || 0);
+  if (shares > 1) return 'draft';
+  if (shares === 1) return normalizeReviewStatus(cloudStatus);
+  return 'draft';
+}
+
 export function normalizeMode(value) {
   const normalized = text(value).toLowerCase();
   return MODE_ALIASES.get(normalized) || '';

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   REVIEW_STATUSES,
   normalizeReviewStatus,
+  resolveDraftReviewStatus,
   groupTasksByDeliverable,
   validateBatchRows,
   nextAttemptNo,
@@ -16,6 +17,13 @@ test('normalizes review states and falls back to draft', () => {
   assert.equal(normalizeReviewStatus(' needs_retry '), 'needs_retry');
   assert.equal(normalizeReviewStatus('unknown'), 'draft');
   assert.deepEqual(REVIEW_STATUSES, ['draft','pending_review','accepted','backup','rejected','needs_retry']);
+});
+
+test('keeps review state isolated when legacy local tasks share one remote project', () => {
+  assert.equal(resolveDraftReviewStatus({ draftStatus:'accepted', cloudStatus:'backup', remoteShareCount:3 }), 'accepted');
+  assert.equal(resolveDraftReviewStatus({ draftStatus:'', cloudStatus:'accepted', remoteShareCount:3 }), 'draft');
+  assert.equal(resolveDraftReviewStatus({ draftStatus:null, cloudStatus:'backup', remoteShareCount:1 }), 'backup');
+  assert.equal(resolveDraftReviewStatus({ draftStatus:'', cloudStatus:'rejected', remoteShareCount:0 }), 'draft');
 });
 
 test('groups tasks by deliverable and preserves historical tasks as unclassified', () => {
