@@ -7,23 +7,19 @@ const supabaseAnonKey = 'sb_publishable_v6fbIaU52lLFacywiIKvUw_x1gc1ckQ'
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 const isVideoStudio = typeof window !== 'undefined' && /(?:^|\/)ai-assistant\.html$/i.test(window.location.pathname)
-let aVersionMayBoot = isVideoStudio
 
 if (isVideoStudio) {
   try {
     const { prepareHistoryArchiveA } = await import('./seedance/a-history-compat.js')
     const history = await prepareHistoryArchiveA(supabase)
     if (history?.error) {
-      aVersionMayBoot = false
-      console.warn('[Davis Video A] history preservation failed; keeping stable base UI only', history.error)
+      console.warn('[Davis Video A] history preservation skipped; A UI continues', history.error)
     } else if (history?.reload) {
-      aVersionMayBoot = false
       console.log('[Davis Video A] archived historical generated projects; reloading once', history)
       location.reload()
     }
   } catch (error) {
-    aVersionMayBoot = false
-    console.warn('[Davis Video A] history compatibility bootstrap failed; keeping stable base UI only', error)
+    console.warn('[Davis Video A] history compatibility bootstrap failed; A UI continues', error)
   }
 }
 
@@ -37,7 +33,7 @@ async function waitForR50ProjectTree(timeoutMs = 10000) {
     const userReady = sidebarName && !/加载中|loading/i.test(sidebarName)
     const treeReady = Boolean(
       projectList &&
-      (projectList.querySelector('.project-group, .project-child') || projectList.children.length === 0)
+      (projectList.querySelector('.project-tree-group, .project-child') || projectList.children.length === 0)
     )
 
     if (userReady && treeReady) {
@@ -69,7 +65,7 @@ async function bootAVersionAfterR50() {
     .then(({ initCostContextR54 }) => initCostContextR54())
 }
 
-if (aVersionMayBoot) {
+if (isVideoStudio) {
   setTimeout(() => {
     void bootAVersionAfterR50().catch(error => console.error('[Davis Video A] extension init failed', error))
   }, 0)
