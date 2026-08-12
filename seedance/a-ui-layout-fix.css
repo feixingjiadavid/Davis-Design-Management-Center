@@ -1,0 +1,146 @@
+/* Davis Video Studio A hierarchy layout fix - 2026-08-12
+   Keeps R50 task cards intact while making the new deliverable layer fit the narrow sidebar. */
+
+/* Deliverable container: full width, predictable box sizing, no inner horizontal overflow. */
+.project-child-list .r54-deliverable,
+.project-child-list .r54-deliverable * {
+  box-sizing: border-box;
+}
+.project-child-list .r54-deliverable {
+  width: 100%;
+  min-width: 0;
+  margin: 8px 0 10px;
+  overflow: hidden;
+}
+.project-child-list .r54-deliverable-head {
+  min-width: 0;
+  padding: 10px 12px;
+}
+.project-child-list .r54-deliverable-main {
+  min-width: 0;
+  overflow: hidden;
+}
+.project-child-list .r54-deliverable-main strong,
+.project-child-list .r54-deliverable-main small {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.project-child-list .r54-deliverable-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 10px 10px;
+}
+
+/* Each task becomes two visual zones: checkbox + existing R50 card.
+   Status badge sits on its own line so it never collides with count/time metadata. */
+.project-child-list .r54-task-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  grid-template-areas:
+    "check card"
+    ". status";
+  align-items: start;
+  gap: 4px 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 0 0 8px;
+  border-bottom: 1px solid #eef1f7;
+}
+.project-child-list .r54-task-row:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.project-child-list .r54-task-row > input[data-r54-task-check] {
+  grid-area: check;
+  width: 15px;
+  height: 15px;
+  margin: 18px 0 0 1px;
+  flex: 0 0 auto;
+}
+.project-child-list .r54-task-row > .project-child {
+  grid-area: card;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  overflow: hidden;
+}
+.project-child-list .r54-task-row > .r54-pill {
+  grid-area: status;
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  max-width: 100%;
+  margin: 0;
+  padding: 3px 8px;
+  font-size: 10px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* R50 card internals must shrink instead of overflowing the A wrapper. */
+.project-child-list .r54-task-row .project-child > *,
+.project-child-list .r54-task-row .project-child-info,
+.project-child-list .r54-task-row .project-child-main,
+.project-child-list .r54-task-row .project-child-meta,
+.project-child-list .r54-task-row .project-child-title,
+.project-child-list .r54-task-row .project-child-subtitle {
+  min-width: 0;
+  max-width: 100%;
+}
+.project-child-list .r54-task-row .project-child-meta {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+.project-child-list .r54-task-row .project-child-meta > * {
+  white-space: nowrap;
+}
+
+/* Keep the compatibility bucket visually quiet and aligned with the parent tree. */
+.project-child-list .r54-unclassified {
+  margin-left: 0;
+  margin-right: 0;
+  border-style: dashed;
+  background: #fbfcff;
+}
+.project-child-list .r54-project-tools {
+  padding: 8px 4px 4px;
+}
+.project-child-list .r54-project-tools button {
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 12px;
+  border-radius: 10px;
+}
+
+/* Deliverable action buttons wrap instead of squeezing the title off-screen. */
+.project-child-list .r54-deliverable-head {
+  flex-wrap: wrap;
+}
+.project-child-list .r54-deliverable-actions {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 4px;
+}
+.project-child-list .r54-deliverable-actions button {
+  min-height: 28px;
+  padding: 0 8px;
+}
+
+/* Sidebar-sized layout: preserve status badge, never hide it on narrow screens. */
+@media (max-width: 820px) {
+  .project-child-list .r54-task-row {
+    grid-template-columns: 18px minmax(0, 1fr);
+  }
+  .project-child-list .r54-task-row > .r54-pill {
+    display: inline-flex !important;
+  }
+}
