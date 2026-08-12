@@ -196,7 +196,7 @@ function r43ApplyCategoryOptions(payload, resetSelection = false) {
   } else if (!resetSelection && currentValue === '__other__' && currentCustom) {
     preferred = currentCustom;
   } else {
-    preferred = incoming || suggested || '其他';
+    preferred = incoming || suggested || values[0] || '其他';
   }
 
   if (values.includes(preferred)) {
@@ -738,10 +738,10 @@ function r49WireHierarchyUi() {
   if ($('new-project')) $('new-project').onclick = r49OpenParentModal;
   if ($('project-create-submit')) $('project-create-submit').onclick = r49CreateParentProject;
   if ($('project-mode-cancel')) $('project-mode-cancel').onclick = r49CloseParentModal;
-  if ($('project-mode-modal')) $('project-mode-modal').onclick = event => { if (event.target === $('project-mode-modal')) r49CloseParentModal(); };
+  if ($('project-mode-modal')) $('project-mode-modal').onclick = event => { if (event.target === $('project-mode-modal')) { event.preventDefault(); event.stopPropagation(); } };
   qsa('[data-create-child-mode]').forEach(btn => btn.onclick = () => r49CreateChildTask(btn.dataset.createChildMode));
   if ($('child-task-cancel')) $('child-task-cancel').onclick = r49CloseChildTaskModal;
-  if ($('child-task-modal')) $('child-task-modal').onclick = event => { if (event.target === $('child-task-modal')) r49CloseChildTaskModal(); };
+  if ($('child-task-modal')) $('child-task-modal').onclick = event => { if (event.target === $('child-task-modal')) { event.preventDefault(); event.stopPropagation(); } };
   if ($('new-project-category')) $('new-project-category').onchange = () => { r43SyncCategoryCustomVisibility(true); r45SetProjectFieldError('new-project-category','new-project-category-error',''); if ($('new-project-category').value !== '__other__') r45SetProjectFieldError('new-project-category-custom','new-project-category-custom-error',''); };
   if ($('new-project-category-custom')) $('new-project-category-custom').oninput = () => { if (r43NormalizeCategory($('new-project-category-custom').value)) r45SetProjectFieldError('new-project-category-custom','new-project-category-custom-error',''); };
   if ($('new-project-name')) $('new-project-name').oninput = () => { if (String($('new-project-name').value || '').trim()) r45SetProjectFieldError('new-project-name','new-project-name-error',''); };
@@ -852,7 +852,7 @@ async function r49Init() {
   const closeUsage = () => { if (!usageModal) return; usageModal.hidden = true; usageModal.setAttribute('aria-hidden','true'); usageOpen?.setAttribute('aria-expanded','false'); document.body.classList.remove('usage-modal-open'); };
   const openUsage = () => { if (!usageModal) return; usageModal.hidden = false; usageModal.setAttribute('aria-hidden','false'); usageOpen?.setAttribute('aria-expanded','true'); document.body.classList.add('usage-modal-open'); void r38LoadUsageSummary(false); };
   usageOpen?.addEventListener('click',openUsage); usageClose?.addEventListener('click',closeUsage); usageBackdrop?.addEventListener('click',closeUsage);
-  window.addEventListener('keydown',event => { if (event.key === 'Escape') { if (usageModal && !usageModal.hidden) closeUsage(); if ($('child-task-modal') && !$('child-task-modal').hidden) r49CloseChildTaskModal(); if ($('project-mode-modal') && !$('project-mode-modal').hidden) r49CloseParentModal(); } });
+  window.addEventListener('keydown',event => { if (event.key === 'Escape' && usageModal && !usageModal.hidden) closeUsage(); });
   r49WireHierarchyUi(); enhanceCustomSelects(); document.body.dataset.seedanceBuild = APP_BUILD;
   state.projectGroups = await r49LoadParentGroups();
   state.drafts = await r49RestoreCloudDrafts(await r5MigrateDraftCollection(await listDrafts()));
