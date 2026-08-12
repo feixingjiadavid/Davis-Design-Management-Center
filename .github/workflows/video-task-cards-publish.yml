@@ -1,0 +1,32 @@
+name: One-time Video Task Cards Publish
+on: push
+permissions:
+  contents: write
+jobs:
+  publish:
+    if: "!contains(github.event.head_commit.message, '[task-cards-done]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/video-task-cards-20260812
+      - name: Bump UI resources
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('ai-assistant.html')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace('a-ui-layout-fix.css?v=20260812-real-dom-ui-1','a-ui-layout-fix.css?v=20260812-task-cards-1')
+          s=s.replace('a-ui-category-tools.js?v=20260812-real-dom-ui-1','a-ui-category-tools.js?v=20260812-task-cards-1')
+          p.write_text(s,encoding='utf-8')
+          PY
+          rm -f .github/workflows/video-task-cards-publish.yml
+      - name: Verify JS syntax
+        run: node --check seedance/a-ui-category-tools.js
+      - name: Commit
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add ai-assistant.html seedance/a-ui-layout-fix.css seedance/a-ui-category-tools.js .github/workflows/video-task-cards-publish.yml
+          git commit -m 'fix(video): clear task cards and stable sidebar navigation [task-cards-done]' || exit 0
+          git push origin HEAD:fix/video-task-cards-20260812
