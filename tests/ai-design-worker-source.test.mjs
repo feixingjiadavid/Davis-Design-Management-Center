@@ -30,3 +30,13 @@ test('assigning a request to Davis AI starts analysis without blocking submissio
   assert.match(requester, /functions\.invoke\(['"]ai-design-analyze['"]/)
   assert.match(requester, /void window\.supabase\.functions\.invoke/)
 })
+
+
+test('AI analysis generates and submits a visual framework through the existing workflow', () => {
+  assert.match(worker, /frameworkSvg/)
+  assert.match(worker, /data:image\/svg\+xml;base64/)
+  assert.match(worker, /action: "submit_framework"/)
+  assert.match(worker, /status: "pending_approval"/)
+  assert.match(worker, /status: "framework_submitted"/)
+  assert.match(worker, /AI account required/)
+})
