@@ -1,0 +1,30 @@
+name: One-time A Compact Interaction Publish
+on:
+  push:
+    paths:
+      - '.github/workflows/a-ui-compact-interaction-publish.yml'
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bump A UI resources and remove one-time workflow
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('ai-assistant.html')
+          s=p.read_text(encoding='utf-8')
+          import re
+          s=re.sub(r'a-ui-layout-fix\.css\?v=[^"\']+', 'a-ui-layout-fix.css?v=20260812-a-compact-nav-5', s)
+          s=re.sub(r'a-ui-category-tools\.js\?v=[^"\']+', 'a-ui-category-tools.js?v=20260812-a-compact-nav-5', s)
+          s=re.sub(r'ui-patches\.js\?v=[^"\']+', 'ui-patches.js?v=20260812-project-modal-guard-1', s)
+          p.write_text(s, encoding='utf-8')
+          PY
+          rm .github/workflows/a-ui-compact-interaction-publish.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add ai-assistant.html .github/workflows/a-ui-compact-interaction-publish.yml
+          git commit -m "fix(video): publish compact sidebar and stable modal interactions"
+          git push
