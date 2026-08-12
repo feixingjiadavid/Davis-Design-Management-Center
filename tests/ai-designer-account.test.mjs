@@ -29,3 +29,18 @@ test('old human designer workspace forcibly redirects the AI account', () => {
   assert.match(humanDesignerWorkspace, /designerSessionName === ['"]davis\.design\.ai['"]/)
   assert.match(humanDesignerWorkspace, /location\.replace\(['"]ai-designer-workspace\.html['"]\)/)
 })
+
+
+test('AI workspace is fail-closed and bound to the exact authenticated account', () => {
+  assert.match(aiWorkspace, /auth-pending/)
+  assert.match(aiWorkspace, /supabase\.auth\.getUser\(\)/)
+  assert.match(aiWorkspace, /signedInUser\.id!==AI_USER_ID/)
+  assert.match(aiWorkspace, /davis\.design\.ai@webank\.com/)
+  assert.match(aiWorkspace, /onAuthStateChange/)
+  assert.doesNotMatch(aiWorkspace, /auth\.getSession\(\)/)
+})
+
+test('login cannot redirect a human account into the AI workspace', () => {
+  assert.match(login, /isDavisAi/)
+  assert.match(login, /!redirectUrl\.includes\(['"]\/ai-designer-workspace\.html['"]\)/)
+})
