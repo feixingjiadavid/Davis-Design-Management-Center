@@ -1,0 +1,45 @@
+name: One-time Video UI Label Polish
+on:
+  push:
+    branches: [fix/video-label-cleanup-20260812]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: "!contains(github.event.head_commit.message, '[label-polish-done]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/video-label-cleanup-20260812
+      - name: Polish Chinese labels
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          files = [Path('ai-assistant.html'), Path('seedance/app.js'), Path('seedance/app-v46.js')]
+          replacements = [
+              ('多帧 模式', '多帧模式'),
+              ('多帧 任务', '多帧任务'),
+              ('多帧 或', '多帧或'),
+              ('编辑详情 中', '编辑详情中'),
+          ]
+          for p in files:
+              if not p.exists(): continue
+              s = p.read_text(encoding='utf-8')
+              old = s
+              for a,b in replacements: s = s.replace(a,b)
+              if s != old:
+                  p.write_text(s, encoding='utf-8')
+                  print('updated', p)
+          PY
+          git diff --check
+          node --check seedance/app.js
+          node --check seedance/app-v46.js
+      - name: Commit polish
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ai-assistant.html seedance/app.js seedance/app-v46.js
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "fix(video): polish simplified Chinese labels [label-polish-done]"
+          git push origin HEAD:fix/video-label-cleanup-20260812
