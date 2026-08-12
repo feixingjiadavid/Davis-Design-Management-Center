@@ -1,7 +1,6 @@
 import '../supabase-config.js?v=20260812-a-ui-mount';
 
-const BUILD = '20260812-emergency-recovery-r50-a-mount';
-
+const BUILD = '20260812-project-modal-guard-1';
 const $ = id => document.getElementById(id);
 
 function appLooksAlive() {
@@ -35,20 +34,14 @@ async function emergencyRecover() {
   if (globalThis.__davisVideoEmergencyRecovering || appLooksAlive()) return;
   globalThis.__davisVideoEmergencyRecovering = true;
   setRecoveryStatus('Davis Video 正在恢复页面运行时…');
-
-  try {
-    await import('./app.js?v=20260811-emergency-r50-loader');
-  } catch (error) {
-    console.error('[Davis Video Emergency] R50 loader retry failed', error);
-  }
-
+  try { await import('./app.js?v=20260811-emergency-r50-loader'); }
+  catch (error) { console.error('[Davis Video Emergency] R50 loader retry failed', error); }
   await new Promise(resolve => setTimeout(resolve, 1800));
   if (appLooksAlive()) {
     setRecoveryStatus('Davis Video 已恢复');
     setTimeout(() => document.getElementById('davis-video-emergency-status')?.remove(), 1800);
     return;
   }
-
   try {
     console.warn('[Davis Video Emergency] loader still not alive; starting stable base runtime directly');
     await import('./app-v46.js?v=20260811-emergency-direct-runtime');
@@ -57,19 +50,58 @@ async function emergencyRecover() {
     setRecoveryStatus('页面运行时恢复失败，请重新打开本页');
     return;
   }
-
   await new Promise(resolve => setTimeout(resolve, 1200));
   if (appLooksAlive()) {
     setRecoveryStatus('Davis Video 已恢复');
     setTimeout(() => document.getElementById('davis-video-emergency-status')?.remove(), 1800);
-  } else {
-    setRecoveryStatus('页面运行时仍未启动，已记录恢复失败');
+  } else setRecoveryStatus('页面运行时仍未启动，已记录恢复失败');
+}
+
+function chooseFirstRealCategory() {
+  const select = $('new-project-category');
+  if (!select || select.options.length < 2) return;
+  const current = String(select.value || '');
+  if (current && current !== '__other__') return;
+  const first = [...select.options].find(option => option.value && option.value !== '__other__');
+  if (!first) return;
+  select.value = first.value;
+  select.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function protectCreateModals() {
+  const ids = ['project-mode-modal', 'child-task-modal'];
+  for (const id of ids) {
+    const modal = $(id);
+    if (!modal || modal.dataset.safeDismiss === '1') continue;
+    modal.dataset.safeDismiss = '1';
+    const swallowBackdrop = event => {
+      if (event.target !== modal) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+    };
+    modal.addEventListener('pointerdown', swallowBackdrop, true);
+    modal.addEventListener('mousedown', swallowBackdrop, true);
+    modal.addEventListener('click', swallowBackdrop, true);
   }
+}
+
+function watchProjectModal() {
+  let wasOpen = false;
+  setInterval(() => {
+    protectCreateModals();
+    const modal = $('project-mode-modal');
+    const open = Boolean(modal && !modal.hidden);
+    if (open && !wasOpen) setTimeout(chooseFirstRealCategory, 0);
+    wasOpen = open;
+  }, 180);
 }
 
 function init() {
   document.body.dataset.davisVideoUiBuild = BUILD;
-  console.log('[Davis Video Emergency Recovery]', BUILD);
+  console.log('[Davis Video UI]', BUILD);
+  protectCreateModals();
+  watchProjectModal();
   setTimeout(() => void emergencyRecover(), 1800);
 }
 
