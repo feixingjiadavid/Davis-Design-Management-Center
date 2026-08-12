@@ -5,12 +5,12 @@ const $$ = (s, root = document) => [...root.querySelectorAll(s)];
 const text = v => String(v ?? '').trim();
 
 const STATUS_META = Object.freeze({
-  draft: { label: '草稿', rank: 2 },
-  pending_review: { label: '草稿', rank: 2 },
-  accepted: { label: '定版', rank: 1 },
-  backup: { label: '备用', rank: 3 },
-  needs_retry: { label: '需重做', rank: 4 },
-  rejected: { label: '废弃', rank: 5 },
+  draft: { label: '草稿' },
+  pending_review: { label: '草稿' },
+  accepted: { label: '定版' },
+  backup: { label: '备用' },
+  needs_retry: { label: '需重做' },
+  rejected: { label: '废弃' },
 });
 
 function normalizeStatus(value) {
@@ -30,24 +30,26 @@ function unwrapLegacyBuckets() {
     rows.forEach(row => host.insertBefore(row, bucket));
     bucket.remove();
   });
-
   $$('.a-legacy-status-holder').forEach(holder => {
     holder.classList.remove('a-legacy-status-holder');
     holder.classList.add('r54-legacy-task-holder');
   });
 }
 
-function renameInternalLabels() {
+function normalizeVisibleLabels() {
   $$('.r54-unclassified').forEach(node => {
     const title = $('.r54-deliverable-main strong', node);
     const subtitle = $('.r54-deliverable-main small', node);
-    if (title) title.textContent = '默认成片单元';
+    if (title && text(title.textContent) !== '默认成片单元') title.textContent = '默认成片单元';
     if (subtitle) subtitle.hidden = true;
   });
 
   $$('#r54-context-extra .r54-chip').forEach(chip => {
     if (/未归类|未分类|未分配|其他任务/.test(text(chip.textContent))) chip.remove();
   });
+
+  const label = $('.r54-review-control > span');
+  if (label && text(label.textContent) !== '任务状态') label.textContent = '任务状态';
 }
 
 function applyStatusBadge(row, status) {
@@ -71,15 +73,15 @@ function applyStatusBadge(row, status) {
 
 async function refreshSidebarStatus() {
   unwrapLegacyBuckets();
-  renameInternalLabels();
+  normalizeVisibleLabels();
 
   const rows = $$('.r54-task-row');
   if (!rows.length) return;
 
   let drafts = [];
-  try { drafts = await listDrafts(); } catch (error) {
-    console.warn('[Davis Video A UI] local status refresh skipped', error);
-  }
+  try { drafts = await listDrafts(); }
+  catch (error) { console.warn('[Davis Video A UI] local status refresh skipped', error); }
+
   const map = new Map(drafts.map(draft => [
     String(draft.id),
     normalizeStatus(draft.reviewStatus || draft.review_status || 'draft'),
@@ -104,6 +106,8 @@ function start() {
   };
 
   const tick = () => {
+    // Labels can be re-rendered by the A tree without changing task counts, so normalize them every tick.
+    normalizeVisibleLabels();
     const signature = `${$$('.r54-task-row').length}|${$$('.r54-deliverable').length}|${$('.project-child.active')?.dataset?.project || ''}`;
     if (signature === lastSignature) return;
     lastSignature = signature;
@@ -115,7 +119,7 @@ function start() {
     void refresh();
   });
 
-  setInterval(tick, 1400);
+  setInterval(tick, 700);
   tick();
 }
 
