@@ -161,26 +161,15 @@
 
             // ✅ 优先处理快捷页登录后的回跳
             // 例如：login.html?redirect=https%3A%2F%2Fdavis-design.cn%2Fquick-accept.html%3Fticket%3Dxxx
-            const isDavisAi = data.user.id === '90e5b8f9-c8b3-4d7c-9931-444e35b43b5b'
-                && String(data.user.email || '').toLowerCase() === 'davis.design.ai@webank.com';
-            if (isDavisAi) {
-                window.location.href = 'ai-designer-workspace.html';
-                return;
-            }
-
             const redirectUrl = getSafeRedirectUrl();
-            if (redirectUrl && !redirectUrl.includes('/ai-designer-workspace.html')) {
+            if (redirectUrl) {
                 window.location.href = redirectUrl;
                 return;
             }
 
             // 💡 没有 redirect 时，才走正常登录入口
-            if (String(userData.enName || '').toLowerCase() === 'davis.design.ai') {
-                window.location.href = 'ai-designer-workspace.html';
-            } else if ((userData.perms || []).includes('admin')) {
+            if (enName === 'judyzzhang') {
                 window.location.href = 'manager-workspace.html';
-            } else if ((userData.perms || []).includes('design')) {
-                window.location.href = 'assistant-workspace.html';
             } else {
                 window.location.href = 'index.html';
             }
