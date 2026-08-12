@@ -41,12 +41,12 @@ function renameInternalLabels() {
   $$('.r54-unclassified').forEach(node => {
     const title = $('.r54-deliverable-main strong', node);
     const subtitle = $('.r54-deliverable-main small', node);
-    if (title) title.textContent = '其他任务';
+    if (title) title.textContent = '默认成片单元';
     if (subtitle) subtitle.hidden = true;
   });
 
   $$('#r54-context-extra .r54-chip').forEach(chip => {
-    if (/未归类|未分配/.test(text(chip.textContent))) chip.remove();
+    if (/未归类|未分类|未分配|其他任务/.test(text(chip.textContent))) chip.remove();
   });
 }
 
