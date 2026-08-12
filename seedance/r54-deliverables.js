@@ -170,6 +170,7 @@ function renderContext(){
   }
   const select=$('[data-r54-review-select]',extra);
   if(select && document.activeElement!==select) select.value=normalized;
+  document.dispatchEvent(new CustomEvent('davis-video-review-context-changed',{detail:{localId,status:normalized}}));
 }
 function renderSummary(){const panel=$('r54-summary');if(!panel)return;if(state.selectedDeliverableId){const d=state.deliverableById.get(state.selectedDeliverableId),c=reviewCounts(state.selectedDeliverableId);if(!d){panel.hidden=true;return;}panel.hidden=false;panel.innerHTML=`<strong>${esc(d.name)}</strong><span>任务 ${c.total} · 待审核 ${c.pending_review} · 已通过 ${c.accepted} · 备用 ${c.backup} · 需重做 ${c.needs_retry}</span>`;}else panel.hidden=true;}
 
