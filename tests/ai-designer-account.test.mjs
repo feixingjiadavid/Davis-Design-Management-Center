@@ -5,6 +5,7 @@ import test from 'node:test'
 const login = readFileSync(new URL('../login.html', import.meta.url), 'utf8')
 const requester = readFileSync(new URL('../index.html', import.meta.url), 'utf8')
 const aiWorkspace = readFileSync(new URL('../ai-designer-workspace.html', import.meta.url), 'utf8')
+const humanDesignerWorkspace = readFileSync(new URL('../assistant-workspace.html', import.meta.url), 'utf8')
 
 test('design-only accounts enter the designer workspace after login', () => {
   assert.match(login, /userData\.perms.*includes\(['"]design['"]\)/s)
@@ -22,4 +23,9 @@ test('Davis AI designer enters a visible AI workflow workspace', () => {
   assert.match(aiWorkspace, /等待人工批准/)
   assert.match(aiWorkspace, /signedInName!==['"]davis\.design\.ai['"]/)
   assert.match(aiWorkspace, /assistant-workspace\.html/)
+})
+
+test('old human designer workspace forcibly redirects the AI account', () => {
+  assert.match(humanDesignerWorkspace, /designerSessionName === ['"]davis\.design\.ai['"]/)
+  assert.match(humanDesignerWorkspace, /location\.replace\(['"]ai-designer-workspace\.html['"]\)/)
 })

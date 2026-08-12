@@ -1233,7 +1233,17 @@
     <script type="module">
         import { supabase } from './supabase-config.js';
         window.supabase = supabase;
-        window.DB_TABLE = 'test_tasks'; 
+        // AI 设计师绝不能停留在真人设计师看板；兼容旧会话、旧书签和直接访问。
+        const { data: designerSessionData } = await supabase.auth.getSession();
+        const designerSessionUser = designerSessionData?.session?.user;
+        const designerSessionName = String(
+            designerSessionUser?.user_metadata?.enName || designerSessionUser?.email?.split('@')[0] || ''
+        ).toLowerCase();
+        if (designerSessionName === 'davis.design.ai') {
+            window.location.replace('ai-designer-workspace.html');
+            throw new Error('Redirecting Davis AI designer to its dedicated workspace');
+        }
+        window.DB_TABLE = 'test_tasks';
         window.LIGHT_FIELDS = 'id, title, status, project, due_date, creator, created_at, summary_desc, assignee, history_json';
     </script>
 
