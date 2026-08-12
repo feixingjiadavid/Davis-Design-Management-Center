@@ -47,9 +47,52 @@ function normalizeVisibleLabels() {
   $$('#r54-context-extra .r54-chip').forEach(chip => {
     if (/未归类|未分类|未分配|其他任务/.test(text(chip.textContent))) chip.remove();
   });
+}
 
-  const label = $('.r54-review-control > span');
-  if (label && text(label.textContent) !== '任务状态') label.textContent = '任务状态';
+function enhanceReviewButtons() {
+  const select = $('[data-r54-review-select]');
+  if (!select) return;
+  const control = select.closest('.r54-review-control');
+  const host = control?.parentElement || $('#r54-context-extra');
+  if (!host) return;
+
+  if (control) control.hidden = true;
+
+  let group = $('.a-review-buttons', host);
+  if (!group) {
+    group = document.createElement('div');
+    group.className = 'a-review-buttons';
+    group.setAttribute('role', 'group');
+    group.setAttribute('aria-label', '状态');
+    group.innerHTML = `
+      <button type="button" data-a-review="accepted">定版</button>
+      <button type="button" data-a-review="backup">备用</button>
+      <button type="button" data-a-review="rejected">废弃</button>`;
+    host.appendChild(group);
+
+    group.addEventListener('click', event => {
+      const button = event.target.closest('[data-a-review]');
+      if (!button) return;
+      const liveSelect = $('[data-r54-review-select]');
+      if (!liveSelect || liveSelect.disabled) return;
+      liveSelect.value = button.dataset.aReview;
+      liveSelect.dispatchEvent(new Event('change', { bubbles: true }));
+      updateReviewButtons();
+    });
+  }
+
+  updateReviewButtons();
+}
+
+function updateReviewButtons() {
+  const select = $('[data-r54-review-select]');
+  const group = $('.a-review-buttons');
+  if (!group) return;
+  const current = select?.value || '';
+  $$('[data-a-review]', group).forEach(button => {
+    button.classList.toggle('active', button.dataset.aReview === current);
+    button.disabled = Boolean(select?.disabled);
+  });
 }
 
 function applyStatusBadge(row, status) {
@@ -74,6 +117,7 @@ function applyStatusBadge(row, status) {
 async function refreshSidebarStatus() {
   unwrapLegacyBuckets();
   normalizeVisibleLabels();
+  enhanceReviewButtons();
 
   const rows = $$('.r54-task-row');
   if (!rows.length) return;
@@ -94,9 +138,65 @@ async function refreshSidebarStatus() {
   });
 }
 
+function sidebarScroller() {
+  return $('#project-list') || $('.project-list');
+}
+
+function installStableTaskNavigation() {
+  let pending = null;
+  let restoreToken = 0;
+
+  const remember = button => {
+    const scroller = sidebarScroller();
+    if (!scroller || !button?.dataset?.project) return;
+    pending = { top: scroller.scrollTop, projectId: String(button.dataset.project), at: Date.now() };
+  };
+
+  const restore = () => {
+    if (!pending || Date.now() - pending.at > 1800) return;
+    const scroller = sidebarScroller();
+    if (!scroller) return;
+    scroller.scrollTop = pending.top;
+  };
+
+  const scheduleRestore = () => {
+    const token = ++restoreToken;
+    const run = () => {
+      if (token !== restoreToken) return;
+      restore();
+    };
+    requestAnimationFrame(() => requestAnimationFrame(run));
+    setTimeout(run, 60);
+    setTimeout(run, 180);
+    setTimeout(run, 420);
+  };
+
+  document.addEventListener('pointerdown', event => {
+    const button = event.target.closest?.('.project-child[data-project]');
+    if (!button) return;
+    remember(button);
+  }, true);
+
+  document.addEventListener('click', event => {
+    const button = event.target.closest?.('.project-child[data-project]');
+    if (!button) return;
+    remember(button);
+    scheduleRestore();
+  }, true);
+
+  const observer = new MutationObserver(() => {
+    if (!pending) return;
+    scheduleRestore();
+  });
+  const list = sidebarScroller();
+  if (list) observer.observe(list, { childList: true, subtree: true });
+}
+
 function start() {
   let running = false;
   let lastSignature = '';
+
+  installStableTaskNavigation();
 
   const refresh = async () => {
     if (running) return;
@@ -106,8 +206,9 @@ function start() {
   };
 
   const tick = () => {
-    // Labels can be re-rendered by the A tree without changing task counts, so normalize them every tick.
     normalizeVisibleLabels();
+    enhanceReviewButtons();
+    updateReviewButtons();
     const signature = `${$$('.r54-task-row').length}|${$$('.r54-deliverable').length}|${$('.project-child.active')?.dataset?.project || ''}`;
     if (signature === lastSignature) return;
     lastSignature = signature;
@@ -116,10 +217,10 @@ function start() {
 
   document.addEventListener('davis-video-review-status-changed', () => {
     lastSignature = '';
-    void refresh();
+    setTimeout(() => { enhanceReviewButtons(); updateReviewButtons(); void refresh(); }, 30);
   });
 
-  setInterval(tick, 700);
+  setInterval(tick, 350);
   tick();
 }
 
