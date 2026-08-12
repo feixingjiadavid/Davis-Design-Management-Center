@@ -9,9 +9,10 @@ function businessStatus(value){
   return 'backup';
 }
 function currentReviewSelect(){return $('[data-r54-review-select]');}
-function currentReviewHost(){const select=currentReviewSelect();return select?.closest('.r54-review-control')?.parentElement||$('#r54-context-extra');}
-function syncReviewButtons(status=currentReviewSelect()?.value||''){
-  const normalized=businessStatus(status),group=$('.a-review-buttons');
+function currentReviewHost(){return $('#r54-context-extra')||currentReviewSelect()?.closest('.r54-review-control')?.parentElement||null;}
+function currentReviewGroup(){return $('.a-review-buttons');}
+function syncReviewButtons(status){
+  const normalized=businessStatus(status),group=currentReviewGroup();
   if(!group)return;
   group.dataset.status=normalized;
   $$('[data-a-review]',group).forEach(button=>button.classList.toggle('active',button.dataset.aReview===normalized));
@@ -31,10 +32,15 @@ function normalizeSidebarPills(root=document){
     if(pill.textContent!==BUSINESS_STATUS[normalized])pill.textContent=BUSINESS_STATUS[normalized];
   });
 }
+function statusFromSidebar(localId){
+  if(!localId)return 'backup';
+  const task=$(`.project-child[data-project="${CSS.escape(String(localId))}"]`),pill=task?.closest('.r54-task-row')?.querySelector(':scope > .r54-pill');
+  return businessStatus(pill?.dataset?.status||'backup');
+}
 function ensureReviewButtons(){
-  const select=currentReviewSelect(),host=currentReviewHost();
-  if(!select||!host)return false;
-  const control=select.closest('.r54-review-control');
+  const host=currentReviewHost();
+  if(!host)return false;
+  const select=currentReviewSelect(),control=select?.closest('.r54-review-control');
   if(control)control.hidden=true;
   let group=$('.a-review-buttons',host);
   if(!group){
@@ -45,25 +51,36 @@ function ensureReviewButtons(){
     group.innerHTML='<button type="button" data-a-review="accepted">定版</button><button type="button" data-a-review="backup">备用</button><button type="button" data-a-review="rejected">废弃</button>';
     host.appendChild(group);
   }
-  group.dataset.localId=select.dataset.localId||'';
-  syncReviewButtons(select.value);
+  if(!group.dataset.localId && select?.dataset?.localId)group.dataset.localId=String(select.dataset.localId);
   normalizeSidebarPills();
   return true;
+}
+function bindSelectedTask(localId){
+  const id=String(localId||'');
+  if(!id)return;
+  ensureReviewButtons();
+  const group=currentReviewGroup();
+  if(!group)return;
+  group.dataset.localId=id;
+  group.classList.remove('is-saving');
+  syncReviewButtons(statusFromSidebar(id));
 }
 function handleReviewClick(event){
   const button=event.target.closest?.('[data-a-review]');
   if(!button)return;
-  const select=currentReviewSelect();
-  if(!select||select.disabled)return;
-  const next=button.dataset.aReview;
-  if(!BUSINESS_STATUS[next])return;
-  const localId=button.closest('.a-review-buttons')?.dataset?.localId||select.dataset.localId||$('.project-child.active')?.dataset?.project||'';
-  select.value=next;
+  const group=button.closest('.a-review-buttons');
+  const localId=String(group?.dataset?.localId||'');
+  const next=String(button.dataset.aReview||'');
+  if(!localId||!BUSINESS_STATUS[next])return;
   syncReviewButtons(next);
   syncSidebarPill(localId,next);
-  select.dispatchEvent(new Event('change',{bubbles:true}));
+  group.classList.add('is-saving');
+  document.dispatchEvent(new CustomEvent('davis-video-review-status-requested',{detail:{localId,status:next}}));
 }
-function scheduleReviewMount(){requestAnimationFrame(()=>{ensureReviewButtons();normalizeSidebarPills();});setTimeout(()=>{ensureReviewButtons();normalizeSidebarPills();},40);}
+function scheduleReviewMount(localId=''){
+  requestAnimationFrame(()=>{ensureReviewButtons();normalizeSidebarPills();if(localId)bindSelectedTask(localId);});
+  setTimeout(()=>{ensureReviewButtons();normalizeSidebarPills();if(localId)bindSelectedTask(localId);},40);
+}
 function installReviewUi(){
   const context=$('#child-task-context');
   if(!context)return;
@@ -80,20 +97,39 @@ function installReviewUi(){
     sidebarObserver.observe(projectList,{childList:true,subtree:true});
   }
   document.addEventListener('davis-video-review-status-changed',event=>{
-    const localId=event.detail?.localId||currentReviewSelect()?.dataset?.localId||'';
-    const status=businessStatus(event.detail?.status||currentReviewSelect()?.value||'');
-    syncReviewButtons(status);
+    const localId=String(event.detail?.localId||'');
+    const status=businessStatus(event.detail?.status||'');
     syncSidebarPill(localId,status);
+    const group=currentReviewGroup();
+    if(group && String(group.dataset.localId||'')===localId){
+      group.classList.remove('is-saving');
+      syncReviewButtons(status);
+    }
+  });
+  document.addEventListener('davis-video-review-status-failed',event=>{
+    const localId=String(event.detail?.localId||''),group=currentReviewGroup();
+    if(group && String(group.dataset.localId||'')===localId){
+      group.classList.remove('is-saving');
+      syncReviewButtons(statusFromSidebar(localId));
+    }
   });
   document.addEventListener('davis-video-review-context-changed',event=>{
-    const localId=String(event.detail?.localId||''),status=businessStatus(event.detail?.status||'');
+    const localId=String(event.detail?.localId||'');
+    if(!localId)return;
+    const status=businessStatus(event.detail?.status||'');
     ensureReviewButtons();
-    const group=$('.a-review-buttons');
-    if(group)group.dataset.localId=localId;
+    const group=currentReviewGroup();
+    if(!group)return;
+    group.dataset.localId=localId;
+    group.classList.remove('is-saving');
     syncReviewButtons(status);
     syncSidebarPill(localId,status);
   });
-  document.addEventListener('davis-video-task-selected',()=>scheduleReviewMount());
+  document.addEventListener('davis-video-task-selected',event=>{
+    const localId=String(event.detail?.draftId||'');
+    bindSelectedTask(localId);
+    scheduleReviewMount(localId);
+  });
   scheduleReviewMount();
 }
 function start(){installReviewUi();normalizeSidebarPills();}
