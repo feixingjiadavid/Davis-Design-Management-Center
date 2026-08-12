@@ -34,6 +34,17 @@ Deno.serve(async (req) => {
     return respond({ ok: false, error: "Task is not assigned to Davis AI designer" }, 400);
   }
 
+  // 外发字段白名单：禁止把附件内容、图片/Base64、源文件地址或参考链接发送给模型。
+  const safeTask = {
+    id: task.id,
+    title: task.title || "",
+    full_desc: task.full_desc || "",
+    project: task.project || "",
+    due_date: task.due_date || "",
+    channels: Array.isArray(task.channels) ? task.channels : [],
+    file_name: task.file_name || "",
+  };
+
   const { data: job, error: jobError } = await admin.from("ai_design_jobs")
     .upsert({ task_id: task.id, status: "analyzing", request_snapshot: task, attempt_count: 1, updated_at: new Date().toISOString() }, { onConflict: "task_id" })
     .select().single();
@@ -49,7 +60,7 @@ Deno.serve(async (req) => {
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: "你是企业内部文化活动的资深设计需求经理。只能基于工单事实分析，不得虚构。返回JSON。missing_fields必须只列出真正阻塞设计的信息。" },
-          { role: "user", content: `分析以下设计工单：${JSON.stringify(task)}\n返回字段：task_type、design_mode(strict_template/series_extension/new_visual)、deliverables、dimensions、copy_requirements、assets_received、style_requirements、brand_constraints、missing_fields、clarifying_questions、execution_plan、ready_for_generation。` }
+          { role: "user", content: `分析以下设计工单：${JSON.stringify(safeTask)}\n返回字段：task_type、design_mode(strict_template/series_extension/new_visual)、deliverables、dimensions、copy_requirements、assets_received、style_requirements、brand_constraints、missing_fields、clarifying_questions、execution_plan、ready_for_generation。` }
         ]
       })
     });
@@ -75,4 +86,3 @@ Deno.serve(async (req) => {
     return respond({ ok: false, error: String(error) }, 500);
   }
 });
-

@@ -17,6 +17,15 @@ test('worker stops after analysis and waits for generation confirmation', () => 
   assert.match(worker, /等待人工确认进入设计生成/)
 })
 
+test('external model receives only allowlisted task fields', () => {
+  assert.match(worker, /JSON\.stringify\(safeTask\)/)
+  assert.doesNotMatch(worker, /JSON\.stringify\(task\)/)
+  assert.match(worker, /file_name: task\.file_name/)
+  assert.doesNotMatch(worker, /file_data: task\.file_data/)
+  assert.doesNotMatch(worker, /link: task\.link/)
+  assert.doesNotMatch(worker, /source_file_link: task\.source_file_link/)
+})
+
 test('assigning a request to Davis AI starts analysis without blocking submission', () => {
   assert.match(requester, /functions\.invoke\(['"]ai-design-analyze['"]/)
   assert.match(requester, /void window\.supabase\.functions\.invoke/)
