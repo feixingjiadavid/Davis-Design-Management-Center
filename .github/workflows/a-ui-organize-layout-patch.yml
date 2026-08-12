@@ -1,0 +1,41 @@
+name: One-time A UI Organize Layout Patch
+
+on:
+  push:
+    paths:
+      - '.github/workflows/a-ui-organize-layout-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Patch visible A UI resources into ai-assistant
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('ai-assistant.html')
+          s = p.read_text(encoding='utf-8')
+          css = '  <link rel="stylesheet" href="./seedance/a-ui-layout-fix.css?v=20260812-a-sidebar-fix-1" />\n'
+          if 'a-ui-layout-fix.css' not in s:
+              marker = '  <link rel="stylesheet" href="./seedance/style.css?v=20260724-unified-studio-system-v4" />\n'
+              s = s.replace(marker, marker + css)
+          js = '  <script type="module" src="./seedance/a-ui-category-tools.js?v=20260812-a-organize-1"></script>\n'
+          if 'a-ui-category-tools.js' not in s:
+              marker = '  <script type="module" src="./seedance/ui-patches.js?v=20260812-a-ui-fail-open-2"></script>\n'
+              s = s.replace(marker, js + marker)
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit patch and remove one-time workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/a-ui-organize-layout-patch.yml
+          git add ai-assistant.html
+          git commit -m "fix(video): ship readable A hierarchy and task organizer"
+          git push origin main
