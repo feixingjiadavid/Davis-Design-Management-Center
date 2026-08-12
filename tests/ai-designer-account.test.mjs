@@ -20,4 +20,6 @@ test('Davis AI designer enters a visible AI workflow workspace', () => {
   assert.match(aiWorkspace, /ai_design_jobs/)
   assert.match(aiWorkspace, /重新分析/)
   assert.match(aiWorkspace, /等待人工批准/)
+  assert.match(aiWorkspace, /signedInName!==['"]davis\.design\.ai['"]/)
+  assert.match(aiWorkspace, /assistant-workspace\.html/)
 })
