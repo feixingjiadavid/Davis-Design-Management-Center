@@ -161,8 +161,15 @@
 
             // ✅ 优先处理快捷页登录后的回跳
             // 例如：login.html?redirect=https%3A%2F%2Fdavis-design.cn%2Fquick-accept.html%3Fticket%3Dxxx
+            const isDavisAi = data.user.id === '90e5b8f9-c8b3-4d7c-9931-444e35b43b5b'
+                && String(data.user.email || '').toLowerCase() === 'davis.design.ai@webank.com';
+            if (isDavisAi) {
+                window.location.href = 'ai-designer-workspace.html';
+                return;
+            }
+
             const redirectUrl = getSafeRedirectUrl();
-            if (redirectUrl) {
+            if (redirectUrl && !redirectUrl.includes('/ai-designer-workspace.html')) {
                 window.location.href = redirectUrl;
                 return;
             }
