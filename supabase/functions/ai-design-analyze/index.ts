@@ -36,13 +36,13 @@ async function submitFramework(admin: ReturnType<typeof createClient>, task: Rec
   svgBytes.forEach((byte) => { binary += String.fromCharCode(byte); });
   const frameworkImageUrl = `data:image/svg+xml;base64,${btoa(binary)}`;
   const history = (() => { try { return JSON.parse(task.history_json || "[]"); } catch { return []; } })();
-  const version = `v-AI-${history.filter((item: Record<string, unknown>) => item.action === "submit_framework").length + 1}`;
+  const version = `v-AI-${history.filter((item: Record<string, unknown>) => item.action === "ai_framework_preview").length + 1}`;
   const submittedAt = new Date().toISOString();
-  history.push({ action: "submit_framework", operator: "Davis AI设计师", version, time: submittedAt, created_at: submittedAt, desc: "AI 已提交需求理解、待确认资料与执行计划的可视化框架方案。", img_url: frameworkImageUrl, source_link: "", work_hours: 0, ai_tools: ["Qwen", "Davis AI Framework"] });
+  history.push({ action: "ai_framework_preview", operator: "Davis AI设计师", version, time: submittedAt, created_at: submittedAt, desc: "AI 已生成内部测试预览，尚未提交领导审批。", img_url: frameworkImageUrl, source_link: "", work_hours: 0, ai_tools: ["Qwen", "Davis AI Framework"], internal_only: true });
   const framework = { image_url: frameworkImageUrl, version, submitted_at: submittedAt };
-  const { error: taskUpdateError } = await admin.from("test_tasks").update({ status: "pending_approval", summary_desc: `AI 框架方案已上传，待领导审批 (版本: ${version})`, design_img_url: frameworkImageUrl, history_json: JSON.stringify(history) }).eq("id", task.id);
+  const { error: taskUpdateError } = await admin.from("test_tasks").update({ status: "processing", summary_desc: `AI 内部框架预览已生成，尚未提交审批 (版本: ${version})`, design_img_url: frameworkImageUrl, history_json: JSON.stringify(history) }).eq("id", task.id);
   if (taskUpdateError) throw taskUpdateError;
-  await admin.from("ai_design_jobs").update({ status: "framework_submitted", analysis: { ...analysis, framework }, updated_at: submittedAt, completed_at: submittedAt }).eq("id", job.id);
+  await admin.from("ai_design_jobs").update({ status: "framework_ready_for_review", analysis: { ...analysis, framework: { ...framework, internal_only: true } }, updated_at: submittedAt, completed_at: submittedAt }).eq("id", job.id);
   return framework;
 }
 
@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
     await admin.from("ai_design_jobs").update({ status: nextStatus, analysis, completed_at: now, updated_at: now }).eq("id", job.id);
     await admin.from("test_tasks").update({ status: "processing", summary_desc: ready ? "AI需求分析完成，正在生成框架方案。" : "AI已识别待确认资料，正在生成框架方案。", history_json: JSON.stringify(history) }).eq("id", task.id);
     const framework = await submitFramework(admin, { ...task, history_json: JSON.stringify(history) }, job, analysis);
-    return respond({ ok: true, task_id: task.id, job_status: "framework_submitted", analysis, framework });
+    return respond({ ok: true, task_id: task.id, job_status: "framework_ready_for_review", analysis, framework });
   } catch (error) {
     await admin.from("ai_design_jobs").update({ status: "failed", error_message: String(error), updated_at: new Date().toISOString() }).eq("id", job.id);
     return respond({ ok: false, error: String(error) }, 500);
