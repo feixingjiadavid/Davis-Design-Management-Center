@@ -1103,7 +1103,7 @@ function buildStrictFrameLockPrompt(segment) {
   }
   const fromIndex = state.draft.frames.findIndex(f => f.id === segment.fromFrameId);
   const toIndex = state.draft.frames.findIndex(f => f.id === segment.toFrameId);
-  const modeLabel = state.draft.mode === 'first_last' ? '首尾帧模式' : '多帧 模式';
+  const modeLabel = state.draft.mode === 'first_last' ? '首尾帧模式' : '多帧模式';
   const ratioLabel = state.draft.ratio === 'follow' ? '跟随素材比例' : state.draft.ratio;
   const frameA = fromIndex >= 0 ? `图 ${fromIndex + 1}` : '首图';
   const frameB = toIndex >= 0 ? `图 ${toIndex + 1}` : '尾图';
@@ -1617,7 +1617,7 @@ function findSegmentIdByOutputIndex(indexValue) {
 
 function reEditSegment(segmentId) {
   if (!segmentId) {
-    toast('无法定位片段', '这个输出没有找到对应片段，请在编辑详情 中手动选择。');
+    toast('无法定位片段', '这个输出没有找到对应片段，请在编辑详情中手动选择。');
     setView('editor');
     return;
   }

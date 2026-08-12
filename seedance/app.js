@@ -352,12 +352,12 @@ function r49TaskDisplayName(draft = state.draft) {
   const direct = String(draft?.taskName || draft?.task_name || '').trim();
   if (direct) return direct;
   const mode = r5ModeKey(draft?.lockedMode || draft?.mode);
-  return mode === 'first_last' ? '首尾帧任务' : (mode === 'text_only' ? '纯文字任务' : '多帧 任务');
+  return mode === 'first_last' ? '首尾帧任务' : (mode === 'text_only' ? '纯文字任务' : '多帧任务');
 }
 function r49DefaultTaskName(mode, index = 1) {
   const n = String(Math.max(1, Number(index) || 1)).padStart(2,'0');
   const key = r5ModeKey(mode);
-  return key === 'first_last' ? `首尾帧任务 ${n}` : (key === 'text_only' ? `纯文字任务 ${n}` : `多帧 任务 ${n}`);
+  return key === 'first_last' ? `首尾帧任务 ${n}` : (key === 'text_only' ? `纯文字任务 ${n}` : `多帧任务 ${n}`);
 }
 function r49FindParentGroup(groupId) {
   return (state.projectGroups || []).find(group => String(group?.id) === String(groupId)) || null;
@@ -461,7 +461,7 @@ function r50ValidateChildTaskName() {
     return value;
   }
   r50SetChildTaskNameError('请填写任务名称后再选择生成模式。');
-  toast('请填写任务名称', '任务名称为必填项。填写后才能创建首尾帧、多帧 或纯文字任务。');
+  toast('请填写任务名称', '任务名称为必填项。填写后才能创建首尾帧、多帧或纯文字任务。');
   input?.focus();
   return '';
 }
@@ -834,7 +834,7 @@ async function r49RestoreCloudDrafts(localDrafts) {
 
 async function r49ReEditSegment(segmentId) {
   if (!r16AssertCurrentProjectWritable('重新编辑')) return;
-  if (!segmentId) { toast('无法定位片段','这个输出没有找到对应片段，请在编辑详情 中手动选择。'); setView('editor'); return; }
+  if (!segmentId) { toast('无法定位片段','这个输出没有找到对应片段，请在编辑详情中手动选择。'); setView('editor'); return; }
   const segment = state.draft.segments.find(item => item.id === segmentId || item.remoteTaskId === segmentId);
   if (!segment) { toast('无法定位片段','当前生成任务没有找到对应片段，请确认打开的是正确子任务。'); setView('editor'); return; }
   state.draft.pendingVersionFork = null;
@@ -1080,7 +1080,7 @@ async function r6ForkCurrentDraftForSubmit(segmentIds) {
 async function r6ReEditSegment(segmentId) {
   if (!r16AssertCurrentProjectWritable('重新编辑或创建新版本')) return;
   if (!segmentId) {
-    toast('无法定位片段', '这个输出没有找到对应片段，请在编辑详情 中手动选择。');
+    toast('无法定位片段', '这个输出没有找到对应片段，请在编辑详情中手动选择。');
     setView('editor');
     return;
   }
