@@ -30,6 +30,7 @@ test('batch import is draft-only before paid submission', () => {
   assert.match(source, /创建草稿（不产生费用）/);
 });
 
+// R11 architecture guards: status changes stay local, event-driven and persistence-backed.
 test('review status save never rebuilds the project tree', () => {
   const source = read('seedance/r54-deliverables.js');
   const match = source.match(/async function setReview\([\s\S]*?\nasync function retryDraft/);
