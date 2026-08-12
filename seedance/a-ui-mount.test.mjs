@@ -25,3 +25,12 @@ test('A-version waits until the R50 project tree is actually rendered', () => {
     'A modules must not mount in a microtask before R50 renders the sidebar tree',
   );
 });
+
+test('history compatibility can never disable the visible A UI', () => {
+  assert.doesNotMatch(supabaseConfig, /aVersionMayBoot\s*=\s*false/);
+  assert.match(supabaseConfig, /void bootAVersionAfterR50\(\)/);
+});
+
+test('ai-assistant has an independent direct A UI bootstrap fallback', () => {
+  assert.match(html, /\.\/seedance\/a-ui-direct-bootstrap\.js\?v=20260812-a-ui-fail-open-1/);
+});
