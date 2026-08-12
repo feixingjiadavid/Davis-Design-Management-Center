@@ -5,21 +5,25 @@ const $$ = (s, root = document) => [...root.querySelectorAll(s)];
 const text = v => String(v ?? '').trim();
 
 const STATUS_META = Object.freeze({
-  draft: { label: '草稿' },
-  pending_review: { label: '草稿' },
   accepted: { label: '定版' },
   backup: { label: '备用' },
-  needs_retry: { label: '需重做' },
   rejected: { label: '废弃' },
 });
+const BUSINESS_STATUSES = new Set(Object.keys(STATUS_META));
+const statusByDraftId = new Map();
+let activeReviewStatus = '';
 
-function normalizeStatus(value) {
-  const status = text(value || 'draft') || 'draft';
-  return STATUS_META[status] ? status : 'draft';
+function normalizeBusinessStatus(value) {
+  const status = text(value);
+  return BUSINESS_STATUSES.has(status) ? status : '';
 }
 
 function localIdForRow(row) {
   return $('.project-child', row)?.dataset?.project || '';
+}
+
+function activeLocalId() {
+  return $('.project-child.active')?.dataset?.project || '';
 }
 
 function unwrapLegacyBuckets() {
@@ -49,6 +53,15 @@ function normalizeVisibleLabels() {
   });
 }
 
+function setReviewButtonVisual(status) {
+  activeReviewStatus = normalizeBusinessStatus(status);
+  const group = $('.a-review-buttons');
+  if (!group) return;
+  $$('[data-a-review]', group).forEach(button => {
+    button.classList.toggle('active', button.dataset.aReview === activeReviewStatus);
+  });
+}
+
 function enhanceReviewButtons() {
   const select = $('[data-r54-review-select]');
   if (!select) return;
@@ -73,30 +86,29 @@ function enhanceReviewButtons() {
     group.addEventListener('click', event => {
       const button = event.target.closest('[data-a-review]');
       if (!button) return;
+      const next = normalizeBusinessStatus(button.dataset.aReview);
+      const localId = activeLocalId();
+      if (!next || !localId) return;
+
+      // Optimistic UI first: the user must see the result immediately and steadily.
+      statusByDraftId.set(String(localId), next);
+      setReviewButtonVisual(next);
+      ensureBusinessBadges();
+
       const liveSelect = $('[data-r54-review-select]');
       if (!liveSelect || liveSelect.disabled) return;
-      liveSelect.value = button.dataset.aReview;
+      liveSelect.value = next;
       liveSelect.dispatchEvent(new Event('change', { bubbles: true }));
-      updateReviewButtons();
     });
   }
 
-  updateReviewButtons();
+  const localId = activeLocalId();
+  const cached = normalizeBusinessStatus(statusByDraftId.get(String(localId)));
+  const selectStatus = normalizeBusinessStatus(select.value);
+  setReviewButtonVisual(cached || selectStatus);
 }
 
-function updateReviewButtons() {
-  const select = $('[data-r54-review-select]');
-  const group = $('.a-review-buttons');
-  if (!group) return;
-  const current = select?.value || '';
-  $$('[data-a-review]', group).forEach(button => {
-    button.classList.toggle('active', button.dataset.aReview === current);
-    button.disabled = Boolean(select?.disabled);
-  });
-}
-
-function applyStatusBadge(row, status) {
-  row.dataset.aClipStatus = status;
+function applyBusinessBadge(row, status) {
   const button = $('.project-child', row);
   if (!button) return;
 
@@ -104,38 +116,49 @@ function applyStatusBadge(row, status) {
   $('.a-clip-status-select', row)?.remove();
   $('.a-clip-status-control', row)?.remove();
 
+  const businessStatus = normalizeBusinessStatus(status);
   let badge = $('.a-task-status-badge', button);
+
+  // Internal states such as 草稿 / 待审核 / 需重做 are intentionally invisible in the sidebar.
+  if (!businessStatus) {
+    badge?.remove();
+    row.dataset.aClipStatus = '';
+    return;
+  }
+
+  row.dataset.aClipStatus = businessStatus;
   if (!badge) {
     badge = document.createElement('span');
     badge.className = 'a-task-status-badge';
     button.appendChild(badge);
   }
-  badge.dataset.status = status;
-  badge.textContent = STATUS_META[status]?.label || '草稿';
+  badge.dataset.status = businessStatus;
+  badge.textContent = STATUS_META[businessStatus].label;
 }
 
-async function refreshSidebarStatus() {
-  unwrapLegacyBuckets();
-  normalizeVisibleLabels();
-  enhanceReviewButtons();
+function ensureBusinessBadges() {
+  $$('.r54-task-row').forEach(row => {
+    const id = localIdForRow(row);
+    const status = normalizeBusinessStatus(statusByDraftId.get(String(id)));
+    applyBusinessBadge(row, status);
+  });
+}
 
-  const rows = $$('.r54-task-row');
-  if (!rows.length) return;
-
+async function refreshStatusCache() {
   let drafts = [];
   try { drafts = await listDrafts(); }
-  catch (error) { console.warn('[Davis Video A UI] local status refresh skipped', error); }
+  catch (error) { console.warn('[Davis Video A UI] local status refresh skipped', error); return; }
 
-  const map = new Map(drafts.map(draft => [
-    String(draft.id),
-    normalizeStatus(draft.reviewStatus || draft.review_status || 'draft'),
-  ]));
-
-  rows.forEach(row => {
-    const id = localIdForRow(row);
-    const existing = normalizeStatus(row.dataset.aClipStatus || 'draft');
-    applyStatusBadge(row, map.get(String(id)) || existing);
+  drafts.forEach(draft => {
+    const id = String(draft.id);
+    const status = normalizeBusinessStatus(draft.reviewStatus || draft.review_status);
+    if (status) statusByDraftId.set(id, status);
+    else if (!statusByDraftId.has(id)) statusByDraftId.set(id, '');
   });
+
+  ensureBusinessBadges();
+  const active = activeLocalId();
+  if (active) setReviewButtonVisual(statusByDraftId.get(String(active)) || '');
 }
 
 function sidebarScroller() {
@@ -182,46 +205,47 @@ function installStableTaskNavigation() {
     if (!button) return;
     remember(button);
     scheduleRestore();
+    setTimeout(() => {
+      const id = String(button.dataset.project || activeLocalId());
+      setReviewButtonVisual(statusByDraftId.get(id) || '');
+    }, 20);
   }, true);
 
   const observer = new MutationObserver(() => {
-    if (!pending) return;
-    scheduleRestore();
+    if (pending) scheduleRestore();
+    // R54 may replace task-card DOM nodes. Re-apply only the tiny badges, never rebuild the tree.
+    queueMicrotask(() => ensureBusinessBadges());
   });
   const list = sidebarScroller();
   if (list) observer.observe(list, { childList: true, subtree: true });
 }
 
 function start() {
-  let running = false;
-  let lastSignature = '';
-
   installStableTaskNavigation();
+  unwrapLegacyBuckets();
+  normalizeVisibleLabels();
+  enhanceReviewButtons();
+  void refreshStatusCache();
 
-  const refresh = async () => {
-    if (running) return;
-    running = true;
-    try { await refreshSidebarStatus(); }
-    finally { running = false; }
-  };
-
-  const tick = () => {
+  // Idempotent maintenance only. No async reload, no tree rebuild, no visual flashing.
+  setInterval(() => {
     normalizeVisibleLabels();
     enhanceReviewButtons();
-    updateReviewButtons();
-    const signature = `${$$('.r54-task-row').length}|${$$('.r54-deliverable').length}|${$('.project-child.active')?.dataset?.project || ''}`;
-    if (signature === lastSignature) return;
-    lastSignature = signature;
-    void refresh();
-  };
+    ensureBusinessBadges();
+  }, 500);
 
-  document.addEventListener('davis-video-review-status-changed', () => {
-    lastSignature = '';
-    setTimeout(() => { enhanceReviewButtons(); updateReviewButtons(); void refresh(); }, 30);
+  // Reconcile persistent data quietly, much less often than the UI maintenance loop.
+  setInterval(() => { void refreshStatusCache(); }, 5000);
+
+  document.addEventListener('davis-video-review-status-changed', event => {
+    const localId = String(event.detail?.localId || activeLocalId());
+    const status = normalizeBusinessStatus(event.detail?.status);
+    if (localId) statusByDraftId.set(localId, status);
+    setReviewButtonVisual(status);
+    ensureBusinessBadges();
+    // Read persisted IndexedDB shortly after save, but never rebuild the tree.
+    setTimeout(() => { void refreshStatusCache(); }, 120);
   });
-
-  setInterval(tick, 350);
-  tick();
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
