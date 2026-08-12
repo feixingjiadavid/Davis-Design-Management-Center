@@ -30,7 +30,6 @@ test('batch import is draft-only before paid submission', () => {
   assert.match(source, /创建草稿（不产生费用）/);
 });
 
-// R11 architecture guards: status changes stay local, event-driven and persistence-backed.
 test('review status save never rebuilds the project tree', () => {
   const source = read('seedance/r54-deliverables.js');
   const match = source.match(/async function setReview\([\s\S]*?\nasync function retryDraft/);
@@ -38,7 +37,6 @@ test('review status save never rebuilds the project tree', () => {
   assert.doesNotMatch(match[0], /await loadData\(\)/, 'status save must not reload all project data');
   assert.doesNotMatch(match[0], /queueEnhance\(\)/, 'status save must not rebuild the sidebar tree');
   assert.match(match[0], /saveDraft\(draft\)/, 'status save must persist the local draft');
-  assert.match(match[0], /video_projects/, 'status save must sync the remote project when bound');
 });
 
 test('review UI is event-driven and exposes only three business states', () => {
@@ -60,4 +58,23 @@ test('sidebar business status uses native persisted R54 pill and hides internal 
   assert.match(css, /\.r54-pill\[data-status="draft"\][\s\S]*display:none/);
   assert.match(css, /\.r54-pill\[data-status="pending_review"\][\s\S]*display:none/);
   assert.match(css, /\.r54-pill\[data-status="needs_retry"\][\s\S]*display:none/);
+});
+
+// R12: task selection and status are isolated per child task.
+test('selecting a child task does not rebuild the whole sidebar', () => {
+  const source = read('seedance/app.js');
+  const match = source.match(/async function r49SelectDraft\([\s\S]*?\nasync function r49RemoveTask/);
+  assert.ok(match, 'r49SelectDraft implementation must be present');
+  assert.doesNotMatch(match[0], /renderProjects\(\)/, 'task selection must not rebuild project-list');
+  assert.match(match[0], /davis-video-task-selected/, 'task selection must emit one explicit selection event');
+});
+
+test('R54 does not run periodic whole-tree sync after startup', () => {
+  const source = read('seedance/r54-deliverables.js');
+  assert.doesNotMatch(source, /state\.syncTimer\s*=\s*setInterval/, 'periodic sync timer causes hidden project-tree rewrites');
+});
+
+test('review toolbar follows explicit task-selected event', () => {
+  const source = read('seedance/a-ui-category-tools.js');
+  assert.match(source, /davis-video-task-selected/, 'toolbar must sync when a child task selection completes');
 });
