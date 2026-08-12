@@ -352,12 +352,12 @@ function r49TaskDisplayName(draft = state.draft) {
   const direct = String(draft?.taskName || draft?.task_name || '').trim();
   if (direct) return direct;
   const mode = r5ModeKey(draft?.lockedMode || draft?.mode);
-  return mode === 'first_last' ? '首尾帧任务' : (mode === 'text_only' ? '纯文字任务' : '多帧 Storyboard 任务');
+  return mode === 'first_last' ? '首尾帧任务' : (mode === 'text_only' ? '纯文字任务' : '多帧任务');
 }
 function r49DefaultTaskName(mode, index = 1) {
   const n = String(Math.max(1, Number(index) || 1)).padStart(2,'0');
   const key = r5ModeKey(mode);
-  return key === 'first_last' ? `首尾帧任务 ${n}` : (key === 'text_only' ? `纯文字任务 ${n}` : `多帧 Storyboard 任务 ${n}`);
+  return key === 'first_last' ? `首尾帧任务 ${n}` : (key === 'text_only' ? `纯文字任务 ${n}` : `多帧任务 ${n}`);
 }
 function r49FindParentGroup(groupId) {
   return (state.projectGroups || []).find(group => String(group?.id) === String(groupId)) || null;
@@ -461,7 +461,7 @@ function r50ValidateChildTaskName() {
     return value;
   }
   r50SetChildTaskNameError('请填写任务名称后再选择生成模式。');
-  toast('请填写任务名称', '任务名称为必填项。填写后才能创建首尾帧、多帧 Storyboard 或纯文字任务。');
+  toast('请填写任务名称', '任务名称为必填项。填写后才能创建首尾帧、多帧或纯文字任务。');
   input?.focus();
   return '';
 }
@@ -834,7 +834,7 @@ async function r49RestoreCloudDrafts(localDrafts) {
 
 async function r49ReEditSegment(segmentId) {
   if (!r16AssertCurrentProjectWritable('重新编辑')) return;
-  if (!segmentId) { toast('无法定位片段','这个输出没有找到对应片段，请在高级 Storyboard 中手动选择。'); setView('editor'); return; }
+  if (!segmentId) { toast('无法定位片段','这个输出没有找到对应片段，请在编辑详情中手动选择。'); setView('editor'); return; }
   const segment = state.draft.segments.find(item => item.id === segmentId || item.remoteTaskId === segmentId);
   if (!segment) { toast('无法定位片段','当前生成任务没有找到对应片段，请确认打开的是正确子任务。'); setView('editor'); return; }
   state.draft.pendingVersionFork = null;
@@ -1080,7 +1080,7 @@ async function r6ForkCurrentDraftForSubmit(segmentIds) {
 async function r6ReEditSegment(segmentId) {
   if (!r16AssertCurrentProjectWritable('重新编辑或创建新版本')) return;
   if (!segmentId) {
-    toast('无法定位片段', '这个输出没有找到对应片段，请在高级 Storyboard 中手动选择。');
+    toast('无法定位片段', '这个输出没有找到对应片段，请在编辑详情中手动选择。');
     setView('editor');
     return;
   }
@@ -1182,8 +1182,8 @@ function r5ModeKey(mode) {
 function r5ModeLabel(mode) {
   const key = r5ModeKey(mode);
   if (key === 'first_last') return '首尾帧';
-  if (key === 'text_only') return '纯文字生成';
-  return '多帧 Storyboard';
+  if (key === 'text_only') return '纯文字';
+  return '多帧';
 }
 
 function r5ModeSuffix(mode) {
@@ -3039,7 +3039,7 @@ function r34BuildStrictFrameLockPrompt(segment) {
     const ratioLabel = state.draft.ratio === 'follow' ? '16:9' : state.draft.ratio;
     const referenceCount = (state.referenceAssets || []).length;
     return [
-      '【纯文字生成要求】',
+      '【纯文字要求】',
       referenceCount
         ? `当前任务为纯文字描述生成模式，已提供 ${referenceCount} 个参考素材；请结合参考素材理解主体、构图、动作与风格。`
         : '当前任务为纯文字描述生成模式，没有上传参考素材。',
@@ -3055,7 +3055,7 @@ function r34BuildStrictFrameLockPrompt(segment) {
   const frameB = toIndex >= 0 ? `图 ${toIndex + 1}` : '尾图';
   const segmentLabel = `第 ${Math.max(0, Number(segment?.index || 0)) + 1} 段`;
   const modeLine = state.draft.mode === 'multi_frame'
-    ? '多帧 Storyboard 只是把多组首尾帧拆成多个独立任务逐段提交；当前这一段仍然必须按严格首尾帧任务执行。'
+    ? '多帧 只是把多组首尾帧拆成多个独立任务逐段提交；当前这一段仍然必须按严格首尾帧任务执行。'
     : '当前任务必须按严格首尾帧任务执行。';
   return [
     '【Davis Video 严格首尾帧硬约束｜最高优先级｜R34 形象锁定版】',

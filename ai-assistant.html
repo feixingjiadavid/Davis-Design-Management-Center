@@ -224,7 +224,7 @@ body.usage-modal-open{overflow:hidden}
 
       <nav class="view-tabs">
         <button class="view-tab active" data-view="quick">快速生成</button>
-        <button class="view-tab" data-view="editor">高级 Storyboard</button>
+        <button class="view-tab" data-view="editor">编辑详情</button>
         <button class="view-tab" data-view="jobs">任务与输出</button>
       </nav>
 
@@ -236,7 +236,7 @@ body.usage-modal-open{overflow:hidden}
                 <div><h2>创建视频</h2></div>
                 <div class="mode-lock-card" id="mode-lock-card" data-mode="multi_frame">
                   <span>当前项目模式</span>
-                  <strong id="locked-mode-label">多帧 Storyboard</strong>
+                  <strong id="locked-mode-label">多帧</strong>
                   
                 </div>
               </div>
@@ -284,7 +284,7 @@ body.usage-modal-open{overflow:hidden}
             <section class="panel sticky-panel">
               <div class="project-name-row"><input id="project-name" value="未命名 Davis Video 项目" /><span id="draft-status">本地草稿</span></div>
               <div class="summary"><div><span>图片</span><strong id="summary-frames">0</strong></div><div><span>片段</span><strong id="summary-segments">0</strong></div><div><span>总时长</span><strong id="summary-duration">0 秒</strong></div></div>
-              <button class="ghost-btn full" id="go-editor">进入高级 Storyboard</button>
+              <button class="ghost-btn full" id="go-editor">进入编辑详情</button>
               <button class="primary-btn full large" id="generate-all">全部生成</button>
               <div id="project-cost-estimate" class="pricing-total-card"></div><p class="cost-note">提交前会显示人民币费用预估；最终以 Ark usage / 火山方舟账单为准。</p>
             </section>
@@ -296,7 +296,7 @@ body.usage-modal-open{overflow:hidden}
         <div class="editor-layout">
           <div class="editor-main">
             <section class="panel">
-              <div class="panel-heading compact"><div><h2>Storyboard Timeline</h2><p>图片可替换、删除和调整顺序。点击片段在当前位置展开，同时同步右侧参数。</p></div><button class="ghost-btn" id="editor-add-image">＋ 添加图片</button></div>
+              <div class="panel-heading compact"><div><h2>分镜时间线</h2><p>图片可替换、删除和调整顺序。点击片段在当前位置展开，同时同步右侧参数。</p></div><button class="ghost-btn" id="editor-add-image">＋ 添加图片</button></div>
               <div id="editor-timeline" class="editor-timeline"></div>
             </section>
             <section class="panel"><div class="panel-heading compact"><div><h2>片段列表</h2><p>每两帧之间是一段独立视频。</p></div></div><div id="segment-list" class="segment-list"></div></section>
@@ -343,7 +343,7 @@ body.usage-modal-open{overflow:hidden}
   <div id="project-mode-modal" class="project-mode-modal" hidden>
     <div class="project-mode-dialog">
       <h2>新建视频生成项目</h2>
-      <p>先创建一级业务项目。创建完成后，再在项目下面创建多个独立生成任务；每个子任务单独选择首尾帧、多帧 Storyboard 或纯文字模式。</p>
+      <p>先创建一级业务项目。创建完成后，再在项目下面创建多个独立生成任务；每个子任务单独选择首尾帧、多帧或纯文字模式。</p>
       <div class="project-create-fields">
         <label class="project-create-field"><span>项目类别 <em class="required-mark">*</em></span><select id="new-project-category" aria-label="项目类别" required aria-required="true"><option value="__other__">其他（手动填写）</option></select><small>类别与需求大厅 index 页「归属项目」完整清单精准一致；没有对应类别时请选择“其他”。</small><small id="new-project-category-error" class="project-create-error" hidden>请选择项目类别。</small></label>
         <label class="project-create-field"><span>项目名称 <em class="required-mark">*</em></span><input id="new-project-name" placeholder="例如：周年活动" required aria-required="true" maxlength="120" /><small>这是左侧树形列表的一级项目名称；同一项目下面可以持续创建很多生成任务。</small><small id="new-project-name-error" class="project-create-error" hidden>请填写项目名称。</small></label>
@@ -361,8 +361,8 @@ body.usage-modal-open{overflow:hidden}
       <label class="child-task-name-field"><span>任务名称 <em class="required-mark">*</em></span><input id="new-child-task-name" maxlength="120" placeholder="例如：开场倒计时 / 领导寄语 / 片尾转场" required aria-required="true" /><small>必填。用于区分当前项目下的不同生成内容；每个任务的素材、提示词、生成记录和输出彼此独立。</small><small id="new-child-task-name-error" class="project-create-error" hidden>请填写任务名称。</small></label>
       <div class="project-mode-options">
         <button type="button" class="project-mode-option" data-create-child-mode="first_last"><b>首尾帧生成</b><span>独立首帧 → 尾帧任务</span></button>
-        <button type="button" class="project-mode-option" data-create-child-mode="multi_frame"><b>多帧 Storyboard</b><span>独立多组首尾帧连续任务</span></button>
-        <button type="button" class="project-mode-option" data-create-child-mode="text_only"><b>纯文字生成</b><span>独立文字 + 可选参考素材任务</span></button>
+        <button type="button" class="project-mode-option" data-create-child-mode="multi_frame"><b>多帧</b><span>独立多组首尾帧连续任务</span></button>
+        <button type="button" class="project-mode-option" data-create-child-mode="text_only"><b>纯文字</b><span>独立文字 + 可选参考素材任务</span></button>
       </div>
       <div class="project-mode-footer"><button id="child-task-cancel" type="button" class="ghost-btn">取消</button></div>
     </div>
@@ -386,7 +386,7 @@ body.usage-modal-open{overflow:hidden}
           </div>
           <textarea id="quick-segment-prompt" rows="9" placeholder="描述两张画面之间的动作、镜头、节奏和画面变化。"></textarea>
         </label>
-        <div class="quick-segment-hint">保存后会立即写回当前项目，不会跳转到高级 Storyboard。</div>
+        <div class="quick-segment-hint">保存后会立即写回当前项目，不会跳转到编辑详情。</div>
       </div>
       <footer class="quick-segment-actions">
         <button id="quick-segment-cancel" type="button" class="ghost-btn">取消</button>

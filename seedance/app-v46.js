@@ -379,8 +379,8 @@ function saveCurrentWorkspaceSelection() {
 
 function workspaceLabel(mode = state.draft?.mode) {
   if (mode === 'first_last') return '首尾帧';
-  if (mode === 'text_only') return '纯文字生成';
-  return '多帧 Storyboard';
+  if (mode === 'text_only') return '纯文字';
+  return '多帧';
 }
 
 function getFrameUrl(frame) {
@@ -1008,9 +1008,9 @@ function renderEditor() {
     const segment = state.draft.segments[0];
     const ref = state.referenceVideo || getWorkspace().referenceVideo || null;
     timeline.innerHTML = `<article class="text-only-editor-card">
-      <strong>纯文字生成</strong>
+      <strong>纯文字</strong>
       <p>${escapeHtml(segment?.prompt || '尚未填写视频描述')}</p>
-      <span>${(state.referenceAssets || []).length ? `已添加 ${(state.referenceAssets || []).length} 个参考内容` : '无参考内容 · 纯文字生成'}</span>
+      <span>${(state.referenceAssets || []).length ? `已添加 ${(state.referenceAssets || []).length} 个参考内容` : '无参考内容 · 纯文字'}</span>
     </article>`;
   } else {
     const parts = [];
@@ -1093,7 +1093,7 @@ function buildStrictFrameLockPrompt(segment) {
   if (state.draft.mode === 'text_only') {
     const ratioLabel = state.draft.ratio === 'follow' ? '16:9' : state.draft.ratio;
     return [
-      '【纯文字生成要求】',
+      '【纯文字要求】',
       '当前任务为纯文字描述生成模式，没有上传参考图。',
       '请严格根据用户文字描述生成视频，不要凭空添加与描述冲突的主体、文字、Logo、人物或复杂背景。',
       `输出比例：${ratioLabel}；整体应保持画面稳定、主体明确、镜头运动自然。`,
@@ -1103,7 +1103,7 @@ function buildStrictFrameLockPrompt(segment) {
   }
   const fromIndex = state.draft.frames.findIndex(f => f.id === segment.fromFrameId);
   const toIndex = state.draft.frames.findIndex(f => f.id === segment.toFrameId);
-  const modeLabel = state.draft.mode === 'first_last' ? '首尾帧模式' : '多帧 Storyboard 模式';
+  const modeLabel = state.draft.mode === 'first_last' ? '首尾帧模式' : '多帧模式';
   const ratioLabel = state.draft.ratio === 'follow' ? '跟随素材比例' : state.draft.ratio;
   const frameA = fromIndex >= 0 ? `图 ${fromIndex + 1}` : '首图';
   const frameB = toIndex >= 0 ? `图 ${toIndex + 1}` : '尾图';
@@ -1617,7 +1617,7 @@ function findSegmentIdByOutputIndex(indexValue) {
 
 function reEditSegment(segmentId) {
   if (!segmentId) {
-    toast('无法定位片段', '这个输出没有找到对应片段，请在高级 Storyboard 中手动选择。');
+    toast('无法定位片段', '这个输出没有找到对应片段，请在编辑详情中手动选择。');
     setView('editor');
     return;
   }
