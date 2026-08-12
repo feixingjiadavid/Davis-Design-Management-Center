@@ -94,9 +94,69 @@ async function refreshSidebarStatus() {
   });
 }
 
+function sidebarScroller() {
+  return $('#project-list') || $('.project-list');
+}
+
+function installStableTaskNavigation() {
+  let pending = null;
+  let restoreToken = 0;
+
+  const remember = button => {
+    const scroller = sidebarScroller();
+    if (!scroller || !button?.dataset?.project) return;
+    pending = {
+      top: scroller.scrollTop,
+      projectId: String(button.dataset.project),
+      at: Date.now(),
+    };
+  };
+
+  const restore = () => {
+    if (!pending || Date.now() - pending.at > 1800) return;
+    const scroller = sidebarScroller();
+    if (!scroller) return;
+    scroller.scrollTop = pending.top;
+  };
+
+  const scheduleRestore = () => {
+    const token = ++restoreToken;
+    const run = () => {
+      if (token !== restoreToken) return;
+      restore();
+    };
+    requestAnimationFrame(() => requestAnimationFrame(run));
+    setTimeout(run, 60);
+    setTimeout(run, 180);
+    setTimeout(run, 420);
+  };
+
+  document.addEventListener('pointerdown', event => {
+    const button = event.target.closest?.('.project-child[data-project]');
+    if (!button) return;
+    remember(button);
+  }, true);
+
+  document.addEventListener('click', event => {
+    const button = event.target.closest?.('.project-child[data-project]');
+    if (!button) return;
+    remember(button);
+    scheduleRestore();
+  }, true);
+
+  const observer = new MutationObserver(() => {
+    if (!pending) return;
+    scheduleRestore();
+  });
+  const list = sidebarScroller();
+  if (list) observer.observe(list, { childList: true, subtree: true });
+}
+
 function start() {
   let running = false;
   let lastSignature = '';
+
+  installStableTaskNavigation();
 
   const refresh = async () => {
     if (running) return;
@@ -106,7 +166,6 @@ function start() {
   };
 
   const tick = () => {
-    // Labels can be re-rendered by the A tree without changing task counts, so normalize them every tick.
     normalizeVisibleLabels();
     const signature = `${$$('.r54-task-row').length}|${$$('.r54-deliverable').length}|${$('.project-child.active')?.dataset?.project || ''}`;
     if (signature === lastSignature) return;
