@@ -1,0 +1,31 @@
+name: One-time A Task Card Layout Publish
+on:
+  push:
+    paths:
+      - '.github/workflows/a-ui-card-layout-publish.yml'
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Cache bust final stacked card layout
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('ai-assistant.html')
+          s = p.read_text(encoding='utf-8')
+          s = s.replace('a-ui-layout-fix.css?v=20260812-a-final-layout-2', 'a-ui-layout-fix.css?v=20260812-a-stacked-card-3')
+          p.write_text(s, encoding='utf-8')
+          PY
+          rm -f .github/workflows/a-ui-card-layout-publish.yml
+      - name: Commit publish patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add ai-assistant.html .github/workflows/a-ui-card-layout-publish.yml
+          git commit -m 'fix(video): publish stacked metadata card layout' || exit 0
+          git push origin HEAD:main
