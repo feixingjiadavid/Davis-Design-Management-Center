@@ -2129,6 +2129,15 @@
                 return window.showAlert(window.reopenArchiveTaskId ? "恢复提交失败" : "写入失败", saveError.message, "danger");
             }
 
+            // 指派给 Davis AI设计师后，异步启动需求分析；不阻塞提单成功，也不调用付费生图。
+            if (String(assigneeVal || '').toLowerCase() === 'davis.design.ai') {
+                void window.supabase.functions.invoke('ai-design-analyze', {
+                    body: { task_id: savedTaskId }
+                }).then(({ error }) => {
+                    if (error) console.error('[Davis AI设计师] 需求分析启动失败', error);
+                });
+            }
+
             const wasReopen = !!window.reopenArchiveTaskId;
             window.reopenArchiveTaskId = null;
             window.reopenArchiveOriginalTask = null;
