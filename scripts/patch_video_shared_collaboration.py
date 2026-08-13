@@ -1,6 +1,7 @@
 from pathlib import Path
 import re
 
+# One-time R17 patch: shared authenticated collaboration with owner-only delete.
 
 def replace_once(text, old, new, label):
     count = text.count(old)
