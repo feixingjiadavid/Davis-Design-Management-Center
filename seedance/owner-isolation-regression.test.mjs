@@ -3,25 +3,36 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const app = fs.readFileSync(new URL('./app.js', import.meta.url), 'utf8');
+const r54 = fs.readFileSync(new URL('./r54-deliverables.js', import.meta.url), 'utf8');
+const css = fs.readFileSync(new URL('./a-ui-layout-fix.css', import.meta.url), 'utf8');
 const access = fs.readFileSync(new URL('./access-control.mjs', import.meta.url), 'utf8');
 
-test('new child task is owned by current authenticated user before first save/select', () => {
-  const anchor = "const remoteName = `${group.name} · ${taskName}`, draft = newDraft(key,remoteName,group.project_category);";
-  const i = app.indexOf(anchor);
-  assert.notEqual(i, -1, 'child task creation anchor must exist');
-  const block = app.slice(i, i + 1500);
-  assert.match(block, /draft\.ownerId\s*=\s*state\.user\.id/);
-  assert.match(block, /workspace\.ownerId\s*=\s*state\.user\.id/);
-  const ownerWrite = block.indexOf('draft.ownerId = state.user.id');
-  const firstSave = block.indexOf('await saveDraft(draft)');
-  assert.ok(ownerWrite >= 0 && firstSave >= 0 && ownerWrite < firstSave, 'owner must be assigned before first save');
-});
-
-test('ordinary user reads remain owner scoped', () => {
+test('all video reads are owner-scoped, including administrator accounts', () => {
+  assert.doesNotMatch(access, /if \(isVideoSuperAdmin\(user\)\) return query/);
   assert.match(access, /return query\.eq\(ownerColumn, userId\)/);
 });
 
-test('foreign owner mutation remains denied', () => {
-  assert.match(access, /return currentUserId !== recordOwnerId/);
-  assert.match(access, /return !isForeignVideoOwner\(user, ownerId\)/);
+test('foreign and ownerless browser drafts are not adopted by another account', () => {
+  assert.match(app, /function r17LocalDraftOwnerId\(/);
+  assert.match(app, /function r17LocalDraftsForCurrentUser\(/);
+  assert.match(app, /r17LocalDraftsForCurrentUser\(await listDrafts\(\)\)/);
+  assert.doesNotMatch(app, /draft\.ownerId = draft\.remoteOwnerId \|\| draft\.ownerId \|\| state\.user\?\.id/);
+});
+
+test('R54 local and cloud state are explicitly scoped to current user', () => {
+  assert.match(r54, /function localDraftsForCurrentUser\(/);
+  assert.match(r54, /\.eq\('owner_id',state\.user\.id\)/);
+});
+
+test('creating a deliverable immediately continues into generation-task creation', () => {
+  assert.match(r54, /openChildTaskForDeliverable\(gid,result\.data\.id\)/);
+});
+
+test('deliverable header exposes a visible create-task action', () => {
+  assert.doesNotMatch(css, /\.project-child-list \.r54-deliverable-actions\{display:none!important\}/);
+  assert.match(css, /data-r54-add-task/);
+});
+
+test('no active generation task is explained as no-task, not foreign read-only', () => {
+  assert.match(app, /请先创建生成任务/);
 });
