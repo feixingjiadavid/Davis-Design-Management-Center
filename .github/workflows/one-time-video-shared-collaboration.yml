@@ -1,0 +1,40 @@
+name: One-time Video Shared Collaboration
+
+"on":
+  push:
+    branches:
+      - fix/video-shared-collaboration-20260813
+    paths:
+      - 'scripts/patch_video_shared_collaboration.py'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/video-shared-collaboration-20260813
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply runtime patch
+        run: python3 scripts/patch_video_shared_collaboration.py
+      - name: Verify runtime and regressions
+        run: |
+          node --check seedance/app.js
+          node --check seedance/r54-deliverables.js
+          node --check seedance/access-control.mjs
+          node --test seedance/access-control.test.mjs seedance/shared-collaboration-regression.test.mjs seedance/r54-deliverables-core.test.mjs seedance/r12-3-status-binding-regression.test.mjs
+          git diff --check
+      - name: Commit verified runtime
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add seedance/app.js seedance/r54-deliverables.js ai-assistant.html supabase-config.js
+          git commit -m "fix(video): enable shared project collaboration [r17]"
+          git push origin HEAD:fix/video-shared-collaboration-20260813
