@@ -561,7 +561,7 @@ async function r49LoadParentGroups() {
   if (!state.user?.id) return [];
   const { data, error } = await supabase.from('video_project_groups')
     .select('id,owner_id,name,project_category,status,created_at,updated_at,metadata')
-    .neq('status','deleted').order('updated_at',{ascending:false}).limit(1000);
+    .eq('owner_id',state.user.id).neq('status','deleted').order('updated_at',{ascending:false}).limit(1000);
   if (error) { console.warn('[Davis Video R50] load parent groups failed', error); return state.projectGroups || []; }
   state.projectGroups = Array.isArray(data) ? data : [];
   return state.projectGroups;
@@ -832,7 +832,7 @@ async function r49RestoreCloudDrafts(localDrafts) {
     }
     cleanLocal.push(draft);
   }
-  const drafts = cleanLocal.filter(draft => { const ownerId = r16ProjectOwnerId(draft); return isVideoSuperAdmin(state.user) || !ownerId || ownerId === state.user.id; });
+  const drafts = cleanLocal.filter(draft => r16ProjectOwnerId(draft) === state.user.id);
   const bound = new Set();
   for (const draft of drafts) { if (draft.remoteProjectId) bound.add(draft.remoteProjectId); for (const workspace of Object.values(draft.workspaces || {})) { if (workspace?.remoteProjectId) bound.add(workspace.remoteProjectId); if (workspace?.bindingCandidateProjectId) bound.add(workspace.bindingCandidateProjectId); } }
   for (const project of projects) {
@@ -871,7 +871,7 @@ async function r49Init() {
   window.addEventListener('keydown',event => { if (event.key === 'Escape' && usageModal && !usageModal.hidden) closeUsage(); });
   r49WireHierarchyUi(); enhanceCustomSelects(); document.body.dataset.seedanceBuild = APP_BUILD;
   state.projectGroups = await r49LoadParentGroups();
-  state.drafts = await r49RestoreCloudDrafts(await r5MigrateDraftCollection(await listDrafts()));
+  state.drafts = await r49RestoreCloudDrafts(await r5MigrateDraftCollection(r17LocalDraftsForCurrentUser(await listDrafts())));
   state.drafts = await r49EnsureDraftParentBindings(state.drafts);
   await r49LoadParentGroups(); renderProjects();
   if (!state.drafts.length) {
@@ -952,9 +952,25 @@ function r16ProjectOwnerId(draft = state.draft) {
   return String(workspace.remoteOwnerId || draft.remoteOwnerId || draft.ownerId || '').trim();
 }
 
+function r17LocalDraftOwnerId(draft) {
+  if (!draft) return '';
+  const direct = String(draft.remoteOwnerId || draft.ownerId || '').trim();
+  if (direct) return direct;
+  for (const workspace of Object.values(draft.workspaces || {})) {
+    const ownerId = String(workspace?.remoteOwnerId || workspace?.ownerId || '').trim();
+    if (ownerId) return ownerId;
+  }
+  return '';
+}
+
+function r17LocalDraftsForCurrentUser(drafts) {
+  const userId = String(state.user?.id || '').trim();
+  if (!userId) return [];
+  return (drafts || []).filter(draft => r17LocalDraftOwnerId(draft) === userId);
+}
+
 function r16ScopeProjectRead(query, draft = state.draft) {
-  const ownerId = r16ProjectOwnerId(draft);
-  return ownerId ? query.eq('owner_id', ownerId) : scopeVideoRead(query, state.user);
+  return scopeVideoRead(query, state.user);
 }
 
 function r16CurrentProjectWritable(draft = state.draft) {
@@ -962,8 +978,12 @@ function r16CurrentProjectWritable(draft = state.draft) {
 }
 
 function r16AssertCurrentProjectWritable(actionLabel = '修改这个项目') {
+  if (!state.draft) {
+    toast('请先创建生成任务', '成片单元只是交付分组。请先点击“＋任务”创建一个生成任务，再上传素材或生成视频。');
+    return false;
+  }
   if (r16CurrentProjectWritable()) return true;
-  toast('只读项目', `这是其他用户的项目，不能${actionLabel}。`);
+  toast('只读项目', `当前任务不属于这个账号，不能${actionLabel}。`);
   return false;
 }
 
@@ -1319,8 +1339,8 @@ function r5MigrateDraftWorkspaces(draft) {
   workspace.remoteProjectId = draft.remoteProjectId || workspace.remoteProjectId || null;
   draft.remoteOwnerId = workspace.remoteOwnerId || draft.remoteOwnerId || null;
   workspace.remoteOwnerId = draft.remoteOwnerId || workspace.remoteOwnerId || null;
-  draft.ownerId = draft.remoteOwnerId || draft.ownerId || state.user?.id || null;
-  workspace.ownerId = draft.ownerId;
+  draft.ownerId = draft.remoteOwnerId || draft.ownerId || workspace.ownerId || null;
+  workspace.ownerId = draft.ownerId || workspace.ownerId || null;
   draft.selectedSegmentId = workspace.selectedSegmentId || draft.selectedSegmentId || workspace.segments[0]?.id || null;
   workspace.selectedSegmentId = draft.selectedSegmentId;
 
@@ -3868,7 +3888,7 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, 
     r5WritePersistentVideo,r49ParentGroupIdForDraft,r49TaskDisplayName,r49DefaultTaskName,r49FindParentGroup,r49ExpandedParentGroups,r49SaveExpandedParentGroups,r49ExpandParentGroup,r50TreeSelection,r50SetTreeSelection,r50SelectParentGroup,r50SyncDeleteButton,r50SetChildTaskNameError,r50ValidateChildTaskName,r50RemoveParentProject,r50DeleteSelectedNode,r49GroupChildren,r49LoadParentGroups,r49EnsureDraftParentBindings,r49RenderTaskContext,r49RenderProjects,r49OpenParentModal,r49CloseParentModal,r49CreateParentProject,r49OpenChildTaskModal,r49CloseChildTaskModal,r49CreateChildTask,r49WireHierarchyUi,r49RenderSettings,r50ApplySelectedTaskDom,r49SelectDraft,r49RemoveTask,r49RestoreCloudDrafts,r49ReEditSegment,r49Init,r43NormalizeCategory,r43InferHistoricalCategory,r43ProjectCategoryValue,r43IncomingProjectCategory,r43SyncCategoryCustomVisibility,r43ApplyCategoryOptions,r43LoadCategoryOptions,r43ProjectCategoryFromControls,r45SetProjectFieldError,r45ClearProjectCreateErrors,r45ValidateProjectCreateFields,r5OpenCreateModal,r5CloseCreateModal,r5CreateProjectFromMode,r5WireCreateModal,
     r6ExistingProjectNames,r6ForkCurrentDraftForSubmit,r10StableUploadPlan,r10ApplyFrameBinding,
     r10SubmissionContext,r10AssertContext,r10RecoverFrameBindings,r10RecoverOrphan,r11RestoreCloudDrafts,r13MarkVersionForkForSubmit,r14NormalizeProjectName,r14ProjectNameExists,r15HasFilePayload,r15WireFileDropzone,r15PreventDocumentFileNavigation,
-    r16ProjectOwnerId,r16ScopeProjectRead,r16CurrentProjectWritable,r16AssertCurrentProjectWritable,r16ApplyReadOnlyControls,
+    r16ProjectOwnerId,r17LocalDraftOwnerId,r17LocalDraftsForCurrentUser,r16ScopeProjectRead,r16CurrentProjectWritable,r16AssertCurrentProjectWritable,r16ApplyReadOnlyControls,
     r18PublicSegmentState,r18StatusText,r18JobStageMarkup,r37ModelCatalog,r37ModelConfig,r37ModelLabel,r37ResolutionPixels,r37InputProfile,r37EstimateCost,r37ValidateSegmentConfig,r37SetSelectOptions,r37ApplyModelControls,r37RenderSegmentCost,r37RenderProjectCost,r37ReadMediaDuration,r38FormatTokens,r38FormatDuration,r38UsagePeriodMarkup,r42UsagePeriods,r42VisibleBars,r42UsageOverviewMarkup,r42TooltipMarkup,r42RenderUsageChart,r42LoadUsageChart,r38RenderUsageSummary,r38LoadUsageSummary].map(fn => fn.toString()).join('\n\n');
 
   patched = patched.replace("const LAST_SELECTED_DRAFT_KEY = 'seedance_last_selected_draft_id_v1';",
@@ -4165,7 +4185,7 @@ export async function bootProduction() {
   const supabaseUrl = new URL('../supabase-config.js', import.meta.url).href;
   const dbUrl = new URL('./db.js', import.meta.url).href;
   const projectVersionUrl = new URL('./project-version-policy.mjs', import.meta.url).href;
-  const accessControlUrl = new URL('./access-control.mjs?v=20260729-user-isolation-r16', import.meta.url);
+  const accessControlUrl = new URL('./access-control.mjs?v=20260813-owner-isolation-r17', import.meta.url);
   const [response, accessControlResponse] = await Promise.all([
     fetch(originalUrl, { cache: 'no-store' }),
     fetch(accessControlUrl, { cache: 'no-store' })
