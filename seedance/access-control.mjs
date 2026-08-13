@@ -26,7 +26,6 @@ export function scopeVideoRead(query, user, ownerColumn = 'owner_id') {
   if (!query || typeof query.eq !== 'function') {
     throw new TypeError('A Supabase query builder is required');
   }
-  if (isVideoSuperAdmin(user)) return query;
 
   const userId = String(user?.id || '').trim();
   if (!userId) return query.eq(ownerColumn, '__missing_authenticated_user__');
