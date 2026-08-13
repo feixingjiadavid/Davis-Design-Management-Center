@@ -27,9 +27,10 @@ test('ordinary user read scope adds the authenticated owner filter', () => {
 test('video super administrators are still owner-scoped inside Video Studio', () => {
   for (const email of ['davidxxu@webank.com', 'judyzzhang@webank.com']) {
     const calls = [];
+    const query = scopedQuery(calls);
     const user = { id: `${email}-id`, email };
     assert.equal(isVideoSuperAdmin(user), true);
-    assert.equal(scopeVideoRead(scopedQuery(calls), user), calls.length ? undefined : undefined);
+    assert.equal(scopeVideoRead(query, user), query);
     assert.deepEqual(calls, [['owner_id', `${email}-id`]]);
   }
 });
