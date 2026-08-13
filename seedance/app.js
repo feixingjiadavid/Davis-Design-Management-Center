@@ -436,9 +436,9 @@ function r50SyncDeleteButton() {
 
   button.textContent = '删除当前任务';
   const draft = state.draft;
-  const writable = Boolean(draft) && r16CurrentProjectWritable(draft);
-  button.disabled = !writable;
-  button.title = draft && !writable ? '其他用户的任务仅允许查看' : '删除当前子生成任务';
+  const deletable = Boolean(draft) && r16CurrentProjectDeletable(draft);
+  button.disabled = !deletable;
+  button.title = draft && !deletable ? '可协作编辑；仅原创建人可删除该任务' : '删除当前子生成任务';
 }
 
 function r50SetChildTaskNameError(message = '') {
@@ -697,7 +697,6 @@ async function r49CreateParentProject() {
 }
 function r49OpenChildTaskModal(groupId) {
   const group = r49FindParentGroup(groupId); if (!group) return toast('无法创建任务','没有找到对应的一级项目，请刷新后重试。');
-  if (String(group.owner_id || '') !== String(state.user?.id || '')) return toast('只读项目','不能在其他用户的项目下新增任务。');
   const modal = $('child-task-modal'); if (!modal) return; modal.dataset.parentGroupId = group.id;
   if ($('child-task-parent-name')) $('child-task-parent-name').textContent = group.name;
   if ($('new-child-task-name')) $('new-child-task-name').value = '';
@@ -730,7 +729,7 @@ async function r49CreateChildTask(mode) {
   draft.parentGroupId = group.id; draft.parent_group_id = group.id; draft.parentProjectName = group.name; draft.taskName = taskName; draft.task_name = taskName; draft.taskOrder = siblings.length; draft.projectCategory = group.project_category; draft.projectCategorySource = 'parent_project'; draft.remoteProjectName = remoteName;
   await saveDraft(draft); state.drafts.unshift(draft); r49ExpandParentGroup(group.id,true);
   r50SetTreeSelection('task', group.id, draft.id);
-  try { await supabase.from('video_project_groups').update({updated_at:new Date().toISOString()}).eq('id',group.id).eq('owner_id',state.user.id); } catch {}
+  try { await supabase.from('video_project_groups').update({updated_at:new Date().toISOString()}).eq('id',group.id); } catch {}
   group.updated_at = new Date().toISOString(); r49CloseChildTaskModal(); await selectDraft(draft.id); setView('quick');
   toast('生成任务已创建',`“${taskName}”已创建为${r5ModeLabel(key)}任务，素材、提示词、生成记录和输出均独立保存。`);
 }
@@ -786,7 +785,7 @@ async function r49SelectDraft(id) {
   if (active && r16CurrentProjectWritable()) startPolling();
 }
 async function r49RemoveTask() {
-  if (!r16AssertCurrentProjectWritable('删除生成任务')) return;
+  if (!r16AssertCurrentProjectDeletable('删除生成任务')) return;
   if (!state.draft || !await confirmBox('删除生成任务',`确定删除“${r49TaskDisplayName(state.draft)}”吗？一级项目仍会保留；已生成的视频和任务记录仍保留在云端。`)) return;
   const id = state.draft.id, parentGroupId = r49ParentGroupIdForDraft(state.draft), workspace = getWorkspace();
   const remoteProjectId = workspace.remoteProjectId || state.draft.remoteProjectId || workspace.bindingCandidateProjectId || null, ownerId = r16ProjectOwnerId() || state.user?.id || '';
@@ -832,7 +831,7 @@ async function r49RestoreCloudDrafts(localDrafts) {
     }
     cleanLocal.push(draft);
   }
-  const drafts = cleanLocal.filter(draft => { const ownerId = r16ProjectOwnerId(draft); return isVideoSuperAdmin(state.user) || !ownerId || ownerId === state.user.id; });
+  const drafts = cleanLocal.filter(Boolean);
   const bound = new Set();
   for (const draft of drafts) { if (draft.remoteProjectId) bound.add(draft.remoteProjectId); for (const workspace of Object.values(draft.workspaces || {})) { if (workspace?.remoteProjectId) bound.add(workspace.remoteProjectId); if (workspace?.bindingCandidateProjectId) bound.add(workspace.bindingCandidateProjectId); } }
   for (const project of projects) {
@@ -953,17 +952,26 @@ function r16ProjectOwnerId(draft = state.draft) {
 }
 
 function r16ScopeProjectRead(query, draft = state.draft) {
-  const ownerId = r16ProjectOwnerId(draft);
-  return ownerId ? query.eq('owner_id', ownerId) : scopeVideoRead(query, state.user);
+  return scopeVideoRead(query, state.user);
 }
 
 function r16CurrentProjectWritable(draft = state.draft) {
   return canMutateVideoOwner(state.user, r16ProjectOwnerId(draft));
 }
 
+function r16CurrentProjectDeletable(draft = state.draft) {
+  return canDeleteVideoOwner(state.user, r16ProjectOwnerId(draft));
+}
+
 function r16AssertCurrentProjectWritable(actionLabel = '修改这个项目') {
   if (r16CurrentProjectWritable()) return true;
-  toast('只读项目', `这是其他用户的项目，不能${actionLabel}。`);
+  toast('无法操作', `当前账号不能${actionLabel}。`);
+  return false;
+}
+
+function r16AssertCurrentProjectDeletable(actionLabel = '删除这个项目') {
+  if (r16CurrentProjectDeletable()) return true;
+  toast('仅原创建人可删除', `你可以继续协作编辑和生成，但不能${actionLabel}。`);
   return false;
 }
 
@@ -2387,7 +2395,7 @@ async function r5SelectDraft(id) {
 async function r5CreateProject() { r5OpenCreateModal(); }
 
 async function r5RemoveProject() {
-  if (!r16AssertCurrentProjectWritable('删除项目')) return;
+  if (!r16AssertCurrentProjectDeletable('删除项目')) return;
   if (!state.draft || !await confirmBox('删除项目', `确定删除“${state.draft.name}”吗？删除后不会再出现在项目列表；已生成的视频和任务记录仍保留在云端。`)) return;
 
   const id = state.draft.id;
@@ -2491,10 +2499,7 @@ async function r11RestoreCloudDrafts(localDrafts) {
     }
   }
 
-  const drafts = cleanLocal.filter(draft => {
-    const ownerId = r16ProjectOwnerId(draft);
-    return isVideoSuperAdmin(state.user) || ownerId === state.user.id;
-  });
+  const drafts = cleanLocal.filter(Boolean);
 
   const boundProjectIds = new Set();
   for (const draft of drafts) {
@@ -4165,7 +4170,7 @@ export async function bootProduction() {
   const supabaseUrl = new URL('../supabase-config.js', import.meta.url).href;
   const dbUrl = new URL('./db.js', import.meta.url).href;
   const projectVersionUrl = new URL('./project-version-policy.mjs', import.meta.url).href;
-  const accessControlUrl = new URL('./access-control.mjs?v=20260729-user-isolation-r16', import.meta.url);
+  const accessControlUrl = new URL('./access-control.mjs?v=20260813-shared-collaboration-r17', import.meta.url);
   const [response, accessControlResponse] = await Promise.all([
     fetch(originalUrl, { cache: 'no-store' }),
     fetch(accessControlUrl, { cache: 'no-store' })
