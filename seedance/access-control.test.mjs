@@ -5,40 +5,10 @@ import {
   isVideoSuperAdmin,
   isForeignVideoOwner,
   canMutateVideoOwner,
-  canDeleteVideoOwner,
   scopeVideoRead,
 } from './access-control.mjs';
 
-test('authenticated system users receive shared video read scope', () => {
-  const query = {
-    eq() {
-      throw new Error('shared authenticated reads must not be owner-filtered');
-    },
-  };
-
-  for (const user of [
-    { id: 'user-a', email: 'ordinary@webank.com' },
-    { id: 'admin-id', email: 'davidxxu@webank.com' },
-  ]) {
-    assert.equal(scopeVideoRead(query, user), query);
-  }
-});
-
-test('authenticated system users can collaborate on foreign video projects', () => {
-  const user = { id: 'user-a', email: 'ordinary@webank.com' };
-  assert.equal(canMutateVideoOwner(user, 'user-b'), true);
-  assert.equal(canMutateVideoOwner(user, ''), true);
-  assert.equal(isForeignVideoOwner(user, 'user-b'), true);
-});
-
-test('delete remains owner-only even though editing is collaborative', () => {
-  const user = { id: 'user-a', email: 'ordinary@webank.com' };
-  assert.equal(canDeleteVideoOwner(user, 'user-a'), true);
-  assert.equal(canDeleteVideoOwner(user, 'user-b'), false);
-  assert.equal(canDeleteVideoOwner(user, ''), false);
-});
-
-test('anonymous or missing authenticated identity fails closed', () => {
+test('ordinary user read scope adds the authenticated owner filter', () => {
   const calls = [];
   const query = {
     eq(column, value) {
@@ -46,15 +16,80 @@ test('anonymous or missing authenticated identity fails closed', () => {
       return this;
     },
   };
-  assert.equal(canMutateVideoOwner(null, 'user-a'), false);
-  assert.equal(canDeleteVideoOwner(null, 'user-a'), false);
-  assert.equal(scopeVideoRead(query, null), query);
-  assert.deepEqual(calls, [['owner_id', '__missing_authenticated_user__']]);
+
+  const result = scopeVideoRead(query, {
+    id: 'user-a',
+    email: 'ordinary@webank.com',
+  });
+
+  assert.equal(result, query);
+  assert.deepEqual(calls, [['owner_id', 'user-a']]);
 });
 
-test('super administrator recognition is preserved', () => {
-  for (const email of ['davidxxu@webank.com', 'judyzzhang@webank.com', 'DavidXXu@Webank.com']) {
-    assert.equal(isVideoSuperAdmin({ id: 'admin-id', email }), true);
+test('both super administrators receive unfiltered read scope', () => {
+  for (const email of [
+    'davidxxu@webank.com',
+    'judyzzhang@webank.com',
+  ]) {
+    const query = {
+      eq() {
+        throw new Error('administrator read scope must not add an owner filter');
+      },
+    };
+
+    assert.equal(scopeVideoRead(query, { id: email, email }), query);
+    assert.equal(isVideoSuperAdmin({ id: email, email }), true);
   }
-  assert.equal(isVideoSuperAdmin({ id: 'user-a', email: 'ordinary@webank.com' }), false);
+});
+
+test('administrator cannot mutate a foreign owner project', () => {
+  assert.equal(
+    canMutateVideoOwner(
+      { id: 'admin-id', email: 'davidxxu@webank.com' },
+      'other-user-id',
+    ),
+    false,
+  );
+  assert.equal(
+    isForeignVideoOwner(
+      { id: 'admin-id', email: 'davidxxu@webank.com' },
+      'other-user-id',
+    ),
+    true,
+  );
+});
+
+test('administrator can mutate only their own project', () => {
+  const admin = { id: 'admin-id', email: 'judyzzhang@webank.com' };
+  assert.equal(canMutateVideoOwner(admin, 'admin-id'), true);
+  assert.equal(isForeignVideoOwner(admin, 'admin-id'), false);
+});
+
+test('ordinary users cannot read or mutate foreign ownership', () => {
+  const ordinary = { id: 'user-a', email: 'ordinary@webank.com' };
+  assert.equal(isVideoSuperAdmin(ordinary), false);
+  assert.equal(canMutateVideoOwner(ordinary, 'user-b'), false);
+  assert.equal(isForeignVideoOwner(ordinary, 'user-b'), true);
+});
+
+test('authenticated user may mutate a not-yet-persisted local draft before owner_id exists', () => {
+  const ordinary = { id: 'user-a', email: 'ordinary@webank.com' };
+  assert.equal(canMutateVideoOwner(ordinary, ''), true);
+  assert.equal(canMutateVideoOwner(ordinary, null), true);
+});
+
+test('missing authenticated identity still fails closed', () => {
+  assert.equal(isVideoSuperAdmin(null), false);
+  assert.equal(canMutateVideoOwner(null, 'user-a'), false);
+  assert.equal(canMutateVideoOwner(null, ''), false);
+});
+
+test('administrator email comparison is case insensitive', () => {
+  assert.equal(
+    isVideoSuperAdmin({
+      id: 'admin-id',
+      email: 'DavidXXu@Webank.com',
+    }),
+    true,
+  );
 });
