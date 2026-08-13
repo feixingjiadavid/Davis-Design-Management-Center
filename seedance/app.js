@@ -970,8 +970,7 @@ function r17LocalDraftsForCurrentUser(drafts) {
 }
 
 function r16ScopeProjectRead(query, draft = state.draft) {
-  const ownerId = r16ProjectOwnerId(draft);
-  return ownerId ? query.eq('owner_id', ownerId) : scopeVideoRead(query, state.user);
+  return scopeVideoRead(query, state.user);
 }
 
 function r16CurrentProjectWritable(draft = state.draft) {
