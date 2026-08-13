@@ -8,55 +8,35 @@ import {
   scopeVideoRead,
 } from './access-control.mjs';
 
-test('ordinary user read scope adds the authenticated owner filter', () => {
-  const calls = [];
-  const query = {
+function scopedQuery(calls) {
+  return {
     eq(column, value) {
       calls.push([column, value]);
       return this;
     },
   };
+}
 
-  const result = scopeVideoRead(query, {
-    id: 'user-a',
-    email: 'ordinary@webank.com',
-  });
-
-  assert.equal(result, query);
+test('ordinary user read scope adds the authenticated owner filter', () => {
+  const calls = [];
+  const query = scopedQuery(calls);
+  assert.equal(scopeVideoRead(query, { id: 'user-a', email: 'ordinary@webank.com' }), query);
   assert.deepEqual(calls, [['owner_id', 'user-a']]);
 });
 
-test('both super administrators receive unfiltered read scope', () => {
-  for (const email of [
-    'davidxxu@webank.com',
-    'judyzzhang@webank.com',
-  ]) {
-    const query = {
-      eq() {
-        throw new Error('administrator read scope must not add an owner filter');
-      },
-    };
-
-    assert.equal(scopeVideoRead(query, { id: email, email }), query);
-    assert.equal(isVideoSuperAdmin({ id: email, email }), true);
+test('video super administrators are still owner-scoped inside Video Studio', () => {
+  for (const email of ['davidxxu@webank.com', 'judyzzhang@webank.com']) {
+    const calls = [];
+    const user = { id: `${email}-id`, email };
+    assert.equal(isVideoSuperAdmin(user), true);
+    assert.equal(scopeVideoRead(scopedQuery(calls), user), calls.length ? undefined : undefined);
+    assert.deepEqual(calls, [['owner_id', `${email}-id`]]);
   }
 });
 
 test('administrator cannot mutate a foreign owner project', () => {
-  assert.equal(
-    canMutateVideoOwner(
-      { id: 'admin-id', email: 'davidxxu@webank.com' },
-      'other-user-id',
-    ),
-    false,
-  );
-  assert.equal(
-    isForeignVideoOwner(
-      { id: 'admin-id', email: 'davidxxu@webank.com' },
-      'other-user-id',
-    ),
-    true,
-  );
+  assert.equal(canMutateVideoOwner({ id: 'admin-id', email: 'davidxxu@webank.com' }, 'other-user-id'), false);
+  assert.equal(isForeignVideoOwner({ id: 'admin-id', email: 'davidxxu@webank.com' }, 'other-user-id'), true);
 });
 
 test('administrator can mutate only their own project', () => {
@@ -65,7 +45,7 @@ test('administrator can mutate only their own project', () => {
   assert.equal(isForeignVideoOwner(admin, 'admin-id'), false);
 });
 
-test('ordinary users cannot read or mutate foreign ownership', () => {
+test('ordinary users cannot mutate foreign ownership', () => {
   const ordinary = { id: 'user-a', email: 'ordinary@webank.com' };
   assert.equal(isVideoSuperAdmin(ordinary), false);
   assert.equal(canMutateVideoOwner(ordinary, 'user-b'), false);
@@ -80,11 +60,5 @@ test('missing identity or ownership fails closed', () => {
 });
 
 test('administrator email comparison is case insensitive', () => {
-  assert.equal(
-    isVideoSuperAdmin({
-      id: 'admin-id',
-      email: 'DavidXXu@Webank.com',
-    }),
-    true,
-  );
+  assert.equal(isVideoSuperAdmin({ id: 'admin-id', email: 'DavidXXu@Webank.com' }), true);
 });
