@@ -10,6 +10,11 @@ const access = fs.readFileSync(new URL('./access-control.mjs', import.meta.url),
 test('all video reads are owner-scoped, including administrator accounts', () => {
   assert.doesNotMatch(access, /if \(isVideoSuperAdmin\(user\)\) return query/);
   assert.match(access, /return query\.eq\(ownerColumn, userId\)/);
+  const scopeStart = app.indexOf('function r16ScopeProjectRead(');
+  assert.notEqual(scopeStart, -1);
+  const scopeBlock = app.slice(scopeStart, scopeStart + 260);
+  assert.match(scopeBlock, /return scopeVideoRead\(query, state\.user\)/);
+  assert.doesNotMatch(scopeBlock, /query\.eq\('owner_id', ownerId\)/);
 });
 
 test('foreign and ownerless browser drafts are not adopted by another account', () => {
