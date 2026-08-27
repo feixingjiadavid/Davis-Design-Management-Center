@@ -7,6 +7,7 @@ import {
 } from './r54-deliverables-core.mjs';
 
 test('maps official Seedance display names to runtime aliases', () => {
+  assert.equal(normalizeModelAlias('Seedance 2.5'), 'v25');
   assert.equal(normalizeModelAlias('Seedance 2.0'), 'v20');
   assert.equal(normalizeModelAlias('Seedance 2.0 Fast'), 'fast');
   assert.equal(normalizeModelAlias('Seedance 2.0 Mini'), 'mini');

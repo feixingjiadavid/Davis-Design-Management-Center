@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260827-travel-cleanup-generation-button-fix-v1';
+const PRODUCTION_BUILD = '20260827-seedance-25-reference-analysis-v1';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -3275,6 +3275,12 @@ async function r35UploadReferenceAssets(projectId, segmentsForProgress = []) {
 
 function r37ModelCatalog() {
   return {
+    v25: {
+      label: 'Seedance 2.5',
+      shortLabel: 'Seedance 2.5', family: '2.5', minDuration: 4, maxDuration: 30,
+      resolutions: ['480p','720p','1080p'], supportsAudio: true, supportsVideoReference: true,
+      pricing: { noVideo: 70, withVideo: 42 },
+    },
     v20: {
       label: 'Seedance 2.0',
       shortLabel: 'Seedance 2.0', family: '2.0', minDuration: 4, maxDuration: 15,
@@ -3295,7 +3301,7 @@ function r37ModelCatalog() {
     },
     v15: {
       label: 'Seedance 1.5 Pro',
-      shortLabel: 'Seedance 1.5 Pro', family: '1.5', minDuration: 1, maxDuration: 12,
+      shortLabel: 'Seedance 1.5 Pro', family: '1.5', minDuration: 4, maxDuration: 12,
       resolutions: ['480p','720p','1080p'], supportsAudio: true, supportsVideoReference: false,
       pricing: { silent: 8, audio: 16 },
     },
@@ -3364,7 +3370,7 @@ function r37EstimateCost(segment) {
   const duration = Math.max(config.minDuration, Math.min(config.maxDuration, Number.isFinite(rawDuration) ? rawDuration : config.minDuration));
   const profile = r37InputProfile(segment);
   const generateAudio = config.supportsAudio ? Boolean(segment?.generateAudio) : false;
-  const secondsForTokens = config.family === '2.0'
+  const secondsForTokens = config.family === '2.0' || config.family === '2.5'
     ? duration + (profile.hasVideo ? Math.max(0, profile.videoSeconds) : 0)
     : duration;
   const estimatedTokens = Math.ceil((r37ResolutionPixels(resolution) * 24 * secondsForTokens) / 1024);
@@ -3380,7 +3386,7 @@ function r37EstimateCost(segment) {
     inputLabel: profile.label,
     hasVideo: profile.hasVideo,
     videoSeconds: profile.videoSeconds,
-    lowerBound: Boolean(config.family === '2.0' && profile.hasVideo && profile.unknownVideoDuration),
+    lowerBound: Boolean((config.family === '2.0' || config.family === '2.5') && profile.hasVideo && profile.unknownVideoDuration),
     estimatedTokens,
     rate,
     cost: estimatedCost,
@@ -3425,10 +3431,11 @@ function r37ApplyModelControls(segment) {
   if (!segment) return;
   const catalog = r37ModelCatalog();
   segment.model = r37SetSelectOptions($('segment-model'), [
+    { value:'v25', label:'Seedance 2.5 · 30秒/1080P' },
     { value:'v20', label:'Seedance 2.0 · 1080P/4K' },
     { value:'fast', label:'Seedance 2.0 Fast' },
     { value:'mini', label:'Seedance 2.0 Mini' },
-    { value:'v15', label:'Seedance 1.5 Pro · 最短1秒' },
+    { value:'v15', label:'Seedance 1.5 Pro' },
   ], segment.model || 'v20') || 'v20';
   const config = catalog[segment.model] || catalog.v20;
 
@@ -4019,7 +4026,85 @@ async function r21ConfirmMaterialRights(error) {
 }
 
 `;
-  patched = patched.replace('async function submitOne(segment) {', rightsHelper + 'async function submitOne(segment) {');
+  const referenceAnalysisHelper = `
+async function r55AnalyzeReferenceAssetsBeforeSubmit(referenceAssets) {
+  const refs = (Array.isArray(referenceAssets) ? referenceAssets : [])
+    .filter(ref => String(ref?.type || '').startsWith('image/') && ref?.remoteAssetId);
+  if (!refs.length) {
+    globalThis.__davisVisionDiagnostics = [];
+    return [];
+  }
+
+  const ids = refs.map(ref => ref.remoteAssetId);
+  const lookup = await withTimeout(
+    supabase.from('video_assets')
+      .select('id,object_path,mime_type,width,height,analysis_metadata')
+      .in('id', ids),
+    TIMEOUTS.database,
+    '读取参考图片分析状态',
+  );
+  if (lookup.error) throw new Error('读取参考图片分析状态失败：' + errorMessage(lookup.error));
+  const rows = new Map((lookup.data || []).map(row => [String(row.id), row]));
+  const diagnostics = [];
+
+  for (const ref of refs) {
+    const row = rows.get(String(ref.remoteAssetId));
+    let analysis = row?.analysis_metadata && typeof row.analysis_metadata === 'object'
+      ? row.analysis_metadata
+      : null;
+    const complete = analysis?.analysis_status === 'completed'
+      && Number(analysis?.confidence || 0) > 0;
+    if (!complete) {
+      const objectPath = row?.object_path || ref.remotePath;
+      if (!objectPath) throw new Error('参考图片“' + (ref.name || '') + '”缺少云端路径，无法识别人物');
+      const signed = await withTimeout(
+        supabase.storage.from('seedance-inputs').createSignedUrl(objectPath, 3600),
+        TIMEOUTS.database,
+        '生成参考图片分析地址',
+      );
+      if (signed.error || !signed.data?.signedUrl) {
+        throw new Error('参考图片“' + (ref.name || '') + '”分析地址生成失败：' + errorMessage(signed.error));
+      }
+      const response = await withTimeout(
+        supabase.functions.invoke('seedance-vision-analyze', {
+          body: {
+            asset_id: ref.remoteAssetId,
+            image_url: signed.data.signedUrl,
+            image_width: Number(row?.width || ref.width || 0) || null,
+            image_height: Number(row?.height || ref.height || 0) || null,
+            prompt: '识别图片中的真人数量、是否多人合影，并分析主体、场景和构图。',
+          },
+        }),
+        60000,
+        '参考图片人物识别',
+      );
+      if (response.error || !response.data?.ok || !response.data?.vision_context) {
+        throw new Error('参考图片“' + (ref.name || '') + '”人物识别失败：' + errorMessage(response.error || response.data?.error));
+      }
+      analysis = response.data.vision_context;
+    }
+    diagnostics.push({
+      contains_real_person: analysis?.contains_real_person === true,
+      real_person_count: Math.max(0, Number(analysis?.real_person_count || 0)),
+      multi_person_detected: analysis?.multi_person_detected === true
+        || analysis?.is_group_photo === true
+        || Number(analysis?.real_person_count || 0) >= 2,
+      is_group_photo: analysis?.is_group_photo === true,
+      is_lifestyle_photo: analysis?.is_lifestyle_photo === true,
+      image_kind: String(analysis?.image_kind || 'unknown'),
+      confidence: Number(analysis?.confidence || 0),
+    });
+  }
+  globalThis.__davisVisionDiagnostics = diagnostics;
+  return diagnostics;
+}
+
+`;
+  patched = patched.replace('async function submitOne(segment) {', rightsHelper + referenceAnalysisHelper + 'async function submitOne(segment) {');
+  patched = patched.replace(
+    "  const textReferenceAssets = isTextOnly ? commitTextReferenceAssets() : [];\n  if (isTextOnly) validatePromptReferenceTokens(segment, textReferenceAssets);",
+    "  const textReferenceAssets = isTextOnly ? commitTextReferenceAssets() : [];\n  if (isTextOnly) {\n    validatePromptReferenceTokens(segment, textReferenceAssets);\n    await r55AnalyzeReferenceAssetsBeforeSubmit(textReferenceAssets);\n  }"
+  );
   patched = patched.replace(
     "    } catch (error) {\n      lastError = error;",
     "    } catch (error) {\n      if (await r21ConfirmMaterialRights(error)) { attempt -= 1; continue; }\n      lastError = error;"

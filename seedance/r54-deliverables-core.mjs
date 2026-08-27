@@ -21,6 +21,10 @@ const MODE_ALIASES = new Map([
   ['纯文字生成', 'text_only'],
 ]);
 const MODEL_ALIASES = new Map([
+  ['v25', 'v25'],
+  ['seedance 2.5', 'v25'],
+  ['doubao-seedance-2-5', 'v25'],
+  ['doubao-seedance-2-5-260628', 'v25'],
   ['v20', 'v20'],
   ['seedance 2.0', 'v20'],
   ['doubao-seedance-2-0', 'v20'],
@@ -181,7 +185,7 @@ export function validateBatchRows(rows = []) {
     if (!row.taskName) errors.push('任务名称不能为空');
     if (!row.subjectKey) errors.push('subject_key 不能为空');
     if (!row.mode) errors.push('生成模式无效，请使用首尾帧 / 多帧 Storyboard / 纯文字');
-    if (row.rawModel && !row.model) errors.push('模型名称无效，请使用 Seedance 2.0 / Seedance 2.0 Fast / Seedance 2.0 Mini / Seedance 1.5 Pro');
+    if (row.rawModel && !row.model) errors.push('模型名称无效，请使用 Seedance 2.5 / Seedance 2.0 / Seedance 2.0 Fast / Seedance 2.0 Mini / Seedance 1.5 Pro');
     if (row.rawResolution && !row.resolution) errors.push('分辨率无效，请使用 480P / 720P / 1080P / 4K');
     if (row.subjectKey && subjectCounts.get(row.subjectKey) > 1) errors.push('subject_key 在本次导入中重复');
     if (row.mode === 'first_last' && !row.oldPhoto) errors.push('首尾帧任务缺少历史照片');
