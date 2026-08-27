@@ -4,6 +4,7 @@ import {
   normalizeReviewStatus,
   resolveDraftReviewStatus,
   hasExistingGenerationRecord,
+  inferSingleDeliverableId,
   validateBatchRows,
   nextAttemptNo,
   parseEstimatedRmb,
@@ -50,8 +51,9 @@ function currentDraftId() { return document.querySelector('.project-child.active
 function currentDraft() { return state.draftById.get(String(currentDraftId())) || null; }
 function draftMeta(draft) {
   const cloudId=remoteProjectId(draft); const cloud=cloudId ? state.projectById.get(String(cloudId)) : null;
+  const inferredDeliverableId=inferSingleDeliverableId(groupId(draft) || cloud?.parent_group_id,state.deliverables);
   return {
-    deliverableId:text(draft?.deliverableId || draft?.deliverable_id || cloud?.deliverable_id) || null,
+    deliverableId:text(draft?.deliverableId || draft?.deliverable_id || cloud?.deliverable_id || inferredDeliverableId) || null,
     subjectKey:text(draft?.subjectKey || draft?.subject_key || cloud?.subject_key),
     attemptNo:Math.max(1,Number(draft?.attemptNo || draft?.attempt_no || cloud?.attempt_no || 1)),
     retryOfProjectId:text(draft?.retryOfProjectId || draft?.retry_of_project_id || cloud?.retry_of_project_id) || null,
@@ -104,7 +106,7 @@ function setExpanded(id,on){const s=expandedSet();on?s.add(String(id)):s.delete(
 
 function cloudProjectForDraft(draft){const id=remoteProjectId(draft);return id?state.projectById.get(String(id)):null;}
 function cloudIdForButton(button){const d=state.draftById.get(String(button.dataset.project));return remoteProjectId(d) || (String(button.dataset.project).startsWith('cloud-')?String(button.dataset.project).slice(6):null);}
-function metaForButton(button){const draft=state.draftById.get(String(button.dataset.project));if(draft)return draftMeta(draft);const p=state.projectById.get(String(cloudIdForButton(button)));return {deliverableId:text(p?.deliverable_id)||null,subjectKey:text(p?.subject_key),attemptNo:Math.max(1,Number(p?.attempt_no||1)),reviewStatus:normalizeReviewStatus(p?.review_status)};}
+function metaForButton(button){const draft=state.draftById.get(String(button.dataset.project));if(draft)return draftMeta(draft);const p=state.projectById.get(String(cloudIdForButton(button)));return {deliverableId:text(p?.deliverable_id||inferSingleDeliverableId(p?.parent_group_id,state.deliverables))||null,subjectKey:text(p?.subject_key),attemptNo:Math.max(1,Number(p?.attempt_no||1)),reviewStatus:normalizeReviewStatus(p?.review_status)};}
 function tasksForDeliverable(deliverableId){return state.drafts.filter(d=>draftMeta(d).deliverableId===String(deliverableId));}
 function reviewCounts(deliverableId){const counts={total:0,draft:0,pending_review:0,accepted:0,backup:0,rejected:0,needs_retry:0};for(const d of tasksForDeliverable(deliverableId)){const s=draftMeta(d).reviewStatus;counts.total++;counts[s]=(counts[s]||0)+1;}return counts;}
 
@@ -119,9 +121,8 @@ function enhanceTree(){
       const byDeliverable=new Map(deliverables.map(d=>[String(d.id),[]])); const unclassified=[];
       for(const button of existing){const did=metaForButton(button).deliverableId;if(did && byDeliverable.has(String(did)))byDeliverable.get(String(did)).push(button);else unclassified.push(button);}
       childList.replaceChildren();
-      if(isOwner(group)){const tools=document.createElement('div');tools.className='r54-project-tools';tools.innerHTML=`<button data-r54-create-deliverable="${esc(gid)}">＋ 成片单元</button>`;childList.appendChild(tools);}
       for(const deliverable of deliverables) childList.appendChild(buildDeliverableNode(group,deliverable,byDeliverable.get(String(deliverable.id))||[]));
-      if(unclassified.length) childList.appendChild(buildUnclassifiedNode(unclassified));
+      for(const button of unclassified) childList.appendChild(button);
       if(add) childList.appendChild(add); childList.dataset.r54='1';
     }
     renderContext(); renderSummary();
@@ -138,7 +139,6 @@ function queueEnhance(){if(state.treeQueued)return;state.treeQueued=true;request
 function startObserver(){const root=$('project-list');if(!root||state.observer)return;state.observer=new MutationObserver(()=>{if(!state.applyingTree)queueEnhance();});state.observer.observe(root,{childList:true,subtree:true});}
 
 async function genericDialog({title,subtitle='',body='',confirm='确认'}){return new Promise(resolve=>{const modal=$('r54-generic');$('r54-generic-title').textContent=title;$('r54-generic-subtitle').textContent=subtitle;$('r54-generic-body').innerHTML=body;$('r54-generic-ok').textContent=confirm;modal.hidden=false;const finish=v=>{modal.hidden=true;$('r54-generic-ok').onclick=null;document.querySelectorAll('[data-r54-generic-close]').forEach(n=>n.onclick=null);resolve(v);};$('r54-generic-ok').onclick=()=>finish(true);document.querySelectorAll('[data-r54-generic-close]').forEach(n=>n.onclick=()=>finish(false));});}
-async function createDeliverable(gid){const group=state.groupById.get(String(gid));if(!isOwner(group))return toast('只读项目','不能修改其他用户的项目。');const ok=await genericDialog({title:'新建成片单元',subtitle:group.name,body:'<label class="r54-field"><span>成片单元名称</span><input id="r54-new-deliverable-name" placeholder="例如：互动暖场视频"></label><label class="r54-field"><span>说明（可选）</span><textarea id="r54-new-deliverable-desc" placeholder="这条成片由哪些生成任务组成"></textarea></label>',confirm:'创建成片单元'});if(!ok)return;const name=text($('r54-new-deliverable-name')?.value),description=text($('r54-new-deliverable-desc')?.value);if(!name)return toast('名称不能为空','请填写成片单元名称。');const sort=state.deliverables.filter(d=>String(d.parent_group_id)===String(gid)).length;const result=await supabase.from('video_deliverables').insert({owner_id:state.user.id,parent_group_id:gid,name,description:description||null,sort_order:sort,status:'active'}).select().single();if(result.error)return toast('创建失败',errorMessage(result.error));state.deliverables.push(result.data);refreshMaps();document.querySelectorAll('.project-child-list').forEach(x=>delete x.dataset.r54);queueEnhance();toast('成片单元已创建',`“${name}”已加入项目。接下来创建具体生成任务。`);void openChildTaskForDeliverable(gid,result.data.id);}
 async function deleteDeliverable(id){const d=state.deliverableById.get(String(id));if(!d)return;const group=state.groupById.get(String(d.parent_group_id));if(!isOwner(group))return;const count=tasksForDeliverable(id).length;const ok=await genericDialog({title:'删除成片单元',subtitle:'只移除生产入口，不物理删除历史 Ark/输出记录。',body:`<div class="r54-note">“${esc(d.name)}”下有 ${count} 个本地任务。删除后这些任务会从当前生产树移除；已产生费用、Ark 任务和视频输出继续保留可审计。</div>`,confirm:'确认删除'});if(!ok)return;const cloud=await supabase.from('video_projects').update({status:'deleted',updated_at:new Date().toISOString()}).eq('owner_id',state.user.id).eq('deliverable_id',id).neq('status','deleted');if(cloud.error)return toast('删除失败',errorMessage(cloud.error));const del=await supabase.from('video_deliverables').update({status:'deleted'}).eq('id',id).eq('owner_id',state.user.id);if(del.error)return toast('删除失败',errorMessage(del.error));for(const draft of tasksForDeliverable(id)){try{await deleteDraft(draft.id);}catch{}}state.deliverables=state.deliverables.filter(x=>String(x.id)!==String(id));state.drafts=state.drafts.filter(x=>draftMeta(x).deliverableId!==String(id));refreshMaps();location.reload();}
 
 async function openChildTaskForDeliverable(gid,did){const group=state.groupById.get(String(gid));if(!isOwner(group))return;const before=new Set((await listDrafts()).map(d=>String(d.id)));state.pendingTaskAssignment={gid:String(gid),did:String(did),before,startedAt:Date.now()};const add=document.querySelector(`[data-add-child="${CSS.escape(String(gid))}"]`);if(!add)return toast('无法创建任务','没有找到当前项目的新建任务入口。');add.click();}

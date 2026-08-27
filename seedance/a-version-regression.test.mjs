@@ -75,6 +75,12 @@ test('R54 does not run periodic whole-tree sync after startup', () => {
   assert.doesNotMatch(source, /state\.syncTimer\s*=\s*setInterval/, 'periodic sync timer causes hidden project-tree rewrites');
 });
 
+test('project creation has no deliverable-creation or unclassified intermediate UI', () => {
+  const source = read('seedance/r54-deliverables.js');
+  assert.doesNotMatch(source, /tools\.innerHTML=.*成片单元/);
+  assert.doesNotMatch(source, /buildUnclassifiedNode\(unclassified\)/);
+});
+
 test('review toolbar follows explicit task-selected event', () => {
   const source = read('seedance/a-ui-category-tools.js');
   assert.match(source, /davis-video-task-selected/, 'toolbar must sync when a child task selection completes');

@@ -72,6 +72,16 @@ export function hasExistingGenerationRecord(segment) {
   );
 }
 
+export function inferSingleDeliverableId(groupId, deliverables = []) {
+  const group = text(groupId);
+  if (!group) return null;
+  const matches = deliverables.filter(item =>
+    text(item?.parent_group_id ?? item?.parentGroupId) === group
+    && text(item?.status || 'active').toLowerCase() !== 'deleted'
+  );
+  return matches.length === 1 ? text(matches[0]?.id) || null : null;
+}
+
 export function normalizeMode(value) {
   const normalized = text(value).toLowerCase();
   return MODE_ALIASES.get(normalized) || '';

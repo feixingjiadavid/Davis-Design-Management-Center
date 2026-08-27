@@ -5,6 +5,7 @@ import {
   normalizeReviewStatus,
   resolveDraftReviewStatus,
   hasExistingGenerationRecord,
+  inferSingleDeliverableId,
   groupTasksByDeliverable,
   validateBatchRows,
   nextAttemptNo,
@@ -12,6 +13,18 @@ import {
   buildPaidConfirmation,
   parseCsvText,
 } from './r54-deliverables-core.mjs';
+
+test('infers the only active deliverable in the same project group', () => {
+  const deliverables = [
+    { id:'deliverable-1', parent_group_id:'group-1', status:'active' },
+    { id:'deliverable-deleted', parent_group_id:'group-1', status:'deleted' },
+    { id:'deliverable-other', parent_group_id:'group-2', status:'active' },
+  ];
+  assert.equal(inferSingleDeliverableId('group-1', deliverables), 'deliverable-1');
+  assert.equal(inferSingleDeliverableId('group-2', deliverables), 'deliverable-other');
+  assert.equal(inferSingleDeliverableId('missing', deliverables), null);
+  assert.equal(inferSingleDeliverableId('group-1', [...deliverables, { id:'deliverable-2', parent_group_id:'group-1', status:'active' }]), null);
+});
 
 test('generation guard detects existing provider tasks and terminal history', () => {
   assert.equal(hasExistingGenerationRecord({ status:'draft' }), false);
