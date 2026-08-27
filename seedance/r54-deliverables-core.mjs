@@ -60,6 +60,18 @@ export function resolveDraftReviewStatus({ draftStatus, cloudStatus, remoteShare
   return 'draft';
 }
 
+export function hasExistingGenerationRecord(segment) {
+  const status = text(segment?.status).toLowerCase();
+  return Boolean(
+    segment?.providerTaskId
+    || segment?.remoteTaskId
+    || segment?.remoteSegmentId
+    || segment?.outputPath
+    || segment?.outputUrl
+    || ['submitted','queued','running','processing','succeeded','completed','success','failed','cancelled','canceled'].includes(status)
+  );
+}
+
 export function normalizeMode(value) {
   const normalized = text(value).toLowerCase();
   return MODE_ALIASES.get(normalized) || '';

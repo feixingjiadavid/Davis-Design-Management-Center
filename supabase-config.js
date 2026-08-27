@@ -51,9 +51,9 @@ async function waitForR50ProjectTree(timeoutMs = 10000) {
 async function bootAVersionAfterR50() {
   await waitForR50ProjectTree()
 
-  await import('./seedance/r54-paid-safety.js')
+  await import('./seedance/r54-paid-safety.js?v=20260827-generation-button-fix-v1')
     .then(({ initPaidSafetyR54 }) => initPaidSafetyR54())
-    .then(() => import('./seedance/r54-deliverables.js?v=20260813-owner-isolation-r17'))
+    .then(() => import('./seedance/r54-deliverables.js?v=20260827-generation-button-fix-v1'))
     .then(({ initDeliverablesR54 }) => initDeliverablesR54())
     .then(() => import('./seedance/r54-tree-stability.js'))
     .then(({ initTreeStabilityR54 }) => initTreeStabilityR54())

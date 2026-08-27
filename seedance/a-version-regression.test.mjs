@@ -20,7 +20,8 @@ test('paid generation safety remains explicit and automatic quality retry is abs
   const paidSafety = read('seedance/r54-paid-safety.js');
   assert.match(deliverables, /费用暂不可计算/);
   assert.match(deliverables, /系统不会因为质量问题自动重新生成/);
-  assert.match(paidSafety, /已阻止覆盖式重新生成/);
+  assert.match(deliverables, /已阻止覆盖式重新生成/);
+  assert.doesNotMatch(paidSafety, /#generate-all,#generate-segment/, 'generation clicks must have only one capture guard');
   assert.equal(/auto.*retry.*quality/i.test(deliverables), false);
 });
 

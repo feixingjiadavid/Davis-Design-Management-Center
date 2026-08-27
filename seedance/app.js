@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260807-tree-selection-collapse-r50';
+const PRODUCTION_BUILD = '20260827-travel-cleanup-generation-button-fix-v1';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -4183,7 +4183,7 @@ export async function bootProduction() {
   r46ClearObsoleteRuntimeCaches();
   const originalUrl = new URL(`${ORIGINAL_FILE}?v=${ORIGINAL_BUILD}`, import.meta.url);
   const supabaseUrl = new URL('../supabase-config.js', import.meta.url).href;
-  const dbUrl = new URL('./db.js', import.meta.url).href;
+  const dbUrl = new URL('./db.js?v=20260827-travel-history-cleanup-v1', import.meta.url).href;
   const projectVersionUrl = new URL('./project-version-policy.mjs', import.meta.url).href;
   const accessControlUrl = new URL('./access-control.mjs?v=20260813-owner-isolation-r17', import.meta.url);
   const [response, accessControlResponse] = await Promise.all([

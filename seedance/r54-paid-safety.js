@@ -1,54 +1,7 @@
 import { listDrafts } from './db.js';
 
-const LAST_SELECTED_DRAFT_KEY = 'seedance_last_selected_draft_id_v1';
 let deliverableTaskCreationPending = false;
 let creationBeforeIds = null;
-let safetyBypass = 0;
-
-const $ = id => document.getElementById(id);
-
-function toast(title, message = '') {
-  const box = $('toast');
-  const titleEl = $('toast-title');
-  const messageEl = $('toast-message');
-  if (!box || !titleEl || !messageEl) return;
-  titleEl.textContent = title;
-  messageEl.textContent = message;
-  box.hidden = false;
-  clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => { box.hidden = true; }, 4500);
-}
-
-function modeKey(value) {
-  return value === 'first_last' ? 'first_last' : value === 'text_only' ? 'text_only' : 'multi_frame';
-}
-
-function workspaceOf(draft) {
-  if (!draft) return null;
-  const key = modeKey(draft.lockedMode || draft.mode);
-  return draft.workspaces?.[key] || draft;
-}
-
-function hasExistingGeneration(segment) {
-  const status = String(segment?.status || '').toLowerCase();
-  return Boolean(
-    segment?.providerTaskId ||
-    segment?.remoteTaskId ||
-    segment?.remoteSegmentId ||
-    segment?.outputPath ||
-    segment?.outputUrl ||
-    ['submitted','queued','running','processing','succeeded','completed','success','failed','cancelled'].includes(status)
-  );
-}
-
-async function currentDraft() {
-  const selected = document.querySelector('.project-child.active')?.dataset?.project
-    || localStorage.getItem(LAST_SELECTED_DRAFT_KEY)
-    || '';
-  if (!selected) return null;
-  const drafts = await listDrafts();
-  return drafts.find(draft => String(draft.id) === String(selected)) || null;
-}
 
 async function rememberBeforeCreate() {
   const drafts = await listDrafts();
@@ -94,48 +47,8 @@ function init() {
     }
   }, true);
 
-  // 必须早于 R54 主模块注册：已有生成记录时，先阻止覆盖式再次扣费。
-  document.addEventListener('click', event => {
-    const button = event.target.closest?.('#generate-all,#generate-segment');
-    if (!button) return;
-    if (safetyBypass > 0) {
-      safetyBypass -= 1;
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-    event.stopImmediatePropagation();
-
-    void (async () => {
-      const draft = await currentDraft();
-      if (!draft) return;
-      const workspace = workspaceOf(draft);
-      const segments = workspace?.segments || draft.segments || [];
-      const selectedId = workspace?.selectedSegmentId || draft.selectedSegmentId || null;
-      const selectedSegment = segments.find(item => String(item.id) === String(selectedId)) || segments[0] || null;
-      const existing = button.id === 'generate-all'
-        ? segments.some(hasExistingGeneration)
-        : hasExistingGeneration(selectedSegment);
-
-      if (existing) {
-        toast(
-          '已阻止覆盖式重新生成',
-          button.id === 'generate-all'
-            ? '当前任务已经存在生成记录。“全部生成”可能让已生成片段再次扣费。需要重做时请先点击“重新生成草稿”；如果只是补未生成片段，请在高级 Storyboard 中单独生成未生成片段。'
-            : '这个片段已经存在生成记录。请先创建“重新生成草稿”，再在新任务中确认费用后生成。'
-        );
-        return;
-      }
-
-      // 没有历史生成时，只放行这一点击给后续 R54 费用确认监听器。
-      safetyBypass += 1;
-      button.dispatchEvent(new MouseEvent('click', { bubbles:true, cancelable:true, view:window }));
-    })();
-  }, true);
-
   document.body.dataset.davisVideoPaidSafetyR54 = 'ready';
-  console.log('[Davis Video R54] paid overwrite protection ready');
+  console.log('[Davis Video R54] task creation safety ready');
 }
 
 export function initPaidSafetyR54() {

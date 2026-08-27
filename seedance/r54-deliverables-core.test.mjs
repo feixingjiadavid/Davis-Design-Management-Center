@@ -4,6 +4,7 @@ import {
   REVIEW_STATUSES,
   normalizeReviewStatus,
   resolveDraftReviewStatus,
+  hasExistingGenerationRecord,
   groupTasksByDeliverable,
   validateBatchRows,
   nextAttemptNo,
@@ -11,6 +12,13 @@ import {
   buildPaidConfirmation,
   parseCsvText,
 } from './r54-deliverables-core.mjs';
+
+test('generation guard detects existing provider tasks and terminal history', () => {
+  assert.equal(hasExistingGenerationRecord({ status:'draft' }), false);
+  assert.equal(hasExistingGenerationRecord({ providerTaskId:'task-1', status:'draft' }), true);
+  assert.equal(hasExistingGenerationRecord({ status:'completed' }), true);
+  assert.equal(hasExistingGenerationRecord({ status:'failed' }), true);
+});
 
 test('normalizes review states and falls back to draft', () => {
   assert.equal(normalizeReviewStatus('accepted'), 'accepted');
