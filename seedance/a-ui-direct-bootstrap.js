@@ -32,7 +32,7 @@ async function bootDirectly() {
 
   const modules = [
     ['./r54-tree-stability.js', 'initTreeStabilityR54'],
-    ['./r54-architecture-ux.js', 'initArchitectureUxR54'],
+    ['./r54-architecture-ux.js?v=20260828-direct-child-task-entry-v1', 'initArchitectureUxR54'],
     ['./r54-selection-tools.js', 'initSelectionToolsR54'],
     ['./r54-cost-context.js', 'initCostContextR54'],
   ];

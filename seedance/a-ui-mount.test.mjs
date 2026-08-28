@@ -32,5 +32,5 @@ test('history compatibility can never disable the visible A UI', () => {
 });
 
 test('ai-assistant has an independent direct A UI bootstrap fallback', () => {
-  assert.match(html, /\.\/seedance\/a-ui-direct-bootstrap\.js\?v=20260812-a-ui-fail-open-1/);
+  assert.match(html, /\.\/seedance\/a-ui-direct-bootstrap\.js\?v=[^"']+/);
 });

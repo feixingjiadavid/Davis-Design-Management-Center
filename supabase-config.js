@@ -57,7 +57,7 @@ async function bootAVersionAfterR50() {
     .then(({ initDeliverablesR54 }) => initDeliverablesR54())
     .then(() => import('./seedance/r54-tree-stability.js'))
     .then(({ initTreeStabilityR54 }) => initTreeStabilityR54())
-    .then(() => import('./seedance/r54-architecture-ux.js'))
+    .then(() => import('./seedance/r54-architecture-ux.js?v=20260828-direct-child-task-entry-v1'))
     .then(({ initArchitectureUxR54 }) => initArchitectureUxR54())
     .then(() => import('./seedance/r54-selection-tools.js'))
     .then(({ initSelectionToolsR54 }) => initSelectionToolsR54())
