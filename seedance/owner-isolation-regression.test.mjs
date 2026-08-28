@@ -29,8 +29,9 @@ test('R54 local and cloud state are explicitly scoped to current user', () => {
   assert.match(r54, /\.eq\('owner_id',state\.user\.id\)/);
 });
 
-test('creating a deliverable immediately continues into generation-task creation', () => {
-  assert.match(r54, /openChildTaskForDeliverable\(gid,result\.data\.id\)/);
+test('creating a parent project immediately continues into generation-task creation', () => {
+  assert.match(app, /r49OpenChildTaskModal\(data\.id\)/);
+  assert.doesNotMatch(r54, /async function createDeliverable\(/);
 });
 
 test('deliverable header exposes a visible create-task action', () => {
