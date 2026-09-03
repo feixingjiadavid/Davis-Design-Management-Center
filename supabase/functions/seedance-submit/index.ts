@@ -4,8 +4,9 @@ import { buildSeedanceRequestShape, redactArkPayload } from "../_shared/seedance
 import { normalizePromptReferences } from "../_shared/seedance-prompt-references.mjs";
 import { buildGenerationRoute } from "../_shared/seedance-generation-router.mjs";
 import { buildServerStrictFrameLockPrompt } from "../_shared/seedance-frame-lock.mjs";
+import { buildWan3Payload, WAN3_MODEL, wan3BaseUrl } from "../_shared/wan3-provider.mjs";
 
-const BUILD = "20260827-seedance-25-model-catalog-v53";
+const BUILD = "20260903-wan3-video-v56";
 const FRAME_LOCK_POLICY = "strict_first_last_server_v3_identity_lock";
 const FPS = 24;
 
@@ -16,6 +17,18 @@ const CORS = {
 };
 
 const MODEL_CATALOG = {
+  wan30: {
+    label: "Wan 3.0",
+    env: "",
+    fallback: WAN3_MODEL,
+    family: "wan3",
+    minDuration: 2,
+    maxDuration: 30,
+    resolutions: ["480p", "720p", "1080p"],
+    supportsAudio: true,
+    supportsVideoReference: true,
+    pricing: { "480p": 0.3, "720p": 0.6, "1080p": 1.2 },
+  },
   v25: {
     label: "Davis Video 2.5",
     env: "ARK_SEEDANCE_MODEL_25",
@@ -120,6 +133,7 @@ function safeString(value: unknown, fallback = ""): string {
 
 function normalizeModelAlias(value: unknown): ModelAlias {
   const raw = safeString(value, "mini").trim().toLowerCase();
+  if (["wan30", "wan3", "wan3.0", "wan3.0-video", "wan-3.0"].includes(raw)) return "wan30";
   if (["v25", "25", "2.5", "seedance2.5", "seedance-2.5", "doubao-seedance-2-5", "doubao-seedance-2-5-260628"].includes(raw)) return "v25";
   if (["v20", "20", "2.0", "standard", "seedance2", "seedance-2.0"].includes(raw)) return "v20";
   if (["v15", "15", "1.5", "pro15", "1.5-pro", "seedance-1.5"].includes(raw)) return "v15";
@@ -129,12 +143,15 @@ function normalizeModelAlias(value: unknown): ModelAlias {
 
 function modelId(alias: ModelAlias): string {
   const config = MODEL_CATALOG[alias];
+  if (alias === "wan30") return WAN3_MODEL;
   return Deno.env.get(config.env) || config.fallback;
 }
 
-function normalizeRatio(value: unknown): string {
+function normalizeRatio(value: unknown, alias: ModelAlias): string {
   const ratio = safeString(value, "adaptive");
-  const allowed = new Set(["adaptive", "16:9", "9:16", "1:1", "4:3", "3:4", "21:9"]);
+  const allowed = alias === "wan30"
+    ? new Set(["adaptive", "16:9", "9:16", "1:1", "4:3", "3:4"])
+    : new Set(["adaptive", "16:9", "9:16", "1:1", "4:3", "3:4", "21:9"]);
   if (ratio === "3:1") return "21:9";
   return allowed.has(ratio) ? ratio : "adaptive";
 }
@@ -148,6 +165,7 @@ function normalizeResolution(value: unknown, alias: ModelAlias): string {
 function normalizeDuration(value: unknown, alias: ModelAlias): number {
   const config = MODEL_CATALOG[alias];
   const n = Number(value);
+  if (alias === "wan30" && n === -1) return -1;
   if (!Number.isFinite(n)) return Math.max(config.minDuration, 4);
   return Math.max(config.minDuration, Math.min(config.maxDuration, Math.round(n)));
 }
@@ -177,6 +195,22 @@ function estimateCostCny(args: {
 }) {
   const { alias, resolution, duration, generateAudio, hasVideoInput, videoInputSeconds, inputMode } = args;
   const config: any = MODEL_CATALOG[alias];
+  if (alias === "wan30") {
+    const pricedDuration = duration === -1 ? 5 : duration;
+    const billedSeconds = pricedDuration + (hasVideoInput ? Math.max(0, videoInputSeconds) : 0);
+    const ratePerSecond = Number(config.pricing[resolution] || config.pricing["720p"]);
+    return {
+      currency: "CNY",
+      estimated_tokens: 0,
+      rate_per_second_cny: ratePerSecond,
+      estimated_cost_cny: Number((billedSeconds * ratePerSecond).toFixed(4)),
+      billing_input_mode: hasVideoInput ? "input_and_output_seconds" : "output_seconds",
+      input_mode: inputMode,
+      video_input_seconds: Number(videoInputSeconds.toFixed(3)),
+      smart_duration: duration === -1,
+      pricing_note: "预估值；Wan 3.0 按输入视频与输出视频总秒数计费，最终以阿里云百炼账单为准。",
+    };
+  }
   const pixels = RESOLUTION_PIXELS[resolution] || RESOLUTION_PIXELS["720p"];
   const secondsForTokens = config.family === "2.0" ? duration + (hasVideoInput ? Math.max(0, videoInputSeconds) : 0) : duration;
   const estimatedTokens = Math.ceil((pixels * FPS * secondsForTokens) / 1024);
@@ -218,7 +252,6 @@ Deno.serve(async (req: Request) => {
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const arkApiKey = Deno.env.get("ARK_API_KEY");
   if (!supabaseUrl || !serviceRoleKey) return respond({ error: "Supabase server secrets are missing" }, 500);
-  if (!arkApiKey) return respond({ error: "ARK_API_KEY 未配置" }, 500);
 
   const authHeader = req.headers.get("Authorization") || "";
   const jwt = authHeader.replace(/^Bearer\s+/i, "");
@@ -322,7 +355,14 @@ Deno.serve(async (req: Request) => {
   const modelAlias = normalizeModelAlias(requestBody.model_alias || segment.model_alias || "mini");
   const config: any = MODEL_CATALOG[modelAlias];
   const model = modelId(modelAlias);
-  const ratio = normalizeRatio(requestBody.ratio || segment.ratio || "adaptive");
+  const provider = modelAlias === "wan30" ? "dashscope" : "ark";
+  if (provider === "ark" && !arkApiKey) return respond({ error: "ARK_API_KEY 未配置" }, 500);
+  const dashscopeApiKey = safeString(Deno.env.get("DASHSCOPE_API_KEY") || Deno.env.get("QWEN_API_KEY")).trim();
+  const dashscopeWorkspaceId = safeString(Deno.env.get("DASHSCOPE_WORKSPACE_ID")).trim();
+  if (provider === "dashscope" && !dashscopeApiKey) {
+    return respond({ error: "WAN3_SERVER_CONFIGURATION_MISSING", message: "Wan 3.0 服务尚未完成安全配置。", retryable: false }, 503);
+  }
+  const ratio = normalizeRatio(requestBody.ratio || segment.ratio || "adaptive", modelAlias);
   const duration = normalizeDuration(requestBody.duration || segment.duration || 4, modelAlias);
   const resolution = normalizeResolution(requestBody.resolution || segment.resolution || "720p", modelAlias);
   const requestedAudio = Boolean(requestBody.generate_audio);
@@ -332,6 +372,14 @@ Deno.serve(async (req: Request) => {
   const hasImageInput = !isTextOnly || referenceSignedItems.some((item: any) => String(item.mime_type || "").startsWith("image/"));
   const videoInputSeconds = referenceVideoSeconds(requestBody, referenceSignedItems);
   const inputMode = [hasVideoInput ? "video" : "", hasImageInput ? "image" : "", hasAudioInput ? "audio" : ""].filter(Boolean).join("+") || "text";
+
+  if (modelAlias === "wan30" && duration !== -1 && hasVideoInput && duration + videoInputSeconds > 30) {
+    return respond({
+      error: "WAN3_DURATION_LIMIT_EXCEEDED",
+      message: `Wan 3.0 要求参考视频与生成视频总时长不超过 30 秒；当前参考视频约 ${videoInputSeconds.toFixed(1)} 秒，请缩短生成时长。`,
+      retryable: false,
+    }, 400);
+  }
 
   if (modelAlias === "v15" && hasVideoInput) return respond({ error: "Davis Video 1.5 Pro 不支持参考视频输入；请改用 Davis Video 2.0 / Fast / Mini，或移除参考视频。", retryable: false }, 200);
   if (modelAlias === "v15" && hasAudioInput) return respond({ error: "Davis Video 1.5 Pro 当前接入用于纯文字/图片/首尾帧生成，不接收参考音频；声音开关控制生成视频是否带声音。参考音频请改用 Davis Video 2.0。", retryable: false }, 200);
@@ -385,7 +433,9 @@ Deno.serve(async (req: Request) => {
     if (requestShape.taskType !== "first_last_i2v" || roles.length !== 2 || roles[0] !== "first_frame" || roles[1] !== "last_frame") return respond({ error: "STRICT_FRAME_LOCK_ROUTE_INVALID", retryable: false }, 500);
   }
 
-  const endpoint = "https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks";
+  const endpoint = provider === "dashscope"
+    ? `${wan3BaseUrl(dashscopeWorkspaceId)}/services/aigc/video-generation/video-synthesis`
+    : "https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks";
   const costEstimate = estimateCostCny({ alias: modelAlias, resolution, duration, generateAudio, hasVideoInput, videoInputSeconds, inputMode });
   const diagnostics = {
     image_count: content.filter((item: any) => item.type === "image_url").length,
@@ -399,6 +449,7 @@ Deno.serve(async (req: Request) => {
     model,
     model_alias: modelAlias,
     model_label: config.label,
+    provider,
     input_mode: inputMode,
     endpoint,
     real_person_count: realPersonCount,
@@ -419,11 +470,22 @@ Deno.serve(async (req: Request) => {
 
   const arkPayload: Record<string, any> = { model, content, resolution, ratio, duration, watermark: true, return_last_frame: !isTextOnly };
   if (config.supportsAudio) arkPayload.generate_audio = generateAudio;
+  const wanPayload = provider === "dashscope" ? buildWan3Payload({
+    prompt: promptText,
+    content,
+    resolution,
+    ratio,
+    duration,
+    generateAudio,
+    promptExtend: false,
+    watermark: true,
+  }) : null;
 
   const requestPayloadForRecord = {
     client_submit_nonce: clientSubmitNonce,
     note: "seedance_task_shape_v52_model_catalog_cost",
     endpoint,
+    provider,
     model,
     model_alias: modelAlias,
     model_label: config.label,
@@ -433,7 +495,7 @@ Deno.serve(async (req: Request) => {
     original_prompt: originalPromptText,
     effective_prompt: promptText,
     prompt_reference_normalization: promptReferenceNormalization,
-    api_shape: "ark.content_generation.tasks.create",
+    api_shape: provider === "dashscope" ? "dashscope.wan3.video-synthesis" : "ark.content_generation.tasks.create",
     task_type: requestShape.taskType,
     image_submission_method: requestShape.imageSubmissionMethod,
     image_transform: isTextOnly ? "client_safe_reference_media" : "client_safe_contain_pad_no_crop",
@@ -449,11 +511,12 @@ Deno.serve(async (req: Request) => {
     generate_audio: generateAudio,
     prompt_mode: isTextOnly ? safeString(requestBody.prompt_mode || "text_reference_video_v15") : FRAME_LOCK_POLICY,
     pricing_estimate: costEstimate,
-    ark_payload_redacted: redactArkPayload(arkPayload),
-    ark_payload: arkPayload,
+    ...(provider === "dashscope"
+      ? { wan_payload: wanPayload }
+      : { ark_payload_redacted: redactArkPayload(arkPayload), ark_payload: arkPayload }),
   };
 
-  const { data: localTask, error: taskInsertError } = await admin.from("video_tasks").insert({ owner_id: user.id, project_id: segment.project_id, segment_id: segment.id, provider_task_id: null, status: "queued", progress: 10, model_alias: modelAlias, request_payload: requestPayloadForRecord, provider_response: { ark_submit_attempts: 0, submission_phase: "queued_for_worker" }, metadata: diagnostics }).select().single();
+  const { data: localTask, error: taskInsertError } = await admin.from("video_tasks").insert({ owner_id: user.id, project_id: segment.project_id, segment_id: segment.id, provider_task_id: null, status: "queued", progress: 10, model_alias: modelAlias, request_payload: requestPayloadForRecord, provider_response: { provider, submit_attempts: 0, ark_submit_attempts: 0, submission_phase: "queued_for_worker" }, metadata: diagnostics }).select().single();
   if (taskInsertError || !localTask) {
     if (taskInsertError?.code === "23505") {
       try { const racedSubmission = await findExistingSubmission(admin, user.id, segment.id, clientSubmitNonce); if (racedSubmission) return respond(existingSubmissionResult(racedSubmission)); }
@@ -462,17 +525,19 @@ Deno.serve(async (req: Request) => {
     return respond({ error: "创建 video_tasks 失败", detail: taskInsertError?.message || null }, 500);
   }
 
-  const { error: policyEventError } = await admin.from("video_provider_policy_events").insert({ task_id: localTask.id, owner_id: user.id, provider: "ark", model, endpoint, submit_mode: submitMode, task_type: requestShape.taskType, image_role: requestShape.imageRoles?.[0] || null, image_count: diagnostics.image_count, contains_real_person: containsRealPerson, multi_person_detected: multiPersonDetected, real_person_count: realPersonCount, is_group_photo: diagnostics.is_group_photo, is_lifestyle_photo: diagnostics.is_lifestyle_photo, image_kind: diagnostics.image_kind, image_width: diagnostics.image_width, image_height: diagnostics.image_height, analysis_confidence: diagnostics.analysis_confidence, retry_count: 0, outcome: "submitted" });
-  if (policyEventError) console.error(JSON.stringify({ event: "seedance_policy_event_insert_failed", task_id: localTask.id, error: policyEventError.message }));
+  if (provider === "ark") {
+    const { error: policyEventError } = await admin.from("video_provider_policy_events").insert({ task_id: localTask.id, owner_id: user.id, provider: "ark", model, endpoint, submit_mode: submitMode, task_type: requestShape.taskType, image_role: requestShape.imageRoles?.[0] || null, image_count: diagnostics.image_count, contains_real_person: containsRealPerson, multi_person_detected: multiPersonDetected, real_person_count: realPersonCount, is_group_photo: diagnostics.is_group_photo, is_lifestyle_photo: diagnostics.is_lifestyle_photo, image_kind: diagnostics.image_kind, image_width: diagnostics.image_width, image_height: diagnostics.image_height, analysis_confidence: diagnostics.analysis_confidence, retry_count: 0, outcome: "submitted" });
+    if (policyEventError) console.error(JSON.stringify({ event: "seedance_policy_event_insert_failed", task_id: localTask.id, error: policyEventError.message }));
+  }
 
-  const { error: auditError } = await admin.from("video_operation_logs").insert({ owner_id: user.id, action: "seedance_submit_queued", target_type: "video_task", target_id: localTask.id, detail: { model, model_alias: modelAlias, model_label: config.label, endpoint, resolution, duration, generate_audio: generateAudio, pricing_estimate: costEstimate, task_type: requestShape.taskType, image_submission_method: requestShape.imageSubmissionMethod, image_transform: requestPayloadForRecord.image_transform, frame_lock_policy: diagnostics.frame_lock_policy, storyboard_parent_mode: diagnostics.storyboard_parent_mode, segment_position: diagnostics.segment_position, request_payload: requestPayloadForRecord.ark_payload_redacted, compatibility_retry_limit: requestPayloadForRecord.compatibility_retry_limit, prompt_reference_normalization: promptReferenceNormalization, final_status: "pending" } });
+  const { error: auditError } = await admin.from("video_operation_logs").insert({ owner_id: user.id, action: "seedance_submit_queued", target_type: "video_task", target_id: localTask.id, detail: { provider, model, model_alias: modelAlias, model_label: config.label, endpoint, resolution, duration, generate_audio: generateAudio, pricing_estimate: costEstimate, task_type: requestShape.taskType, image_submission_method: requestShape.imageSubmissionMethod, image_transform: requestPayloadForRecord.image_transform, frame_lock_policy: diagnostics.frame_lock_policy, storyboard_parent_mode: diagnostics.storyboard_parent_mode, segment_position: diagnostics.segment_position, request_payload: provider === "dashscope" ? wanPayload : requestPayloadForRecord.ark_payload_redacted, compatibility_retry_limit: requestPayloadForRecord.compatibility_retry_limit, prompt_reference_normalization: promptReferenceNormalization, final_status: "pending" } });
   if (auditError) console.error(JSON.stringify({ event: "seedance_audit_log_failed", task_id: localTask.id, detail: auditError.message }));
 
   const nowIso = new Date().toISOString();
   await admin.from("video_segments").update({ status: "queued", model_alias: modelAlias, duration, resolution, generate_audio: generateAudio, updated_at: nowIso }).eq("id", segment.id).eq("owner_id", user.id);
   await admin.from("video_projects").update({ status: "generating", updated_at: nowIso }).eq("id", segment.project_id).eq("owner_id", user.id);
 
-  console.info(JSON.stringify({ event: "ark_submit_queued", task_id: localTask.id, model, model_alias: modelAlias, resolution, duration, generate_audio: generateAudio, estimated_cost_cny: costEstimate.estimated_cost_cny, task_type: requestPayloadForRecord.task_type, generation_mode: requestPayloadForRecord.generation_mode, image_submission_method: requestPayloadForRecord.image_submission_method, frame_lock_policy: diagnostics.frame_lock_policy, segment_position: diagnostics.segment_position, asset_count: content.filter((item: any) => item.type !== "text").length }));
+  console.info(JSON.stringify({ event: "video_submit_queued", provider, task_id: localTask.id, model, model_alias: modelAlias, resolution, duration, generate_audio: generateAudio, estimated_cost_cny: costEstimate.estimated_cost_cny, task_type: requestPayloadForRecord.task_type, generation_mode: requestPayloadForRecord.generation_mode, image_submission_method: requestPayloadForRecord.image_submission_method, frame_lock_policy: diagnostics.frame_lock_policy, segment_position: diagnostics.segment_position, asset_count: content.filter((item: any) => item.type !== "text").length }));
 
   return respond({ success: true, submission_pending: true, status: "queued", progress: 10, task_id: localTask.id, provider_task_id: null, project_id: segment.project_id, segment_id: segment.id, model_alias: modelAlias, model, resolution, duration, generate_audio: generateAudio, pricing_estimate: costEstimate, frame_lock_policy: diagnostics.frame_lock_policy });
 });
