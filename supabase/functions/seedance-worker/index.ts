@@ -12,8 +12,9 @@ import {
 import { createArkTask, ARK_CREATE_URL } from "../_shared/seedance-ark-submit.mjs";
 import { redactArkPayload } from "../_shared/seedance-request-shape.mjs";
 import { callbackSignature, safetyIdentifier } from "../_shared/seedance-callback-auth.mjs";
+import { createWan3Task, normalizeWan3Result, queryWan3Task } from "../_shared/wan3-provider.mjs";
 
-const BUILD = "20260731-drive-recovery-backoff-v21";
+const BUILD = "20260903-wan3-video-v23";
 const ACTIVE_STATUSES = ["queued", "running", "processing", "submitting", "submitted"];
 const MAX_BATCH = 25;
 
@@ -145,6 +146,111 @@ function arkFailureForLog(error: any) {
     request_id: error?.requestId || null,
     response_body: error?.payload || { message: error instanceof Error ? error.message : String(error) },
   };
+}
+
+function hasQueuedWanPayload(task: any) {
+  const payload = task?.request_payload?.wan_payload;
+  return task?.request_payload?.provider === "dashscope" &&
+    Boolean(payload && typeof payload === "object" && !Array.isArray(payload));
+}
+
+async function processQueuedWanSubmission(
+  admin: any,
+  task: any,
+  dashscopeKey: string,
+  workspaceId: string,
+) {
+  const wanPayload = task?.request_payload?.wan_payload;
+  if (!hasQueuedWanPayload(task)) {
+    return { task_id: task.id, status: task.status, skipped: "WAN_PAYLOAD_MISSING" };
+  }
+  const attempt = Math.max(0, Number(task?.provider_response?.submit_attempts || 0)) + 1;
+  const nowIso = new Date().toISOString();
+  const { data: claimed, error: claimError } = await admin.from("video_tasks").update({
+    status: "submitting",
+    progress: 12,
+    error_message: null,
+    provider_response: {
+      ...(task.provider_response || {}),
+      provider: "dashscope",
+      submit_attempts: attempt,
+      submission_phase: "wan_create_task",
+      submit_started_at: nowIso,
+    },
+    updated_at: nowIso,
+  }).eq("id", task.id).eq("status", "queued").is("provider_task_id", null).select("*").maybeSingle();
+  if (claimError) throw new Error("WAN_SUBMIT_CLAIM_FAILED: " + claimError.message);
+  if (!claimed) return { task_id: task.id, status: task.status, skipped: "ALREADY_CLAIMED" };
+
+  try {
+    if (!dashscopeKey) throw new Error("WAN3_SERVER_CONFIGURATION_MISSING");
+    const created = await createWan3Task(dashscopeKey, workspaceId, wanPayload, { timeoutMs: 45_000 });
+    const updatedAt = new Date().toISOString();
+    const { error: taskError } = await admin.from("video_tasks").update({
+      provider_task_id: created.providerTaskId,
+      status: "queued",
+      progress: 20,
+      error_message: null,
+      provider_response: {
+        ...(created.data || {}),
+        provider: "dashscope",
+        submit_attempts: attempt,
+        submission_phase: "provider_task_bound",
+        dashscope_http_status: created.httpStatus,
+        dashscope_submit_elapsed_ms: created.elapsedMs,
+      },
+      metadata: {
+        ...(task.metadata || {}),
+        provider: "dashscope",
+        provider_task_id: created.providerTaskId,
+        provider_request_id: created.data?.request_id || null,
+        provider_error_code: null,
+      },
+      updated_at: updatedAt,
+    }).eq("id", task.id).is("provider_task_id", null);
+    if (taskError) throw new Error("WAN_PROVIDER_BIND_FAILED: " + taskError.message);
+    if (task.segment_id) {
+      await admin.from("video_segments").update({ status: "queued", updated_at: updatedAt })
+        .eq("id", task.segment_id).eq("owner_id", task.owner_id);
+    }
+    await auditOperation(admin, task, "wan3_submit_succeeded", {
+      provider: "dashscope",
+      model: wanPayload.model,
+      request_id: created.data?.request_id || null,
+      response_code: created.httpStatus,
+    });
+    return { task_id: task.id, provider_task_id: created.providerTaskId, status: "queued", progress: 20 };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const retryable = error?.retryable === true && attempt < 4;
+    const updatedAt = new Date().toISOString();
+    await admin.from("video_tasks").update({
+      status: retryable ? "queued" : "failed",
+      progress: retryable ? 10 : 0,
+      error_message: retryable ? null : message,
+      provider_response: {
+        ...(task.provider_response || {}),
+        provider: "dashscope",
+        submit_attempts: attempt,
+        submission_phase: retryable ? "retry_queued" : "failed",
+        dashscope_error_code: error?.code || "WAN_CREATE_FAILED",
+        dashscope_http_status: Number(error?.httpStatus || 0),
+      },
+      updated_at: updatedAt,
+    }).eq("id", task.id).is("provider_task_id", null);
+    if (task.segment_id) {
+      await admin.from("video_segments").update({ status: retryable ? "queued" : "failed", updated_at: updatedAt })
+        .eq("id", task.segment_id).eq("owner_id", task.owner_id);
+    }
+    await auditOperation(admin, task, "wan3_submit_failed", {
+      provider: "dashscope",
+      model: wanPayload.model,
+      error_code: error?.code || "WAN_CREATE_FAILED",
+      response_code: Number(error?.httpStatus || 0),
+      retryable,
+    });
+    return { task_id: task.id, status: retryable ? "queued" : "failed", retryable, error_message: message };
+  }
 }
 
 async function processQueuedArkSubmission(admin: any, task: any, arkKey: string, supabaseUrl: string, serviceKey: string) {
@@ -341,7 +447,9 @@ Deno.serve(async (req: Request) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
   const arkKey = Deno.env.get("ARK_API_KEY") || "";
-  if (!supabaseUrl || !serviceKey || !arkKey) {
+  const dashscopeKey = Deno.env.get("DASHSCOPE_API_KEY") || Deno.env.get("QWEN_API_KEY") || "";
+  const dashscopeWorkspaceId = Deno.env.get("DASHSCOPE_WORKSPACE_ID") || "";
+  if (!supabaseUrl || !serviceKey) {
     return json({ error: "SERVER_ENV_MISSING" }, 500);
   }
 
@@ -395,7 +503,7 @@ Deno.serve(async (req: Request) => {
 
   const staleResults = await mapWithConcurrency(staleTasks, 3, async (task: any) => {
     try {
-      if (hasQueuedArkPayload(task)) {
+      if (hasQueuedArkPayload(task) || hasQueuedWanPayload(task)) {
         const { error } = await admin.from("video_tasks").update({
           status: "queued",
           progress: 10,
@@ -434,6 +542,10 @@ Deno.serve(async (req: Request) => {
     if (queuedError) return json({ error: "QUEUED_SUBMISSION_SCAN_FAILED", detail: queuedError.message }, 500);
     submitResults = await mapWithConcurrency(queuedTasks || [], 1, async (task: any) => {
       try {
+        if (hasQueuedWanPayload(task)) {
+          return await processQueuedWanSubmission(admin, task, dashscopeKey, dashscopeWorkspaceId);
+        }
+        if (!arkKey) throw new Error("ARK_API_KEY_MISSING");
         return await processQueuedArkSubmission(admin, task, arkKey, supabaseUrl, serviceKey);
       } catch (error) {
         return {
@@ -468,6 +580,28 @@ Deno.serve(async (req: Request) => {
 
   const results = await mapWithConcurrency(tasks || [], 3, async (task: any) => {
     try {
+      if (task?.request_payload?.provider === "dashscope") {
+        if (!dashscopeKey) throw new Error("WAN3_SERVER_CONFIGURATION_MISSING");
+        const wanPayload = await queryWan3Task(
+          dashscopeKey,
+          dashscopeWorkspaceId,
+          String(task.provider_task_id),
+          { timeoutMs: 35_000 },
+        );
+        const normalizedPayload = normalizeWan3Result(wanPayload);
+        const result = await syncTaskFromArk(task, normalizedPayload, adapter);
+        return {
+          task_id: task.id,
+          provider_task_id: task.provider_task_id,
+          provider: "dashscope",
+          raw_status: normalizedPayload.dashscope_status,
+          status: result.status,
+          progress: result.progress,
+          error_message: result.errorMessage || null,
+          output_id: result.output?.id || null,
+        };
+      }
+      if (!arkKey) throw new Error("ARK_API_KEY_MISSING");
       const arkPayload = await queryArk(String(task.provider_task_id), arkKey);
       const result = await syncTaskFromArk(task, arkPayload, adapter);
       return {

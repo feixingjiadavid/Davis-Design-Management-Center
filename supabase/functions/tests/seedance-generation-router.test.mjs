@@ -80,13 +80,15 @@ test('temporary multi-person intent overrides stale first-frame clients', () => 
   assert.equal(route.diagnostics.image_role, 'reference_image');
 });
 
-test('missing role fails before provider submission', () => {
-  assert.throws(() => buildGenerationRoute({
+test('temporary multi-person route infers reference_image when role is omitted', () => {
+  const route = buildGenerationRoute({
     submitMode: 'temporary_reference_person',
     taskType: 'multi_person_reference_video',
     prompt: 'p',
     imageUrl: 'https://example.test/group.png'
-  }), /IMAGE_ROLE_REQUIRED/);
+  });
+  assert.equal(route.content[1].role, 'reference_image');
+  assert.equal(route.diagnostics.image_role, 'reference_image');
 });
 
 test('text-to-video has no image content', () => {

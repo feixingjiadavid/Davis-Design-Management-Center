@@ -3275,6 +3275,12 @@ async function r35UploadReferenceAssets(projectId, segmentsForProgress = []) {
 
 function r37ModelCatalog() {
   return {
+    wan30: {
+      label: 'Wan 3.0',
+      shortLabel: 'Wan 3.0', family: 'wan3', minDuration: 2, maxDuration: 30,
+      resolutions: ['480p','720p','1080p'], supportsAudio: true, supportsVideoReference: true,
+      pricing: { '480p': 0.3, '720p': 0.6, '1080p': 1.2 },
+    },
     v25: {
       label: 'Seedance 2.5',
       shortLabel: 'Seedance 2.5', family: '2.5', minDuration: 4, maxDuration: 30,
@@ -3366,10 +3372,31 @@ function r37EstimateCost(segment) {
   const resolution = config.resolutions.includes(String(segment?.resolution || '').toLowerCase())
     ? String(segment.resolution).toLowerCase()
     : '720p';
+  const smartDuration = config.family === 'wan3' && Number(segment?.duration) === -1;
   const rawDuration = Number(segment?.duration || config.minDuration || 4);
-  const duration = Math.max(config.minDuration, Math.min(config.maxDuration, Number.isFinite(rawDuration) ? rawDuration : config.minDuration));
+  const duration = smartDuration ? 5 : Math.max(config.minDuration, Math.min(config.maxDuration, Number.isFinite(rawDuration) ? rawDuration : config.minDuration));
   const profile = r37InputProfile(segment);
   const generateAudio = config.supportsAudio ? Boolean(segment?.generateAudio) : false;
+  if (config.family === 'wan3') {
+    const billedSeconds = duration + (profile.hasVideo ? Math.max(0, profile.videoSeconds) : 0);
+    const rate = Number(config.pricing[resolution] || config.pricing['720p']);
+    return {
+      model: config.label,
+      resolution,
+      duration: smartDuration ? -1 : duration,
+      displayDuration: smartDuration ? '智能' : `${duration}s`,
+      generateAudio,
+      inputLabel: profile.label,
+      hasVideo: profile.hasVideo,
+      videoSeconds: profile.videoSeconds,
+      lowerBound: smartDuration || (profile.hasVideo && profile.unknownVideoDuration),
+      estimatedTokens: 0,
+      rate,
+      rateUnit: '秒',
+      cost: billedSeconds * rate,
+      family: config.family,
+    };
+  }
   const secondsForTokens = config.family === '2.0' || config.family === '2.5'
     ? duration + (profile.hasVideo ? Math.max(0, profile.videoSeconds) : 0)
     : duration;
@@ -3399,11 +3426,17 @@ function r37ValidateSegmentConfig(segment) {
   const profile = r37InputProfile(segment);
   const duration = Number(segment?.duration || 0);
   const resolution = String(segment?.resolution || '').toLowerCase();
-  if (duration < config.minDuration || duration > config.maxDuration) {
+  if (duration !== -1 && (duration < config.minDuration || duration > config.maxDuration)) {
     return `${config.label} 支持 ${config.minDuration}-${config.maxDuration} 秒，请调整时长。`;
   }
   if (!config.resolutions.includes(resolution)) {
     return `${config.label} 当前支持 ${config.resolutions.map(item => item.toUpperCase()).join(' / ')}，请调整清晰度。`;
+  }
+  if (segment?.model === 'wan30' && !['adaptive','16:9','4:3','1:1','3:4','9:16'].includes(String(state.draft?.ratio || 'adaptive'))) {
+    return 'Wan 3.0 支持智能比例、16:9、4:3、1:1、3:4、9:16；请调整项目比例。';
+  }
+  if (segment?.model === 'wan30' && duration !== -1 && profile.hasVideo && profile.videoSeconds > 0 && duration + profile.videoSeconds > 30) {
+    return `Wan 3.0 要求参考视频与生成视频总时长不超过 30 秒；当前最多可生成 ${Math.max(2, Math.floor(30 - profile.videoSeconds))} 秒。`;
   }
   if (segment?.model === 'v15' && profile.hasVideo) {
     return 'Seedance 1.5 Pro 当前不接收参考视频；请改用 2.0 系列，或移除参考视频。';
@@ -3431,6 +3464,7 @@ function r37ApplyModelControls(segment) {
   if (!segment) return;
   const catalog = r37ModelCatalog();
   segment.model = r37SetSelectOptions($('segment-model'), [
+    { value:'wan30', label:'Wan 3.0 · 30秒/1080P/有声' },
     { value:'v25', label:'Seedance 2.5 · 30秒/1080P' },
     { value:'v20', label:'Seedance 2.0 · 1080P/4K' },
     { value:'fast', label:'Seedance 2.0 Fast' },
@@ -3439,10 +3473,17 @@ function r37ApplyModelControls(segment) {
   ], segment.model || 'v20') || 'v20';
   const config = catalog[segment.model] || catalog.v20;
 
-  const duration = Math.max(config.minDuration, Math.min(config.maxDuration, Number(segment.duration || config.minDuration)));
+  const duration = config.family === 'wan3' && Number(segment.duration) === -1
+    ? -1
+    : Math.max(config.minDuration, Math.min(config.maxDuration, Number(segment.duration || config.minDuration)));
+  const durationItems = Array.from(
+    { length: config.maxDuration - config.minDuration + 1 },
+    (_, i) => ({ value:String(config.minDuration + i), label:`${config.minDuration + i} 秒` })
+  );
+  if (config.family === 'wan3') durationItems.unshift({ value:'-1', label:'智能时长（最长30秒）' });
   segment.duration = Number(r37SetSelectOptions(
     $('segment-duration'),
-    Array.from({ length: config.maxDuration - config.minDuration + 1 }, (_, i) => ({ value:String(config.minDuration + i), label:`${config.minDuration + i} 秒` })),
+    durationItems,
     String(duration)
   ));
 
@@ -3471,12 +3512,12 @@ function r37RenderSegmentCost(segment) {
     <div class="pricing-card-grid">
       <span>模型 <strong>${escapeHtml(estimate.model)}</strong></span>
       <span>输入 <strong>${escapeHtml(estimate.inputLabel)}</strong></span>
-      <span>时长 <strong>${estimate.duration}s</strong></span>
+      <span>时长 <strong>${estimate.displayDuration || `${estimate.duration}s`}</strong></span>
       <span>清晰度 <strong>${escapeHtml(estimate.resolution === '4k' ? '4K' : estimate.resolution.toUpperCase())}</strong></span>
       <span>声音 <strong>${estimate.generateAudio ? '有声' : '无声'}</strong></span>
-      <span>计费单价 <strong>¥${estimate.rate}/百万 tokens</strong></span>
+      <span>计费单价 <strong>${estimate.family === 'wan3' ? `¥${estimate.rate}/秒` : `¥${estimate.rate}/百万 tokens`}</strong></span>
     </div>
-    <small>${estimate.lowerBound ? '参考视频时长尚未读取完整，因此这里显示最低预估；' : ''}约 ${estimate.estimatedTokens.toLocaleString('zh-CN')} tokens${extra}。最终以 Ark usage / 火山方舟账单为准。</small>
+    <small>${estimate.family === 'wan3' ? `${estimate.lowerBound ? '智能时长或参考视频时长未确定，因此显示最低预估；' : ''}Wan 按输入视频与输出视频总秒数计费。最终以阿里云百炼账单为准。` : `${estimate.lowerBound ? '参考视频时长尚未读取完整，因此这里显示最低预估；' : ''}约 ${estimate.estimatedTokens.toLocaleString('zh-CN')} tokens${extra}。最终以 Ark usage / 火山方舟账单为准。`}</small>
     ${issue ? `<p class="pricing-warning">${escapeHtml(issue)}</p>` : ''}`;
 }
 
@@ -3490,8 +3531,8 @@ function r37RenderProjectCost() {
   const lowerBound = rows.some(row => row.estimate.lowerBound);
   el.innerHTML = `
     <div class="pricing-total-head"><span>预计本项目生成费用</span><strong>${lowerBound ? '≥ ' : '约 '}¥${total.toFixed(2)}</strong></div>
-    <div class="pricing-total-list">${rows.map((row, index) => `<div><span>SEG ${String(index + 1).padStart(2,'0')} · ${escapeHtml(r37ModelLabel(row.segment.model))} · ${row.estimate.duration}s · ${escapeHtml(row.estimate.resolution === '4k' ? '4K' : row.estimate.resolution.toUpperCase())} · ${escapeHtml(row.estimate.inputLabel)} · ${row.estimate.generateAudio ? '有声' : '无声'}</span><b>${row.estimate.lowerBound ? '≥' : '≈'} ¥${row.estimate.cost.toFixed(2)}</b></div>`).join('')}</div>
-    <small>费用为前端预估，最终以 Ark usage / 火山方舟实际账单为准。</small>`;
+    <div class="pricing-total-list">${rows.map((row, index) => `<div><span>SEG ${String(index + 1).padStart(2,'0')} · ${escapeHtml(r37ModelLabel(row.segment.model))} · ${escapeHtml(row.estimate.displayDuration || `${row.estimate.duration}s`)} · ${escapeHtml(row.estimate.resolution === '4k' ? '4K' : row.estimate.resolution.toUpperCase())} · ${escapeHtml(row.estimate.inputLabel)} · ${row.estimate.generateAudio ? '有声' : '无声'}</span><b>${row.estimate.lowerBound ? '≥' : '≈'} ¥${row.estimate.cost.toFixed(2)}</b></div>`).join('')}</div>
+    <small>费用为前端预估，最终以对应模型供应商实际账单为准。</small>`;
 }
 
 function r37ReadMediaDuration(file) {
@@ -3565,7 +3606,7 @@ function r37RenderInspector() {
   $('segment-ratio').value = state.draft.ratio === 'adaptive' ? '智能比例' : state.draft.ratio;
   if ($('segment-audio')) $('segment-audio').value = String(Boolean(segment.generateAudio));
   if ($('segment-prompt')) $('segment-prompt').placeholder = state.draft.mode === 'text_only'
-    ? '描述你想生成的视频；2.0 支持文字/图片/视频/音频参考，1.5 Pro 支持纯文字/图片并可最短生成1秒。'
+    ? '描述你想生成的视频；Wan 3.0 支持文字/图片/视频/音频参考、2-30秒与智能时长。'
     : '描述这两帧之间的动作、镜头、节奏和画面变化。';
   r37RenderSegmentCost(segment);
   syncCustomSelects();
@@ -3574,7 +3615,11 @@ function r37RenderInspector() {
 function r37RenderSummary() {
   $('summary-frames').textContent = state.draft.mode === 'text_only' ? '无需图片' : state.draft.frames.length;
   $('summary-segments').textContent = state.draft.mode === 'text_only' ? 1 : state.draft.segments.length;
-  $('summary-duration').textContent = `${state.draft.segments.reduce((sum,s)=>sum+Number(s.duration||0),0)} 秒`;
+  const hasSmartDuration = state.draft.segments.some(segment => Number(segment.duration) === -1);
+  const fixedDuration = state.draft.segments.reduce((sum, segment) => sum + Math.max(0, Number(segment.duration || 0)), 0);
+  $('summary-duration').textContent = hasSmartDuration
+    ? (fixedDuration > 0 ? `智能 + ${fixedDuration} 秒` : '智能时长')
+    : `${fixedDuration} 秒`;
   r37RenderProjectCost();
 }
 
@@ -4209,10 +4254,10 @@ async function r55AnalyzeReferenceAssetsBeforeSubmit(referenceAssets) {
   const costRows = segments.map(segment => r37EstimateCost(segment));
   const estimatedTotal = costRows.reduce((sum, item) => sum + Number(item.cost || 0), 0);
   const lowerBoundCost = costRows.some(item => item.lowerBound);
-  const costSummary = costRows.map((item, index) => 'SEG ' + String(index + 1).padStart(2,'0') + '：' + item.model + ' · ' + item.duration + 's · ' + (item.resolution === '4k' ? '4K' : item.resolution.toUpperCase()) + ' · ' + item.inputLabel + ' · ' + (item.generateAudio ? '有声' : '无声') + ' ≈ ¥' + item.cost.toFixed(2)).join('；');
-  if (!await confirmBox('确认提交真实任务', '将提交 ' + segments.length + ' 个视频片段。\\n\\n本次预估费用' + (lowerBoundCost ? '至少' : '约') + ' ¥' + estimatedTotal.toFixed(2) + '。\\n' + costSummary + '\\n\\n最终费用以 Ark usage / 火山方舟账单为准。')) return;`;
+  const costSummary = costRows.map((item, index) => 'SEG ' + String(index + 1).padStart(2,'0') + '：' + item.model + ' · ' + (item.displayDuration || (item.duration + 's')) + ' · ' + (item.resolution === '4k' ? '4K' : item.resolution.toUpperCase()) + ' · ' + item.inputLabel + ' · ' + (item.generateAudio ? '有声' : '无声') + ' ≈ ¥' + item.cost.toFixed(2)).join('；');
+  if (!await confirmBox('确认提交真实任务', '将提交 ' + segments.length + ' 个视频片段。\\n\\n本次预估费用' + (lowerBoundCost ? '至少' : '约') + ' ¥' + estimatedTotal.toFixed(2) + '。\\n' + costSummary + '\\n\\n最终费用以所选模型服务商账单为准。')) return;`;
   patched = patched.replace(versionForkMarker, r37PaidConfirm);
-  const r37ConfirmEndMarker = "  if (!await confirmBox('确认提交真实任务', '将提交 ' + segments.length + ' 个视频片段。\\n\\n本次预估费用' + (lowerBoundCost ? '至少' : '约') + ' ¥' + estimatedTotal.toFixed(2) + '。\\n' + costSummary + '\\n\\n最终费用以 Ark usage / 火山方舟账单为准。')) return;";
+  const r37ConfirmEndMarker = "  if (!await confirmBox('确认提交真实任务', '将提交 ' + segments.length + ' 个视频片段。\\n\\n本次预估费用' + (lowerBoundCost ? '至少' : '约') + ' ¥' + estimatedTotal.toFixed(2) + '。\\n' + costSummary + '\\n\\n最终费用以所选模型服务商账单为准。')) return;";
   if (!patched.includes(r37ConfirmEndMarker)) throw new Error('无法定位 R37 费用确认点');
   patched = patched.replace(r37ConfirmEndMarker, r37ConfirmEndMarker + '\n' + "  if (state.draft?.pendingVersionFork) {\n    try {\n      const versionFork = await r6ForkCurrentDraftForSubmit(segmentIds);\n      if (versionFork) {\n        segmentIds = versionFork.segmentIds;\n        segments = state.draft.segments.filter(segment => segmentIds.includes(segment.id));\n        options = { ...options, allowResubmit: false, versionForked: true };\n        if (!segments.length) return toast('无法创建新版本任务', '新版本中没有找到要提交的片段。');\n      }\n    } catch (error) {\n      console.error('[Davis Video Studio] version fork failed', error);\n      return toast('新版本创建失败', errorMessage(error, '无法创建独立版本，请稍后重试'));\n    }\n  }");
   patched = patched.replace("    segments.forEach(s => { s.status = 'preparing'; s.progress = 1; s.error = null; s.remoteTaskId = null; s.providerTaskId = null; s.remoteSegmentId = null; s.outputPath = null; });",
