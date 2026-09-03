@@ -1,6 +1,8 @@
 export const WAN3_MODEL = 'wan3.0-video';
+export const WAN3_PRIME_MODEL = 'wan3.0-video-prime';
 export const WAN3_REGION = 'cn-beijing';
 
+const MODELS = new Set([WAN3_MODEL, WAN3_PRIME_MODEL]);
 const RESOLUTIONS = new Set(['480p', '720p', '1080p']);
 const RATIOS = new Set(['adaptive', '16:9', '4:3', '1:1', '3:4', '9:16']);
 const MEDIA_TYPES = new Set([
@@ -34,6 +36,7 @@ function mediaType(item) {
 }
 
 export function buildWan3Payload({
+  model = WAN3_MODEL,
   prompt,
   content = [],
   resolution = '720p',
@@ -56,7 +59,7 @@ export function buildWan3Payload({
   const input = { prompt: String(prompt || '').trim() };
   if (media.length) input.media = media;
   return {
-    model: WAN3_MODEL,
+    model: MODELS.has(String(model || '')) ? String(model) : WAN3_MODEL,
     input,
     parameters: {
       resolution: (RESOLUTIONS.has(requestedResolution) ? requestedResolution : '720p').toUpperCase(),

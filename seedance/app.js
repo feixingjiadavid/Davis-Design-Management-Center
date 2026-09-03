@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260827-seedance-25-reference-analysis-v1';
+const PRODUCTION_BUILD = '20260903-wan3-dual-v1';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -3275,6 +3275,12 @@ async function r35UploadReferenceAssets(projectId, segmentsForProgress = []) {
 
 function r37ModelCatalog() {
   return {
+    wan30prime: {
+      label: 'Wan 3.0 Prime',
+      shortLabel: 'Wan 3.0 Prime', family: 'wan3', minDuration: 2, maxDuration: 30,
+      resolutions: ['480p','720p','1080p'], supportsAudio: true, supportsVideoReference: true,
+      pricing: { '480p': 0.45, '720p': 0.9, '1080p': 1.8 },
+    },
     wan30: {
       label: 'Wan 3.0',
       shortLabel: 'Wan 3.0', family: 'wan3', minDuration: 2, maxDuration: 30,
@@ -3432,11 +3438,11 @@ function r37ValidateSegmentConfig(segment) {
   if (!config.resolutions.includes(resolution)) {
     return `${config.label} 当前支持 ${config.resolutions.map(item => item.toUpperCase()).join(' / ')}，请调整清晰度。`;
   }
-  if (segment?.model === 'wan30' && !['adaptive','16:9','4:3','1:1','3:4','9:16'].includes(String(state.draft?.ratio || 'adaptive'))) {
-    return 'Wan 3.0 支持智能比例、16:9、4:3、1:1、3:4、9:16；请调整项目比例。';
+  if (config.family === 'wan3' && !['adaptive','16:9','4:3','1:1','3:4','9:16'].includes(String(state.draft?.ratio || 'adaptive'))) {
+    return `${config.label} 支持智能比例、16:9、4:3、1:1、3:4、9:16；请调整项目比例。`;
   }
-  if (segment?.model === 'wan30' && duration !== -1 && profile.hasVideo && profile.videoSeconds > 0 && duration + profile.videoSeconds > 30) {
-    return `Wan 3.0 要求参考视频与生成视频总时长不超过 30 秒；当前最多可生成 ${Math.max(2, Math.floor(30 - profile.videoSeconds))} 秒。`;
+  if (config.family === 'wan3' && duration !== -1 && profile.hasVideo && profile.videoSeconds > 0 && duration + profile.videoSeconds > 30) {
+    return `${config.label} 要求参考视频与生成视频总时长不超过 30 秒；当前最多可生成 ${Math.max(2, Math.floor(30 - profile.videoSeconds))} 秒。`;
   }
   if (segment?.model === 'v15' && profile.hasVideo) {
     return 'Seedance 1.5 Pro 当前不接收参考视频；请改用 2.0 系列，或移除参考视频。';
@@ -3464,6 +3470,7 @@ function r37ApplyModelControls(segment) {
   if (!segment) return;
   const catalog = r37ModelCatalog();
   segment.model = r37SetSelectOptions($('segment-model'), [
+    { value:'wan30prime', label:'Wan 3.0 Prime · 高速/30秒/1080P/有声' },
     { value:'wan30', label:'Wan 3.0 · 30秒/1080P/有声' },
     { value:'v25', label:'Seedance 2.5 · 30秒/1080P' },
     { value:'v20', label:'Seedance 2.0 · 1080P/4K' },

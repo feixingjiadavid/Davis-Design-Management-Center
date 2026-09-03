@@ -2,12 +2,20 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   WAN3_MODEL,
+  WAN3_PRIME_MODEL,
   buildWan3Payload,
   createWan3Task,
   normalizeWan3Result,
   queryWan3Task,
   wan3BaseUrl,
 } from './wan3-provider.mjs';
+
+test('builds distinct standard and Prime model payloads', () => {
+  assert.equal(WAN3_MODEL, 'wan3.0-video');
+  assert.equal(WAN3_PRIME_MODEL, 'wan3.0-video-prime');
+  assert.equal(buildWan3Payload({ prompt: '标准版' }).model, WAN3_MODEL);
+  assert.equal(buildWan3Payload({ prompt: '高速版', model: WAN3_PRIME_MODEL }).model, WAN3_PRIME_MODEL);
+});
 
 test('builds the Beijing Wan 3.0 endpoint from a safe workspace id', () => {
   assert.equal(WAN3_MODEL, 'wan3.0-video');

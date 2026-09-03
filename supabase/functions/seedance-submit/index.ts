@@ -4,9 +4,9 @@ import { buildSeedanceRequestShape, redactArkPayload } from "../_shared/seedance
 import { normalizePromptReferences } from "../_shared/seedance-prompt-references.mjs";
 import { buildGenerationRoute } from "../_shared/seedance-generation-router.mjs";
 import { buildServerStrictFrameLockPrompt } from "../_shared/seedance-frame-lock.mjs";
-import { buildWan3Payload, WAN3_MODEL, wan3BaseUrl } from "../_shared/wan3-provider.mjs";
+import { buildWan3Payload, WAN3_MODEL, WAN3_PRIME_MODEL, wan3BaseUrl } from "../_shared/wan3-provider.mjs";
 
-const BUILD = "20260903-wan3-video-v56";
+const BUILD = "20260903-wan3-dual-v58";
 const FRAME_LOCK_POLICY = "strict_first_last_server_v3_identity_lock";
 const FPS = 24;
 
@@ -17,6 +17,18 @@ const CORS = {
 };
 
 const MODEL_CATALOG = {
+  wan30prime: {
+    label: "Wan 3.0 Prime",
+    env: "",
+    fallback: WAN3_PRIME_MODEL,
+    family: "wan3",
+    minDuration: 2,
+    maxDuration: 30,
+    resolutions: ["480p", "720p", "1080p"],
+    supportsAudio: true,
+    supportsVideoReference: true,
+    pricing: { "480p": 0.45, "720p": 0.9, "1080p": 1.8 },
+  },
   wan30: {
     label: "Wan 3.0",
     env: "",
@@ -133,6 +145,7 @@ function safeString(value: unknown, fallback = ""): string {
 
 function normalizeModelAlias(value: unknown): ModelAlias {
   const raw = safeString(value, "mini").trim().toLowerCase();
+  if (["wan30prime", "wan3prime", "wan3.0-prime", "wan3.0-video-prime", "wan-3.0-prime"].includes(raw)) return "wan30prime";
   if (["wan30", "wan3", "wan3.0", "wan3.0-video", "wan-3.0"].includes(raw)) return "wan30";
   if (["v25", "25", "2.5", "seedance2.5", "seedance-2.5", "doubao-seedance-2-5", "doubao-seedance-2-5-260628"].includes(raw)) return "v25";
   if (["v20", "20", "2.0", "standard", "seedance2", "seedance-2.0"].includes(raw)) return "v20";
@@ -143,13 +156,14 @@ function normalizeModelAlias(value: unknown): ModelAlias {
 
 function modelId(alias: ModelAlias): string {
   const config = MODEL_CATALOG[alias];
+  if (alias === "wan30prime") return WAN3_PRIME_MODEL;
   if (alias === "wan30") return WAN3_MODEL;
   return Deno.env.get(config.env) || config.fallback;
 }
 
 function normalizeRatio(value: unknown, alias: ModelAlias): string {
   const ratio = safeString(value, "adaptive");
-  const allowed = alias === "wan30"
+  const allowed = MODEL_CATALOG[alias].family === "wan3"
     ? new Set(["adaptive", "16:9", "9:16", "1:1", "4:3", "3:4"])
     : new Set(["adaptive", "16:9", "9:16", "1:1", "4:3", "3:4", "21:9"]);
   if (ratio === "3:1") return "21:9";
@@ -165,7 +179,7 @@ function normalizeResolution(value: unknown, alias: ModelAlias): string {
 function normalizeDuration(value: unknown, alias: ModelAlias): number {
   const config = MODEL_CATALOG[alias];
   const n = Number(value);
-  if (alias === "wan30" && n === -1) return -1;
+  if (config.family === "wan3" && n === -1) return -1;
   if (!Number.isFinite(n)) return Math.max(config.minDuration, 4);
   return Math.max(config.minDuration, Math.min(config.maxDuration, Math.round(n)));
 }
@@ -195,7 +209,7 @@ function estimateCostCny(args: {
 }) {
   const { alias, resolution, duration, generateAudio, hasVideoInput, videoInputSeconds, inputMode } = args;
   const config: any = MODEL_CATALOG[alias];
-  if (alias === "wan30") {
+  if (config.family === "wan3") {
     const pricedDuration = duration === -1 ? 5 : duration;
     const billedSeconds = pricedDuration + (hasVideoInput ? Math.max(0, videoInputSeconds) : 0);
     const ratePerSecond = Number(config.pricing[resolution] || config.pricing["720p"]);
@@ -208,7 +222,7 @@ function estimateCostCny(args: {
       input_mode: inputMode,
       video_input_seconds: Number(videoInputSeconds.toFixed(3)),
       smart_duration: duration === -1,
-      pricing_note: "预估值；Wan 3.0 按输入视频与输出视频总秒数计费，最终以阿里云百炼账单为准。",
+      pricing_note: `预估值；${config.label} 按输入视频与输出视频总秒数计费，最终以阿里云百炼账单为准。`,
     };
   }
   const pixels = RESOLUTION_PIXELS[resolution] || RESOLUTION_PIXELS["720p"];
@@ -355,7 +369,7 @@ Deno.serve(async (req: Request) => {
   const modelAlias = normalizeModelAlias(requestBody.model_alias || segment.model_alias || "mini");
   const config: any = MODEL_CATALOG[modelAlias];
   const model = modelId(modelAlias);
-  const provider = modelAlias === "wan30" ? "dashscope" : "ark";
+  const provider = modelAlias === "wan30" ? "dashscope" : modelAlias === "wan30prime" ? "dashscope" : "ark";
   if (provider === "ark" && !arkApiKey) return respond({ error: "ARK_API_KEY 未配置" }, 500);
   const dashscopeApiKey = safeString(Deno.env.get("DASHSCOPE_API_KEY") || Deno.env.get("QWEN_API_KEY")).trim();
   const dashscopeWorkspaceId = safeString(Deno.env.get("DASHSCOPE_WORKSPACE_ID")).trim();
@@ -373,7 +387,7 @@ Deno.serve(async (req: Request) => {
   const videoInputSeconds = referenceVideoSeconds(requestBody, referenceSignedItems);
   const inputMode = [hasVideoInput ? "video" : "", hasImageInput ? "image" : "", hasAudioInput ? "audio" : ""].filter(Boolean).join("+") || "text";
 
-  if (modelAlias === "wan30" && duration !== -1 && hasVideoInput && duration + videoInputSeconds > 30) {
+  if (config.family === "wan3" && duration !== -1 && hasVideoInput && duration + videoInputSeconds > 30) {
     return respond({
       error: "WAN3_DURATION_LIMIT_EXCEEDED",
       message: `Wan 3.0 要求参考视频与生成视频总时长不超过 30 秒；当前参考视频约 ${videoInputSeconds.toFixed(1)} 秒，请缩短生成时长。`,
@@ -471,6 +485,7 @@ Deno.serve(async (req: Request) => {
   const arkPayload: Record<string, any> = { model, content, resolution, ratio, duration, watermark: true, return_last_frame: !isTextOnly };
   if (config.supportsAudio) arkPayload.generate_audio = generateAudio;
   const wanPayload = provider === "dashscope" ? buildWan3Payload({
+    model,
     prompt: promptText,
     content,
     resolution,

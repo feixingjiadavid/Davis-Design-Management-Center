@@ -9,7 +9,11 @@ const workerSource = await readFile(new URL('../supabase/functions/seedance-work
 
 test('frontend exposes Wan 3.0 without removing existing Seedance models', () => {
   assert.match(appSource, /wan30:\s*\{/);
+  assert.match(appSource, /wan30prime:\s*\{/);
   assert.match(appSource, /label:\s*['"]Wan 3\.0['"]/);
+  assert.match(appSource, /label:\s*['"]Wan 3\.0 Prime['"]/);
+  assert.match(appSource, /wan30prime:[\s\S]*?pricing:\s*\{\s*['"]480p['"]:\s*0\.45,\s*['"]720p['"]:\s*0\.9,\s*['"]1080p['"]:\s*1\.8/);
+  assert.match(appSource, /wan30:[\s\S]*?pricing:\s*\{\s*['"]480p['"]:\s*0\.3,\s*['"]720p['"]:\s*0\.6,\s*['"]1080p['"]:\s*1\.2/);
   assert.match(appSource, /minDuration:\s*2,\s*maxDuration:\s*30/);
   assert.match(appSource, /resolutions:\s*\[['"]480p['"],['"]720p['"],['"]1080p['"]\]/);
   assert.match(appSource, /value:\s*['"]wan30['"]/);
@@ -17,10 +21,13 @@ test('frontend exposes Wan 3.0 without removing existing Seedance models', () =>
     assert.match(appSource, new RegExp(`value:\\s*['"]${alias}['"]`));
   }
   assert.match(htmlSource, /<option value="wan30">Wan 3\.0/);
+  assert.match(htmlSource, /<option value="wan30prime">Wan 3\.0 Prime/);
 });
 
 test('submit and worker route Wan through DashScope while preserving Ark', () => {
-  assert.match(submitSource, /modelAlias === ['"]wan30['"] \? ['"]dashscope['"] : ['"]ark['"]/);
+  assert.match(submitSource, /modelAlias === ['"]wan30['"] \? ['"]dashscope['"] : modelAlias === ['"]wan30prime['"] \? ['"]dashscope['"] : ['"]ark['"]/);
+  assert.match(submitSource, /wan30prime/);
+  assert.match(submitSource, /WAN3_PRIME_MODEL/);
   assert.match(submitSource, /wan_payload/);
   assert.match(submitSource, /WAN3_DURATION_LIMIT_EXCEEDED/);
   assert.match(submitSource, /ark_payload/);
