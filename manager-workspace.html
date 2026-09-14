@@ -17,6 +17,7 @@
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="assets/manager-identity-normalizer.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
         body { background-color: #09090b; color: #e4e4e7; font-family: 'Inter', system-ui, sans-serif; }
@@ -2297,20 +2298,20 @@
             if(syncDot && !isSilent) syncDot.classList.remove('hidden');
 
             try {
-                // 拉取用户配置表
-                const { data: users, error: uErr } = await window.supabase.from('user_profiles').select('id, en_name, cn_name, display_name, email, role, perms, avatar, color');
-                systemUsers = [];
-                if (!uErr && users) {
-                    users.forEach(u => {
-                        const en = (u.en_name || '').toLowerCase();
-                        const excludedUsers = ['judyzzhang', 'ponyxu', 'davidxu'];
-                        if(en && !excludedUsers.includes(en)) {
-                            if(!systemUsers.some(x => x.en === en)) {
-                                systemUsers.push({ en: en, display: u.display_name || u.cn_name || u.en_name || en });
-                            }
-                        }
-                    });
-                }
+                // user_profiles 视图只暴露以下 4 列；额外读取通知别名表以兼容历史中文名、花名和邮箱。
+                const [profileResult, aliasResult] = await Promise.all([
+                    window.supabase.from('user_profiles').select('id, en_name, cn_name, display_name'),
+                    window.supabase.from('notify_user_map').select('alias, en_name, display_name, email')
+                ]);
+                if (profileResult.error) throw profileResult.error;
+                if (aliasResult.error) console.warn('人员别名映射读取失败，将仅使用用户档案匹配：', aliasResult.error);
+
+                const excludedUsers = ['judyzzhang', 'ponyxu', 'davidxu'];
+                systemUsers = window.AdminIdentityNormalizer.buildSystemUsers(
+                    profileResult.data || [],
+                    aliasResult.error ? [] : (aliasResult.data || []),
+                    excludedUsers
+                );
 
                 const { data: tasks, error } = await window.supabase.from(window.DB_TABLE).select('id, title, project, status, creator, assignee, due_date, history_json, created_at').order('created_at', { ascending: false }).limit(500);
                 if (error) throw error;
@@ -2499,7 +2500,7 @@
 
                             if (h.operator) {
                                 let opLower = h.operator.toLowerCase();
-                                let matchedUser = systemUsers.find(u => opLower.includes(u.en) || (u.display && opLower.includes(u.display.toLowerCase())));
+                                let matchedUser = window.AdminIdentityNormalizer.resolveSystemUser(opLower, systemUsers);
                                 let key = matchedUser ? matchedUser.en : h.operator.split(' ')[0].split('(')[0].trim().toLowerCase();
                                 let displayTitle = matchedUser ? matchedUser.display : h.operator.split(' ')[0].split('(')[0].trim();
 
@@ -2547,7 +2548,7 @@
                     // 映射下游承接设计师的即时任务堆叠
                     if (t.assignee && t.assignee !== 'none' && t.status !== 'pending') {
                         let assLower = t.assignee.toLowerCase();
-                        let matchedAssignee = systemUsers.find(u => assLower.includes(u.en) || (u.display && assLower.includes(u.display.toLowerCase())));
+                        let matchedAssignee = window.AdminIdentityNormalizer.resolveSystemUser(assLower, systemUsers);
                         let aKey = matchedAssignee ? matchedAssignee.en : t.assignee.split(' ')[0].split('(')[0].trim().toLowerCase();
                         let aDisplay = matchedAssignee ? matchedAssignee.display : t.assignee.split(' ')[0].split('(')[0].trim();
 
