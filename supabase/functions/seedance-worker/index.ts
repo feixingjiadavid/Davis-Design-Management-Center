@@ -13,8 +13,9 @@ import { createArkTask, ARK_CREATE_URL } from "../_shared/seedance-ark-submit.mj
 import { redactArkPayload } from "../_shared/seedance-request-shape.mjs";
 import { callbackSignature, safetyIdentifier } from "../_shared/seedance-callback-auth.mjs";
 import { createWan3Task, normalizeWan3Result, queryWan3Task } from "../_shared/wan3-provider.mjs";
+import { refreshProviderPayload } from "../_shared/seedance-provider-recovery.mjs";
 
-const BUILD = "20260903-wan3-video-v23";
+const BUILD = "20260915-wan3-drive-recovery-v24";
 const ACTIVE_STATUSES = ["queued", "running", "processing", "submitting", "submitted"];
 const MAX_BATCH = 25;
 
@@ -657,10 +658,21 @@ Deno.serve(async (req: Request) => {
         providerVideoUrlFromPayload(arkPayload);
 
       // Provider URLs are temporary. Historical Drive recovery must refresh the
-      // Ark result before download instead of retrying an expired signed URL.
+      // matching provider result before download instead of retrying an expired signed URL.
       if (providerTaskId && (recoverDriveFailures || !videoUrl)) {
-        const refreshedArkPayload = await queryArk(providerTaskId, arkKey, 15000);
-        const refreshedVideoUrl = providerVideoUrlFromPayload(refreshedArkPayload);
+        const refreshed = await refreshProviderPayload({
+          task,
+          providerTaskId,
+          arkKey,
+          dashscopeKey,
+          dashscopeWorkspaceId,
+          queryArk,
+          queryWan3Task,
+          normalizeWan3Result,
+          timeoutMs: 15_000,
+        });
+        const refreshedProviderPayload = refreshed.payload;
+        const refreshedVideoUrl = providerVideoUrlFromPayload(refreshedProviderPayload);
         if (!refreshedVideoUrl) {
           await admin.from("video_outputs").update({
             metadata: {
@@ -672,14 +684,15 @@ Deno.serve(async (req: Request) => {
           }).eq("id", output.id);
           throw new Error("PROVIDER_VIDEO_URL_REFRESH_FAILED");
         }
-        arkPayload = refreshedArkPayload;
+        arkPayload = refreshedProviderPayload;
         videoUrl = refreshedVideoUrl;
         const refreshedAt = new Date().toISOString();
         const { error: refreshPersistError } = await admin.from("video_outputs").update({
           metadata: {
             ...(output.metadata || {}),
             provider_video_url: refreshedVideoUrl,
-            ark_response: refreshedArkPayload,
+            ark_response: refreshedProviderPayload,
+            provider: refreshed.provider,
             provider_url_refreshed_at: refreshedAt,
           },
           storage_attempts: recoverDriveFailures ? 0 : Number(output.storage_attempts || 0),
