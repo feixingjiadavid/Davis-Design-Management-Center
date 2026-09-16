@@ -21,6 +21,18 @@ if (isVideoStudio) {
   } catch (error) {
     console.warn('[Davis Video A] history compatibility bootstrap failed; A UI continues', error)
   }
+
+  // 生成记录以 Supabase 为真源。进入视频中心前先把当前账号的云端项目
+  // 与 IndexedDB 本地草稿重新绑定；换浏览器、清缓存、Drive 备份失败都不能让任务消失。
+  try {
+    const { prepareCloudProjectCache } = await import('./seedance/cloud-project-reconcile.mjs?v=20260916-v1')
+    const cloud = await prepareCloudProjectCache(supabase)
+    if (cloud?.repaired || cloud?.created) {
+      console.log('[Davis Video] cloud project cache reconciled', cloud)
+    }
+  } catch (error) {
+    console.warn('[Davis Video] cloud project reconciliation failed; normal boot continues', error)
+  }
 }
 
 async function waitForR50ProjectTree(timeoutMs = 10000) {
