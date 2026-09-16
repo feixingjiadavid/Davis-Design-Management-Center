@@ -1,11 +1,12 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const BUILD = "20260729-admin-read-proxy-r16";
+const BUILD = "20260916-supabase-primary-proxy-v28";
+const PRIMARY_BUCKET = "seedance-outputs";
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, range",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
-  "Access-Control-Expose-Headers": "Content-Length, Content-Range, Accept-Ranges, Content-Type, Content-Disposition",
+  "Access-Control-Expose-Headers": "Content-Length, Content-Range, Accept-Ranges, Content-Type, Content-Disposition, X-Seedance-Source",
 };
 
 type AnyMap = Record<string, any>;
@@ -23,26 +24,101 @@ async function readJsonSafe(response: Response): Promise<any> {
   try { return JSON.parse(text); } catch { return { text }; }
 }
 
+function metadata(row: any) {
+  return row?.metadata && typeof row.metadata === "object" ? row.metadata : {};
+}
+
 function googleDriveFileIdFromOutput(row: any): string {
-  const meta = row?.metadata || {};
-  return String(
+  const meta = metadata(row);
+  const value = String(
     row?.google_drive_file_id ||
     meta.google_drive_file_id || meta.googleDriveFileId || meta.drive_file_id || meta.driveFileId || ""
   ).trim();
+  return value.startsWith("supabase:") ? "" : value;
 }
 
-async function getGoogleAccessToken(): Promise<string> {
+function supabasePrimaryPath(row: any) {
+  const meta = metadata(row);
+  return String(
+    (row?.bucket_id === PRIMARY_BUCKET ? row?.storage_path : "") || meta.supabase_path || ""
+  ).trim();
+}
+
+function primaryIsReady(row: any) {
+  const meta = metadata(row);
+  const path = supabasePrimaryPath(row);
+  const status = String(meta.primary_storage_status || "").toLowerCase();
+  return Boolean(path) && (row?.bucket_id === PRIMARY_BUCKET || meta.supabase_bucket === PRIMARY_BUCKET) && status === "completed";
+}
+
+function primaryIsExpired(row: any) {
+  const expiresAt = Date.parse(String(metadata(row).primary_storage_expires_at || ""));
+  return Number.isFinite(expiresAt) && expiresAt <= Date.now();
+}
+
+function copyStreamHeaders(response: Response, source: string, filename: string) {
+  const outHeaders: Record<string, string> = {
+    ...CORS,
+    "Content-Type": response.headers.get("content-type") || "video/mp4",
+    "Content-Disposition": `inline; filename="${filename}"`,
+    "Cache-Control": "private, max-age=3600",
+    "Accept-Ranges": response.headers.get("accept-ranges") || "bytes",
+    "X-Seedance-Source": source,
+  };
+  const contentLength = response.headers.get("content-length");
+  const contentRange = response.headers.get("content-range");
+  if (contentLength) outHeaders["Content-Length"] = contentLength;
+  if (contentRange) outHeaders["Content-Range"] = contentRange;
+  return outHeaders;
+}
+
+async function streamSupabasePrimary(
+  supabaseUrl: string,
+  serviceKey: string,
+  row: any,
+  req: Request,
+): Promise<Response> {
+  const path = supabasePrimaryPath(row);
+  if (!path) return json({ error: "SUPABASE_PRIMARY_PATH_MISSING" }, 404);
+  const encoded = path.split("/").map(encodeURIComponent).join("/");
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${serviceKey}`,
+    apikey: serviceKey,
+  };
+  const range = req.headers.get("Range");
+  if (range) headers.Range = range;
+  const response = await fetch(
+    `${supabaseUrl}/storage/v1/object/authenticated/${PRIMARY_BUCKET}/${encoded}`,
+    { method: "GET", headers },
+  );
+  if (!response.ok || !response.body) {
+    const detail = await response.text().catch(() => "");
+    return json({ error: "SUPABASE_PRIMARY_FETCH_FAILED", status: response.status, detail: detail.slice(0, 800) }, response.status || 502);
+  }
+  return new Response(response.body, {
+    status: response.status,
+    headers: copyStreamHeaders(response, "supabase", `seedance-${row.id}.mp4`),
+  });
+}
+
+async function resolveGoogleRefreshToken(admin: any): Promise<string> {
+  const { data, error } = await admin.rpc("get_seedance_google_refresh_token");
+  if (!error && String(data || "").trim()) return String(data).trim();
+  return String(Deno.env.get("GOOGLE_REFRESH_TOKEN") || "").trim();
+}
+
+async function getGoogleAccessToken(admin: any): Promise<string> {
   const clientId = (Deno.env.get("GOOGLE_CLIENT_ID") || "").trim();
   const clientSecret = (Deno.env.get("GOOGLE_CLIENT_SECRET") || "").trim();
-  const refreshToken = (Deno.env.get("GOOGLE_REFRESH_TOKEN") || "").trim();
+  const refreshToken = await resolveGoogleRefreshToken(admin);
   if (!clientId || !clientSecret || !refreshToken) throw new Error("GOOGLE_SECRETS_MISSING");
 
-  const params = new URLSearchParams();
-  params.set("client_id", clientId);
-  params.set("client_secret", clientSecret);
-  params.set("refresh_token", refreshToken);
-  params.set("grant_type", "refresh_token");
-
+  const params = new URLSearchParams({
+    client_id: clientId,
+    client_secret: clientSecret,
+    refresh_token: refreshToken,
+    grant_type: "refresh_token",
+  });
   const response = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -55,9 +131,9 @@ async function getGoogleAccessToken(): Promise<string> {
   return String(data.access_token);
 }
 
-async function streamGoogleDriveFile(fileId: string, req: Request): Promise<Response> {
-  const accessToken = await getGoogleAccessToken();
-  const headers: Record<string,string> = { Authorization: `Bearer ${accessToken}` };
+async function streamGoogleDriveFile(admin: any, fileId: string, req: Request): Promise<Response> {
+  const accessToken = await getGoogleAccessToken(admin);
+  const headers: Record<string, string> = { Authorization: `Bearer ${accessToken}` };
   const range = req.headers.get("Range");
   if (range) headers.Range = range;
 
@@ -69,19 +145,10 @@ async function streamGoogleDriveFile(fileId: string, req: Request): Promise<Resp
     const detail = await response.text().catch(() => "");
     return json({ error: "GOOGLE_DRIVE_FETCH_FAILED", status: response.status, detail: detail.slice(0, 800) }, response.status || 502);
   }
-
-  const outHeaders: Record<string,string> = {
-    ...CORS,
-    "Content-Type": response.headers.get("content-type") || "video/mp4",
-    "Content-Disposition": `inline; filename="seedance-${fileId}.mp4"`,
-    "Cache-Control": "private, max-age=3600",
-    "Accept-Ranges": response.headers.get("accept-ranges") || "bytes",
-  };
-  for (const h of ["content-length", "content-range"]) {
-    const v = response.headers.get(h);
-    if (v) outHeaders[h.replace(/(^|-)./g, s => s.toUpperCase())] = v;
-  }
-  return new Response(response.body, { status: response.status, headers: outHeaders });
+  return new Response(response.body, {
+    status: response.status,
+    headers: copyStreamHeaders(response, "google-drive", `seedance-${fileId}.mp4`),
+  });
 }
 
 Deno.serve(async (req) => {
@@ -102,9 +169,6 @@ Deno.serve(async (req) => {
   const user = userResult?.user;
   if (userError || !user) return json({ error: "INVALID_AUTH_TOKEN", detail: userError?.message || null }, 401);
 
-  // Use the caller JWT for output lookup so video_outputs RLS remains the single
-  // authorization boundary: owners can read their own rows, while approved
-  // super administrators receive read-only access to every owner's rows.
   const userClient = createClient(supabaseUrl, anonKey, {
     auth: { persistSession: false },
     global: { headers: { Authorization: `Bearer ${token}` } },
@@ -116,34 +180,36 @@ Deno.serve(async (req) => {
   const taskId = (url.searchParams.get("task_id") || url.searchParams.get("taskId") || "").trim();
 
   let outputRow: any = null;
-
   if (outputId) {
     const { data, error } = await userClient.from("video_outputs").select("*").eq("id", outputId).maybeSingle();
     if (error) return json({ error: "OUTPUT_LOOKUP_FAILED", detail: error.message }, 500);
     outputRow = data;
   }
-
   if (!outputRow && taskId) {
     const { data } = await userClient.from("video_outputs").select("*").eq("task_id", taskId).order("created_at", { ascending: false }).limit(1);
     outputRow = data?.[0] || null;
   }
-
   if (!outputRow && providerTaskId) {
-    const { data } = await userClient.from("video_outputs").select("*").eq("storage_path", `ark://${providerTaskId}.mp4`).order("created_at", { ascending: false }).limit(1);
+    const { data } = await userClient.from("video_outputs").select("*")
+      .or(`storage_path.eq.ark://${providerTaskId}.mp4,metadata->>provider_task_id.eq.${providerTaskId}`)
+      .order("created_at", { ascending: false }).limit(1);
     outputRow = data?.[0] || null;
   }
-
-  // 安全：只有通过 video_outputs RLS 的 output 才使用 file_id；禁止直接传 Drive file_id 越权拉文件。
   if (!outputRow) return json({ error: "OUTPUT_NOT_FOUND_OR_NOT_OWNED" }, 404);
 
+  if (primaryIsReady(outputRow) && !primaryIsExpired(outputRow)) {
+    return await streamSupabasePrimary(supabaseUrl, serviceKey, outputRow, req);
+  }
+
   const driveFileId = googleDriveFileIdFromOutput(outputRow);
-  const storageStatus = String(outputRow.storage_status || outputRow.status || "").toLowerCase();
-  if (driveFileId && storageStatus === "completed") return await streamGoogleDriveFile(driveFileId, req);
+  if (driveFileId) return await streamGoogleDriveFile(admin, driveFileId, req);
 
   return json({
-    error: "OUTPUT_NOT_ARCHIVED_TO_GOOGLE_DRIVE",
+    error: primaryIsExpired(outputRow) ? "DRIVE_BACKUP_REQUIRED_AFTER_RETENTION" : "OUTPUT_NOT_READY",
     output_id: outputRow.id,
-    storage_status: storageStatus || "pending",
-    message: "视频尚未完成 Google Drive 归档，禁止回退 Seedance 临时 URL。",
+    storage_status: outputRow.storage_status || outputRow.status || "pending",
+    message: primaryIsExpired(outputRow)
+      ? "Supabase 7 天主存储期已结束，但 Google Drive 备份尚未可用。"
+      : "视频正在写入 Supabase 主存储，请稍后重试。",
   }, 409);
 });
