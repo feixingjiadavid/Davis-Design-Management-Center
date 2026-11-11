@@ -1,4 +1,4 @@
-const PRODUCTION_BUILD = '20260903-wan3-dual-v1';
+const PRODUCTION_BUILD = '20261111-remove-submit-person-analysis-v1';
 const ORIGINAL_BUILD = '20260728-blob-persistence-recovery-r8';
 const ORIGINAL_FILE = './app-v46.js';
 
@@ -4044,7 +4044,7 @@ export function patchV46Source(source, { supabaseUrl, dbUrl, projectVersionUrl, 
 
   patched = patched.replace(
     "    mode: isTextOnly ? 'text_only' : state.draft.mode,\n  };",
-    "    submit_mode: isTextOnly && ((segment.referenceAssetIds || (state.referenceAssets || []).map(item => item.remoteAssetId).filter(Boolean)).length || segment.referenceAssetId) ? 'reference_image_video' : (isTextOnly ? 'text_to_video' : 'first_last_frame_video'),\n    task_type: '',\n    image_role: isTextOnly ? 'reference_image' : 'first_frame',\n    image_count: isTextOnly ? (segment.referenceAssetIds || (state.referenceAssets || []).map(item => item.remoteAssetId).filter(Boolean)).length : 2,\n    contains_real_person: isTextOnly && Array.isArray(globalThis.__davisVisionDiagnostics) ? globalThis.__davisVisionDiagnostics.some(item => item?.contains_real_person === true) : false,\n    real_person_count: isTextOnly && Array.isArray(globalThis.__davisVisionDiagnostics) ? Math.max(0, ...globalThis.__davisVisionDiagnostics.map(item => Number(item?.real_person_count || 0))) : 0,\n    multi_person_detected: isTextOnly && Array.isArray(globalThis.__davisVisionDiagnostics) ? globalThis.__davisVisionDiagnostics.some(item => item?.multi_person_detected === true) : false,\n    mode: isTextOnly ? 'text_only' : state.draft.mode,\n  };"
+    "    submit_mode: isTextOnly && ((segment.referenceAssetIds || (state.referenceAssets || []).map(item => item.remoteAssetId).filter(Boolean)).length || segment.referenceAssetId) ? 'reference_image_video' : (isTextOnly ? 'text_to_video' : 'first_last_frame_video'),\n    task_type: '',\n    image_role: isTextOnly ? 'reference_image' : 'first_frame',\n    image_count: isTextOnly ? (segment.referenceAssetIds || (state.referenceAssets || []).map(item => item.remoteAssetId).filter(Boolean)).length : 2,\n    mode: isTextOnly ? 'text_only' : state.draft.mode,\n  };"
   );
 
   patched = patched.replace(
@@ -4078,85 +4078,7 @@ async function r21ConfirmMaterialRights(error) {
 }
 
 `;
-  const referenceAnalysisHelper = `
-async function r55AnalyzeReferenceAssetsBeforeSubmit(referenceAssets) {
-  const refs = (Array.isArray(referenceAssets) ? referenceAssets : [])
-    .filter(ref => String(ref?.type || '').startsWith('image/') && ref?.remoteAssetId);
-  if (!refs.length) {
-    globalThis.__davisVisionDiagnostics = [];
-    return [];
-  }
-
-  const ids = refs.map(ref => ref.remoteAssetId);
-  const lookup = await withTimeout(
-    supabase.from('video_assets')
-      .select('id,object_path,mime_type,width,height,analysis_metadata')
-      .in('id', ids),
-    TIMEOUTS.database,
-    '读取参考图片分析状态',
-  );
-  if (lookup.error) throw new Error('读取参考图片分析状态失败：' + errorMessage(lookup.error));
-  const rows = new Map((lookup.data || []).map(row => [String(row.id), row]));
-  const diagnostics = [];
-
-  for (const ref of refs) {
-    const row = rows.get(String(ref.remoteAssetId));
-    let analysis = row?.analysis_metadata && typeof row.analysis_metadata === 'object'
-      ? row.analysis_metadata
-      : null;
-    const complete = analysis?.analysis_status === 'completed'
-      && Number(analysis?.confidence || 0) > 0;
-    if (!complete) {
-      const objectPath = row?.object_path || ref.remotePath;
-      if (!objectPath) throw new Error('参考图片“' + (ref.name || '') + '”缺少云端路径，无法识别人物');
-      const signed = await withTimeout(
-        supabase.storage.from('seedance-inputs').createSignedUrl(objectPath, 3600),
-        TIMEOUTS.database,
-        '生成参考图片分析地址',
-      );
-      if (signed.error || !signed.data?.signedUrl) {
-        throw new Error('参考图片“' + (ref.name || '') + '”分析地址生成失败：' + errorMessage(signed.error));
-      }
-      const response = await withTimeout(
-        supabase.functions.invoke('seedance-vision-analyze', {
-          body: {
-            asset_id: ref.remoteAssetId,
-            image_url: signed.data.signedUrl,
-            image_width: Number(row?.width || ref.width || 0) || null,
-            image_height: Number(row?.height || ref.height || 0) || null,
-            prompt: '识别图片中的真人数量、是否多人合影，并分析主体、场景和构图。',
-          },
-        }),
-        60000,
-        '参考图片人物识别',
-      );
-      if (response.error || !response.data?.ok || !response.data?.vision_context) {
-        throw new Error('参考图片“' + (ref.name || '') + '”人物识别失败：' + errorMessage(response.error || response.data?.error));
-      }
-      analysis = response.data.vision_context;
-    }
-    diagnostics.push({
-      contains_real_person: analysis?.contains_real_person === true,
-      real_person_count: Math.max(0, Number(analysis?.real_person_count || 0)),
-      multi_person_detected: analysis?.multi_person_detected === true
-        || analysis?.is_group_photo === true
-        || Number(analysis?.real_person_count || 0) >= 2,
-      is_group_photo: analysis?.is_group_photo === true,
-      is_lifestyle_photo: analysis?.is_lifestyle_photo === true,
-      image_kind: String(analysis?.image_kind || 'unknown'),
-      confidence: Number(analysis?.confidence || 0),
-    });
-  }
-  globalThis.__davisVisionDiagnostics = diagnostics;
-  return diagnostics;
-}
-
-`;
-  patched = patched.replace('async function submitOne(segment) {', rightsHelper + referenceAnalysisHelper + 'async function submitOne(segment) {');
-  patched = patched.replace(
-    "  const textReferenceAssets = isTextOnly ? commitTextReferenceAssets() : [];\n  if (isTextOnly) validatePromptReferenceTokens(segment, textReferenceAssets);",
-    "  const textReferenceAssets = isTextOnly ? commitTextReferenceAssets() : [];\n  if (isTextOnly) {\n    validatePromptReferenceTokens(segment, textReferenceAssets);\n    await r55AnalyzeReferenceAssetsBeforeSubmit(textReferenceAssets);\n  }"
-  );
+  patched = patched.replace('async function submitOne(segment) {', rightsHelper + 'async function submitOne(segment) {');
   patched = patched.replace(
     "    } catch (error) {\n      lastError = error;",
     "    } catch (error) {\n      if (await r21ConfirmMaterialRights(error)) { attempt -= 1; continue; }\n      lastError = error;"
