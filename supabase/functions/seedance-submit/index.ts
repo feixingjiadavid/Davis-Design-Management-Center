@@ -6,7 +6,7 @@ import { buildGenerationRoute } from "../_shared/seedance-generation-router.mjs"
 import { buildServerStrictFrameLockPrompt } from "../_shared/seedance-frame-lock.mjs";
 import { buildWan3Payload, WAN3_MODEL, WAN3_PRIME_MODEL, wan3BaseUrl } from "../_shared/wan3-provider.mjs";
 
-const BUILD = "20260903-wan3-dual-v58";
+const BUILD = "20261111-no-visible-video-watermark-v59";
 const FRAME_LOCK_POLICY = "strict_first_last_server_v3_identity_lock";
 const FPS = 24;
 
@@ -482,7 +482,7 @@ Deno.serve(async (req: Request) => {
     pricing: costEstimate,
   };
 
-  const arkPayload: Record<string, any> = { model, content, resolution, ratio, duration, watermark: true, return_last_frame: !isTextOnly };
+  const arkPayload: Record<string, any> = { model, content, resolution, ratio, duration, watermark: false, return_last_frame: !isTextOnly };
   if (config.supportsAudio) arkPayload.generate_audio = generateAudio;
   const wanPayload = provider === "dashscope" ? buildWan3Payload({
     model,
@@ -493,7 +493,7 @@ Deno.serve(async (req: Request) => {
     duration,
     generateAudio,
     promptExtend: false,
-    watermark: true,
+    watermark: false,
   }) : null;
 
   const requestPayloadForRecord = {

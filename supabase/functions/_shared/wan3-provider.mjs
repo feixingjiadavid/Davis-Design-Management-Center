@@ -44,7 +44,7 @@ export function buildWan3Payload({
   duration = 5,
   generateAudio = true,
   promptExtend = false,
-  watermark = true,
+  watermark = false,
 } = {}) {
   const requestedResolution = String(resolution || '').toLowerCase();
   const requestedRatio = String(ratio || 'adaptive');
