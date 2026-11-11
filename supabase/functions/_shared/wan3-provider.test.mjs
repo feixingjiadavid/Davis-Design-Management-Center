@@ -56,7 +56,7 @@ test('maps text and Ark-style media into the official Wan payload', () => {
       duration: 30,
       audio: false,
       prompt_extend: false,
-      watermark: true,
+      watermark: false,
     },
   });
 });
